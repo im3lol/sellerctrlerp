@@ -1,5 +1,7 @@
 package com.sellerctrl.app.ui
 
+import com.sellerctrl.app.tr
+
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -60,12 +62,12 @@ import com.sellerctrl.app.data.DashboardDto
 private data class MobileModule(val label: String, val icon: ImageVector, val route: String, val tint: Color)
 
 private val mobileModules = listOf(
-    MobileModule("المخزون", Icons.Filled.Inventory2, "search", Color(0xFF0E9F8A)),
-    MobileModule("المبيعات", Icons.Filled.ShoppingCart, "hub_sales", Color(0xFF1946D8)),
-    MobileModule("المشتريات", Icons.Filled.Store, "hub_purchases", Color(0xFFF07B00)),
-    MobileModule("المحاسبة", Icons.Filled.AccountBalance, "hub_accounting", Color(0xFF1687D4)),
-    MobileModule("العملاء", Icons.Filled.People, "customers", Color(0xFF8B5CF6)),
-    MobileModule("التقارير", Icons.Filled.Assessment, "reports", Color(0xFF5D47EA)),
+    MobileModule(tr("المخزون"), Icons.Filled.Inventory2, "search", Color(0xFF0E9F8A)),
+    MobileModule(tr("المبيعات"), Icons.Filled.ShoppingCart, "hub_sales", Color(0xFF1946D8)),
+    MobileModule(tr("المشتريات"), Icons.Filled.Store, "hub_purchases", Color(0xFFF07B00)),
+    MobileModule(tr("المحاسبة"), Icons.Filled.AccountBalance, "hub_accounting", Color(0xFF1687D4)),
+    MobileModule(tr("العملاء"), Icons.Filled.People, "customers", Color(0xFF8B5CF6)),
+    MobileModule(tr("التقارير"), Icons.Filled.Assessment, "reports", Color(0xFF5D47EA)),
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -81,20 +83,20 @@ fun DashboardScreen(nav: NavController) {
             TopAppBar(
                 title = {
                     Column {
-                        Text("مرحبًا، ${repo.userName()}", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                        Text(tr("مرحبًا، ${repo.userName()}"), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                         if (repo.orgName().isNotBlank()) Text(repo.orgName(), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.outline)
                     }
                 },
-                navigationIcon = { IconButton(onClick = LocalOpenDrawer.current) { Icon(Icons.Filled.Menu, "كل الأقسام", tint = BrandBlue) } },
+                navigationIcon = { IconButton(onClick = LocalOpenDrawer.current) { Icon(Icons.Filled.Menu, tr("كل الأقسام"), tint = BrandBlue) } },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.White),
             )
         },
         bottomBar = {
             NavigationBar(containerColor = Color.White) {
-                NavigationBarItem(selected = true, onClick = { nav.navigate("home") }, icon = { Icon(Icons.Filled.Inventory2, null) }, label = { Text("الرئيسية") })
-                NavigationBarItem(selected = false, onClick = { nav.navigate("search") }, icon = { Icon(Icons.Filled.Search, null) }, label = { Text("الأصناف") })
-                NavigationBarItem(selected = false, onClick = { nav.navigate("scan") }, icon = { Icon(Icons.Filled.QrCodeScanner, null) }, label = { Text("مسح") })
-                NavigationBarItem(selected = false, onClick = { nav.navigate("apps") }, icon = { Icon(Icons.Filled.Menu, null) }, label = { Text("المزيد") })
+                NavigationBarItem(selected = true, onClick = { nav.navigate("home") }, icon = { Icon(Icons.Filled.Inventory2, null) }, label = { Text(tr("الرئيسية")) })
+                NavigationBarItem(selected = false, onClick = { nav.navigate("search") }, icon = { Icon(Icons.Filled.Search, null) }, label = { Text(tr("الأصناف")) })
+                NavigationBarItem(selected = false, onClick = { nav.navigate("scan") }, icon = { Icon(Icons.Filled.QrCodeScanner, null) }, label = { Text(tr("مسح")) })
+                NavigationBarItem(selected = false, onClick = { nav.navigate("apps") }, icon = { Icon(Icons.Filled.Menu, null) }, label = { Text(tr("المزيد")) })
             }
         },
     ) { pad ->
@@ -109,15 +111,15 @@ fun DashboardScreen(nav: NavController) {
                     item { AttentionCard(dash) { nav.navigate("alert/reorder") } }
                 }
             }
-            item { Text("إجراءات سريعة", style = MaterialTheme.typography.titleLarge) }
+            item { Text(tr("إجراءات سريعة"), style = MaterialTheme.typography.titleLarge) }
             item {
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    QuickAction("مسح باركود", Icons.Filled.QrCodeScanner, Modifier.weight(1f)) { nav.navigate("scan") }
-                    QuickAction("أمر بيع", Icons.Filled.ShoppingCart, Modifier.weight(1f)) { nav.navigate("sales_orders") }
-                    QuickAction("تجديد المخزون", Icons.Filled.Inventory2, Modifier.weight(1f)) { nav.navigate("alert/reorder") }
+                    QuickAction(tr("مسح باركود"), Icons.Filled.QrCodeScanner, Modifier.weight(1f)) { nav.navigate("scan") }
+                    QuickAction(tr("أمر بيع"), Icons.Filled.ShoppingCart, Modifier.weight(1f)) { nav.navigate("sales_orders") }
+                    QuickAction(tr("تجديد المخزون"), Icons.Filled.Inventory2, Modifier.weight(1f)) { nav.navigate("alert/reorder") }
                 }
             }
-            item { Text("الأقسام", style = MaterialTheme.typography.titleLarge) }
+            item { Text(tr("الأقسام"), style = MaterialTheme.typography.titleLarge) }
             mobileModules.chunked(2).forEach { row ->
                 item {
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -136,9 +138,9 @@ private fun WelcomeCard() {
     Card(colors = CardDefaults.cardColors(containerColor = BrandBlue), shape = MaterialTheme.shapes.large) {
         Row(Modifier.fillMaxWidth().height(150.dp).padding(start = 18.dp), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
-                Text("كل عملياتك تحت السيطرة", color = Color.White, style = MaterialTheme.typography.titleLarge)
+                Text(tr("كل عملياتك تحت السيطرة"), color = Color.White, style = MaterialTheme.typography.titleLarge)
                 Spacer(Modifier.height(6.dp))
-                Text("تابع المبيعات والمخزون والتنبيهات لحظيًا.", color = Color.White.copy(alpha = 0.78f), style = MaterialTheme.typography.bodySmall)
+                Text(tr("تابع المبيعات والمخزون والتنبيهات لحظيًا."), color = Color.White.copy(alpha = 0.78f), style = MaterialTheme.typography.bodySmall)
             }
             Image(painterResource(R.drawable.mascot_welcome), "Mascot", Modifier.width(140.dp).height(140.dp))
         }
@@ -149,12 +151,12 @@ private fun WelcomeCard() {
 private fun KpiGrid(d: DashboardDto) {
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            Kpi("مبيعات الشهر", money(d.salesMonth), Modifier.weight(1f), BrandBlue)
-            Kpi("قيمة المخزون", money(d.inventoryValue), Modifier.weight(1f), Color(0xFF0E9F8A))
+            Kpi(tr("مبيعات الشهر"), money(d.salesMonth), Modifier.weight(1f), BrandBlue)
+            Kpi(tr("قيمة المخزون"), money(d.inventoryValue), Modifier.weight(1f), Color(0xFF0E9F8A))
         }
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            Kpi("صافي الربح", money(d.net), Modifier.weight(1f), Color(0xFF5D47EA))
-            Kpi("النقدية والبنك", money(d.cash), Modifier.weight(1f), Color(0xFFF07B00))
+            Kpi(tr("صافي الربح"), money(d.net), Modifier.weight(1f), Color(0xFF5D47EA))
+            Kpi(tr("النقدية والبنك"), money(d.cash), Modifier.weight(1f), Color(0xFFF07B00))
         }
     }
 }
@@ -178,8 +180,8 @@ private fun AttentionCard(d: DashboardDto, onClick: () -> Unit) {
             Icon(Icons.Filled.WarningAmber, null, tint = Color(0xFFB45309))
             Spacer(Modifier.width(10.dp))
             Column(Modifier.weight(1f)) {
-                Text("تحتاج متابعة", style = MaterialTheme.typography.titleSmall)
-                Text("${d.lowStock + d.outOfStock} أصناف تحتاج تجديدًا", style = MaterialTheme.typography.bodySmall, color = Color(0xFF92400E))
+                Text(tr("تحتاج متابعة"), style = MaterialTheme.typography.titleSmall)
+                Text(tr("${d.lowStock + d.outOfStock} أصناف تحتاج تجديدًا"), style = MaterialTheme.typography.bodySmall, color = Color(0xFF92400E))
             }
         }
     }

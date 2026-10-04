@@ -222,7 +222,7 @@ export function PromotionsManager({ rows, items, loyalty, canManage, canEditSett
                     <TableRow key={r.id}>
                       <TableCell className="font-mono text-xs">{r.code}</TableCell>
                       <TableCell>
-                        <div className="font-medium">{r.nameAr}</div>
+                        <div className="font-medium">{t(r.nameAr)}</div>
                         <div className="text-xs text-muted-foreground">{describe(r, t)}</div>
                       </TableCell>
                       <TableCell className="text-sm">{r.itemLabel ?? t("الفاتورة كلها")}</TableCell>
@@ -288,10 +288,11 @@ export function PromotionsManager({ rows, items, loyalty, canManage, canEditSett
 
           {earn > 0 && redeemRate > 0 && (
             <p className="text-sm text-muted-foreground">
-              يعني: عميل اشترى بـ ١٠٠٠ جنيه بياخد {Math.floor(1000 * earn)} نقطة، تساوي{" "}
-              {money(pointsValue(Math.floor(1000 * earn), { earnRate: earn, redeemRate, minRedeem: 0 }))} جنيه خصم —
-              أي {money((pointsValue(Math.floor(1000 * earn), { earnRate: earn, redeemRate, minRedeem: 0 }) / 1000) * 100)}٪
-              بترجّعها للعميل من كل بيعة.
+              {fill(t("يعني: عميل اشترى بـ ١٠٠٠ جنيه بياخد {0} نقطة، تساوي {1} جنيه خصم — أي {2}٪ بترجّعها للعميل من كل بيعة."), [
+                Math.floor(1000 * earn),
+                money(pointsValue(Math.floor(1000 * earn), { earnRate: earn, redeemRate, minRedeem: 0 })),
+                money((pointsValue(Math.floor(1000 * earn), { earnRate: earn, redeemRate, minRedeem: 0 }) / 1000) * 100),
+              ])}
             </p>
           )}
         </CardContent>

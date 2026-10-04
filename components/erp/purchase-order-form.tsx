@@ -104,7 +104,7 @@ export function PurchaseOrderForm({ suppliers, warehouses, items, unitsByItem = 
   const [quickOpen, setQuickOpen] = useState(false);
   const [quickName, setQuickName] = useState("");
   const allSuppliers = useMemo(() => [...suppliers, ...newSuppliers], [suppliers, newSuppliers]);
-  const supplierOptions = useMemo(() => allSuppliers.map((s) => ({ id: s.id, label: s.nameAr })), [allSuppliers]);
+  const supplierOptions = useMemo(() => allSuppliers.map((s) => ({ id: s.id, label: t(s.nameAr) })), [allSuppliers, t]);
   const supplierLabelById = useMemo(() => new Map(supplierOptions.map((o) => [o.id, o.label])), [supplierOptions]);
 
   const setLine = (i: number, patch: Partial<Line>) => setLines((ls) => ls.map((l, idx) => (idx === i ? { ...l, ...patch } : l)));
@@ -198,7 +198,7 @@ export function PurchaseOrderForm({ suppliers, warehouses, items, unitsByItem = 
           <div className="space-y-2">
             <Label>{t("المستودع")}</Label>
             <select className={selectCls} value={warehouseId} onChange={(e) => setWarehouseId(e.target.value)}>
-              {warehouses.map((w) => <option key={w.id} value={w.id}>{w.nameAr}</option>)}
+              {warehouses.map((w) => <option key={w.id} value={w.id}>{t(w.nameAr)}</option>)}
             </select>
           </div>
           <div className="space-y-2">
@@ -214,7 +214,7 @@ export function PurchaseOrderForm({ suppliers, warehouses, items, unitsByItem = 
               <div className="flex h-9 items-center rounded-md border bg-muted/40 px-3 text-sm font-medium">{baseCode}</div>
             ) : (
               <select className={selectCls} value={currency} onChange={(e) => setCurrency(e.target.value)}>
-                {currencies.map((c) => <option key={c.code} value={c.code}>{c.nameAr} ({c.code})</option>)}
+                {currencies.map((c) => <option key={c.code} value={c.code}>{t(c.nameAr)} ({c.code})</option>)}
               </select>
             )}
           </div>
@@ -256,7 +256,7 @@ export function PurchaseOrderForm({ suppliers, warehouses, items, unitsByItem = 
                 </select>
               ) : (
                 <div className="flex h-9 items-center rounded-md border border-dashed px-3 text-xs text-muted-foreground">
-                  مفيش أسعار مسجّلة لـ{currency}
+                  {fill(t("مفيش أسعار مسجّلة لـ{0}"), [currency])}
                 </div>
               )}
             </div>
@@ -276,7 +276,7 @@ export function PurchaseOrderForm({ suppliers, warehouses, items, unitsByItem = 
                 </>
               ) : (
                 <p className="text-xs text-destructive">
-                  مفيش سعر صرف لـ{currency} في تاريخ الأمر — اكتبه هنا أو أضِفه من الإعدادات ← العملات.
+                  {fill(t("مفيش سعر صرف لـ{0} في تاريخ الأمر — اكتبه هنا أو أضِفه من الإعدادات ← العملات."), [currency])}
                 </p>
               )}
               {rateOverride.trim() !== "" && (
@@ -357,8 +357,7 @@ export function PurchaseOrderForm({ suppliers, warehouses, items, unitsByItem = 
             arrive later, from other suppliers, on their own voucher — entering those here
             would capitalise the same cost twice. */}
         <p className="text-xs text-muted-foreground">
-          «شحن/وحدة» هو الشحن الداخلي المتفق عليه مع المورد — جزء من سعر البضاعة، وإذن الاستلام بيرثه.
-          أمّا شحن الاستيراد والجمارك فتُسجَّل بعد الاستلام من «المشتريات ← تكاليف الاستيراد».
+          {t("«شحن/وحدة» هو الشحن الداخلي المتفق عليه مع المورد — جزء من سعر البضاعة، وإذن الاستلام بيرثه. أمّا شحن الاستيراد والجمارك فتُسجَّل بعد الاستلام من «المشتريات ← تكاليف الاستيراد».")}
         </p>
 
         <div className="flex items-start justify-between gap-4 text-sm">

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { fill } from "@/lib/i18n";
 import { getT } from "@/lib/i18n/server";
 import { and, asc, eq, or } from "drizzle-orm";
 import { db } from "@/lib/db";
@@ -35,7 +36,7 @@ export default async function DashboardsPage() {
 
         {rows.length === 0 ? (
           <div className="rounded-2xl border border-dashed p-8 text-center text-sm text-muted-foreground">
-            مفيش لوحات لسه. احفظ تقرير من <Link href="/reports/builder" className="text-primary underline">{t("باني التقارير")}</Link> {t("(مع رسم لو حابب)، وبعدين اعمل لوحة وضيفه فيها.")}
+            {t("مفيش لوحات لسه. احفظ تقرير من")} <Link href="/reports/builder" className="text-primary underline">{t("باني التقارير")}</Link> {t("(مع رسم لو حابب)، وبعدين اعمل لوحة وضيفه فيها.")}
           </div>
         ) : (
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -45,11 +46,11 @@ export default async function DashboardsPage() {
                 <Icon name="LayoutDashboard" className="mt-0.5 size-5 text-primary" />
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center justify-between gap-2">
-                    <span className="truncate font-medium">{d.nameAr}</span>
+                    <span className="truncate font-medium">{t(d.nameAr)}</span>
                     {d.isShared && <Badge variant="outline" className="text-xs">{t("مشتركة")}</Badge>}
                   </div>
                   <div className="mt-1 text-sm text-muted-foreground">
-                    {d.widgets.length.toLocaleString("ar-EG-u-nu-latn")} تقرير{d.createdBy && d.createdBy !== user.id ? t(" · من زميل") : ""}
+                    {fill(t("{0} تقرير"), [d.widgets.length.toLocaleString("ar-EG-u-nu-latn")])}{d.createdBy && d.createdBy !== user.id ? t(" · من زميل") : ""}
                   </div>
                 </div>
               </Link>

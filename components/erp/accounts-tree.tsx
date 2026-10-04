@@ -77,7 +77,7 @@ function AccountDialog({
               <Label htmlFor="a-parent">{t("الحساب الأب")}</Label>
               <select id="a-parent" name="parentId" defaultValue={editing?.parentId ?? presetParent ?? ""} className={selectCls}>
                 <option value="">{t("— حساب رئيسي —")}</option>
-                {parentOptions.map((a) => <option key={a.id} value={a.id}>{a.code} — {a.nameAr}</option>)}
+                {parentOptions.map((a) => <option key={a.id} value={a.id}>{a.code} — {t(a.nameAr)}</option>)}
               </select>
             </div>
             <div className="space-y-2">
@@ -187,10 +187,10 @@ export function AccountsTree({
           <span className="font-mono text-muted-foreground">{a.code}</span>
           {a.isLeaf ? (
             <Link href={`/accounting/ledger?account=${a.id}`} className="hover:text-primary hover:underline" title={t("عرض دفتر الأستاذ")}>
-              {a.nameAr}
+              {t(a.nameAr)}
             </Link>
           ) : (
-            <button onClick={() => toggle(a.id)} className="text-start font-semibold hover:underline">{a.nameAr}</button>
+            <button onClick={() => toggle(a.id)} className="text-start font-semibold hover:underline">{t(a.nameAr)}</button>
           )}
           {!a.isActive && <Badge variant="secondary">{t("معطّل")}</Badge>}
 
@@ -208,7 +208,7 @@ export function AccountsTree({
                   <AlertDialog>
                     <AlertDialogTrigger asChild><Button variant="ghost" size="icon" className="size-7" disabled={pending} aria-label={t("حذف")}><Trash2 className="size-3.5 text-destructive" /></Button></AlertDialogTrigger>
                     <AlertDialogContent>
-                      <AlertDialogHeader><AlertDialogTitle>{t("حذف الحساب «")}{a.nameAr}{t("»؟")}</AlertDialogTitle><AlertDialogDescription>{t("لا يمكن التراجع. تأكّد أنه بلا حسابات فرعية أو قيود.")}</AlertDialogDescription></AlertDialogHeader>
+                      <AlertDialogHeader><AlertDialogTitle>{t("حذف الحساب «")}{t(a.nameAr)}{t("»؟")}</AlertDialogTitle><AlertDialogDescription>{t("لا يمكن التراجع. تأكّد أنه بلا حسابات فرعية أو قيود.")}</AlertDialogDescription></AlertDialogHeader>
                       <AlertDialogFooter><AlertDialogCancel>{t("إلغاء")}</AlertDialogCancel><AlertDialogAction onClick={() => remove(a)}>{t("حذف")}</AlertDialogAction></AlertDialogFooter>
                     </AlertDialogContent>
                   </AlertDialog>
@@ -240,7 +240,7 @@ export function AccountsTree({
             {canManage && (
               <Button onClick={initialize} disabled={pending}>
                 {pending ? <Loader2 className="size-4 animate-spin" /> : <Plus className="size-4" />}
-                إنشاء دليل الحسابات القياسي
+                {t("إنشاء دليل الحسابات القياسي")}
               </Button>
             )}
           </div>

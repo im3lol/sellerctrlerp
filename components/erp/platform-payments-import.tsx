@@ -110,9 +110,9 @@ export function PlatformPaymentsImport({ platformId, platformName, hasBank }: { 
               <ColumnMapSelect label={t("التاريخ")} {...mapProps("date")} optional />
             </div>
             <div className="flex items-center justify-between rounded-xl border p-3 text-sm">
-              <span>{ready ? <>{t("جاهز:")} <b>{payments.length}</b> {t("دفعة")}</> : "اربط المرجع والمبلغ لعرض المعاينة."}</span>
+              <span>{ready ? <>{t("جاهز:")} <b>{payments.length}</b> {t("دفعة")}</> : t("اربط المرجع والمبلغ لعرض المعاينة.")}</span>
               <Button onClick={run} disabled={pending || !ready || payments.length === 0}>
-                {pending && <Loader2 className="size-4 animate-spin" />}استيراد {payments.length > 0 ? `(${payments.length})` : ""}
+                {pending && <Loader2 className="size-4 animate-spin" />}{t("استيراد")} {payments.length > 0 ? `(${payments.length})` : ""}
               </Button>
             </div>
           </>

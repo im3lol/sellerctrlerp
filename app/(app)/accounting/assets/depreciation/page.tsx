@@ -79,13 +79,12 @@ export default function PostDepreciationPage() {
           </div>
 
           <div className="rounded-lg border bg-muted/30 p-3 text-sm text-muted-foreground">
-            سيتم ترحيل قسط إهلاك شهري لكل الأصول الثابتة النشطة التي لم يُرحَّل إهلاكها لهذه الفترة بعد.
-            القيود المحاسبية تُولَّد تلقائيًا للأصول المربوطة بحسابات أستاذ.
+            {t("سيتم ترحيل قسط إهلاك شهري لكل الأصول الثابتة النشطة التي لم يُرحَّل إهلاكها لهذه الفترة بعد. القيود المحاسبية تُولَّد تلقائيًا للأصول المربوطة بحسابات أستاذ.")}
           </div>
 
           <Button onClick={handlePost} disabled={pending} className="w-full">
             {pending ? <Icon name="Loader2" className="size-4 animate-spin" /> : <Icon name="CalendarCheck" className="size-4" />}
-            ترحيل إهلاك {months[month - 1]} {year}
+            {fill(t("ترحيل إهلاك {0} {1}"), [t(months[month - 1]), year])}
           </Button>
 
           {result && (

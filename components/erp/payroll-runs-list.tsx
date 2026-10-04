@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useT } from "@/lib/i18n/client";
+import { useLocale, useT } from "@/lib/i18n/client";
 import { FileText } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
@@ -33,6 +33,7 @@ const statusVariant: Record<string, "default" | "secondary" | "destructive"> = {
 
 export function PayrollRunsList({ runs }: { runs: Run[] }) {
   const t = useT();
+  const locale = useLocale();
   if (runs.length === 0) {
     return (
       <div className="rounded-xl border border-dashed py-12 text-center text-muted-foreground">
@@ -64,9 +65,9 @@ export function PayrollRunsList({ runs }: { runs: Run[] }) {
             <tr key={r.id} className="border-t [&>td]:p-3 [&>td]:align-middle">
               <td className="font-mono text-xs font-medium">{r.number}</td>
               <td className="text-xs">
-                {new Date(r.periodStart).toLocaleDateString("ar-EG")}
+                {new Date(r.periodStart).toLocaleDateString(locale === "en" ? "en-GB" : "ar-EG")}
                 {" — "}
-                {new Date(r.periodEnd).toLocaleDateString("ar-EG")}
+                {new Date(r.periodEnd).toLocaleDateString(locale === "en" ? "en-GB" : "ar-EG")}
               </td>
               <td className="tabular-nums">{money(r.totalGross)}</td>
               <td className="tabular-nums font-medium">{money(r.totalNet)}</td>
@@ -76,7 +77,7 @@ export function PayrollRunsList({ runs }: { runs: Run[] }) {
                 </Badge>
               </td>
               <td className="text-xs text-muted-foreground">
-                {r.postedAt ? new Date(r.postedAt).toLocaleDateString("ar-EG") : "—"}
+                {r.postedAt ? new Date(r.postedAt).toLocaleDateString(locale === "en" ? "en-GB" : "ar-EG") : "—"}
               </td>
               <td>
                 <Link

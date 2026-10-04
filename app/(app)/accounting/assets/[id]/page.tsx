@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { fill } from "@/lib/i18n";
-import { getT } from "@/lib/i18n/server";
+import type { Locale } from "@/lib/i18n";
+import { getLocale, getT } from "@/lib/i18n/server";
 import { and, asc, eq, sql } from "drizzle-orm";
 import { notFound } from "next/navigation";
 import { loadErpPage } from "@/lib/erp/org";
@@ -14,7 +15,7 @@ import { PrintDocLink } from "@/components/erp/print/print-doc-link";
 
 const fmt = (n: number | string) =>
   Number(n).toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-const dt = (d: Date) => new Date(d).toLocaleDateString("ar-EG");
+const dt = (d: Date, locale: Locale) => new Date(d).toLocaleDateString(locale === "en" ? "en-GB" : "ar-EG");
 
 const CATEGORIES: Record<string, string> = {
   BUILDING: "مباني", VEHICLE: "مركبات", EQUIPMENT: "معدات",
@@ -28,6 +29,7 @@ type Params = { params: Promise<{ id: string }> };
 
 export default async function AssetDetailPage({ params }: Params) {
   const t = await getT();
+  const locale = await getLocale();
   return loadErpPage("accounting.view", async ({ orgId, can }) => {
     const { id } = await params;
 
@@ -55,7 +57,7 @@ export default async function AssetDetailPage({ params }: Params) {
         sql`(${accounts.code} LIKE '1101%' OR ${accounts.code} LIKE '1102%')`,
       ))
       .orderBy(asc(accounts.code))
-    ).map((c) => ({ id: c.id, label: `${c.code} — ${c.nameAr}` }));
+    ).map((c) => ({ id: c.id, label: `${c.code} — ${t(c.nameAr)}` }));
 
     const deprecLines = await db
       .select()
@@ -101,11 +103,11 @@ export default async function AssetDetailPage({ params }: Params) {
             <CardContent className="space-y-3 text-sm">
               {[
                 ["الحالة",          STATUS[a.status] ?? a.status],
-                ["تاريخ الشراء",    dt(a.purchaseDate)],
+                ["تاريخ الشراء",    dt(a.purchaseDate, locale)],
                 ["العمر الإنتاجي",  fill(t("{0} سنة"), [a.usefulLifeYears])],
                 ["القيمة التخريدية", fmt(a.salvageValue)],
                 ["الإهلاك السنوي",  fmt(annualDeprec)],
-                ...(a.disposalDate ? [["تاريخ الاستبعاد", dt(a.disposalDate)]] : []),
+                ...(a.disposalDate ? [["تاريخ الاستبعاد", dt(a.disposalDate, locale)]] : []),
                 ...(a.disposalProceeds ? [["متحصّلات الاستبعاد", fmt(a.disposalProceeds)]] : []),
               ].map(([k, v]) => (
                 <div key={k} className="flex justify-between border-b pb-1 last:border-0">

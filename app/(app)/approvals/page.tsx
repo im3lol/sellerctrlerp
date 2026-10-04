@@ -101,7 +101,7 @@ export default async function ApprovalsPage({ searchParams }: { searchParams: Pr
                       {k && it.entityNumber && (
                         <Link href={docHref(k, it.entityNumber)} className="font-mono text-sm font-medium hover:text-primary hover:underline">{it.entityNumber}</Link>
                       )}
-                      <span className="text-sm">{it.summary}</span>
+                      <span className="text-sm">{t(it.summary)}</span>
                       <span className={cn("ms-auto rounded-md px-2 py-0.5 text-xs font-medium",
                         st === "overdue" ? "bg-destructive/10 text-destructive"
                         : st === "today" ? "bg-amber-100 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300"
@@ -121,7 +121,7 @@ export default async function ApprovalsPage({ searchParams }: { searchParams: Pr
                     <span className="text-sm text-muted-foreground">{s.why}</span>
                     <span className={cn("ms-auto rounded-md px-2 py-0.5 text-xs font-medium tabular-nums",
                       s.days >= 14 ? "bg-destructive/10 text-destructive" : "bg-amber-100 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300")}>
-                      من {s.days} يوم
+                      {fill(t("من {0} يوم"), [s.days])}
                     </span>
                   </div>
                 ))}

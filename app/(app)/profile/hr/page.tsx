@@ -194,7 +194,7 @@ export default async function MyHrPage() {
                       <TableCell className="font-mono text-xs">{c.number}</TableCell>
                       <TableCell className="text-xs" dir="ltr">{c.date}</TableCell>
                       <TableCell className="font-medium tabular-nums">{money(c.amount)}</TableCell>
-                      <TableCell className="max-w-[280px] truncate text-muted-foreground">{c.description ?? "—"}</TableCell>
+                      <TableCell className="max-w-[280px] truncate text-muted-foreground">{t(c.description ?? "—")}</TableCell>
                       <TableCell><Badge variant={statusTone(c.status)}>{t(STATUS_LABEL[c.status] ?? c.status)}</Badge></TableCell>
                     </TableRow>
                   ))}

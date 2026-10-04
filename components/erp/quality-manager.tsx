@@ -164,7 +164,7 @@ export function QualityManager({ items, canDecide, canEdit }: {
               <div>
                 <CardTitle>{t("قرار الفحص —")} {deciding.number}</CardTitle>
                 <CardDescription>
-                  {deciding.itemName} · استلام {deciding.receiptNumber} · الكمية {qf(deciding.quantity)}
+                  {fill(t("{0} · استلام {1} · الكمية {2}"), [deciding.itemName, deciding.receiptNumber, qf(deciding.quantity)])}
                 </CardDescription>
               </div>
               <div className="flex gap-2">
@@ -190,8 +190,7 @@ export function QualityManager({ items, canDecide, canEdit }: {
                 <Input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder={t("مثال: كسر في التغليف")} /></div>
             </div>
             <p className="mt-3 text-xs text-muted-foreground">
-              المرفوض بيفضل في الحجر — رجّعه للمورّد بمرتجع شراء أو أعدمه بتسوية. الاتنين قرار لوحده،
-              عشان مشكلة المورّد ما تختفيش جوّه تسوية مخزون.
+              {t("المرفوض بيفضل في الحجر — رجّعه للمورّد بمرتجع شراء أو أعدمه بتسوية. الاتنين قرار لوحده، عشان مشكلة المورّد ما تختفيش جوّه تسوية مخزون.")}
             </p>
           </CardContent>
         </Card>

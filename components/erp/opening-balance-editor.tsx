@@ -43,11 +43,12 @@ const blank = (kind: OpeningKind): Row =>
 
 /** Note shown under a section table when rows are capped for rendering. */
 function MoreNote({ total }: { total: number }) {
+  const t = useT();
   if (total <= RENDER_CAP) return null;
   const n = (v: number) => v.toLocaleString("ar-EG-u-nu-latn");
   return (
     <p className="rounded-md bg-muted/50 px-3 py-2 text-xs text-muted-foreground">
-      عرض أول {n(RENDER_CAP)} من {n(total)} صف — الباقي مستورد ومحفوظ وسيُرحّل (غير معروض لتفادي تجميد المتصفح).
+      {fill(t("عرض أول {0} من {1} صف — الباقي مستورد ومحفوظ وسيُرحّل (غير معروض لتفادي تجميد المتصفح)."), [n(RENDER_CAP), n(total)])}
     </p>
   );
 }
@@ -77,9 +78,9 @@ function ItemPicker({ label, onPick }: { label: string; onPick: (id: string, lab
         <div className="absolute z-20 mt-1 max-h-64 w-72 overflow-auto rounded-md border bg-popover p-1 shadow-lg">
           {rows.map((r) => (
             <button key={r.id} type="button" className="flex w-full flex-col items-start gap-0.5 rounded-sm px-3 py-1.5 text-start text-sm hover:bg-accent"
-              onClick={() => { onPick(r.id, `${r.code} — ${r.nameAr ?? ""}`); setOpen(false); }}>
+              onClick={() => { onPick(r.id, `${r.code} — ${t(r.nameAr ?? "")}`); setOpen(false); }}>
               <span className="font-mono text-xs" dir="ltr">{r.code}</span>
-              <span className="line-clamp-1">{r.nameAr}</span>
+              <span className="line-clamp-1">{t(r.nameAr ?? "")}</span>
             </button>
           ))}
         </div>
@@ -139,7 +140,7 @@ function CsvImport({ kind, onAdd, amazonCode }: { kind: OpeningKind; onAdd: (row
         <Button type="button" variant="outline" size="sm" disabled={pending} onClick={() => fileRef.current?.click()}><Icon name="Upload" className="size-4" /> {t("استيراد CSV")}</Button>
         {amazonCode && (
           <Button type="button" variant="outline" size="sm" disabled={pending} onClick={fromAmazon}>
-            {pending ? <Icon name="Loader2" className="size-4 animate-spin" /> : <Icon name="RefreshCw" className="size-4" />} استيراد المخزون من أمازون
+            {pending ? <Icon name="Loader2" className="size-4 animate-spin" /> : <Icon name="RefreshCw" className="size-4" />} {t("استيراد المخزون من أمازون")}
           </Button>
         )}
         <Button type="button" variant="ghost" size="sm" onClick={dl}><Icon name="Download" className="size-4" /> {t("قالب")}</Button>

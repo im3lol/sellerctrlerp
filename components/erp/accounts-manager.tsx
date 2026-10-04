@@ -120,7 +120,7 @@ export function AccountsManager({ accounts, canManage }: { accounts: Account[]; 
               {accounts.map((a) => (
                 <TableRow key={a.id} className={a.isLeaf ? "" : "bg-muted/30 font-semibold"}>
                   <TableCell className="font-mono">{a.code}</TableCell>
-                  <TableCell>{a.nameAr}</TableCell>
+                  <TableCell>{t(a.nameAr)}</TableCell>
                   <TableCell><Badge variant="secondary">{t(TYPE_LABELS[a.type] ?? a.type)}</Badge></TableCell>
                   <TableCell>{a.normalBalance === "DEBIT" ? t("مدين") : t("دائن")}</TableCell>
                   <TableCell>{a.isActive ? <span className="text-primary">{t("نشط")}</span> : <span className="text-muted-foreground">{t("معطّل")}</span>}</TableCell>
@@ -131,7 +131,7 @@ export function AccountsManager({ accounts, canManage }: { accounts: Account[]; 
                         <AlertDialog>
                           <AlertDialogTrigger asChild><Button variant="ghost" size="icon" disabled={pending} aria-label={t("حذف")}><Trash2 className="size-4 text-destructive" /></Button></AlertDialogTrigger>
                           <AlertDialogContent>
-                            <AlertDialogHeader><AlertDialogTitle>{t("حذف الحساب «")}{a.nameAr}{t("»؟")}</AlertDialogTitle><AlertDialogDescription>{t("لا يمكن التراجع.")}</AlertDialogDescription></AlertDialogHeader>
+                            <AlertDialogHeader><AlertDialogTitle>{t("حذف الحساب «")}{t(a.nameAr)}{t("»؟")}</AlertDialogTitle><AlertDialogDescription>{t("لا يمكن التراجع.")}</AlertDialogDescription></AlertDialogHeader>
                             <AlertDialogFooter><AlertDialogCancel>{t("إلغاء")}</AlertDialogCancel><AlertDialogAction onClick={() => remove(a)}>{t("حذف")}</AlertDialogAction></AlertDialogFooter>
                           </AlertDialogContent>
                         </AlertDialog>

@@ -76,7 +76,7 @@ export default async function StockBalancePage({ searchParams }: { searchParams:
                   <Label htmlFor="warehouse">{t("المستودع")}</Label>
                   <select id="warehouse" name="warehouse" defaultValue={fWarehouse} className={selectCls}>
                     <option value="">{t("كل المستودعات")}</option>
-                    {whList.map((w) => <option key={w.id} value={w.id}>{w.nameAr}</option>)}
+                    {whList.map((w) => <option key={w.id} value={w.id}>{t(w.nameAr)}</option>)}
                   </select>
                 </div>
                 <div className="space-y-1">

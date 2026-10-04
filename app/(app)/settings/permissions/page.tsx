@@ -67,7 +67,7 @@ export default async function PermissionsPage() {
     const nonMembers = allUsers.filter((u) => !memberIds.has(u.id));
 
     const rolePerms: Record<string, string[]> = { super_admin: allErpPermissions, ...erpRolePermissions };
-    const roleOptions = ASSIGNABLE.map((r) => ({ value: r, label: erpRoleLabels[r] ?? r }));
+    const roleOptions = ASSIGNABLE.map((r) => ({ value: r, label: t(erpRoleLabels[r] ?? r) }));
 
     const groups = MODULES.map((mod) => ({
       ...mod,
@@ -102,7 +102,7 @@ export default async function PermissionsPage() {
                       </tr>
                       {g.perms.map((p) => (
                         <tr key={p.key} className="border-t [&>td]:p-2.5">
-                          <td className="ps-4 text-muted-foreground">{p.action}</td>
+                          <td className="ps-4 text-muted-foreground">{t(p.action)}</td>
                           {MATRIX_ROLES.map((r) => (
                             <td key={r} className="text-center">
                               {rolePerms[r]?.includes(p.key)

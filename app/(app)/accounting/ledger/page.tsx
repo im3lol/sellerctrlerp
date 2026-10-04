@@ -39,7 +39,7 @@ export default async function GeneralLedgerPage({
 
     if (accountId) {
       const acc = accountList.find((a) => a.id === accountId);
-      accountName = acc ? `${acc.code} — ${acc.nameAr}` : "";
+      accountName = acc ? `${acc.code} — ${t(acc.nameAr)}` : "";
 
       const postedFor = (extra: ReturnType<typeof and>[]) =>
         and(
@@ -97,7 +97,7 @@ export default async function GeneralLedgerPage({
                 <Label htmlFor="account">{t("الحساب")}</Label>
                 <select id="account" name="account" defaultValue={accountId} className={`${selectCls} min-w-64`}>
                   <option value="">{t("— اختر الحساب —")}</option>
-                  {accountList.map((a) => <option key={a.id} value={a.id}>{a.code} — {a.nameAr}</option>)}
+                  {accountList.map((a) => <option key={a.id} value={a.id}>{a.code} — {t(a.nameAr)}</option>)}
                 </select>
               </div>
               <div className="space-y-2">

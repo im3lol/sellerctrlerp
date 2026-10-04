@@ -42,8 +42,8 @@ export default async function AcademyPage() {
       <Card>
         <CardContent className="flex flex-wrap items-center justify-between gap-4 pt-6">
           <p className="text-sm text-muted-foreground">
-            نوعان لكل موضوع: <b>{t("فيديو")}</b> {t("تتفرّج عليه، و")}<b>{t("دليل مكتوب")}</b> بالصور تمشي وراه خطوة بخطوة.
-            المعلَّم «قريباً» بنجهّزه — لو محتاج حاجة بسرعة قول لنا.
+            {t("نوعان لكل موضوع:")} <b>{t("فيديو")}</b> {t("تتفرّج عليه، و")}<b>{t("دليل مكتوب")}</b>{" "}
+            {t("بالصور تمشي وراه خطوة بخطوة. المعلَّم «قريباً» بنجهّزه — لو محتاج حاجة بسرعة قول لنا.")}
           </p>
           <div className="flex items-center gap-5 text-sm">
             <div className="text-center">
@@ -83,7 +83,7 @@ export default async function AcademyPage() {
                 </div>
                 {c.total > 0 && (
                   <span className="rounded-full bg-muted px-2 py-0.5 text-xs tabular-nums text-muted-foreground">
-                    {intf(c.total)} درس
+                    {fill(t("{0} درس"), [intf(c.total)])}
                   </span>
                 )}
               </div>

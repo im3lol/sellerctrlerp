@@ -89,8 +89,7 @@ export function ProjectsManager({ rows, phases, tasks, sheets, customers, employ
             <div>
               <CardTitle>{t("المشاريع")}</CardTitle>
               <CardDescription>
-                المشروع بُعد تكلفة زي مركز التكلفة — المصروف اللي بتحطّ عليه اسم المشروع بيوصله لوحده،
-                والفواتير اللي عليه بتبقى إيراده.
+                {t("المشروع بُعد تكلفة زي مركز التكلفة — المصروف اللي بتحطّ عليه اسم المشروع بيوصله لوحده، والفواتير اللي عليه بتبقى إيراده.")}
               </CardDescription>
             </div>
             {canManage && (
@@ -195,7 +194,7 @@ export function ProjectsManager({ rows, phases, tasks, sheets, customers, employ
                       onClick={() => setOpen(r.id)}>
                       <TableCell className="font-mono text-xs">{r.code}</TableCell>
                       <TableCell>
-                        <div className="font-medium">{r.nameAr}</div>
+                        <div className="font-medium">{t(r.nameAr)}</div>
                         <div className="text-xs text-muted-foreground">
                           {r.customerName ?? t("داخلي")}{r.managerName && ` · ${r.managerName}`}
                         </div>
@@ -266,9 +265,9 @@ export function ProjectsManager({ rows, phases, tasks, sheets, customers, employ
             <CardHeader>
               <div className="flex w-full flex-wrap items-center justify-between gap-3">
                 <div>
-                  <CardTitle>{t("مراحل")} {project.nameAr}</CardTitle>
+                  <CardTitle>{t("مراحل")} {t(project.nameAr)}</CardTitle>
                   <CardDescription>
-                    التقدّم بيتوزّن بقيمة المرحلة مش بعددها — التقدّم دلوقتي {projectProgress(myPhases)}٪.
+                    {fill(t("التقدّم بيتوزّن بقيمة المرحلة مش بعددها — التقدّم دلوقتي {0}٪."), [projectProgress(myPhases)])}
                   </CardDescription>
                 </div>
                 {canManage && (
@@ -334,7 +333,7 @@ export function ProjectsManager({ rows, phases, tasks, sheets, customers, employ
                     <TableBody>
                       {myPhases.map((p) => (
                         <TableRow key={p.id}>
-                          <TableCell className="font-medium">{p.nameAr}</TableCell>
+                          <TableCell className="font-medium">{t(p.nameAr)}</TableCell>
                           <TableCell>
                             <Badge className={p.status === "DONE" ? "bg-emerald-600" : p.status === "IN_PROGRESS" ? "bg-amber-600" : undefined}
                               variant={p.status === "PENDING" ? "outline" : undefined}>
@@ -434,7 +433,7 @@ export function ProjectsManager({ rows, phases, tasks, sheets, customers, employ
                 ) : myTasks.map((task) => (
                   <div key={task.id} className="flex items-center justify-between gap-2 rounded-lg border p-3">
                     <div>
-                      <div className="font-medium">{task.nameAr}</div>
+                      <div className="font-medium">{t(task.nameAr)}</div>
                       <div className="text-xs text-muted-foreground">
                         {task.assignedName ?? t("مش متكلّف حد")}{task.plannedHours > 0 && fill(t(" · {0} ساعة"), [num(task.plannedHours)])}{task.dueDate && ` · ${task.dueDate}`}
                       </div>

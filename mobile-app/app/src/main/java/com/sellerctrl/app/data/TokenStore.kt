@@ -1,5 +1,7 @@
 package com.sellerctrl.app.data
 
+import com.sellerctrl.app.tr
+
 import android.content.Context
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
@@ -43,7 +45,7 @@ class TokenStore(context: Context) {
             this.token = token; this.orgId = orgId; this.orgName = orgName; this.userName = userName
         } catch (_: Exception) {
             editor.clear().commit()
-            throw IllegalStateException("تعذّر تأمين جلسة الدخول على الجهاز")
+            throw IllegalStateException(tr("تعذّر تأمين جلسة الدخول على الجهاز"))
         }
     }
 

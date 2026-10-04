@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
+import { fill } from "@/lib/i18n";
 import { useT } from "@/lib/i18n/client";
 import { toast } from "@/lib/i18n/toast";
 import { saveSupplierAction } from "@/app/actions/erp/suppliers";
@@ -67,8 +68,7 @@ export function QuickCreateParty({
         <DialogHeader>
           <DialogTitle>{isSupplier ? t("مورد جديد") : t("عميل جديد")}</DialogTitle>
           <DialogDescription>
-            الاسم يكفي — الكود يتولّد تلقائياً، وباقي البيانات تُستكمل لاحقاً من صفحة
-            {isSupplier ? t(" الموردين") : t(" العملاء")}.
+            {fill(t("الاسم يكفي — الكود يتولّد تلقائياً، وباقي البيانات تُستكمل لاحقاً من صفحة {0}."), [isSupplier ? t("الموردين") : t("العملاء")])}
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-3">

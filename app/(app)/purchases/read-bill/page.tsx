@@ -35,7 +35,7 @@ export default async function ReadBillPage() {
             expenseAccounts={expenseAccounts} cashAccounts={cashAccounts} />
         ) : (
           <div className="rounded-2xl border border-dashed p-8 text-center text-sm text-muted-foreground">
-            قراءة الفواتير لسه مش مفعّلة على المنصة.
+            {t("قراءة الفواتير لسه مش مفعّلة على المنصة.")}
             {can("settings.edit") && <> {t("تقدر تشغّلها دلوقتي بمفتاح شركتك من")} <Link href="/settings/ai" className="text-primary underline">{t("إعدادات الذكاء الاصطناعي")}</Link>.</>}
           </div>
         )}

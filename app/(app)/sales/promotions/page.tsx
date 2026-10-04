@@ -54,7 +54,7 @@ export default async function PromotionsPage() {
             isActive: r.isActive, notes: r.notes,
             itemLabel: r.itemCode ? `${r.itemCode} — ${r.itemName}` : null,
           }))}
-          items={itemList.map((i) => ({ id: i.id, label: `${i.code} — ${i.nameAr ?? ""}` }))}
+          items={itemList.map((i) => ({ id: i.id, label: `${i.code} — ${t(i.nameAr ?? "")}` }))}
           loyalty={{
             earnRate: Number(org[0]?.earn ?? 0),
             redeemRate: Number(org[0]?.redeem ?? 0),

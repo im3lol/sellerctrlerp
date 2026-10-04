@@ -56,7 +56,7 @@ function OverridesDialog({
       <DialogHeader>
         <DialogTitle>{t("صلاحيات مخصّصة —")} {member.name}</DialogTitle>
         <DialogDescription>
-          الدور: <b>{roleLabels[member.role] ?? member.role}</b>{t(". «موروث» يتبع الدور؛ «سماح» يمنح الصلاحية فوق الدور؛ «منع» يسحبها.")} {overrideCount > 0 && <span>({overrideCount} {t("تخصيص)")}</span>}
+          {t("الدور:")} <b>{t(roleLabels[member.role] ?? member.role)}</b>{t(". «موروث» يتبع الدور؛ «سماح» يمنح الصلاحية فوق الدور؛ «منع» يسحبها.")} {overrideCount > 0 && <span>({overrideCount} {t("تخصيص)")}</span>}
         </DialogDescription>
       </DialogHeader>
 

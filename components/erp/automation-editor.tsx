@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { fill } from "@/lib/i18n";
 import { useT } from "@/lib/i18n/client";
 import { useRouter } from "next/navigation";
 import { toast } from "@/lib/i18n/toast";
@@ -126,7 +127,7 @@ export function AutomationEditor({ rule, members, roles }: {
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
               <CardTitle className="text-base">{t("لو")}</CardTitle>
-              <CardDescription>من غير شروط = كل {def?.label ?? t("مستند")}.</CardDescription>
+              <CardDescription>{fill(t("من غير شروط = كل {0}."), [t(def?.label ?? "مستند")])}</CardDescription>
             </div>
             {spec.conditions.length > 1 && (
               <select className={`${selectCls} w-40`} value={spec.match}
@@ -176,7 +177,7 @@ export function AutomationEditor({ rule, members, roles }: {
         <CardHeader>
           <CardTitle className="text-base">{t("اعمل")}</CardTitle>
           <CardDescription>
-            في النصوص تقدر تستخدم: <span dir="ltr" className="font-mono text-xs">{PLACEHOLDERS.join(" ")}</span>
+            {t("في النصوص تقدر تستخدم:")} <span dir="ltr" className="font-mono text-xs">{PLACEHOLDERS.join(" ")}</span>
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
@@ -201,7 +202,7 @@ export function AutomationEditor({ rule, members, roles }: {
                       <label key={r.value} className="flex items-center gap-2">
                         <input type="checkbox" className="size-4" checked={(a.to.roles ?? []).includes(r.value)}
                           onChange={() => setAction(i, { ...a, to: { ...a.to, roles: toggleIn(a.to.roles, r.value) } })} />
-                        كل «{t(r.label)}»
+                        {fill(t("كل «{0}»"), [t(r.label)])}
                       </label>
                     ))}
                   </div>

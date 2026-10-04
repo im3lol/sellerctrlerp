@@ -139,7 +139,7 @@ export default async function ItemsPage({ searchParams }: { searchParams: Promis
                 <Label htmlFor="category">{t("الفئة")}</Label>
                 <select id="category" name="category" defaultValue={fCategory} className={selectCls}>
                   <option value="">{t("الكل")}</option>
-                  {cats.map((c) => <option key={c.id} value={c.id}>{c.nameAr}</option>)}
+                  {cats.map((c) => <option key={c.id} value={c.id}>{t(c.nameAr)}</option>)}
                 </select>
               </div>
               <div className="space-y-1">

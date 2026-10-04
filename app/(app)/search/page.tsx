@@ -56,7 +56,7 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
         </div>
       ) : total === 0 ? (
         <div className="rounded-xl border border-dashed py-16 text-center text-muted-foreground">
-          لا نتائج مطابقة لـ «{query}». جرّب كلمة أو كودًا مختلفًا.
+          {fill(t("لا نتائج مطابقة لـ «{0}». جرّب كلمة أو كودًا مختلفًا."), [query])}
         </div>
       ) : (
         <div className="space-y-6">

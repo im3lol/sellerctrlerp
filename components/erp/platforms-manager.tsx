@@ -213,7 +213,7 @@ function CreatePlatformDialog({
               <select className={selectCls} value={warehouseId} onChange={(e) => setWarehouseId(e.target.value)}>
                 <option value="">{t("— بدون —")}</option>
                 <option value="__new__">{t("➕ إنشاء مخزن جديد لهذه المنصة")}</option>
-                {warehouses.map((w) => <option key={w.id} value={w.id}>{w.nameAr}</option>)}
+                {warehouses.map((w) => <option key={w.id} value={w.id}>{t(w.nameAr)}</option>)}
               </select>
             </div>
             <div className="space-y-2">
@@ -221,7 +221,7 @@ function CreatePlatformDialog({
               <select className={selectCls} value={bankAccountId} onChange={(e) => setBankAccountId(e.target.value)}>
                 <option value="">{t("— بدون —")}</option>
                 <option value="__new__">{t("➕ إنشاء حساب تسويات جديد")}</option>
-                {bankAccounts.map((b) => <option key={b.id} value={b.id}>{b.nameAr}</option>)}
+                {bankAccounts.map((b) => <option key={b.id} value={b.id}>{t(b.nameAr)}</option>)}
               </select>
             </div>
           </div>
@@ -295,7 +295,7 @@ export function PlatformsManager({
                   </div>
 
                   <div className="space-y-1 text-sm text-muted-foreground">
-                    <div>{t("المخزن:")} <span className="text-foreground">{p.warehouseName ?? "—"}</span></div>
+                    <div>{t("المخزن:")} <span className="text-foreground">{t(p.warehouseName ?? "—")}</span></div>
                     <div>{t("العميل:")} <span className="text-foreground">{p.customerName ?? "—"}</span></div>
                     <div>{t("آخر مزامنة:")} <span className="text-foreground">{last ?? t("لم تتم بعد")}</span></div>
                   </div>

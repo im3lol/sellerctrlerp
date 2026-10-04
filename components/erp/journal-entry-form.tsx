@@ -43,16 +43,16 @@ export function JournalEntryForm({
   const [lines, setLines] = useState<Line[]>(initial?.lines?.length ? initial.lines : [emptyLine(), emptyLine()]);
 
   const accountOptions = useMemo(
-    () => accounts.map((a) => ({ id: a.id, label: `${a.code} — ${a.nameAr}` })),
-    [accounts],
+    () => accounts.map((a) => ({ id: a.id, label: `${a.code} — ${t(a.nameAr)}` })),
+    [accounts, t],
   );
   const accountLabel = useMemo(
     () => new Map(accountOptions.map((o) => [o.id, o.label])),
     [accountOptions],
   );
   const costCenterOptions = useMemo(
-    () => costCenters.map((c) => ({ id: c.id, label: `${c.code} — ${c.nameAr}` })),
-    [costCenters],
+    () => costCenters.map((c) => ({ id: c.id, label: `${c.code} — ${t(c.nameAr)}` })),
+    [costCenters, t],
   );
   const costCenterLabel = useMemo(
     () => new Map(costCenterOptions.map((o) => [o.id, o.label])),

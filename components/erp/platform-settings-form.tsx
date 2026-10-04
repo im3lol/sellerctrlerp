@@ -75,8 +75,8 @@ export function PlatformSettingsForm({
   const [warehouseId, setWarehouseId] = useState(platform.warehouseId ?? "");
   const [bankAccountId, setBankAccountId] = useState(platform.bankAccountId ?? "");
 
-  const whOptions: ComboOption[] = warehouses.map((w) => ({ id: w.id, label: w.nameAr }));
-  const bankOptions: ComboOption[] = bankAccounts.map((b) => ({ id: b.id, label: b.nameAr }));
+  const whOptions: ComboOption[] = warehouses.map((w) => ({ id: w.id, label: t(w.nameAr) }));
+  const bankOptions: ComboOption[] = bankAccounts.map((b) => ({ id: b.id, label: t(b.nameAr) }));
 
   const save = () => {
     if (!name.trim()) return toast.error("أدخل اسم المنصة");
@@ -241,7 +241,7 @@ export function PlatformSettingsForm({
 
       <div className="flex justify-end">
         <Button onClick={save} disabled={pending} size="lg">
-          {pending && <Loader2 className="size-4 animate-spin" />}حفظ الإعدادات
+          {pending && <Loader2 className="size-4 animate-spin" />}{t("حفظ الإعدادات")}
         </Button>
       </div>
     </div>

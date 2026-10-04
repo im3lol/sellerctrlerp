@@ -31,7 +31,7 @@ export default async function CycleCountPage() {
           </CardContent></Card>
         ) : (
           <CycleCountManager
-            warehouses={whList.map((w) => ({ id: w.id, label: w.nameAr }))}
+            warehouses={whList.map((w) => ({ id: w.id, label: t(w.nameAr) }))}
             canManage={can("inventory.create")}
             canPost={can("inventory.confirm")}
           />

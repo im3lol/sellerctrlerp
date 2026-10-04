@@ -143,8 +143,7 @@ export function AttendanceManager({ staff, canEdit }: { staff: StaffOption[]; ca
           <CardHeader>
             <CardTitle>{t("استيراد من جهاز البصمة")}</CardTitle>
             <CardDescription>
-              الأعمدة بالترتيب: كود الموظف · التاريخ · حضور · انصراف. الصف الأول ممكن يكون عناوين.
-              أي سطر مش مقروء هيتقال ليك بدل ما يتشال بالصمت.
+              {t("الأعمدة بالترتيب: كود الموظف · التاريخ · حضور · انصراف. الصف الأول ممكن يكون عناوين. أي سطر مش مقروء هيتقال ليك بدل ما يتشال بالصمت.")}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">

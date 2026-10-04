@@ -114,7 +114,7 @@ export function DashboardEditor({ dashboard, reports }: {
 
         {reports.length === 0 ? (
           <p className="text-sm text-muted-foreground">
-            مفيش تقارير محفوظة لسه — ابنِ واحد من <Link href="/reports/builder" className="text-primary underline">{t("باني التقارير")}</Link> {t("واحفظه.")}
+            {t("مفيش تقارير محفوظة لسه — ابنِ واحد من")} <Link href="/reports/builder" className="text-primary underline">{t("باني التقارير")}</Link> {t("واحفظه.")}
           </p>
         ) : (
           <div className="flex flex-wrap items-end gap-2">
@@ -122,7 +122,7 @@ export function DashboardEditor({ dashboard, reports }: {
               <Label>{t("ضيف تقرير محفوظ")}</Label>
               <select className={`${selectCls} w-72`} value={pick} onChange={(e) => setPick(e.target.value)}>
                 <option value="">{t("اختار…")}</option>
-                {reports.map((r) => <option key={r.id} value={r.id}>{r.nameAr} ({r.datasetTitle})</option>)}
+                {reports.map((r) => <option key={r.id} value={r.id}>{t(r.nameAr)} ({r.datasetTitle})</option>)}
               </select>
             </div>
             <Button variant="outline" disabled={!pick || widgets.length >= 12}

@@ -151,7 +151,7 @@ export default async function AuditLogPage({ searchParams }: { searchParams: Pro
                           <TableCell><Badge variant={a.variant}>{a.ar}</Badge></TableCell>
                           <TableCell>{t(ENTITY[r.entityType] ?? r.entityType)}</TableCell>
                           <TableCell className="font-mono">{r.entityNumber ?? "—"}</TableCell>
-                          <TableCell className="text-muted-foreground">{r.summary ?? "—"}</TableCell>
+                          <TableCell className="text-muted-foreground">{t(r.summary ?? "—")}</TableCell>
                         </TableRow>
                       );
                     })}

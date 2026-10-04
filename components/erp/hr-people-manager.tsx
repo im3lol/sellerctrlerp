@@ -206,9 +206,9 @@ export function RecruitmentManager({ openings, applicants, employees, canManage 
               <div>
                 <CardTitle>{t("المتقدّمون")}</CardTitle>
                 <CardDescription>
-                  {f.active} في المسار
+                  {fill(t("{0} في المسار"), [f.active])}
                   {f.hireRate != null && fill(t(" · نسبة التعيين {0}٪"), [f.hireRate])}
-                  {f.hireRate == null && " · لسه محدش اتقرر فيه"}
+                  {f.hireRate == null && t(" · لسه محدش اتقرر فيه")}
                 </CardDescription>
               </div>
               {canManage && (
@@ -463,7 +463,7 @@ export function PerformanceManager({ reviews, employees, canManage }: {
                   </Button>
                   {preview != null && (
                     <span className="text-sm">
-                      الدرجة: <span className="font-bold tabular-nums">{num(preview)}</span> — {SCORE_VERDICT(preview)}
+                      {t("الدرجة:")} <span className="font-bold tabular-nums">{num(preview)}</span> — {t(SCORE_VERDICT(preview))}
                     </span>
                   )}
                 </div>
@@ -538,7 +538,7 @@ export function PerformanceManager({ reviews, employees, canManage }: {
                       <TableCell className="text-xs tabular-nums">{r.periodFrom} ← {r.periodTo}</TableCell>
                       <TableCell>
                         <div className="font-bold tabular-nums">{num(r.overallScore)}</div>
-                        <div className="text-xs text-muted-foreground">{SCORE_VERDICT(r.overallScore || null)}</div>
+                        <div className="text-xs text-muted-foreground">{t(SCORE_VERDICT(r.overallScore || null))}</div>
                       </TableCell>
                       <TableCell>
                         <Badge className={r.status === "ACKNOWLEDGED" ? "bg-emerald-600" : undefined}
@@ -680,7 +680,7 @@ export function TrainingManager({ courses, employees, canManage }: {
                   <div>
                     <div className="flex items-center gap-2">
                       <span className="font-mono text-xs">{c.code}</span>
-                      <span className="font-medium">{c.nameAr}</span>
+                      <span className="font-medium">{t(c.nameAr)}</span>
                       <Badge variant="outline">{t(COURSE_STATUS[c.status])}</Badge>
                     </div>
                     <div className="text-xs text-muted-foreground">

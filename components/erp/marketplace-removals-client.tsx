@@ -40,7 +40,7 @@ export function MarketplaceRemovalsClient({ initial }: { initial: PlatformRemova
   return (
     <div className="space-y-4">
       <p className="text-sm text-muted-foreground">
-        دي أوامر سحب من المنصة (ركود/عيب/بطلبك) — مش مرتجعات عملاء. أكّد لكل واحد: استلمت الراجع للمخزن، ولا اتلف. بيتعمل <b>{t("تسوية مخزون مسودّة")}</b> {t("يراجعها المحاسب ويرحّلها.")}
+        {t("دي أوامر سحب من المنصة (ركود/عيب/بطلبك) — مش مرتجعات عملاء. أكّد لكل واحد: استلمت الراجع للمخزن، ولا اتلف. بيتعمل")} <b>{t("تسوية مخزون مسودّة")}</b> {t("يراجعها المحاسب ويرحّلها.")}
       </p>
       {rows.map((o) => {
         const isBusy = pending && busy === o.id;

@@ -148,7 +148,7 @@ export function CycleCountManager({ warehouses, canManage, canPost: mayPost }: {
               <div>
                 <CardTitle>{open.session.number}</CardTitle>
                 <CardDescription>
-                  {open.session.warehouseName} · {open.session.date} · {open.lines.length} صنف — مرتّبة بترتيب المشي في المخزن
+                  {t(open.session.warehouseName)} · {open.session.date} · {fill(t("{0} صنف — مرتّبة بترتيب المشي في المخزن"), [open.lines.length])}
                 </CardDescription>
               </div>
               <div className="flex flex-wrap gap-2">
@@ -244,8 +244,7 @@ export function CycleCountManager({ warehouses, canManage, canPost: mayPost }: {
           <CardHeader>
             <CardTitle>{t("ورقة جرد جديدة")}</CardTitle>
             <CardDescription>
-              «بالقيمة» بتختار الأصناف اللي الخطأ فيها بيكلّف أكتر · «بالحركة» بتختار اللي بتتحرّك كتير فالخطأ بيتسلّل ليها.
-              الصنف اللي معدّش قبل كده بييجي الأول دايماً.
+              {t("«بالقيمة» بتختار الأصناف اللي الخطأ فيها بيكلّف أكتر · «بالحركة» بتختار اللي بتتحرّك كتير فالخطأ بيتسلّل ليها. الصنف اللي معدّش قبل كده بييجي الأول دايماً.")}
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -300,7 +299,7 @@ export function CycleCountManager({ warehouses, canManage, canPost: mayPost }: {
                     <TableRow key={r.id}>
                       <TableCell className="font-mono text-xs">{r.number}</TableCell>
                       <TableCell className="text-xs" dir="ltr">{r.date}</TableCell>
-                      <TableCell>{r.warehouseName}</TableCell>
+                      <TableCell>{t(r.warehouseName)}</TableCell>
                       <TableCell className="tabular-nums">{r.lines}</TableCell>
                       <TableCell><Badge variant={STATUS[r.status]?.tone ?? "outline"}>{STATUS[r.status]?.label ?? r.status}</Badge></TableCell>
                       <TableCell className="flex gap-1">

@@ -29,7 +29,7 @@ export default async function QualityPage() {
           canEdit={can("inventory.edit")}
           items={itemList.map((i) => ({
             id: i.id,
-            label: `${i.code} — ${i.nameAr ?? ""}`,
+            label: `${i.code} — ${t(i.nameAr ?? "")}`,
             requiresInspection: i.requiresInspection,
           }))}
         />

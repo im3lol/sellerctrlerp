@@ -63,7 +63,7 @@ function CenterDialog({
               <Label htmlFor="c-parent">{t("المركز الأب")}</Label>
               <select id="c-parent" name="parentId" defaultValue={editing?.parentId ?? presetParent ?? ""} className={selectCls}>
                 <option value="">{t("— مركز رئيسي —")}</option>
-                {parentOptions.map((c) => <option key={c.id} value={c.id}>{c.code} — {c.nameAr}</option>)}
+                {parentOptions.map((c) => <option key={c.id} value={c.id}>{c.code} — {t(c.nameAr)}</option>)}
               </select>
             </div>
           </div>
@@ -122,7 +122,7 @@ export function CostCentersTree({ centers, canManage }: { centers: CostCenter[];
           )}
           <Icon name={hasKids ? "FolderTree" : "Target"} className={cn("size-4 shrink-0", hasKids ? "text-primary" : "text-muted-foreground")} />
           <span className="font-mono text-muted-foreground">{c.code}</span>
-          <span className={cn(hasKids && "font-semibold")}>{c.nameAr}</span>
+          <span className={cn(hasKids && "font-semibold")}>{t(c.nameAr)}</span>
           {!c.isActive && <Badge variant="secondary">{t("معطّل")}</Badge>}
           {canManage && (
             <div className="ms-auto flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
@@ -131,7 +131,7 @@ export function CostCentersTree({ centers, canManage }: { centers: CostCenter[];
               <AlertDialog>
                 <AlertDialogTrigger asChild><Button variant="ghost" size="icon" className="size-7" disabled={pending} aria-label={t("حذف")}><Trash2 className="size-3.5 text-destructive" /></Button></AlertDialogTrigger>
                 <AlertDialogContent>
-                  <AlertDialogHeader><AlertDialogTitle>{t("حذف المركز «")}{c.nameAr}{t("»؟")}</AlertDialogTitle><AlertDialogDescription>{t("لا يمكن التراجع. تأكّد أنه بلا مراكز فرعية أو قيود.")}</AlertDialogDescription></AlertDialogHeader>
+                  <AlertDialogHeader><AlertDialogTitle>{t("حذف المركز «")}{t(c.nameAr)}{t("»؟")}</AlertDialogTitle><AlertDialogDescription>{t("لا يمكن التراجع. تأكّد أنه بلا مراكز فرعية أو قيود.")}</AlertDialogDescription></AlertDialogHeader>
                   <AlertDialogFooter><AlertDialogCancel>{t("إلغاء")}</AlertDialogCancel><AlertDialogAction onClick={() => remove(c)}>{t("حذف")}</AlertDialogAction></AlertDialogFooter>
                 </AlertDialogContent>
               </AlertDialog>

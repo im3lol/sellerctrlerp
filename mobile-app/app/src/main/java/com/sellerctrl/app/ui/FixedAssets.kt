@@ -1,5 +1,7 @@
 package com.sellerctrl.app.ui
 
+import com.sellerctrl.app.tr
+
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -45,8 +47,8 @@ import com.sellerctrl.app.data.AssetDetailDto
 import kotlinx.coroutines.launch
 
 private val CATEGORIES = listOf(
-    "BUILDING" to "مبانٍ", "VEHICLE" to "مركبات", "EQUIPMENT" to "معدات",
-    "FURNITURE" to "أثاث", "IT" to "تقنية", "OTHER" to "أخرى",
+    "BUILDING" to tr("مبانٍ"), "VEHICLE" to tr("مركبات"), "EQUIPMENT" to tr("معدات"),
+    "FURNITURE" to tr("أثاث"), "IT" to tr("تقنية"), "OTHER" to tr("أخرى"),
 )
 private fun catAr(c: String) = CATEGORIES.firstOrNull { it.first == c }?.second ?: c
 
@@ -67,43 +69,43 @@ fun AssetFormScreen(nav: NavController) {
     var error by remember { mutableStateOf<String?>(null) }
 
     fun save() {
-        if (code.isBlank()) { error = "الكود مطلوب"; return }
-        if (nameAr.trim().length < 2) { error = "الاسم قصير جداً"; return }
+        if (code.isBlank()) { error = tr("الكود مطلوب"); return }
+        if (nameAr.trim().length < 2) { error = tr("الاسم قصير جداً"); return }
         val c = cost.toDoubleOrNull(); val l = life.toIntOrNull()
-        if (c == null || c < 0) { error = "تكلفة غير صالحة"; return }
-        if (l == null || l <= 0) { error = "العمر الإنتاجي يجب أن يكون أكبر من صفر"; return }
+        if (c == null || c < 0) { error = tr("تكلفة غير صالحة"); return }
+        if (l == null || l <= 0) { error = tr("العمر الإنتاجي يجب أن يكون أكبر من صفر"); return }
         busy = true; error = null
         scope.launch {
             try { ServiceLocator.repo.assetCreate(AssetCreateReq(code.trim(), nameAr.trim(), category, purchaseDate, c, salvage.toDoubleOrNull() ?: 0.0, l, notes.ifBlank { null })); nav.popBackStack() }
-            catch (e: Exception) { error = e.message ?: "خطأ"; busy = false }
+            catch (e: Exception) { error = e.message ?: tr("خطأ"); busy = false }
         }
     }
 
     Scaffold(topBar = {
-        TopAppBar(title = { Text("أصل ثابت جديد") },
+        TopAppBar(title = { Text(tr("أصل ثابت جديد")) },
             navigationIcon = { IconButton(onClick = { nav.popBackStack() }) { Icon(Icons.AutoMirrored.Filled.ArrowBack, null) } })
     }) { pad ->
         Column(Modifier.fillMaxSize().padding(pad).verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            OutlinedTextField(code, { code = it }, label = { Text("الكود *") }, singleLine = true, modifier = Modifier.fillMaxWidth())
-            OutlinedTextField(nameAr, { nameAr = it }, label = { Text("اسم الأصل *") }, singleLine = true, modifier = Modifier.fillMaxWidth())
-            OutlinedButton(onClick = { catPicker = true }, modifier = Modifier.fillMaxWidth()) { Text("الفئة: ${catAr(category)}") }
-            OutlinedTextField(purchaseDate, { purchaseDate = it }, label = { Text("تاريخ الشراء") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+            OutlinedTextField(code, { code = it }, label = { Text(tr("الكود *")) }, singleLine = true, modifier = Modifier.fillMaxWidth())
+            OutlinedTextField(nameAr, { nameAr = it }, label = { Text(tr("اسم الأصل *")) }, singleLine = true, modifier = Modifier.fillMaxWidth())
+            OutlinedButton(onClick = { catPicker = true }, modifier = Modifier.fillMaxWidth()) { Text(tr("الفئة: ${catAr(category)}")) }
+            OutlinedTextField(purchaseDate, { purchaseDate = it }, label = { Text(tr("تاريخ الشراء")) }, singleLine = true, modifier = Modifier.fillMaxWidth())
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedTextField(cost, { cost = it.filter { c -> c.isDigit() || c == '.' } }, label = { Text("التكلفة *") }, singleLine = true,
+                OutlinedTextField(cost, { cost = it.filter { c -> c.isDigit() || c == '.' } }, label = { Text(tr("التكلفة *")) }, singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal), modifier = Modifier.weight(1f))
-                OutlinedTextField(salvage, { salvage = it.filter { c -> c.isDigit() || c == '.' } }, label = { Text("قيمة الخردة") }, singleLine = true,
+                OutlinedTextField(salvage, { salvage = it.filter { c -> c.isDigit() || c == '.' } }, label = { Text(tr("قيمة الخردة")) }, singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal), modifier = Modifier.weight(1f))
             }
-            OutlinedTextField(life, { life = it.filter { c -> c.isDigit() } }, label = { Text("العمر الإنتاجي (سنوات) *") }, singleLine = true,
+            OutlinedTextField(life, { life = it.filter { c -> c.isDigit() } }, label = { Text(tr("العمر الإنتاجي (سنوات) *")) }, singleLine = true,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), modifier = Modifier.fillMaxWidth())
-            OutlinedTextField(notes, { notes = it }, label = { Text("ملاحظات") }, modifier = Modifier.fillMaxWidth())
+            OutlinedTextField(notes, { notes = it }, label = { Text(tr("ملاحظات")) }, modifier = Modifier.fillMaxWidth())
             error?.let { Text(it, color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.SemiBold) }
-            Button(onClick = { save() }, enabled = !busy, modifier = Modifier.fillMaxWidth()) { Text(if (busy) "جارٍ الحفظ…" else "حفظ") }
-            Text("ملاحظة: ربط حسابات الإهلاك يتم من نسخة الويب.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
+            Button(onClick = { save() }, enabled = !busy, modifier = Modifier.fillMaxWidth()) { Text(if (busy) tr("جارٍ الحفظ…") else tr("حفظ")) }
+            Text(tr("ملاحظة: ربط حسابات الإهلاك يتم من نسخة الويب."), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
         }
     }
 
-    if (catPicker) OptionPickerDialog("الفئة", CATEGORIES.map { it.first to it.second }, onDismiss = { catPicker = false }) { id, _ -> category = id; catPicker = false }
+    if (catPicker) OptionPickerDialog(tr("الفئة"), CATEGORIES.map { it.first to it.second }, onDismiss = { catPicker = false }) { id, _ -> category = id; catPicker = false }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -114,7 +116,7 @@ fun AssetDetailScreen(nav: NavController, id: String) {
     LaunchedEffect(id, tick) { d = try { ServiceLocator.repo.assetDetail(id) } catch (e: Exception) { null } }
 
     Scaffold(topBar = {
-        TopAppBar(title = { Text("أصل ثابت") },
+        TopAppBar(title = { Text(tr("أصل ثابت")) },
             navigationIcon = { IconButton(onClick = { nav.popBackStack() }) { Icon(Icons.AutoMirrored.Filled.ArrowBack, null) } })
     }) { pad ->
         Box(Modifier.fillMaxSize().padding(pad)) {
@@ -128,13 +130,13 @@ fun AssetDetailScreen(nav: NavController, id: String) {
                         AssistChip(onClick = {}, label = { Text(statusAr(o.status)) })
                     }
                 }
-                AssetRow("تاريخ الشراء", o.purchaseDate)
-                AssetRow("التكلفة", money(o.purchaseCost))
-                AssetRow("قيمة الخردة", money(o.salvageValue))
-                AssetRow("العمر الإنتاجي", "${o.usefulLifeYears} سنة")
-                AssetRow("مجمع الإهلاك", money(o.accumulated))
-                AssetRow("القيمة الدفترية", money(o.netBookValue))
-                if (o.notes.isNotBlank()) AssetRow("ملاحظات", o.notes)
+                AssetRow(tr("تاريخ الشراء"), o.purchaseDate)
+                AssetRow(tr("التكلفة"), money(o.purchaseCost))
+                AssetRow(tr("قيمة الخردة"), money(o.salvageValue))
+                AssetRow(tr("العمر الإنتاجي"), tr("${o.usefulLifeYears} سنة"))
+                AssetRow(tr("مجمع الإهلاك"), money(o.accumulated))
+                AssetRow(tr("القيمة الدفترية"), money(o.netBookValue))
+                if (o.notes.isNotBlank()) AssetRow(tr("ملاحظات"), o.notes)
             }
         }
     }

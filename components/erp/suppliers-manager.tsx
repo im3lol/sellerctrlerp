@@ -117,7 +117,7 @@ export function SuppliersManager({ suppliers, canManage, title, kpis }: { suppli
                 <TableRow key={s.id} data-state={sel.has(s.id) ? "selected" : undefined}>
                   {canManage && <TableCell><SelectBox label={t("تحديد")} checked={sel.has(s.id)} onChange={() => sel.toggle(s.id)} /></TableCell>}
                   <TableCell className="font-mono">{s.code}</TableCell>
-                  <TableCell className="max-w-[240px] truncate" title={s.nameAr}>{s.nameAr}</TableCell>
+                  <TableCell className="max-w-[240px] truncate" title={s.nameAr}>{t(s.nameAr)}</TableCell>
                   <TableCell dir="ltr" className="text-start">{s.phone ?? "—"}</TableCell>
                   <TableCell>{fmt(s.balance)}</TableCell>
                   <TableCell>{s.paymentTerms} {t("يوم")}</TableCell>
@@ -128,7 +128,7 @@ export function SuppliersManager({ suppliers, canManage, title, kpis }: { suppli
                         <AlertDialog>
                           <AlertDialogTrigger asChild><Button variant="ghost" size="icon" disabled={pending} aria-label={t("حذف")}><Trash2 className="size-4 text-destructive" /></Button></AlertDialogTrigger>
                           <AlertDialogContent>
-                            <AlertDialogHeader><AlertDialogTitle>{t("حذف المورد «")}{s.nameAr}{t("»؟")}</AlertDialogTitle><AlertDialogDescription>{t("لا يمكن التراجع.")}</AlertDialogDescription></AlertDialogHeader>
+                            <AlertDialogHeader><AlertDialogTitle>{t("حذف المورد «")}{t(s.nameAr)}{t("»؟")}</AlertDialogTitle><AlertDialogDescription>{t("لا يمكن التراجع.")}</AlertDialogDescription></AlertDialogHeader>
                             <AlertDialogFooter><AlertDialogCancel>{t("إلغاء")}</AlertDialogCancel><AlertDialogAction onClick={() => remove(s)}>{t("حذف")}</AlertDialogAction></AlertDialogFooter>
                           </AlertDialogContent>
                         </AlertDialog>

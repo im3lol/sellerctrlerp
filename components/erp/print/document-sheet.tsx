@@ -175,7 +175,7 @@ export async function DocumentSheet({
               }}>{initials(org?.nameAr)}</div>
             )}
             <div>
-              <div style={{ fontWeight: 800, fontSize: 17 }}>{org?.nameAr}</div>
+              <div style={{ fontWeight: 800, fontSize: 17 }}>{t(org?.nameAr ?? "")}</div>
               <div style={{ fontSize: 11, color: T.muted, marginTop: 3, lineHeight: 1.5 }}>
                 {org?.address && <div>{org.address}</div>}
                 {org?.phone && <div dir="ltr" style={{ textAlign: "start" }}>{org.phone}</div>}

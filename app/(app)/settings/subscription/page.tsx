@@ -66,7 +66,7 @@ export default async function SubscriptionPage({ searchParams }: { searchParams:
           <Card>
             <CardHeader className="pb-2"><CardTitle className="text-base">{t("المستخدمون")}</CardTitle></CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold tabular-nums">{members.toLocaleString("ar-EG")}<span className="text-sm font-normal text-muted-foreground"> / {state.maxUsers == null ? t("بلا حد") : state.maxUsers.toLocaleString("ar-EG")}</span></div>
+              <div className="text-2xl font-bold tabular-nums">{members.toLocaleString(locale === "en" ? "en-US" : "ar-EG")}<span className="text-sm font-normal text-muted-foreground"> / {state.maxUsers == null ? t("بلا حد") : state.maxUsers.toLocaleString("ar-EG")}</span></div>
               {state.maxUsers != null && <div className="mt-2 h-2 overflow-hidden rounded-full bg-muted"><div className="h-full bg-primary" style={{ width: `${usedPct(members, state.maxUsers)}%` }} /></div>}
             </CardContent>
           </Card>

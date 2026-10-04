@@ -115,9 +115,9 @@ export default async function JournalEntryDetailPage({ params }: { params: Promi
 
         {reversalNumber && (
           <div className="rounded-xl border border-destructive/40 bg-destructive/5 px-4 py-3 text-sm">
-            هذا القيد معكوس.{" "}
+            {t("هذا القيد معكوس.")}{" "}
             <Link href={`/accounting/journal/${encodeURIComponent(reversalNumber)}`} className="font-medium text-primary underline">
-              عرض القيد العكسي ({reversalNumber})
+              {fill(t("عرض القيد العكسي ({0})"), [reversalNumber])}
             </Link>
             {entry.reversalReason ? fill(t(" — السبب: {0}"), [entry.reversalReason]) : ""}
           </div>
@@ -143,7 +143,7 @@ export default async function JournalEntryDetailPage({ params }: { params: Promi
                 {lines.map((l) => (
                   <TableRow key={l.id}>
                     <TableCell>
-                      <span className="font-mono">{l.accountCode}</span> — {l.accountName}
+                      <span className="font-mono">{l.accountCode}</span> — {t(l.accountName)}
                     </TableCell>
                     <TableCell className="max-w-[320px] truncate" title={l.description || undefined}>{l.description || "—"}</TableCell>
                     {hasCostCenters && <TableCell>{l.costCenterName || "—"}</TableCell>}

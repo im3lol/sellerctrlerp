@@ -113,7 +113,7 @@ export function BinsManager({ warehouses, items, canEdit }: {
             <div>
               <CardTitle>{t("مواقع التخزين")}</CardTitle>
               <CardDescription>
-                {loading ? t("جارٍ التحميل…") : fill(t("{0} موقع"), [bins.length])} — مرتّبة بترتيب المشي في المخزن، فـ A-2 قبل A-10.
+                {loading ? t("جارٍ التحميل…") : fill(t("{0} موقع"), [bins.length])} {t("— مرتّبة بترتيب المشي في المخزن، فـ A-2 قبل A-10.")}
               </CardDescription>
             </div>
             <select className={`${selectCls} w-56`} value={warehouseId} onChange={(e) => setWarehouseId(e.target.value)}>
@@ -154,7 +154,7 @@ export function BinsManager({ warehouses, items, canEdit }: {
                   {bins.map((b) => (
                     <TableRow key={b.id}>
                       <TableCell className="font-mono text-sm" dir="ltr">{b.code}</TableCell>
-                      <TableCell className="text-muted-foreground">{b.nameAr ?? "—"}</TableCell>
+                      <TableCell className="text-muted-foreground">{t(b.nameAr ?? "—")}</TableCell>
                       <TableCell className="tabular-nums">{b.itemCount}</TableCell>
                       <TableCell>{b.isActive ? <Badge variant="secondary">{t("مفعّل")}</Badge> : <Badge variant="outline">{t("موقوف")}</Badge>}</TableCell>
                       {canEdit && (
@@ -241,8 +241,8 @@ export function BinsManager({ warehouses, items, canEdit }: {
                           {l.code}
                           {l.isPrimary && <Badge className="ms-2" variant="secondary">{t("أساسي")}</Badge>}
                         </TableCell>
-                        <TableCell className="text-muted-foreground">{l.nameAr ?? "—"}</TableCell>
-                        <TableCell>{l.warehouseName}</TableCell>
+                        <TableCell className="text-muted-foreground">{t(l.nameAr ?? "—")}</TableCell>
+                        <TableCell>{t(l.warehouseName)}</TableCell>
                         {canEdit && (
                           <TableCell>
                             <Button size="icon" variant="ghost" aria-label={t("إلغاء")} onClick={() => unassign(l.binId)}>

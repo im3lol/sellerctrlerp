@@ -76,7 +76,7 @@ export function AiBillReader({ canInvoice, canExpense, expenseAccounts, cashAcco
         {!res?.supplier ? (
           <p className="text-sm text-muted-foreground">{t("المورد «")}{b.supplierName ?? t("؟")}{t("» مش موجود عندك — ضيفه، واستلم البضاعة بإذن استلام، وبعدين اقرا الفاتورة تاني.")}</p>
         ) : (res.receipts ?? []).length === 0 ? (
-          <p className="text-sm text-muted-foreground">{t("مفيش إذن استلام مفتوح لـ«")}{res.supplier.nameAr}{t("» — استلم البضاعة الأول (أمر شراء ← إذن استلام).")}</p>
+          <p className="text-sm text-muted-foreground">{t("مفيش إذن استلام مفتوح لـ«")}{t(res.supplier.nameAr)}{t("» — استلم البضاعة الأول (أمر شراء ← إذن استلام).")}</p>
         ) : (
           <>
             <div className="space-y-2">
@@ -124,8 +124,7 @@ export function AiBillReader({ canInvoice, canExpense, expenseAccounts, cashAcco
         <CardHeader>
           <CardTitle>{t("ارفع الفاتورة")}</CardTitle>
           <CardDescription>
-            PDF أو صورة واضحة. الملف ده بس هو اللي بيتبعت للذكاء الاصطناعي — مفيش أي بيانات تانية من حسابك —
-            ومفيش أي مستند بيتعمل غير لما تدوس بنفسك.
+            {t("PDF أو صورة واضحة. الملف ده بس هو اللي بيتبعت للذكاء الاصطناعي — مفيش أي بيانات تانية من حسابك — ومفيش أي مستند بيتعمل غير لما تدوس بنفسك.")}
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-wrap items-center gap-2">
@@ -133,7 +132,7 @@ export function AiBillReader({ canInvoice, canExpense, expenseAccounts, cashAcco
             onChange={(e) => { setFile(e.target.files?.[0] ?? null); setRes(null); }} />
           <Button disabled={!file || pending} onClick={read}>
             {pending ? <Icon name="Loader2" className="size-4 animate-spin" /> : <Icon name="Sparkles" className="size-4" />}
-            اقرأ الفاتورة
+            {t("اقرأ الفاتورة")}
           </Button>
         </CardContent>
       </Card>
@@ -150,7 +149,7 @@ export function AiBillReader({ canInvoice, canExpense, expenseAccounts, cashAcco
             <dl className="grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-4">
               <div><dt className="text-xs text-muted-foreground">{t("المورد")}</dt><dd className="font-medium">
                 {b.supplierName ?? "—"}
-                {res?.supplier ? <span className="ms-1 text-xs text-emerald-600">✓ {res.supplier.nameAr}</span> : <span className="ms-1 text-xs text-amber-600">{t("(مش عندك)")}</span>}
+                {res?.supplier ? <span className="ms-1 text-xs text-emerald-600">✓ {t(res.supplier.nameAr)}</span> : <span className="ms-1 text-xs text-amber-600">{t("(مش عندك)")}</span>}
               </dd></div>
               <div><dt className="text-xs text-muted-foreground">{t("رقم الفاتورة")}</dt><dd className="font-mono">{b.invoiceNumber ?? "—"}</dd></div>
               <div><dt className="text-xs text-muted-foreground">{t("التاريخ")}</dt><dd>{b.invoiceDate ?? "—"}</dd></div>
@@ -177,7 +176,7 @@ export function AiBillReader({ canInvoice, canExpense, expenseAccounts, cashAcco
                 <TableBody>
                   {b.lines.map((l, i) => (
                     <TableRow key={i}>
-                      <TableCell className="max-w-[280px] truncate" title={l.description}>{l.description}</TableCell>
+                      <TableCell className="max-w-[280px] truncate" title={l.description}>{t(l.description)}</TableCell>
                       <TableCell className="font-mono text-xs">{l.code ?? "—"}</TableCell>
                       <TableCell className="tabular-nums">{num(l.quantity)}</TableCell>
                       <TableCell className="tabular-nums">{num(l.unitPrice)}</TableCell>
@@ -188,7 +187,7 @@ export function AiBillReader({ canInvoice, canExpense, expenseAccounts, cashAcco
               </Table>
             </div>
             <p className="text-xs text-muted-foreground">
-              قبل الضريبة {num(b.subtotal)} · الضريبة {num(b.tax)} · الإجمالي {num(b.total)} — المستند اللي هيتعمل مسودة، تقدر تعدّله قبل الترحيل.
+              {fill(t("قبل الضريبة {0} · الضريبة {1} · الإجمالي {2} — المستند اللي هيتعمل مسودة، تقدر تعدّله قبل الترحيل."), [num(b.subtotal), num(b.tax), num(b.total)])}
             </p>
           </CardContent>
         </Card>

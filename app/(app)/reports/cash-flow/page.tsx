@@ -64,21 +64,21 @@ export default async function CashFlowPage({
         <CashSection title={t("الأنشطة التشغيلية")} total={opTotal}>
           <CashRow label={t("صافي الربح / (الخسارة)")} amount={netIncome} />
           <SubLabel>{t("التغيرات في رأس المال العامل")}</SubLabel>
-          {operating.map((l) => <CashRow key={l.code} label={`${l.code} — ${l.nameAr}`} amount={l.sign * l.amount} />)}
+          {operating.map((l) => <CashRow key={l.code} label={`${l.code} — ${t(l.nameAr)}`} amount={l.sign * l.amount} />)}
         </CashSection>
 
         {/* Investing */}
         <CashSection title={t("الأنشطة الاستثمارية")} total={invTotal}>
           {investing.length === 0
             ? <p className="text-sm text-muted-foreground">{t("لا توجد أنشطة استثمارية في الفترة.")}</p>
-            : investing.map((l) => <CashRow key={l.code} label={`${l.code} — ${l.nameAr}`} amount={l.sign * l.amount} />)}
+            : investing.map((l) => <CashRow key={l.code} label={`${l.code} — ${t(l.nameAr)}`} amount={l.sign * l.amount} />)}
         </CashSection>
 
         {/* Financing */}
         <CashSection title={t("الأنشطة التمويلية")} total={finTotal}>
           {financing.length === 0
             ? <p className="text-sm text-muted-foreground">{t("لا توجد أنشطة تمويلية في الفترة.")}</p>
-            : financing.map((l) => <CashRow key={l.code} label={`${l.code} — ${l.nameAr}`} amount={l.sign * l.amount} />)}
+            : financing.map((l) => <CashRow key={l.code} label={`${l.code} — ${t(l.nameAr)}`} amount={l.sign * l.amount} />)}
         </CashSection>
 
         {/* Summary */}

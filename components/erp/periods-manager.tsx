@@ -72,8 +72,7 @@ function YearClosingDialog({
       {preview && (
         <div className="space-y-4">
           <p className="text-sm text-muted-foreground">
-            سيتم ترحيل قيد إقفال يُصفّر حسابات الإيرادات والمصروفات ويُحوّل صافي الربح / الخسارة إلى حساب
-            الأرباح المحتجزة (3001)، ثم تُقفَل الفترة نهائيًا.
+            {t("سيتم ترحيل قيد إقفال يُصفّر حسابات الإيرادات والمصروفات ويُحوّل صافي الربح / الخسارة إلى حساب الأرباح المحتجزة (3001)، ثم تُقفَل الفترة نهائيًا.")}
           </p>
 
           <div className="grid grid-cols-2 gap-4">
@@ -85,7 +84,7 @@ function YearClosingDialog({
                   ? <p className="p-3 text-muted-foreground">{t("لا توجد")}</p>
                   : preview.revenues.map((r) => (
                     <div key={r.accountId} className="flex justify-between border-b p-2 last:border-0">
-                      <span>{r.code} — {r.nameAr}</span>
+                      <span>{r.code} — {t(r.nameAr)}</span>
                       <span className="font-mono">{fmt(r.amount)}</span>
                     </div>
                   ))
@@ -105,7 +104,7 @@ function YearClosingDialog({
                   ? <p className="p-3 text-muted-foreground">{t("لا توجد")}</p>
                   : preview.expenses.map((e) => (
                     <div key={e.accountId} className="flex justify-between border-b p-2 last:border-0">
-                      <span>{e.code} — {e.nameAr}</span>
+                      <span>{e.code} — {t(e.nameAr)}</span>
                       <span className="font-mono">{fmt(e.amount)}</span>
                     </div>
                   ))

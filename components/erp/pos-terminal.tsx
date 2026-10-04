@@ -185,7 +185,7 @@ export function PosTerminal({ warehouses, cashAccounts, customers, defaultCustom
           });
           if (!r.ok) { toast.error(r.error ?? t("تعذّر إتمام البيع")); return; }
           toast.success(
-            `${r.invoiceNumber}${r.change && r.change > 0 ? ` — الفكة ${money(r.change)}` : ""}`
+            `${r.invoiceNumber}${r.change && r.change > 0 ? fill(t(" — الفكة {0}"), [money(r.change)]) : ""}`
             + (r.earnedPoints ? fill(t(" · +{0} نقطة"), [r.earnedPoints]) : ""),
           );
           clearCart();
@@ -278,12 +278,12 @@ export function PosTerminal({ warehouses, cashAccounts, customers, defaultCustom
           <div className="flex w-full flex-wrap items-center justify-between gap-3">
             <div>
               <CardTitle className="flex items-center gap-2">
-                وردية {state.shift.number}
+                {fill(t("وردية {0}"), [state.shift.number])}
                 {!q.online && <Badge variant="destructive" className="gap-1"><Icon name="WifiOff" className="size-3" />{t("بدون نت")}</Badge>}
                 {q.syncing && <Badge variant="outline" className="gap-1"><Icon name="Loader2" className="size-3 animate-spin" />{t("بيزامن")}</Badge>}
               </CardTitle>
               <CardDescription>
-                {state.sales.length + unsettled} بيعة · إجمالي {money((r?.totalSales ?? 0) + queued.sales)} · كاش في الدرج (متوقّع) {money(expectedCash)}
+                {fill(t("{0} بيعة · إجمالي {1} · كاش في الدرج (متوقّع) {2}"), [state.sales.length + unsettled, money((r?.totalSales ?? 0) + queued.sales), money(expectedCash)])}
                 {unsettled > 0 && fill(t(" · {0} لسه ما اترحّلتش"), [unsettled])}
               </CardDescription>
             </div>
@@ -302,12 +302,12 @@ export function PosTerminal({ warehouses, cashAccounts, customers, defaultCustom
                 <Icon name="Check" className="size-4" />{t("اقفل")}
               </Button>
               <span className="pb-2 text-sm text-muted-foreground">
-                المتوقّع {money(expectedCash)}
+                {fill(t("المتوقّع {0}"), [money(expectedCash)])}
                 {counted !== "" && fill(t(" · الفرق {0}"), [money((Number(counted) || 0) - expectedCash)])}
               </span>
               {unsettled > 0 && (
                 <span className="pb-2 text-sm font-medium text-destructive">
-                  فيه {unsettled} بيعة لسه ما وصلتش للدفاتر — زامنها الأول، الوردية مبتتقفلش على فرق مش حقيقي.
+                  {fill(t("فيه {0} بيعة لسه ما وصلتش للدفاتر — زامنها الأول، الوردية مبتتقفلش على فرق مش حقيقي."), [unsettled])}
                 </span>
               )}
             </div>
@@ -423,7 +423,7 @@ export function PosTerminal({ warehouses, cashAccounts, customers, defaultCustom
               {totals.discount > 0 && <div className="flex justify-between"><span className="text-muted-foreground">{t("الخصم")}</span><span className="tabular-nums">−{money(totals.discount)}</span></div>}
               {promo.applied.map((a) => (
                 <div key={a.promotionId} className="flex justify-between text-emerald-600">
-                  <span>{a.nameAr}</span><span className="tabular-nums">−{money(a.amount)}</span>
+                  <span>{t(a.nameAr)}</span><span className="tabular-nums">−{money(a.amount)}</span>
                 </div>
               ))}
               {redeemAmount > 0 && (
@@ -501,7 +501,7 @@ export function PosTerminal({ warehouses, cashAccounts, customers, defaultCustom
                   if (res.failed > 0) toast.error(fill(t("{0} بيعة اترفضت — شوف السبب تحت"), [res.failed]));
                   else if (res.done > 0) { toast.success(fill(t("اترحّلت {0} بيعة"), [res.done])); load(); }
                 })}>
-                <Icon name="RefreshCw" className={`size-4 ${q.syncing ? "animate-spin" : ""}`} />زامن دلوقتي
+                <Icon name="RefreshCw" className={`size-4 ${q.syncing ? "animate-spin" : ""}`} />{t("زامن دلوقتي")}
               </Button>
             </div>
           </CardHeader>

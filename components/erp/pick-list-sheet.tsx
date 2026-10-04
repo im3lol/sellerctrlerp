@@ -87,7 +87,7 @@ export function PickListSheet({ pickListId, open, groups, deliveries, canConfirm
           {open && <Button variant="outline" size="sm" disabled={pending} onClick={save}>{t("حفظ")}</Button>}
           {open && canConfirm && (
             <Button size="sm" disabled={pending} onClick={ship}>
-              {pending ? <Loader2 className="size-4 animate-spin" /> : <Icon name="Truck" className="size-4" />}تأكيد الأذون الجاهزة
+              {pending ? <Loader2 className="size-4 animate-spin" /> : <Icon name="Truck" className="size-4" />}{t("تأكيد الأذون الجاهزة")}
             </Button>
           )}
           {open && canCancel && <Button variant="ghost" size="sm" disabled={pending} onClick={cancel}>{t("إلغاء الجولة")}</Button>}

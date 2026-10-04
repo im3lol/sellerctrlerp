@@ -1,5 +1,7 @@
 package com.sellerctrl.app.ui
 
+import com.sellerctrl.app.tr
+
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -63,15 +65,15 @@ fun BudgetYearsScreen(nav: NavController) {
     LaunchedEffect(tick) { rows = try { ServiceLocator.repo.docList("api/v1/accounting/budget") } catch (e: Exception) { emptyList() } }
 
     Scaffold(
-        topBar = { TopAppBar(title = { Text("الميزانية التقديرية") },
+        topBar = { TopAppBar(title = { Text(tr("الميزانية التقديرية")) },
             navigationIcon = { IconButton(onClick = { nav.popBackStack() }) { Icon(Icons.AutoMirrored.Filled.ArrowBack, null) } }) },
-        floatingActionButton = { FloatingActionButton(onClick = { addOpen = true }) { Icon(Icons.Filled.Add, "سنة جديدة") } },
+        floatingActionButton = { FloatingActionButton(onClick = { addOpen = true }) { Icon(Icons.Filled.Add, tr("سنة جديدة")) } },
     ) { pad ->
         Box(Modifier.fillMaxSize().padding(pad)) {
             val r = rows
             when {
                 r == null -> CircularProgressIndicator(Modifier.align(Alignment.Center))
-                r.isEmpty() -> Text("لا توجد ميزانيات — اضغط + لبدء سنة", Modifier.align(Alignment.Center), color = MaterialTheme.colorScheme.outline)
+                r.isEmpty() -> Text(tr("لا توجد ميزانيات — اضغط + لبدء سنة"), Modifier.align(Alignment.Center), color = MaterialTheme.colorScheme.outline)
                 else -> LazyColumn(Modifier.fillMaxSize().padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     items(r) { y ->
                         AppCard(Modifier.fillMaxWidth().clickable { nav.navigate("budget_year/${y.number}") }) {
@@ -91,18 +93,18 @@ fun BudgetYearsScreen(nav: NavController) {
 
     if (addOpen) AlertDialog(
         onDismissRequest = { addOpen = false },
-        title = { Text("سنة ميزانية") },
+        title = { Text(tr("سنة ميزانية")) },
         text = {
-            OutlinedTextField(newYear, { newYear = it.filter { c -> c.isDigit() } }, label = { Text("السنة") }, singleLine = true,
+            OutlinedTextField(newYear, { newYear = it.filter { c -> c.isDigit() } }, label = { Text(tr("السنة")) }, singleLine = true,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), modifier = Modifier.fillMaxWidth())
         },
         confirmButton = {
             TextButton(onClick = {
                 val y = newYear.toIntOrNull()
                 if (y != null && y in 2000..2100) { addOpen = false; nav.navigate("budget_year/$y") }
-            }) { Text("فتح") }
+            }) { Text(tr("فتح")) }
         },
-        dismissButton = { OutlinedButton(onClick = { addOpen = false }) { Text("إلغاء") } },
+        dismissButton = { OutlinedButton(onClick = { addOpen = false }) { Text(tr("إلغاء")) } },
     )
 }
 
@@ -121,7 +123,7 @@ fun BudgetYearScreen(nav: NavController, year: String) {
         try {
             val b = ServiceLocator.repo.budgetYear(year.toIntOrNull() ?: 0)
             b.lines.forEach { l -> lines.add(BudgetRow(l.accountId, "${l.code} ${l.name}", l.type, if (l.amount == 0.0) "" else fmt(l.amount))) }
-        } catch (e: Exception) { error = e.message ?: "تعذّر التحميل" }
+        } catch (e: Exception) { error = e.message ?: tr("تعذّر التحميل") }
         loaded = true
     }
 
@@ -129,16 +131,16 @@ fun BudgetYearScreen(nav: NavController, year: String) {
 
     fun save() {
         val payload = lines.filter { (it.amount.toDoubleOrNull() ?: 0.0) > 0 }.map { BudgetSaveLine(it.accountId, it.amount.toDouble()) }
-        if (payload.isEmpty()) { error = "أدخل مبلغاً واحداً على الأقل"; return }
+        if (payload.isEmpty()) { error = tr("أدخل مبلغاً واحداً على الأقل"); return }
         busy = true; error = null
         scope.launch {
             try { ServiceLocator.repo.budgetSave(BudgetSaveReq(year.toIntOrNull() ?: 0, payload)); nav.popBackStack() }
-            catch (e: Exception) { error = e.message ?: "خطأ"; busy = false }
+            catch (e: Exception) { error = e.message ?: tr("خطأ"); busy = false }
         }
     }
 
     Scaffold(topBar = {
-        TopAppBar(title = { Text("ميزانية $year") },
+        TopAppBar(title = { Text(tr("ميزانية $year")) },
             navigationIcon = { IconButton(onClick = { nav.popBackStack() }) { Icon(Icons.AutoMirrored.Filled.ArrowBack, null) } })
     }) { pad ->
         Box(Modifier.fillMaxSize().padding(pad)) {
@@ -146,7 +148,7 @@ fun BudgetYearScreen(nav: NavController, year: String) {
             else Column(Modifier.fillMaxSize().padding(12.dp)) {
                 AppCard(Modifier.fillMaxWidth().padding(bottom = 8.dp)) {
                     Row(Modifier.fillMaxWidth().padding(14.dp), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text("إجمالي المُقدَّر", fontWeight = FontWeight.Bold)
+                        Text(tr("إجمالي المُقدَّر"), fontWeight = FontWeight.Bold)
                         Text(money(total()), fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
                     }
                 }
@@ -161,13 +163,13 @@ fun BudgetYearScreen(nav: NavController, year: String) {
                                     Text(l.type, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
                                 }
                                 OutlinedTextField(l.amount, { v -> lines[i] = l.copy(amount = v.filter { it.isDigit() || it == '.' }) },
-                                    label = { Text("مُقدَّر") }, singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                                    label = { Text(tr("مُقدَّر")) }, singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                                     modifier = Modifier.width(130.dp))
                             }
                         }
                     }
                 }
-                Button(onClick = { save() }, enabled = !busy, modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) { Text(if (busy) "جارٍ الحفظ…" else "حفظ") }
+                Button(onClick = { save() }, enabled = !busy, modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) { Text(if (busy) tr("جارٍ الحفظ…") else tr("حفظ")) }
             }
         }
     }

@@ -35,11 +35,12 @@ export type PriceListOption = { id: string; nameAr: string };
 const fmt = (v: string | null) => Number(v ?? 0).toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 function SubmitBtn() {
+  const t = useT();
   const { pending } = useFormStatus();
   return (
     <Button type="submit" disabled={pending}>
       {pending && <Loader2 className="size-4 animate-spin" />}
-      حفظ
+      {t("حفظ")}
     </Button>
   );
 }
@@ -94,7 +95,7 @@ function CustomerDialog({
                 <Label htmlFor="c-pricelist">{t("قائمة الأسعار")}</Label>
                 <select id="c-pricelist" name="priceListId" className={selectCls} defaultValue={editing?.priceListId ?? ""}>
                   <option value="">{t("الافتراضية للشركة")}</option>
-                  {priceLists.map((p) => <option key={p.id} value={p.id}>{p.nameAr}</option>)}
+                  {priceLists.map((p) => <option key={p.id} value={p.id}>{t(p.nameAr)}</option>)}
                 </select>
               </div>
             )}
@@ -129,7 +130,7 @@ function PortalLinkDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>{t("ربط ببوابة العميل —")} {customer.nameAr}</DialogTitle>
+          <DialogTitle>{t("ربط ببوابة العميل —")} {t(customer.nameAr)}</DialogTitle>
           <DialogDescription>{t("ادخل بريد المستخدم (دور: client) لربطه بهذا العميل. اتركه فارغاً لإلغاء الربط.")}</DialogDescription>
         </DialogHeader>
         <div className="space-y-2">
@@ -219,7 +220,7 @@ export function CustomersManager({ customers, canManage, title, kpis, priceLists
                 <TableRow key={c.id} data-state={sel.has(c.id) ? "selected" : undefined}>
                   {canManage && <TableCell><SelectBox label={t("تحديد")} checked={sel.has(c.id)} onChange={() => sel.toggle(c.id)} /></TableCell>}
                   <TableCell className="font-mono">{c.code}</TableCell>
-                  <TableCell className="max-w-[240px] truncate" title={c.nameAr}>{c.nameAr}</TableCell>
+                  <TableCell className="max-w-[240px] truncate" title={c.nameAr}>{t(c.nameAr)}</TableCell>
                   <TableCell dir="ltr" className="text-start">{c.phone ?? "—"}</TableCell>
                   <TableCell>{fmt(c.balance)}</TableCell>
                   <TableCell>{fmt(c.creditLimit)}</TableCell>
@@ -245,7 +246,7 @@ export function CustomersManager({ customers, canManage, title, kpis, priceLists
                           </AlertDialogTrigger>
                           <AlertDialogContent>
                             <AlertDialogHeader>
-                              <AlertDialogTitle>{t("حذف العميل «")}{c.nameAr}{t("»؟")}</AlertDialogTitle>
+                              <AlertDialogTitle>{t("حذف العميل «")}{t(c.nameAr)}{t("»؟")}</AlertDialogTitle>
                               <AlertDialogDescription>{t("لا يمكن التراجع عن هذا الإجراء.")}</AlertDialogDescription>
                             </AlertDialogHeader>
                             <AlertDialogFooter>

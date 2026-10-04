@@ -81,7 +81,7 @@ export default async function ErpReportsPage({ searchParams }: { searchParams: P
                       <TableCell className="font-mono">
                         <a href={`/accounting/ledger?${new URLSearchParams({ account: l.id, from, to }).toString()}`} className="hover:text-primary hover:underline">{l.code}</a>
                       </TableCell>
-                      <TableCell>{l.nameAr}</TableCell>
+                      <TableCell>{t(l.nameAr)}</TableCell>
                       <TableCell>{l.debit ? fmt(l.debit) : "—"}</TableCell>
                       <TableCell>{l.credit ? fmt(l.credit) : "—"}</TableCell>
                     </TableRow>

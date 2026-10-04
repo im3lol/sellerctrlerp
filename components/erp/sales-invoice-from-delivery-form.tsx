@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
+import { fill } from "@/lib/i18n";
 import { useT } from "@/lib/i18n/client";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
@@ -54,7 +55,7 @@ export function SalesInvoiceFromDeliveryForm({
   };
 
   const customerDeliveries = useMemo(() => deliveries.filter((d) => d.customerId === customerId), [deliveries, customerId]);
-  const customerOptions = useMemo(() => customers.map((c) => ({ id: c.id, label: c.nameAr })), [customers]);
+  const customerOptions = useMemo(() => customers.map((c) => ({ id: c.id, label: t(c.nameAr) })), [customers, t]);
   const customerLabelById = useMemo(() => new Map(customerOptions.map((o) => [o.id, o.label])), [customerOptions]);
 
   const onCustomer = (id: string) => { setCustomerId(id); setDeliveryId(""); setPreview(null); };
@@ -130,13 +131,13 @@ export function SalesInvoiceFromDeliveryForm({
               <Label>{t("عملة الفاتورة")}</Label>
               <select className={selectCls} value={currencyCode} onChange={(e) => onCurrencyChange(e.target.value)}>
                 {currencies.map((c) => (
-                  <option key={c.code} value={c.code}>{c.code} — {c.nameAr}{c.isBase ? t(" (أساسية)") : ""}</option>
+                  <option key={c.code} value={c.code}>{c.code} — {t(c.nameAr)}{c.isBase ? t(" (أساسية)") : ""}</option>
                 ))}
               </select>
             </div>
             {isForeign && (
               <div className="space-y-2">
-                <Label>{t("سعر الصرف (1")} {currencyCode} = ؟ {baseCurrency?.code ?? "EGP"})</Label>
+                <Label>{fill(t("سعر الصرف (1 {0} = ؟ {1})"), [currencyCode, baseCurrency?.code ?? "EGP"])}</Label>
                 <Input
                   type="number"
                   min="0.000001"
@@ -219,7 +220,7 @@ export function SalesInvoiceFromDeliveryForm({
             <div>{t("الضريبة:")} <span className="font-medium">{fmt(preview.tax)}</span></div>
             {preview.shipping > 0 && <div>{t("الشحن:")} <span className="font-medium">{fmt(preview.shipping)}</span></div>}
             <div className="text-base font-bold text-primary">
-              الإجمالي: {fmt(preview.total)} {baseCurrency?.code ?? "EGP"}
+              {fill(t("الإجمالي: {0} {1}"), [fmt(preview.total), baseCurrency?.code ?? "EGP"])}
               {isForeign && foreignTotal !== null && (
                 <span className="ms-2 text-sm font-normal text-muted-foreground">
                   = {fmt(foreignTotal)} {currencyCode}

@@ -44,7 +44,7 @@ export function DeliveryForm({
   const mktLabel = channel === "AMAZON" ? "ASIN" : channel === "NOON" ? t("كود نون") : "";
 
   const customerOrders = useMemo(() => openOrders.filter((o) => o.customerId === customerId), [openOrders, customerId]);
-  const customerOptions = useMemo(() => customers.map((c) => ({ id: c.id, label: c.nameAr })), [customers]);
+  const customerOptions = useMemo(() => customers.map((c) => ({ id: c.id, label: t(c.nameAr) })), [customers, t]);
   const customerLabelById = useMemo(() => new Map(customerOptions.map((o) => [o.id, o.label])), [customerOptions]);
 
   const onCustomer = (id: string) => { setCustomerId(id); setOrderId(""); setLines([]); };
@@ -160,7 +160,7 @@ export function DeliveryForm({
                       </TableCell>
                       <TableCell>
                         <select className={selectCls} value={l.warehouseId} onChange={(e) => setLine(l.itemId, { warehouseId: e.target.value })}>
-                          {warehouses.map((w) => <option key={w.id} value={w.id}>{w.nameAr}</option>)}
+                          {warehouses.map((w) => <option key={w.id} value={w.id}>{t(w.nameAr)}</option>)}
                         </select>
                       </TableCell>
                       <TableCell className="font-medium">{qtyf(l.remaining)}</TableCell>

@@ -98,7 +98,7 @@ export function ReportBuilderUI({ datasets, saved, initialId }: { datasets: Data
               {saved.map((r) => (
                 <div key={r.id} className="flex items-center gap-1 rounded-lg border px-3 py-2">
                   <button className="text-sm font-medium hover:underline" onClick={() => load(r)}>
-                    {r.nameAr}
+                    {t(r.nameAr)}
                   </button>
                   <span className="text-xs text-muted-foreground">({r.datasetTitle})</span>
                   {r.isShared && <Badge variant="outline" className="text-xs">{t("مشترك")}</Badge>}
@@ -191,9 +191,9 @@ export function ReportBuilderUI({ datasets, saved, initialId }: { datasets: Data
 
           {spec.pivotBy != null && (
             <p className="text-xs text-muted-foreground">
-              كل خانة في الجدول المحوري بتعرض{" "}
-              <b>{spec.aggregates[0] ? `${AGGREGATE_LABEL[spec.aggregates[0].agg]} ${headers[spec.aggregates[0].column] ?? ""}` : "عدد الصفوف"}</b>
-              {" "}— أول إجمالي تحت هو اللي بيتحسب.
+              {t("كل خانة في الجدول المحوري بتعرض")}{" "}
+              <b>{spec.aggregates[0] ? `${t(AGGREGATE_LABEL[spec.aggregates[0].agg])} ${t(headers[spec.aggregates[0].column] ?? "")}` : t("عدد الصفوف")}</b>
+              {" "}{t("— أول إجمالي تحت هو اللي بيتحسب.")}
             </p>
           )}
 

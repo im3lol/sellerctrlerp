@@ -110,7 +110,7 @@ export function PrintSettingsForm({ org, settings, canEdit }: {
                   )}
                   <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={(e) => e.target.files?.[0] && upload(e.target.files[0])} />
                   <Button type="button" variant="outline" size="sm" disabled={busy} onClick={() => fileRef.current?.click()}>
-                    {busy ? <Loader2 className="size-4 animate-spin" /> : <ImagePlus className="size-4" />}تغيير الشعار
+                    {busy ? <Loader2 className="size-4 animate-spin" /> : <ImagePlus className="size-4" />}{t("تغيير الشعار")}
                   </Button>
                   {logoUrl && (
                     <Button type="button" variant="ghost" size="sm" onClick={() => setLogoUrl("")}><X className="size-4" />{t("إزالة")}</Button>

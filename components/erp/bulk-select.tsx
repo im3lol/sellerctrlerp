@@ -158,12 +158,12 @@ export function BulkBar<T extends string>({ ids, ops, action, onDone, entity = "
       <AlertDialog open={!!ask} onOpenChange={(o) => !o && setAsk(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>{ask?.label} {int(count)} {entity}{t("؟")}</AlertDialogTitle>
+            <AlertDialogTitle>{t(ask?.label ?? "")} {int(count)} {t(entity)}{t("؟")}</AlertDialogTitle>
             <AlertDialogDescription>{t("الصفوف غير المؤهّلة لهذه العملية ستُتجاهَل تلقائياً.")}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>{t("تراجع")}</AlertDialogCancel>
-            <AlertDialogAction onClick={() => ask && run(ask)} className={ask?.danger ? "bg-destructive text-destructive-foreground hover:bg-destructive/90" : ""}>{ask?.label}</AlertDialogAction>
+            <AlertDialogAction onClick={() => ask && run(ask)} className={ask?.danger ? "bg-destructive text-destructive-foreground hover:bg-destructive/90" : ""}>{t(ask?.label ?? "")}</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

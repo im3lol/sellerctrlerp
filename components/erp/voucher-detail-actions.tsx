@@ -36,7 +36,7 @@ export function VoucherDetailActions({
       if (!(await confirm({ danger }))) return;
       start(async () => {
         const r = await fn();
-        if (r.ok) { toast.success(ok); if (dest) router.push(dest); router.refresh(); }
+        if (r.ok) { toast.success(t(ok)); if (dest) router.push(dest); router.refresh(); }
         else toast.error(r.error ?? t("تعذّر التنفيذ"));
       });
     })();
@@ -71,7 +71,7 @@ export function VoucherDetailActions({
       primary={canManage && status === "DRAFT" ? (
         <Button size="sm" disabled={pending}
           onClick={() => run(() => isReceipt ? confirmReceiptVoucherAction(id) : confirmPaymentVoucherAction(id), "تم تأكيد السند وترحيله", false)}>
-          {pending ? <Loader2 className="size-4 animate-spin" /> : <Icon name="Check" className="size-4" />}تأكيد
+          {pending ? <Loader2 className="size-4 animate-spin" /> : <Icon name="Check" className="size-4" />}{t("تأكيد")}
         </Button>
       ) : undefined}
       items={items}

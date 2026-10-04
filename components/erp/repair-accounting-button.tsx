@@ -22,7 +22,7 @@ export function RepairAccountingButton() {
   });
   return (
     <Button variant="default" className="gap-1.5" onClick={run} disabled={pending}>
-      {pending ? <Loader2 className="size-4 animate-spin" /> : <Wrench className="size-4" />}إصلاح التهيئة المحاسبية
+      {pending ? <Loader2 className="size-4 animate-spin" /> : <Wrench className="size-4" />}{t("إصلاح التهيئة المحاسبية")}
     </Button>
   );
 }

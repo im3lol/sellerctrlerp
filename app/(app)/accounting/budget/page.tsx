@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { fill } from "@/lib/i18n";
 import { getT } from "@/lib/i18n/server";
 import { eq, sql } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
@@ -48,7 +49,7 @@ export default async function BudgetIndexPage() {
               <Icon name="Target" className="mx-auto mb-3 size-10 opacity-30" />
               <p>{t("لا توجد ميزانيات بعد.")}</p>
               <Button asChild className="mt-4">
-                <Link href={`/accounting/budget/${currentYear}`}>إنشاء ميزانية {currentYear}</Link>
+                <Link href={`/accounting/budget/${currentYear}`}>{fill(t("إنشاء ميزانية {0}"), [currentYear])}</Link>
               </Button>
             </CardContent>
           </Card>

@@ -20,7 +20,7 @@ export function FxPostButton() {
   });
   return (
     <Button size="sm" variant="outline" className="gap-1.5" onClick={post} disabled={pending} title={t("ترحيل الفروق كقيد مسودة للمراجعة")}>
-      {pending ? <Loader2 className="size-4 animate-spin" /> : <BadgeDollarSign className="size-4" />}ترحيل كمسودة
+      {pending ? <Loader2 className="size-4 animate-spin" /> : <BadgeDollarSign className="size-4" />}{t("ترحيل كمسودة")}
     </Button>
   );
 }

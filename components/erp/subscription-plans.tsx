@@ -114,12 +114,12 @@ function SubscribeDialog({ plan, account, interval, xpayEnabled, onClose }: { pl
         {isXpay ? (
           <Button onClick={submit} disabled={pending}>
             {pending ? <Loader2 className="size-4 animate-spin" /> : <CreditCard className="size-4" />}
-            ادفع الآن
+            {t("ادفع الآن")}
           </Button>
         ) : (
           <Button onClick={submit} disabled={pending} className="bg-[#25D366] text-white hover:bg-[#20bd5a]">
             {pending ? <Loader2 className="size-4 animate-spin" /> : <MessageCircle className="size-4" />}
-            متابعة عبر واتساب
+            {t("متابعة عبر واتساب")}
           </Button>
         )}
       </DialogFooter>

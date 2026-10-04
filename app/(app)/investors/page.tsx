@@ -95,7 +95,7 @@ export default async function InvestorsPage() {
             <CardContent>
               {owners.length === 0 ? (
                 <p className="py-8 text-center text-sm text-muted-foreground">
-                  لا يوجد رأس مال مستثمَر بعد — سجّل مساهمة من{" "}
+                  {t("لا يوجد رأس مال مستثمَر بعد — سجّل مساهمة من")}{" "}
                   <Link href="/investors/investments" className="text-primary underline">{t("مساهمات رأس المال")}</Link>.
                 </p>
               ) : (

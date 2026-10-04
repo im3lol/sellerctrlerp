@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { fill } from "@/lib/i18n";
 import { useT } from "@/lib/i18n/client";
 import { useTransition } from "react";
 import { useRouter } from "next/navigation";
@@ -43,10 +44,13 @@ export function SalesInvoiceDetailActions({
   const fmt = (v: string | null | undefined) =>
     Number(v ?? 0).toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-  const shareMsg = `فاتورة رقم: ${number}
-المبلغ الإجمالي: ${fmt(totalAmount)}${link ? `
-تفاصيل الفاتورة: ${link}` : ""}
-للاستفسار أو الدفع يرجى التواصل معنا.`;
+  // Written in the language of the person sending it.
+  const shareMsg = [
+    fill(t("فاتورة رقم: {0}"), [number]),
+    fill(t("المبلغ الإجمالي: {0}"), [fmt(totalAmount)]),
+    ...(link ? [fill(t("تفاصيل الفاتورة: {0}"), [link])] : []),
+    t("للاستفسار أو الدفع يرجى التواصل معنا."),
+  ].join("\n");
   const waPhone = waNumber(customerPhone);
   const hasBalance = Number(balanceDue ?? 0) > 0;
 
@@ -55,7 +59,7 @@ export function SalesInvoiceDetailActions({
   if (waPhone) items.push({ label: "واتساب", icon: "MessageCircle", newTab: true,
     href: `https://wa.me/${waPhone}?text=${encodeURIComponent(shareMsg)}` });
   if (customerEmail) items.push({ label: "إيميل", icon: "Mail",
-    href: `mailto:${customerEmail}?subject=${encodeURIComponent(`فاتورة رقم ${number}`)}&body=${encodeURIComponent(shareMsg)}` });
+    href: `mailto:${customerEmail}?subject=${encodeURIComponent(fill(t("فاتورة رقم {0}"), [number]))}&body=${encodeURIComponent(shareMsg)}` });
   if (link) items.push({ label: "نسخ رابط العميل", icon: "Link",
     onSelect: () => { void navigator.clipboard.writeText(link).then(() => toast.success("اتنسخ الرابط — صالح ٣٠ يوم")); } });
 
@@ -70,7 +74,7 @@ export function SalesInvoiceDetailActions({
   const primary =
     status === "DRAFT" && canPost ? (
       <Button size="sm" disabled={pending} onClick={() => run(() => postSalesInvoiceAction(id), "تم تأكيد الفاتورة وترحيلها محاسبياً")}>
-        {pending ? <Loader2 className="size-4 animate-spin" /> : <Icon name="Check" className="size-4" />}تأكيد
+        {pending ? <Loader2 className="size-4 animate-spin" /> : <Icon name="Check" className="size-4" />}{t("تأكيد")}
       </Button>
     ) : status !== "CANCELLED" && canCollect && hasBalance ? (
       <Button size="sm" asChild>

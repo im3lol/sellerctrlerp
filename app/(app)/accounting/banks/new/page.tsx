@@ -73,7 +73,7 @@ export default async function NewBankAccountPage() {
                 <FormCombobox
                   name="glAccountId"
                   placeholder={t("ابحث عن حساب…")}
-                  options={glAccounts.map((a) => ({ id: a.id, label: `${a.code} — ${a.nameAr}` }))}
+                  options={glAccounts.map((a) => ({ id: a.id, label: `${a.code} — ${t(a.nameAr)}` }))}
                 />
               </div>
               <div className="space-y-1">

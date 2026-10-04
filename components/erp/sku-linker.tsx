@@ -113,12 +113,12 @@ export function SkuLinker({ amazonCode }: { amazonCode?: string } = {}) {
               <>
                 <Button onClick={doSave} disabled={busy || chosenCount === 0} className="bg-emerald-600 hover:bg-emerald-700">
                   {saving ? <Icon name="Loader2" className="size-4 animate-spin" /> : <Icon name="Link" className="size-4" />}
-                  ربط بأصناف موجودة ({chosenCount})
+                  {fill(t("ربط بأصناف موجودة ({0})"), [chosenCount])}
                 </Button>
                 {unassignedCount > 0 && (
                   <Button variant="outline" onClick={() => createNew(preview.rows.filter((r) => !chosen[r.sku]).map((r) => r.sku))} disabled={busy}>
                     {creating ? <Icon name="Loader2" className="size-4 animate-spin" /> : <Icon name="PackagePlus" className="size-4" />}
-                    إنشاء أصناف جديدة للباقي ({unassignedCount})
+                    {fill(t("إنشاء أصناف جديدة للباقي ({0})"), [unassignedCount])}
                   </Button>
                 )}
               </>

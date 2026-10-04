@@ -160,7 +160,7 @@ export function DocChatter({ kind, entityId, entityNumber, audit }: {
                 <Input type="date" value={due} min={today} onChange={(e) => setDue(e.target.value)} className="w-40" />
                 <Button size="sm" disabled={pending || summary.trim().length < 2 || !assignee}
                   onClick={() => run(() => addFollowUpAction({ kind, entityId, entityNumber, summary, assignedTo: assignee, dueDate: due }), "اتسجّلت المتابعة", () => { setSummary(""); setAssignee(""); })}>
-                  {pending && <Loader2 className="size-4 animate-spin" />}سجّل
+                  {pending && <Loader2 className="size-4 animate-spin" />}{t("سجّل")}
                 </Button>
               </div>
             )}
@@ -196,7 +196,7 @@ export function DocChatter({ kind, entityId, entityNumber, audit }: {
                 ) : (
                   <div className="flex items-start gap-3 ps-11 text-xs text-muted-foreground">
                     <Badge variant="outline" className="shrink-0">{t(ACTION_AR[e.a.action] ?? e.a.action)}</Badge>
-                    <span className="min-w-0">{e.a.summary ?? "—"} · {when(e.a.createdAt, locale)} · {e.a.userName ?? t("تلقائي (النظام)")}</span>
+                    <span className="min-w-0">{t(e.a.summary ?? "—")} · {when(e.a.createdAt, locale)} · {e.a.userName ?? t("تلقائي (النظام)")}</span>
                   </div>
                 )}
               </li>
@@ -221,7 +221,7 @@ function FollowUpRow({ f, today, nameOf, canClose, pending, onDone }: {
       </span>
       <div className="min-w-0 flex-1 rounded-xl border px-3 py-2">
         <div className="flex flex-wrap items-center gap-2 text-sm">
-          <span className="font-medium">{f.summary}</span>
+          <span className="font-medium">{t(f.summary)}</span>
           <span className={cn("rounded-md px-2 py-0.5 text-xs font-medium", STATE[st].cls)}>{t(STATE[st].label)}</span>
         </div>
         <div className="mt-1 text-xs text-muted-foreground">

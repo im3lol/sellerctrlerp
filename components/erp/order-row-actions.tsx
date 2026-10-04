@@ -69,12 +69,12 @@ export function OrderRowActions({
         if (!r.creditBlocked) { toast.error(r.error ?? t("تعذّر التنفيذ")); return; }
         const go = await confirm({
           danger: true,
-          title: "تجاوز حد الائتمان",
-          description: `${r.error ?? ""}
+          title: t("تجاوز حد الائتمان"),
+          description: `${r.error ? t(r.error) : ""}
 
-التأكيد هيتسجّل في سجل المراجعة كتجاوز باعتماد مالي.`,
-          confirmText: "أكّد رغم التجاوز",
-          cancelText: "رجوع",
+${t("التأكيد هيتسجّل في سجل المراجعة كتجاوز باعتماد مالي.")}`,
+          confirmText: t("أكّد رغم التجاوز"),
+          cancelText: t("رجوع"),
         });
         if (!go) return;
         start(async () => {
@@ -141,7 +141,7 @@ export function OrderRowActions({
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button size="sm" variant="outline" disabled={pending}>
-          إجراءات<Icon name="ChevronDown" className="size-4" />
+          {t("إجراءات")}<Icon name="ChevronDown" className="size-4" />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-56">

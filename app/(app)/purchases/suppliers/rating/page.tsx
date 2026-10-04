@@ -104,16 +104,13 @@ export default async function SupplierRatingPage() {
             <CardDescription>
               <b>{t("الالتزام بالمواعيد (٤٠٪)")}</b> {t("من فرق تاريخ الاستلام عن التسليم المتوقّع في الأمر ·")}{" "}
               <b>{t("الجودة (٣٥٪)")}</b> {t("من الكمية المرفوضة عند الاستلام ·")}{" "}
-              <b>{t("الالتزام بالسعر (٢٥٪)")}</b> من فرق سعر الفاتورة عن سعر الأمر.
-              البُعد اللي مفيش بيانات ليه بيتشال من المعادلة، مش بيتحسب صفر — والمورّد بأقل من ٣ استلامات
-              بيتعرض من غير تقدير، لأن عيّنة صغيرة مش حكم.
+              <b>{t("الالتزام بالسعر (٢٥٪)")}</b> {t("من فرق سعر الفاتورة عن سعر الأمر. البُعد اللي مفيش بيانات ليه بيتشال من المعادلة، مش بيتحسب صفر — والمورّد بأقل من ٣ استلامات بيتعرض من غير تقدير، لأن عيّنة صغيرة مش حكم.")}
             </CardDescription>
           </CardHeader>
           {undated && (
             <CardContent>
               <p className="rounded-lg border border-amber-500/40 bg-amber-500/5 p-3 text-sm">
-                مفيش ولا أمر شراء متسجّل فيه «التسليم المتوقّع»، فدرجة المواعيد فاضية للكل.
-                املا الحقل ده في أوامر الشراء الجاية والدرجة هتظهر لوحدها.
+                {t("مفيش ولا أمر شراء متسجّل فيه «التسليم المتوقّع»، فدرجة المواعيد فاضية للكل. املا الحقل ده في أوامر الشراء الجاية والدرجة هتظهر لوحدها.")}
               </p>
             </CardContent>
           )}
@@ -168,7 +165,7 @@ export default async function SupplierRatingPage() {
                           </TableCell>
                           <TableCell className="tabular-nums">{pct(s.rejectRate)}</TableCell>
                           <TableCell className="text-xs text-muted-foreground">
-                            {s.sample.receipts} استلام · {s.sample.invoicedLines} بند مفوتر
+                            {fill(t("{0} استلام · {1} بند مفوتر"), [s.sample.receipts, s.sample.invoicedLines])}
                           </TableCell>
                         </TableRow>
                       );

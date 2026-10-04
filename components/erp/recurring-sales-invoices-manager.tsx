@@ -40,7 +40,7 @@ function EditDialog({ rsi, customers, items, onClose }: { rsi: RSI | null; custo
   const [notes, setNotes] = useState(rsi?.notes ?? "");
   const [lines, setLines] = useState<Line[]>(rsi && rsi.lines.length ? rsi.lines : [nl()]);
 
-  const custOptions = useMemo(() => customers.map((c) => ({ id: c.id, label: c.nameAr })), [customers]);
+  const custOptions = useMemo(() => customers.map((c) => ({ id: c.id, label: t(c.nameAr) })), [customers, t]);
   const custLabel = useMemo(() => new Map(custOptions.map((o) => [o.id, o.label])), [custOptions]);
   const setLine = (i: number, patch: Partial<Line>) => setLines((ls) => ls.map((l, idx) => (idx === i ? { ...l, ...patch } : l)));
   const pickItem = (i: number, it: ItemSearchResult) => setLine(i, { itemId: it.id, unitPrice: Number(it.sellPrice) || 0 });

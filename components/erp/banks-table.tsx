@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { fill } from "@/lib/i18n";
 import { useT } from "@/lib/i18n/client";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -61,7 +62,7 @@ function EditDialog({ row, accounts, onClose }: { row: BankRow; accounts: Accoun
           <Label>{t("حساب الأستاذ (GL)")}</Label>
           <select className={selectCls} value={glAccountId} onChange={(e) => setGlAccountId(e.target.value)}>
             <option value="">{t("— بدون —")}</option>
-            {accounts.map((a) => <option key={a.id} value={a.id}>{a.code} — {a.nameAr}</option>)}
+            {accounts.map((a) => <option key={a.id} value={a.id}>{a.code} — {t(a.nameAr)}</option>)}
           </select>
         </div>
       </div>
@@ -113,7 +114,7 @@ export function BanksTable({ rows, accounts, canEdit }: { rows: BankRow[]; accou
               <TableRow key={r.id} data-state={canEdit && sel.has(r.id) ? "selected" : undefined}>
                 {canEdit && <TableCell><SelectBox checked={sel.has(r.id)} onChange={() => sel.toggle(r.id)} label={t("تحديد")} /></TableCell>}
                 <TableCell>
-                  <div className="font-medium">{r.nameAr}</div>
+                  <div className="font-medium">{t(r.nameAr)}</div>
                   {r.bankName && <div className="text-xs text-muted-foreground">{r.bankName}</div>}
                 </TableCell>
                 <TableCell className="text-xs text-muted-foreground">
@@ -151,7 +152,7 @@ export function BanksTable({ rows, accounts, canEdit }: { rows: BankRow[]; accou
             <DialogHeader>
               <DialogTitle>{t("حذف الحساب البنكي")}</DialogTitle>
               <DialogDescription>
-                سيتم حذف «{confirmDel.nameAr}» نهائيًا. إن كان مرتبطًا بحركات كشف أو منصات فسيُرفض الحذف ويُطلب منك إزالة الارتباط أولًا.
+                {fill(t("سيتم حذف «{0}» نهائيًا. إن كان مرتبطًا بحركات كشف أو منصات فسيُرفض الحذف ويُطلب منك إزالة الارتباط أولًا."), [t(confirmDel.nameAr)])}
               </DialogDescription>
             </DialogHeader>
             <DialogFooter>

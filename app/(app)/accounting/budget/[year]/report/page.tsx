@@ -162,7 +162,7 @@ async function BudgetTable({
               <tr key={r.id} className="border-b last:border-0 hover:bg-muted/20">
                 <td className="px-4 py-2">
                   <span className="font-mono text-xs text-muted-foreground">{r.code}</span>
-                  {" "}{r.nameAr}
+                  {" "}{t(r.nameAr)}
                 </td>
                 <td className="px-4 py-2 text-end tabular-nums">{r.budget > 0 ? fmt(r.budget) : "—"}</td>
                 <td className={cn("px-4 py-2 text-end tabular-nums", r.actual < 0 ? "text-destructive" : "")}>{fmt(r.actual)}</td>

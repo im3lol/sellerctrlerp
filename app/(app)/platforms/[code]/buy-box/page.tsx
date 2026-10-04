@@ -101,7 +101,7 @@ export default async function BuyBoxPage({ params }: { params: Promise<{ code: s
               </Table>
             </div>
             <p className="text-xs text-muted-foreground">
-              الأسعار شامل الشحن. «الفرق» = سعرك − سعر الـBuy Box (موجب يعني انت أغلى).
+              {t("الأسعار شامل الشحن. «الفرق» = سعرك − سعر الـBuy Box (موجب يعني انت أغلى).")}
               {checked ? fill(t(" آخر تحديث: {0} — بيتحدّث لوحده كل يوم."), [when(checked)]) : ""}
             </p>
           </>

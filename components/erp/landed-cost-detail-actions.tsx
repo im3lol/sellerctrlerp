@@ -53,7 +53,7 @@ export function LandedCostDetailActions({ id, status, canManage, canPost }: { id
     <DocumentActions
       primary={status === "DRAFT" && canPost ? (
         <Button size="sm" disabled={pending} onClick={() => run(() => postLandedCostVoucherAction(id), "تم ترحيل التكاليف على المخزون")}>
-          {pending ? <Loader2 className="size-4 animate-spin" /> : <Icon name="Check" className="size-4" />}ترحيل
+          {pending ? <Loader2 className="size-4 animate-spin" /> : <Icon name="Check" className="size-4" />}{t("ترحيل")}
         </Button>
       ) : undefined}
       items={items}

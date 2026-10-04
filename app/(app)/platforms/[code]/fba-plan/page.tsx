@@ -101,8 +101,8 @@ export default async function FbaPlanPage({ params, searchParams }: {
               <Button type="submit">{t("احسب")}</Button>
             </form>
             <p className="text-xs text-muted-foreground">
-              المطلوب = بيع أمازون اليومي × ({transitDays} يوم شحن + {coverDays} يوم تغطية) − المتاح في أمازون − اللي في الطريق،
-              وبحد أقصى اللي عندك في «{source.name}». البيع = اللي خرج من مخزن «{platform.fbaWarehouseName}».{" "}
+              {fill(t("المطلوب = بيع أمازون اليومي × ({0} يوم شحن + {1} يوم تغطية) − المتاح في أمازون − اللي في الطريق، وبحد أقصى اللي عندك في «{2}». البيع = اللي خرج من مخزن «{3}»."),
+                [transitDays, coverDays, source.name, platform.fbaWarehouseName])}{" "}
               {auditAt
                 ? fill(t("المتاح والوارد من تدقيق مخزون أمازون ({0}) — بيتحدّث لوحده كل يوم."), [when(auditAt)])
                 : <>{t("مفيش تدقيق مخزون لسه، فالمتاح من رصيد النظام والوارد مش محسوب — شغّل «تدقيق المخزون» من")} <Link href={back} className="text-primary underline">{t("صفحة المنصة")}</Link>.</>}

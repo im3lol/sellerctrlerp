@@ -102,7 +102,7 @@ function AccountSelect({
       <Label htmlFor={`cfg-${name}`}>{label}</Label>
       <select id={`cfg-${name}`} name={name} defaultValue={defaultValue ?? ""} className={selectCls}>
         <option value="">{t("— بدون —")}</option>
-        {options.map((a) => <option key={a.id} value={a.id}>{a.code} — {a.nameAr}</option>)}
+        {options.map((a) => <option key={a.id} value={a.id}>{a.code} — {t(a.nameAr)}</option>)}
       </select>
     </div>
   );
@@ -162,8 +162,7 @@ export function SettingsForm({
                     </label>
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    اللي يعمل المستند مايعتمدوش بنفسه — إلا المدير (المالك)، فشركة فيها شخص واحد ماتقفش. طلبات أمازون ونون
-                    اللي بتنزل تلقائي ماتعدّيش على الاعتماد، لأن سعرها من المنصة مش من حد.
+                    {t("اللي يعمل المستند مايعتمدوش بنفسه — إلا المدير (المالك)، فشركة فيها شخص واحد ماتقفش. طلبات أمازون ونون اللي بتنزل تلقائي ماتعدّيش على الاعتماد، لأن سعرها من المنصة مش من حد.")}
                   </p>
                 </div>
                 {/* «المتأخر» — after how many days an open document counts as stuck. Blank
@@ -173,15 +172,14 @@ export function SettingsForm({
                   <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                     {STUCK_RULES.map((r) => (
                       <div key={r.key} className="space-y-1">
-                        <Label htmlFor={`st_${r.key}`}>{t(r.label)} (يوم)</Label>
+                        <Label htmlFor={`st_${r.key}`}>{t(r.label)} {t("(يوم)")}</Label>
                         <Input id={`st_${r.key}`} name={`st_${r.key}`} type="number" min="0" max="365" step="1"
                           defaultValue={profile.stuckDays[r.key]} placeholder={String(r.def)} dir="ltr" />
                       </div>
                     ))}
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    بيظهر في تبويب «المتأخر» في صفحة الموافقات، وفي لوحة التحكم والإيميل اليومي. أمر الشراء بيتحسب من موعد
-                    وصوله، والباقي من يوم ما اتعمل. كل واحد بيشوف المستندات اللي في صلاحياته بس.
+                    {t("بيظهر في تبويب «المتأخر» في صفحة الموافقات، وفي لوحة التحكم والإيميل اليومي. أمر الشراء بيتحسب من موعد وصوله، والباقي من يوم ما اتعمل. كل واحد بيشوف المستندات اللي في صلاحياته بس.")}
                   </p>
                 </div>
                 {/* Overdue-invoice reminders (lib/erp/reminders.ts) — one email per stage, with
@@ -196,8 +194,7 @@ export function SettingsForm({
                     <Input id="rmStages" name="rmStages" defaultValue={profile.reminders.stages.join(", ")} dir="ltr" className="max-w-xs" />
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    كل تذكير بيتبعت مرة واحدة، ومعاه رابط الفاتورة اللي العميل يفتحها منه. محتاج إيميل العميل يكون مسجّل،
-                    وإيميل المنصة يكون شغّال.
+                    {t("كل تذكير بيتبعت مرة واحدة، ومعاه رابط الفاتورة اللي العميل يفتحها منه. محتاج إيميل العميل يكون مسجّل، وإيميل المنصة يكون شغّال.")}
                   </p>
                 </div>
                 {/* Which side of the ledger purchase VAT lands on. Only new goods receipts
@@ -218,8 +215,7 @@ export function SettingsForm({
                     ))}
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    ده إخفاء من القائمة بس — مش صلاحيات. الصفحة تفضل شغالة بالرابط المباشر لأي حد له صلاحية عليها،
-                    والقسم اللي مش في اشتراكك مخفي أصلاً.
+                    {t("ده إخفاء من القائمة بس — مش صلاحيات. الصفحة تفضل شغالة بالرابط المباشر لأي حد له صلاحية عليها، والقسم اللي مش في اشتراكك مخفي أصلاً.")}
                   </p>
                 </div>
 
@@ -230,8 +226,7 @@ export function SettingsForm({
                     {t("تُحمَّل على تكلفة البضاعة")}
                   </label>
                   <p className="text-xs text-muted-foreground">
-                    افتحه لو مش بتسترد الضريبة من المصلحة — الضريبة هتدخل في تكلفة المخزون بدل حساب «ضريبة المدخلات».
-                    التغيير بيسري على المستندات الجديدة بس؛ اللي اتأكّد قبل كدا بيفضل بتكلفته.
+                    {t("افتحه لو مش بتسترد الضريبة من المصلحة — الضريبة هتدخل في تكلفة المخزون بدل حساب «ضريبة المدخلات». التغيير بيسري على المستندات الجديدة بس؛ اللي اتأكّد قبل كدا بيفضل بتكلفته.")}
                   </p>
                 </div>
                 <div className="space-y-2"><Label htmlFor="fiscalYearStart">{t("بداية السنة المالية")}</Label><Input id="fiscalYearStart" name="fiscalYearStart" type="date" defaultValue={profile.fiscalYearStart ?? ""} dir="ltr" /><p className="text-xs text-muted-foreground">{t("اليوم والشهر فقط (يتكرر كل سنة). فارغ = 1 يناير.")} <b>{t("يحكم حدود كل فتراتك المحاسبية والإقفال السنوي")}</b> {t("— ويُقفل التغيير بعد أول عملية محاسبية.")}</p></div>

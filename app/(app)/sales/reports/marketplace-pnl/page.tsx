@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { fill } from "@/lib/i18n";
 import { getT } from "@/lib/i18n/server";
 import { and, asc, eq } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
@@ -94,8 +95,7 @@ export default async function MarketplacePnlPage({ searchParams }: { searchParam
           <CardHeader>
             <CardTitle>{t("على مستوى الطلب")}</CardTitle>
             <CardDescription>
-              كل طلب وإيراده ورسومه وتكلفته — الأرقام دي هي نفسها اللي في صفحة «Transaction details» على أمازون.
-              «العمولة» هي كل اللي أمازون خصمه — قف على الرقم علشان تشوف عمولة البيع ورسوم FBA وكل واحدة بأساسيها وضريبتها.
+              {t("كل طلب وإيراده ورسومه وتكلفته — الأرقام دي هي نفسها اللي في صفحة «Transaction details» على أمازون. «العمولة» هي كل اللي أمازون خصمه — قف على الرقم علشان تشوف عمولة البيع ورسوم FBA وكل واحدة بأساسيها وضريبتها.")}
               {deferred > 0 && <span className="text-amber-600"> · {qtyf(deferred)} {t("طلب لسه مؤجّل (أمازون ماحرّرش فلوسه بعد، بس الرسوم متحسبة).")}</span>}
               {noCogs > 0 && <span className="text-amber-600"> · {qtyf(noCogs)} {t("طلب من غير تكلفة بضاعة — يعني لسه ماخرجش من المخزون.")}</span>}
             </CardDescription>
@@ -161,9 +161,7 @@ export default async function MarketplacePnlPage({ searchParams }: { searchParam
           <CardHeader>
             <CardTitle>{t("على مستوى المنتج")}</CardTitle>
             <CardDescription>
-              الرسوم موزّعة على كل SKU — ده اللي تقرير التسويات القديم ماكانش يقدر يعمله.
-              الكمية **صافية**: المباع ناقص المرتجع، فالمنتج اللي اترجع كله بيبان بصفر.
-              «سعر التعادل» = تكلفة القطعة + رسوم أمازون للقطعة؛ تحته المنتج بيخسر.
+              {t("الرسوم موزّعة على كل SKU — ده اللي تقرير التسويات القديم ماكانش يقدر يعمله. الكمية **صافية**: المباع ناقص المرتجع، فالمنتج اللي اترجع كله بيبان بصفر. «سعر التعادل» = تكلفة القطعة + رسوم أمازون للقطعة؛ تحته المنتج بيخسر.")}
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -208,7 +206,7 @@ export default async function MarketplacePnlPage({ searchParams }: { searchParam
                           {qtyf(r.units)}
                           {r.unitsRefunded > 0 && (
                             <span className="block text-[11px] leading-tight text-destructive">
-                              {qtyf(r.unitsSold)} مباع · {qtyf(r.unitsRefunded)} مرتجع
+                              {fill(t("{0} مباع · {1} مرتجع"), [qtyf(r.unitsSold), qtyf(r.unitsRefunded)])}
                             </span>
                           )}
                         </TableCell>

@@ -32,7 +32,7 @@ export function PurchaseOrderRowMenu({
       if (!(await (purgeLabel ? confirmPurge(purgeLabel) : confirm({ danger: /حذف|إلغاء/.test(ok) })))) return;
       start(async () => {
         const r = await fn();
-        if (r.ok) { toast.success(ok); if (dest) router.push(dest); router.refresh(); }
+        if (r.ok) { toast.success(t(ok)); if (dest) router.push(dest); router.refresh(); }
         else toast.error(r.error ?? t("تعذّر التنفيذ"));
       });
     })();

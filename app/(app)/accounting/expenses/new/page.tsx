@@ -31,7 +31,7 @@ export default async function NewExpensePage() {
       <div className="space-y-6">
         <ErpPageHeader icon="Wallet" title={t("مصروف جديد")} subtitle={t("صرف مصروف تشغيلي من النقدية/البنك")} backHref="/accounting/expenses" />
         <ExpenseForm expenseAccounts={expenseAccs} cashAccounts={cashAccs}
-          projects={projectRows.map((p) => ({ id: p.id, label: `${p.code} — ${p.nameAr}` }))} />
+          projects={projectRows.map((p) => ({ id: p.id, label: `${p.code} — ${t(p.nameAr)}` }))} />
       </div>
     );
   });

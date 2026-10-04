@@ -26,7 +26,7 @@ export function UnitCell({
   const extra = units.filter((u) => !u.isBase);
   const base = units.find((u) => u.isBase);
   if (!extra.length) {
-    return <span className="text-xs text-muted-foreground">{base?.label ?? "—"}</span>;
+    return <span className="text-xs text-muted-foreground">{t(base?.label ?? "—")}</span>;
   }
 
   const current = units.find((u) => Math.abs(u.factor - factor) < 1e-9) ?? base;

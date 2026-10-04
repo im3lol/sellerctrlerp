@@ -56,8 +56,7 @@ export default async function AiSettingsPage() {
           <CardHeader>
             <CardTitle className="text-base">{t("مفتاح شركتك (اختياري)")}</CardTitle>
             <CardDescription>
-              لو عندك حساب Anthropic API، حط مفتاحه هنا: القراءات هتتحسب عليك مباشرة ومفيش حد شهري من المنصة، وتختار الموديل اللي يناسبك.
-              اشتراك Claude العادي (Pro / Max) مابيشتغلش هنا — لازم مفتاح API من console.anthropic.com.
+              {t("لو عندك حساب Anthropic API، حط مفتاحه هنا: القراءات هتتحسب عليك مباشرة ومفيش حد شهري من المنصة، وتختار الموديل اللي يناسبك. اشتراك Claude العادي (Pro / Max) مابيشتغلش هنا — لازم مفتاح API من console.anthropic.com.")}
             </CardDescription>
           </CardHeader>
           <CardContent>

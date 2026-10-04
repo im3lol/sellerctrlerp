@@ -167,7 +167,7 @@ export function PriceListsManager({
                       <TableCell className="min-w-64">
                         <CellCombobox
                           selectedLabel={itemById.get(r.itemId) ? `${itemById.get(r.itemId)!.code} — ${itemById.get(r.itemId)!.nameAr}` : ""}
-                          options={items.map((it) => ({ id: it.id, label: `${it.code} — ${it.nameAr}` }))}
+                          options={items.map((it) => ({ id: it.id, label: `${it.code} — ${t(it.nameAr)}` }))}
                           onSelect={(id) => patchRow(i, { itemId: id })}
                           placeholder={t("ابحث عن الصنف…")}
                         />
@@ -237,7 +237,7 @@ export function PriceListsManager({
                 {lists.map((l) => (
                   <TableRow key={l.id}>
                     <TableCell className="font-mono text-xs">{l.code}</TableCell>
-                    <TableCell className="font-medium">{l.nameAr}</TableCell>
+                    <TableCell className="font-medium">{t(l.nameAr)}</TableCell>
                     <TableCell className="tabular-nums">{qf((rowsByList[l.id] ?? []).length)}</TableCell>
                     <TableCell className="tabular-nums">{qf(l.customerCount)}</TableCell>
                     <TableCell className="text-xs text-muted-foreground">

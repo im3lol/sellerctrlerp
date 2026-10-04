@@ -32,8 +32,7 @@ export function OrgDeletionCard({ orgName, dueAt, graceDays }: { orgName: string
       <CardHeader>
         <CardTitle className="text-destructive">{t("حذف الشركة")}</CardTitle>
         <CardDescription>
-          بيمسح كل بيانات الشركة نهائيًا — المستندات والحسابات والمخزون والأعضاء. الحذف بيتم بعد {graceDays} يوم من الطلب، وتقدر تلغيه في أي وقت قبلها.
-          نزّل نسخة من بياناتك الأول من «النسخ الاحتياطي».
+          {fill(t("بيمسح كل بيانات الشركة نهائيًا — المستندات والحسابات والمخزون والأعضاء. الحذف بيتم بعد {0} يوم من الطلب، وتقدر تلغيه في أي وقت قبلها. نزّل نسخة من بياناتك الأول من «النسخ الاحتياطي»."), [graceDays])}
         </CardDescription>
       </CardHeader>
       <CardContent>

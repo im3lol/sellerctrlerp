@@ -76,7 +76,7 @@ export function PlatformInventoryImport({ platformId, platformName, hasWarehouse
               <Stat label={t("بها فروق")} value={int(result.withDiff)} tone={result.withDiff > 0 ? "danger" : undefined} />
             </div>
             <div className="flex items-center justify-between rounded-xl border p-3 text-sm">
-              <span>{t("المخزن:")} <b>{result.warehouseName}</b>{t(". التسوية تضبط رصيد النظام = رصيد أمازون للأصناف المطابَقة.")}</span>
+              <span>{t("المخزن:")} <b>{t(result.warehouseName)}</b>{t(". التسوية تضبط رصيد النظام = رصيد أمازون للأصناف المطابَقة.")}</span>
               <Button onClick={apply} disabled={applying || result.withDiff === 0}>{applying && <Loader2 className="size-4 animate-spin" />}{t("إنشاء تسوية (")}{int(result.withDiff)})</Button>
             </div>
 

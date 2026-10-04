@@ -167,7 +167,7 @@ export function LandedCostForm({ suppliers, receipts }: { suppliers: Supplier[];
                   placeholder={t("ابحث برقم الإذن أو التاريخ…")}
                 />
                 <Button type="button" variant="outline" size="sm" onClick={() => setPickedAll(visibleReceipts.map((r) => r.id))}>
-                  اختر الكل ({visibleReceipts.length})
+                  {fill(t("اختر الكل ({0})"), [visibleReceipts.length])}
                 </Button>
                 {picked.length > 0 && (
                   <Button type="button" variant="ghost" size="sm" onClick={() => setPickedAll([])}>
@@ -278,7 +278,7 @@ export function LandedCostForm({ suppliers, receipts }: { suppliers: Supplier[];
                         <div dir="ltr" className="line-clamp-2 text-start leading-snug" title={l.name}>{l.name}</div>
                         <div className="mt-0.5 font-mono text-xs text-muted-foreground">{l.code}</div>
                       </TableCell>
-                      <TableCell>{l.warehouseName}</TableCell>
+                      <TableCell>{t(l.warehouseName)}</TableCell>
                       <TableCell>{qtyf(l.quantity)}</TableCell>
                       <TableCell className={sold > 0 ? "text-amber-600" : "text-muted-foreground"}>
                         {qtyf(l.onHand)}{sold > 0 && <span className="block text-xs">{t("مُباع")} {qtyf(sold)} {t("← تكلفة مبيعات")}</span>}

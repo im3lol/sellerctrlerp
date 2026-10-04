@@ -1,5 +1,7 @@
 package com.sellerctrl.app.ui
 
+import com.sellerctrl.app.tr
+
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -77,66 +79,66 @@ fun PurchaseOrderFormScreen(nav: NavController) {
     fun total(): Double = lines.sumOf { (it.qty.toDoubleOrNull() ?: 0.0) * (it.price.toDoubleOrNull() ?: 0.0) }
 
     fun save() {
-        if (supplierId.isBlank()) { error = "اختر المورد"; return }
-        if (warehouseId.isBlank()) { error = "اختر المستودع"; return }
-        if (lines.isEmpty()) { error = "أضف صنفاً واحداً على الأقل"; return }
+        if (supplierId.isBlank()) { error = tr("اختر المورد"); return }
+        if (warehouseId.isBlank()) { error = tr("اختر المستودع"); return }
+        if (lines.isEmpty()) { error = tr("أضف صنفاً واحداً على الأقل"); return }
         val payload = lines.map { l ->
             val q = l.qty.toDoubleOrNull(); val p = l.price.toDoubleOrNull()
-            if (q == null || q <= 0 || p == null || p < 0) return@save run { error = "تحقّق من الكميات والأسعار" }
+            if (q == null || q <= 0 || p == null || p < 0) return@save run { error = tr("تحقّق من الكميات والأسعار") }
             PoCreateLine(l.itemId, q, p)
         }
         busy = true; error = null
         scope.launch {
             try { ServiceLocator.repo.purchaseOrderCreate(PoCreateReq(supplierId, warehouseId, date, notes.ifBlank { null }, payload)); nav.popBackStack() }
-            catch (e: Exception) { error = e.message ?: "خطأ"; busy = false }
+            catch (e: Exception) { error = e.message ?: tr("خطأ"); busy = false }
         }
     }
 
     Scaffold(topBar = {
-        TopAppBar(title = { Text("أمر شراء جديد") },
+        TopAppBar(title = { Text(tr("أمر شراء جديد")) },
             navigationIcon = { IconButton(onClick = { nav.popBackStack() }) { Icon(Icons.AutoMirrored.Filled.ArrowBack, null) } })
     }) { pad ->
         Column(Modifier.fillMaxSize().padding(pad).verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             androidx.compose.material3.OutlinedButton(onClick = { supPicker = true }, modifier = Modifier.fillMaxWidth()) {
-                Text(if (supplierName.isBlank()) "اختر المورد *" else "المورد: $supplierName")
+                Text(if (supplierName.isBlank()) tr("اختر المورد *") else tr("المورد: $supplierName"))
             }
             androidx.compose.material3.OutlinedButton(onClick = { whPicker = true }, modifier = Modifier.fillMaxWidth()) {
-                Text(if (warehouseName.isBlank()) "اختر المستودع *" else "المستودع: $warehouseName")
+                Text(if (warehouseName.isBlank()) tr("اختر المستودع *") else tr("المستودع: $warehouseName"))
             }
-            OutlinedTextField(date, { date = it }, label = { Text("التاريخ") }, singleLine = true, modifier = Modifier.fillMaxWidth())
-            OutlinedTextField(notes, { notes = it }, label = { Text("ملاحظات") }, modifier = Modifier.fillMaxWidth())
+            OutlinedTextField(date, { date = it }, label = { Text(tr("التاريخ")) }, singleLine = true, modifier = Modifier.fillMaxWidth())
+            OutlinedTextField(notes, { notes = it }, label = { Text(tr("ملاحظات")) }, modifier = Modifier.fillMaxWidth())
 
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                Text("البنود (${lines.size})", style = MaterialTheme.typography.titleMedium)
-                TextButton(onClick = { itemPicker = true }) { Icon(Icons.Filled.Add, null); Text(" إضافة صنف") }
+                Text(tr("البنود (${lines.size})"), style = MaterialTheme.typography.titleMedium)
+                TextButton(onClick = { itemPicker = true }) { Icon(Icons.Filled.Add, null); Text(tr(" إضافة صنف")) }
             }
             lines.forEachIndexed { i, l ->
                 AppCard(Modifier.fillMaxWidth()) {
                     Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(l.name, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
-                            IconButton(onClick = { lines.removeAt(i) }) { Icon(Icons.Filled.Close, "حذف") }
+                            IconButton(onClick = { lines.removeAt(i) }) { Icon(Icons.Filled.Close, tr("حذف")) }
                         }
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            OutlinedTextField(l.qty, { v -> lines[i] = l.copy(qty = v.filter { it.isDigit() || it == '.' }) }, label = { Text("كمية") }, singleLine = true,
+                            OutlinedTextField(l.qty, { v -> lines[i] = l.copy(qty = v.filter { it.isDigit() || it == '.' }) }, label = { Text(tr("كمية")) }, singleLine = true,
                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal), modifier = Modifier.weight(1f))
-                            OutlinedTextField(l.price, { v -> lines[i] = l.copy(price = v.filter { it.isDigit() || it == '.' }) }, label = { Text("سعر الوحدة") }, singleLine = true,
+                            OutlinedTextField(l.price, { v -> lines[i] = l.copy(price = v.filter { it.isDigit() || it == '.' }) }, label = { Text(tr("سعر الوحدة")) }, singleLine = true,
                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal), modifier = Modifier.weight(1f))
                         }
                     }
                 }
             }
             if (lines.isNotEmpty()) Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text("الإجمالي", fontWeight = FontWeight.Bold)
+                Text(tr("الإجمالي"), fontWeight = FontWeight.Bold)
                 Text(money(total()), fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
             }
             error?.let { Text(it, color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.SemiBold) }
-            Button(onClick = { save() }, enabled = !busy, modifier = Modifier.fillMaxWidth()) { Text(if (busy) "جارٍ الحفظ…" else "حفظ") }
+            Button(onClick = { save() }, enabled = !busy, modifier = Modifier.fillMaxWidth()) { Text(if (busy) tr("جارٍ الحفظ…") else tr("حفظ")) }
         }
     }
 
-    if (supPicker) OptionPickerDialog("اختر المورد", suppliers, onDismiss = { supPicker = false }) { id, label -> supplierId = id; supplierName = label; supPicker = false }
-    if (whPicker) OptionPickerDialog("اختر المستودع", warehouses, onDismiss = { whPicker = false }) { id, label -> warehouseId = id; warehouseName = label; whPicker = false }
+    if (supPicker) OptionPickerDialog(tr("اختر المورد"), suppliers, onDismiss = { supPicker = false }) { id, label -> supplierId = id; supplierName = label; supPicker = false }
+    if (whPicker) OptionPickerDialog(tr("اختر المستودع"), warehouses, onDismiss = { whPicker = false }) { id, label -> warehouseId = id; warehouseName = label; whPicker = false }
     if (itemPicker) ItemPickerDialog(onDismiss = { itemPicker = false }) { item ->
         itemPicker = false
         if (lines.none { it.itemId == item.id }) lines.add(PoLine(item.id, item.name, "1", fmt(item.sellPrice)))
@@ -155,6 +157,6 @@ internal fun OptionPickerDialog(title: String, options: List<Pair<String, String
                 }
             }
         },
-        confirmButton = { TextButton(onClick = onDismiss) { Text("إغلاق") } },
+        confirmButton = { TextButton(onClick = onDismiss) { Text(tr("إغلاق")) } },
     )
 }

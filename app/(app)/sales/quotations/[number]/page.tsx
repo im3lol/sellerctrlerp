@@ -53,7 +53,7 @@ export default async function QuotationDetailPage({ params }: { params: Promise<
 
     return (
       <div className="space-y-6">
-        <ErpPageHeader icon="FileText" title={fill(t("عرض سعر {0}"), [qt.number])} subtitle={`${qt.customer ?? "—"} · ${dt(qt.date)}${qt.validUntil ? ` · صالح حتى ${dt(qt.validUntil)}` : ""}`} backHref="/sales/quotations"
+        <ErpPageHeader icon="FileText" title={fill(t("عرض سعر {0}"), [qt.number])} subtitle={`${qt.customer ?? "—"} · ${dt(qt.date)}${qt.validUntil ? ` · ${fill(t("صالح حتى {0}"), [dt(qt.validUntil)])}` : ""}`} backHref="/sales/quotations"
           action={
             <QuotationDetailActions
               id={qt.id} number={qt.number} status={qt.status} canManage={can("sales.create")}

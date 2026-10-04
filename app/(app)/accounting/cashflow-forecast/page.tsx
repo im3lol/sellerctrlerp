@@ -76,7 +76,7 @@ export default async function CashflowForecastPage() {
 
         {lowest < 0 && (
           <div className="rounded-2xl border border-destructive/40 bg-destructive/5 p-4 text-sm text-destructive">
-            ⚠️ الرصيد المتوقّع يهبط إلى <span className="font-bold tabular-nums">{fmt(lowest)}</span> {t("— قد تحتاج لتسريع التحصيل أو تأجيل مدفوعات.")}
+            ⚠️ {t("الرصيد المتوقّع يهبط إلى")} <span className="font-bold tabular-nums">{fmt(lowest)}</span> {t("— قد تحتاج لتسريع التحصيل أو تأجيل مدفوعات.")}
           </div>
         )}
 

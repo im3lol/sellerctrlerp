@@ -25,7 +25,7 @@ export function ShortageAdjustmentButton({ items }: { items: number }) {
         } else toast.error(r.error ?? t("تعذّر إنشاء التسوية"));
       })}>
       <Icon name="PackageX" className="size-4" />
-      تسوية النواقص ({items.toLocaleString("ar-EG-u-nu-latn")} صنف)
+      {fill(t("تسوية النواقص ({0} صنف)"), [items.toLocaleString("ar-EG-u-nu-latn")])}
     </Button>
   );
 }

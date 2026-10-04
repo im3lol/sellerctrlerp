@@ -101,7 +101,7 @@ export function CouponsManager({ coupons }: { coupons: Coupon[] }) {
               <TableRow><TableCell colSpan={6} className="py-10 text-center text-muted-foreground">{t("لا توجد كوبونات.")}</TableCell></TableRow>
             ) : coupons.map((c) => (
               <TableRow key={c.id}>
-                <TableCell><span className="font-mono font-medium">{c.code}</span>{c.description && <div className="text-xs text-muted-foreground">{c.description}</div>}</TableCell>
+                <TableCell><span className="font-mono font-medium">{c.code}</span>{c.description && <div className="text-xs text-muted-foreground">{t(c.description)}</div>}</TableCell>
                 <TableCell>{fmtVal(c, locale)}</TableCell>
                 <TableCell className="text-sm">{c.redemptions}{c.maxRedemptions != null ? ` / ${c.maxRedemptions}` : ""}</TableCell>
                 <TableCell className="text-sm">{c.expiresAt || <span className="text-muted-foreground">—</span>}</TableCell>

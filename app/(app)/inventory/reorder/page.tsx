@@ -105,8 +105,7 @@ export default async function ReorderPage({ searchParams }: { searchParams: Prom
           <CardHeader>
             <CardTitle>{t("أصناف تحتاج طلبًا حسب معدّل البيع")}</CardTitle>
             <CardDescription>
-              «أيام التغطية» = المتاح ÷ معدّل البيع اليومي. أي صنف تغطيته أقل من زمن التوريد ({leadDays} يوم) هيخلص قبل وصول الشحنة.
-              الأصناف اللي ماتباعتش في الفترة ومالهاش حد طلب مش بتظهر هنا.
+              {fill(t("«أيام التغطية» = المتاح ÷ معدّل البيع اليومي. أي صنف تغطيته أقل من زمن التوريد ({0} يوم) هيخلص قبل وصول الشحنة. الأصناف اللي ماتباعتش في الفترة ومالهاش حد طلب مش بتظهر هنا."), [leadDays])}
             </CardDescription>
           </CardHeader>
           <CardContent>

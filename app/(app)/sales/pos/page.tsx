@@ -53,15 +53,14 @@ export default async function PosPage() {
         {missing ? (
           <Card><CardContent className="pt-6">
             <p className="text-sm text-muted-foreground">
-              نقطة البيع محتاجة مخزن مفعّل، وحساب خزينة (١١٠١ أو ١١٠٢)، وعميل واحد على الأقل —
-              اعمل «عميل نقدي» لو مش بتسجّل بيانات كل مشترٍ.
+              {t("نقطة البيع محتاجة مخزن مفعّل، وحساب خزينة (١١٠١ أو ١١٠٢)، وعميل واحد على الأقل — اعمل «عميل نقدي» لو مش بتسجّل بيانات كل مشترٍ.")}
             </p>
           </CardContent></Card>
         ) : (
           <PosTerminal
-            warehouses={whList.map((w) => ({ id: w.id, label: w.nameAr }))}
-            cashAccounts={cashList.map((a) => ({ id: a.id, label: `${a.code} — ${a.nameAr}` }))}
-            customers={custList.map((c) => ({ id: c.id, label: `${c.code} — ${c.nameAr}` }))}
+            warehouses={whList.map((w) => ({ id: w.id, label: t(w.nameAr) }))}
+            cashAccounts={cashList.map((a) => ({ id: a.id, label: `${a.code} — ${t(a.nameAr)}` }))}
+            customers={custList.map((c) => ({ id: c.id, label: `${c.code} — ${t(c.nameAr)}` }))}
             defaultCustomerId={custList[0]?.id ?? null}
             vatRate={Number(org[0]?.vatRate ?? 0)}
             promotions={promoRows.map((r) => ({

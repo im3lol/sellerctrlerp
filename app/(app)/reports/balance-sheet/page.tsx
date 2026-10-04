@@ -113,7 +113,7 @@ export default async function BalanceSheetPage({
 
         {!balanced && (
           <div className="rounded-xl border border-destructive/40 bg-destructive/5 px-4 py-3 text-sm text-destructive">
-            فرق غير متوازن: {fmt(totalAssets - totalLiabEquity)} — راجع القيود غير المتوازنة أو الحسابات غير المصنّفة.
+            {fill(t("فرق غير متوازن: {0} — راجع القيود غير المتوازنة أو الحسابات غير المصنّفة."), [fmt(totalAssets - totalLiabEquity)])}
           </div>
         )}
       </ReportShell>
@@ -153,7 +153,7 @@ async function BsTable({
         {rows.map((r) => (
           <TableRow key={r.code}>
             <TableCell className="font-mono">{r.code}</TableCell>
-            <TableCell>{r.nameAr}</TableCell>
+            <TableCell>{t(r.nameAr)}</TableCell>
             <TableCell>{fmt(r.amount)}</TableCell>
           </TableRow>
         ))}

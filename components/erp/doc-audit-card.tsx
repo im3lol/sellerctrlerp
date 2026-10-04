@@ -33,7 +33,7 @@ export function DocAuditCard({ rows }: { rows: AuditRow[] }) {
               <li key={r.id} className="flex items-start gap-3 text-sm">
                 <Badge variant="outline" className="mt-0.5 shrink-0">{ACTION_AR[r.action] ? t(ACTION_AR[r.action]) : r.action}</Badge>
                 <div>
-                  <div>{r.summary ?? "—"}</div>
+                  <div>{t(r.summary ?? "—")}</div>
                   <div className="text-xs text-muted-foreground font-mono">{dtt(r.createdAt)} · {r.userName ?? t("تلقائي (النظام)")}</div>
                 </div>
               </li>

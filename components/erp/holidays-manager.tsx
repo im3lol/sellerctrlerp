@@ -73,7 +73,7 @@ export function HolidaysManager({ holidays, canManage }: { holidays: Holiday[]; 
                   <TableRow key={h.id} data-state={sel.has(h.id) ? "selected" : undefined}>
                     {canManage && <TableCell><SelectBox label={t("تحديد")} checked={sel.has(h.id)} onChange={() => sel.toggle(h.id)} /></TableCell>}
                     <TableCell className="tabular-nums">{dt(h.date)}</TableCell>
-                    <TableCell>{h.nameAr}</TableCell>
+                    <TableCell>{t(h.nameAr)}</TableCell>
                     {canManage && <TableCell><Button variant="ghost" size="icon" disabled={pending} aria-label={t("حذف")} onClick={() => remove(h.id)}><Icon name="Trash2" className="size-4 text-destructive" /></Button></TableCell>}
                   </TableRow>
                 ))}

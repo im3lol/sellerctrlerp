@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { fill } from "@/lib/i18n";
 import { getT } from "@/lib/i18n/server";
 import { notFound } from "next/navigation";
 import { and, eq, inArray, or } from "drizzle-orm";
@@ -119,7 +120,7 @@ export default async function DashboardPage({ params, searchParams }: {
         {tiles.length === 0 ? (
           !editing && (
             <div className="rounded-2xl border border-dashed p-8 text-center text-sm text-muted-foreground">
-              اللوحة فاضية.{mine && " دوس «تعديل» وضيف تقارير محفوظة."}
+              {t("اللوحة فاضية.")}{mine && t(" دوس «تعديل» وضيف تقارير محفوظة.")}
             </div>
           )
         ) : (
@@ -185,7 +186,7 @@ export default async function DashboardPage({ params, searchParams }: {
                       )}
                       {!it.chart && it.result.rows.length > PREVIEW_ROWS && (
                         <p className="text-xs text-muted-foreground">
-                          و{int(it.result.rows.length - PREVIEW_ROWS)} كمان — <Link href={`/reports/builder?r=${it.reportId}`} className="text-primary underline">{t("شوف الكل")}</Link>
+                          {fill(t("و{0} كمان"), [int(it.result.rows.length - PREVIEW_ROWS)])} — <Link href={`/reports/builder?r=${it.reportId}`} className="text-primary underline">{t("شوف الكل")}</Link>
                         </p>
                       )}
                     </>

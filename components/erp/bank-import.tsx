@@ -40,8 +40,7 @@ export function BankImport({ bankAccountId }: { bankAccountId: string }) {
       <CardHeader>
         <CardTitle>{t("استيراد كشف الحساب")}</CardTitle>
         <CardDescription>
-          ارفع ملف الكشف زي ما البنك بيطلّعه (Excel أو CSV). بنعرف الأعمدة من عناوينها، وبتشوف اللي اتقرا قبل ما يتحفظ،
-          والحركة اللي اتسجلت قبل كده مابتتكررش.
+          {t("ارفع ملف الكشف زي ما البنك بيطلّعه (Excel أو CSV). بنعرف الأعمدة من عناوينها، وبتشوف اللي اتقرا قبل ما يتحفظ، والحركة اللي اتسجلت قبل كده مابتتكررش.")}
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -49,7 +48,7 @@ export function BankImport({ bankAccountId }: { bankAccountId: string }) {
           <Input type="file" accept=".csv,.xlsx,.xls" className="max-w-sm"
             onChange={(e) => { setFile(e.target.files?.[0] ?? null); setPreview(null); }} />
           <Button variant="outline" disabled={!file || pending} onClick={() => run(false)}>
-            {pending && !preview && <Loader2 className="size-4 animate-spin" />}معاينة
+            {pending && !preview && <Loader2 className="size-4 animate-spin" />}{t("معاينة")}
           </Button>
         </div>
 
@@ -85,7 +84,7 @@ export function BankImport({ bankAccountId }: { bankAccountId: string }) {
               {!!preview.duplicates && <span className="text-muted-foreground">· {n(preview.duplicates)} {t("متسجلة قبل كده")}</span>}
               {!!preview.skipped && <span className="text-muted-foreground">· {n(preview.skipped)} {t("سطر مش حركة (رصيد أو إجمالي)")}</span>}
               <Button className="ms-auto" disabled={pending || !preview.total} onClick={() => run(true)}>
-                {pending && <Loader2 className="size-4 animate-spin" />}{t("استورد")} {n(preview.total ?? 0)} حركة
+                {pending && <Loader2 className="size-4 animate-spin" />}{fill(t("استورد {0} حركة"), [n(preview.total ?? 0)])}
               </Button>
             </div>
           </div>
@@ -97,6 +96,7 @@ export function BankImport({ bankAccountId }: { bankAccountId: string }) {
 
 /** Confirm the suggested deposit as the one that carried this payout. */
 export function MatchButton({ lineId }: { lineId: string }) {
+  const t = useT();
   const router = useRouter();
   const [pending, start] = useTransition();
   return (
@@ -105,7 +105,7 @@ export function MatchButton({ lineId }: { lineId: string }) {
         const r = await toggleStatementLineReconciledAction(lineId);
         if (r.error) toast.error(r.error); else router.refresh();
       })}>
-      {pending && <Loader2 className="size-4 animate-spin" />}طابق
+      {pending && <Loader2 className="size-4 animate-spin" />}{t("طابق")}
     </Button>
   );
 }

@@ -86,7 +86,7 @@ export default async function GrniReconciliationPage() {
               <p className="text-sm text-muted-foreground">{t("الحساب مطابق تماماً لإذون الاستلام المعلّقة.")}</p>
             ) : (
               <p className="text-sm text-destructive">
-                يوجد فرق قدره {fmt(Math.abs(diff))}. الأسباب المعتادة: إشعار مدين على فاتورة بدون مرتجع فعلي للبضاعة (أو العكس)، أو قيد يدوي على الحساب.
+                {fill(t("يوجد فرق قدره {0}. الأسباب المعتادة: إشعار مدين على فاتورة بدون مرتجع فعلي للبضاعة (أو العكس)، أو قيد يدوي على الحساب."), [fmt(Math.abs(diff))])}
               </p>
             )}
           </CardContent>

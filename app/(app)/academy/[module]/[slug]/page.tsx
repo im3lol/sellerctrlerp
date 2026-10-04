@@ -57,7 +57,7 @@ export default async function LessonPage({ params }: { params: Promise<{ module:
         <Badge variant="outline">{lesson.level === "basic" ? t("أساسي") : t("متقدّم")}</Badge>
         {lesson.minutes && (
           <span className="text-xs text-muted-foreground">
-            {intf(lesson.minutes)} دقيقة {lesson.kind === "doc" ? t("قراءة") : ""}
+            {fill(t("{0} دقيقة"), [intf(lesson.minutes)])} {lesson.kind === "doc" ? t("قراءة") : ""}
           </span>
         )}
       </div>

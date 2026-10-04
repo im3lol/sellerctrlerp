@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { useT } from "@/lib/i18n/client";
+import { fill } from "@/lib/i18n";
+import { useLocale, useT } from "@/lib/i18n/client";
 import { useRouter } from "next/navigation";
 import { toast } from "@/lib/i18n/toast";
 import { Star, Plus, Power } from "lucide-react";
@@ -91,7 +92,7 @@ function CurrencyDialog({ onClose }: { onClose: () => void }) {
             <SelectTrigger><SelectValue /></SelectTrigger>
             <SelectContent>
               {PRESETS.map((p) => (
-                <SelectItem key={p.code} value={p.code}>{p.code} — {p.nameAr}</SelectItem>
+                <SelectItem key={p.code} value={p.code}>{p.code} — {t(p.nameAr)}</SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -123,7 +124,7 @@ function CurrencyDialog({ onClose }: { onClose: () => void }) {
 
         {!isBase && (
           <div className="space-y-1.5">
-            <Label>{t("السعر الحالي (1")} {usePreset ? preset : code} = ؟ عملة أساسية)</Label>
+            <Label>{fill(t("السعر الحالي (1 {0} = ؟ عملة أساسية)"), [usePreset ? preset : code])}</Label>
             <Input
               type="number"
               min="0.000001"
@@ -193,7 +194,7 @@ function RateDialog({ currencies, baseCurrency, onClose }: { currencies: Currenc
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     {nonBase.map((c) => (
-                      <SelectItem key={c.code} value={c.code}>{c.code} — {c.nameAr}</SelectItem>
+                      <SelectItem key={c.code} value={c.code}>{c.code} — {t(c.nameAr)}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -204,7 +205,7 @@ function RateDialog({ currencies, baseCurrency, onClose }: { currencies: Currenc
                   <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
                 </div>
                 <div className="space-y-1.5">
-                  <Label>1 {currCode} = كم {baseCurrency?.code ?? "EGP"}</Label>
+                  <Label>{fill(t("1 {0} = كم {1}"), [currCode, baseCurrency?.code ?? "EGP"])}</Label>
                   <Input
                     type="number"
                     min="0.000001"
@@ -238,6 +239,7 @@ export function CurrenciesManager({
   rates: Rate[];
 }) {
   const t = useT();
+  const locale = useLocale();
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [showAdd, setShowAdd] = useState(false);
@@ -253,8 +255,7 @@ export function CurrenciesManager({
           <div>
             <CardTitle>{t("العملات")}</CardTitle>
             <CardDescription>
-              العملة الأساسية هي وحدة القياس في دفتر الأستاذ — تُستخدم في كل القيود المحاسبية.
-              العملات الأخرى تُحوَّل إليها بسعر الصرف عند الترحيل.
+              {t("العملة الأساسية هي وحدة القياس في دفتر الأستاذ — تُستخدم في كل القيود المحاسبية. العملات الأخرى تُحوَّل إليها بسعر الصرف عند الترحيل.")}
             </CardDescription>
           </div>
           <Button size="sm" onClick={() => setShowAdd(true)}>
@@ -284,7 +285,7 @@ export function CurrenciesManager({
                     <tr key={c.id} className="border-t [&>td]:p-3 [&>td]:align-middle">
                       <td className="font-mono font-semibold">{c.code}</td>
                       <td>
-                        {c.nameAr}
+                        {t(c.nameAr)}
                         {c.isBase && (
                           <Star className="ms-1.5 inline size-3 fill-yellow-400 text-yellow-400" />
                         )}
@@ -332,8 +333,7 @@ export function CurrenciesManager({
           <div>
             <CardTitle>{t("سجل أسعار الصرف")}</CardTitle>
             <CardDescription>
-              يُحفظ السعر بالتاريخ لضمان دقة التحويل في الفواتير التاريخية.
-              آخر سعر مُدخَّل يُعتمد للترحيل.
+              {t("يُحفظ السعر بالتاريخ لضمان دقة التحويل في الفواتير التاريخية. آخر سعر مُدخَّل يُعتمد للترحيل.")}
             </CardDescription>
           </div>
           <Button size="sm" variant="outline" onClick={() => setShowRate(true)} disabled={currList.filter(c => !c.isBase).length === 0}>
@@ -352,14 +352,14 @@ export function CurrenciesManager({
                   <tr className="[&>th]:p-3 [&>th]:text-start">
                     <th>{t("العملة")}</th>
                     <th>{t("التاريخ")}</th>
-                    <th>السعر (1 وحدة = ؟ {baseCurrency?.code ?? ""})</th>
+                    <th>{fill(t("السعر (1 وحدة = ؟ {0})"), [baseCurrency?.code ?? ""])}</th>
                   </tr>
                 </thead>
                 <tbody>
                   {rates.map((r) => (
                     <tr key={r.id} className="border-t [&>td]:p-3">
                       <td className="font-mono font-semibold">{r.currencyCode}</td>
-                      <td className="text-xs">{new Date(r.date).toLocaleDateString("ar-EG")}</td>
+                      <td className="text-xs">{new Date(r.date).toLocaleDateString(locale === "en" ? "en-GB" : "ar-EG")}</td>
                       <td className="tabular-nums">{Number(r.rate).toFixed(6)}</td>
                     </tr>
                   ))}

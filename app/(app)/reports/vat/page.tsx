@@ -1,6 +1,6 @@
 import { and, eq, gte, lte, ne, sql } from "drizzle-orm";
 import { fill } from "@/lib/i18n";
-import { getT } from "@/lib/i18n/server";
+import { getLocale, getT } from "@/lib/i18n/server";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
 import { salesInvoices, purchaseInvoices } from "@/db/schema";
@@ -24,6 +24,7 @@ type VatLine = { number: string; date: Date; counterparty: string; netAmount: nu
 
 async function VatTable({ lines, emptyText }: { lines: VatLine[]; emptyText: string }) {
   const t = await getT();
+  const locale = await getLocale();
   if (lines.length === 0) {
     return <div className="rounded-xl border border-dashed py-10 text-center text-sm text-muted-foreground">{emptyText}</div>;
   }
@@ -45,7 +46,7 @@ async function VatTable({ lines, emptyText }: { lines: VatLine[]; emptyText: str
           {lines.map((l) => (
             <tr key={l.number} className="border-t [&>td]:p-3">
               <td className="font-mono text-xs">{l.number}</td>
-              <td className="text-xs text-muted-foreground">{new Date(l.date).toLocaleDateString("ar-EG")}</td>
+              <td className="text-xs text-muted-foreground">{new Date(l.date).toLocaleDateString(locale === "en" ? "en-GB" : "ar-EG")}</td>
               <td>{l.counterparty}</td>
               <td className="text-end tabular-nums">{fmt(l.netAmount)}</td>
               <td className="text-end tabular-nums text-muted-foreground">{l.taxRate > 0 ? `${l.taxRate}%` : "—"}</td>

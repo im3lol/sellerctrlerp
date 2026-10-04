@@ -74,7 +74,7 @@ function WarehouseDialog({
               <Label htmlFor="w-parent">{t("المخزن الأب")}</Label>
               <select id="w-parent" name="parentId" defaultValue={editing?.parentId ?? presetParent ?? ""} className={selectCls}>
                 <option value="">{t("— مخزن رئيسي —")}</option>
-                {parentOptions.map((w) => <option key={w.id} value={w.id}>{w.code} — {w.nameAr}</option>)}
+                {parentOptions.map((w) => <option key={w.id} value={w.id}>{w.code} — {t(w.nameAr)}</option>)}
               </select>
             </div>
             <div className="space-y-2"><Label htmlFor="w-loc">{t("الموقع")}</Label><Input id="w-loc" name="location" defaultValue={editing?.location ?? ""} /></div>
@@ -141,7 +141,7 @@ export function WarehousesTree({ warehouses, canManage }: { warehouses: Warehous
           ) : <span className="inline-block size-5" />}
           <Icon name={w.type === "WAREHOUSE" ? "Warehouse" : hasKids ? "FolderTree" : "Box"} className={cn("size-4 shrink-0", w.type === "WAREHOUSE" ? "text-primary" : "text-muted-foreground")} />
           <span className="font-mono text-muted-foreground">{w.code}</span>
-          <span className={cn(w.type === "WAREHOUSE" && "font-semibold")}>{w.nameAr}</span>
+          <span className={cn(w.type === "WAREHOUSE" && "font-semibold")}>{t(w.nameAr)}</span>
           <Badge variant="outline">{t(WAREHOUSE_TYPE_LABEL[w.type] ?? w.type)}</Badge>
           {w.location && <span className="text-xs text-muted-foreground">{w.location}</span>}
           {!w.isActive && <Badge variant="secondary">{t("معطّل")}</Badge>}
@@ -152,7 +152,7 @@ export function WarehousesTree({ warehouses, canManage }: { warehouses: Warehous
               <AlertDialog>
                 <AlertDialogTrigger asChild><Button variant="ghost" size="icon" className="size-7" disabled={pending} aria-label={t("حذف")}><Trash2 className="size-3.5 text-destructive" /></Button></AlertDialogTrigger>
                 <AlertDialogContent>
-                  <AlertDialogHeader><AlertDialogTitle>{t("حذف «")}{w.nameAr}{t("»؟")}</AlertDialogTitle><AlertDialogDescription>{t("لا يمكن التراجع. تأكّد أنه بلا مواقع فرعية أو حركات مخزون.")}</AlertDialogDescription></AlertDialogHeader>
+                  <AlertDialogHeader><AlertDialogTitle>{t("حذف «")}{t(w.nameAr)}{t("»؟")}</AlertDialogTitle><AlertDialogDescription>{t("لا يمكن التراجع. تأكّد أنه بلا مواقع فرعية أو حركات مخزون.")}</AlertDialogDescription></AlertDialogHeader>
                   <AlertDialogFooter><AlertDialogCancel>{t("إلغاء")}</AlertDialogCancel><AlertDialogAction onClick={() => remove(w)}>{t("حذف")}</AlertDialogAction></AlertDialogFooter>
                 </AlertDialogContent>
               </AlertDialog>
@@ -174,7 +174,7 @@ export function WarehousesTree({ warehouses, canManage }: { warehouses: Warehous
             <>
               <input ref={fileRef} type="file" accept=".csv,.txt" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) onImportFile(f); }} />
               <Button variant="outline" size="sm" disabled={importing} onClick={() => fileRef.current?.click()}>
-                {importing ? <Loader2 className="size-4 animate-spin" /> : <Upload className="size-4" />}استيراد CSV
+                {importing ? <Loader2 className="size-4 animate-spin" /> : <Upload className="size-4" />}{t("استيراد CSV")}
               </Button>
               <Button onClick={() => openCreate(null)}><Plus className="size-4" />{t("مخزن جديد")}</Button>
             </>

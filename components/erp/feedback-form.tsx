@@ -70,7 +70,7 @@ export function FeedbackForm() {
         </div>
 
         <Button onClick={submit} disabled={pending || subject.length < 3 || message.length < 10}>
-          {pending ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />} إرسال
+          {pending ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />} {t("إرسال")}
         </Button>
       </CardContent>
     </Card>

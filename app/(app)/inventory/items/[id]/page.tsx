@@ -100,7 +100,7 @@ export default async function ItemDetailPage({ params }: { params: Promise<{ id:
 
           <div className="space-y-4 lg:col-span-2">
             <div className="grid gap-4 sm:grid-cols-2">
-              <Field label={t("الاسم")}>{item.nameAr ?? "—"}</Field>
+              <Field label={t("الاسم")}>{t(item.nameAr ?? "—")}</Field>
               <Field label={t("سعر البيع")}>{money(item.sellPrice)}</Field>
               <Field label={t("حد إعادة الطلب")}>{qf(item.minStock)}</Field>
               <Field label={t("الرصيد الكلي")}>{qf(totalQty)}</Field>
@@ -156,7 +156,7 @@ export default async function ItemDetailPage({ params }: { params: Promise<{ id:
         {item.description && (
           <Card>
             <CardHeader><CardTitle>{t("الوصف")}</CardTitle></CardHeader>
-            <CardContent><p className="whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground">{item.description}</p></CardContent>
+            <CardContent><p className="whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground">{t(item.description)}</p></CardContent>
           </Card>
         )}
 
@@ -193,8 +193,8 @@ export default async function ItemDetailPage({ params }: { params: Promise<{ id:
             <CardHeader>
               <CardTitle>{t("الربحية (P&L)")}</CardTitle>
               <CardDescription>
-                إيراد وتكلفة الصنف من فواتير البيع المرحّلة، ورسوم أمازون الفعلية من التسويات.
-                {!pnl.hasSettlement && " (لا توجد تسويات أمازون لهذا الصنف بعد — الرسوم صفر.)"}
+                {t("إيراد وتكلفة الصنف من فواتير البيع المرحّلة، ورسوم أمازون الفعلية من التسويات.")}
+                {!pnl.hasSettlement && " " + t("(لا توجد تسويات أمازون لهذا الصنف بعد — الرسوم صفر.)")}
               </CardDescription>
             </CardHeader>
             <CardContent>

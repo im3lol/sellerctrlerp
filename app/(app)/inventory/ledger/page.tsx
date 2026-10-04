@@ -79,14 +79,14 @@ export default async function StockLedgerPage({ searchParams }: { searchParams: 
                   defaultId={itemId}
                   defaultLabel={itemLabel}
                   placeholder={t("ابحث بالاسم أو الكود… (اتركه فارغاً لكل الأصناف)")}
-                  options={itemList.map((i) => ({ id: i.id, label: `${i.code} — ${i.nameAr ?? ""}`, hint: i.code }))}
+                  options={itemList.map((i) => ({ id: i.id, label: `${i.code} — ${t(i.nameAr ?? "")}`, hint: i.code }))}
                 />
               </div>
               <div className="space-y-1">
                 <Label htmlFor="warehouse">{t("المستودع")}</Label>
                 <select id="warehouse" name="warehouse" defaultValue={fWarehouse} className={selectCls}>
                   <option value="">{t("كل المستودعات")}</option>
-                  {whList.map((w) => <option key={w.id} value={w.id}>{w.nameAr}</option>)}
+                  {whList.map((w) => <option key={w.id} value={w.id}>{t(w.nameAr)}</option>)}
                 </select>
               </div>
               <div className="space-y-1">

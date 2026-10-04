@@ -19,7 +19,7 @@ export function BuyBoxRefresh({ code }: { code: string }) {
       toast.success(r.started ? t("بدأ التحديث — الأرقام هتتحدّث خلال دقيقة أو اتنين") : t("اتحدّث"));
       router.refresh();
     })}>
-      {pending ? <Icon name="Loader2" className="size-4 animate-spin" /> : <Icon name="RefreshCw" className="size-4" />}حدّث دلوقتي
+      {pending ? <Icon name="Loader2" className="size-4 animate-spin" /> : <Icon name="RefreshCw" className="size-4" />}{t("حدّث دلوقتي")}
     </Button>
   );
 }

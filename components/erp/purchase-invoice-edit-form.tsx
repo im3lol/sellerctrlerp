@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
+import { fill } from "@/lib/i18n";
 import { useT } from "@/lib/i18n/client";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
@@ -71,8 +72,7 @@ export function PurchaseInvoiceEditForm({
           <div>
             <CardTitle>{t("تعديل فاتورة")} {number}</CardTitle>
             <CardDescription>
-              طابِق الفاتورة على ما أرسله المورّد فعلياً. الكمية والشحن مقفولان — جايين من إذن الاستلام
-              {receiptNumber ? ` ${receiptNumber}` : ""}.
+              {fill(t("طابِق الفاتورة على ما أرسله المورّد فعلياً. الكمية والشحن مقفولان — جايين من إذن الاستلام{0}."), [receiptNumber ? ` ${receiptNumber}` : ""])}
             </CardDescription>
           </div>
           <div className="flex gap-2">
@@ -133,7 +133,7 @@ export function PurchaseInvoiceEditForm({
           <div className="mt-2 rounded-lg border bg-muted/30 px-3 py-2">
             <div>{t("قيمة البضاعة عند الاستلام:")} <span className="font-medium">{fmt(grniAmount)}</span></div>
             <div className={Math.abs(totals.variance) > 0.004 ? "font-medium text-amber-600" : "text-muted-foreground"}>
-              فرق السعر: {fmt(totals.variance)}
+              {fill(t("فرق السعر: {0}"), [fmt(totals.variance)])}
               {Math.abs(totals.variance) > 0.004 && <span className="block text-xs">{t("سيُحمَّل على تكلفة المخزون المتاح، والمُباع منه على تكلفة المبيعات.")}</span>}
             </div>
           </div>

@@ -58,8 +58,8 @@ export function NumberingForm({ overrides, canEdit }: { overrides: Record<string
         <CardHeader>
           <CardTitle>{t("بادئات ترقيم المستندات")}</CardTitle>
           <CardDescription>
-            كل مستند رقمه <span dir="ltr" className="tabular-nums">{t("البادئة-السنة-الرقم")}</span>. اترك الخانة فارغة لاستخدام الافتراضي.
-            تغيير البادئة يبدأ ترقيمًا جديدًا لها ولا يغيّر أرقام المستندات القديمة.
+            {t("كل مستند رقمه")} <span dir="ltr" className="tabular-nums">{t("البادئة-السنة-الرقم")}</span>
+            {t(". اترك الخانة فارغة لاستخدام الافتراضي. تغيير البادئة يبدأ ترقيمًا جديدًا لها ولا يغيّر أرقام المستندات القديمة.")}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">

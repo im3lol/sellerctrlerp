@@ -76,7 +76,7 @@ export default async function PrintJournalEntryPage({ params }: Params) {
         rows={lines.map((l, i) => [
           <span key={i}>
             <span dir="ltr" style={{ color: "#8a93a6", fontSize: 10.5, marginInlineEnd: 6 }}>{l.accountCode}</span>
-            <b>{l.accountName}</b>
+            <b>{t(l.accountName)}</b>
           </span>,
           l.description || "—",
           Number(l.debit) ? fmt(l.debit) : "—",

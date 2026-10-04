@@ -1,5 +1,7 @@
 package com.sellerctrl.app.ui
 
+import com.sellerctrl.app.tr
+
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -55,13 +57,13 @@ fun StatementScaffold(nav: NavController, title: String, subtitle: String?, load
         TopAppBar(
             title = { Text(title) },
             navigationIcon = { IconButton(onClick = { nav.popBackStack() }) { Icon(Icons.AutoMirrored.Filled.ArrowBack, null) } },
-            actions = { val open = LocalOpenDrawer.current; IconButton(onClick = open) { Icon(Icons.Filled.Menu, "القائمة") } },
+            actions = { val open = LocalOpenDrawer.current; IconButton(onClick = open) { Icon(Icons.Filled.Menu, tr("القائمة")) } },
         )
     }) { pad ->
         Box(Modifier.fillMaxSize().padding(pad)) {
             val s = state
             when {
-                s == null && failed -> Text("تعذّر التحميل", Modifier.align(Alignment.Center), color = MaterialTheme.colorScheme.outline)
+                s == null && failed -> Text(tr("تعذّر التحميل"), Modifier.align(Alignment.Center), color = MaterialTheme.colorScheme.outline)
                 s == null -> CircularProgressIndicator(Modifier.align(Alignment.Center))
                 else -> LazyColumn(Modifier.fillMaxSize().padding(12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     subtitle?.let { item { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline) } }
@@ -106,42 +108,42 @@ fun StatementScaffold(nav: NavController, title: String, subtitle: String?, load
 
 @Composable
 fun IncomeStatementScreen(nav: NavController) {
-    StatementScaffold(nav, "قائمة الدخل", null) {
+    StatementScaffold(nav, tr("قائمة الدخل"), null) {
         val d = ServiceLocator.repo.incomeStatement()
         listOf(
-            StmtSection("الإيرادات", d.revenue, "إجمالي الإيرادات", d.totalRevenue),
-            StmtSection("المصروفات", d.expense, "إجمالي المصروفات", d.totalExpense),
-        ) to listOf(StmtTotal("صافي الربح", d.net))
+            StmtSection(tr("الإيرادات"), d.revenue, tr("إجمالي الإيرادات"), d.totalRevenue),
+            StmtSection(tr("المصروفات"), d.expense, tr("إجمالي المصروفات"), d.totalExpense),
+        ) to listOf(StmtTotal(tr("صافي الربح"), d.net))
     }
 }
 
 @Composable
 fun BalanceSheetScreen(nav: NavController) {
-    StatementScaffold(nav, "الميزانية العمومية", null) {
+    StatementScaffold(nav, tr("الميزانية العمومية"), null) {
         val d = ServiceLocator.repo.balanceSheet()
         listOf(
-            StmtSection("الأصول", d.assets, "إجمالي الأصول", d.totalAssets),
-            StmtSection("الخصوم", d.liabilities, "إجمالي الخصوم", d.totalLiabilities),
-            StmtSection("حقوق الملكية", d.equity, "إجمالي حقوق الملكية", d.totalEquity),
+            StmtSection(tr("الأصول"), d.assets, tr("إجمالي الأصول"), d.totalAssets),
+            StmtSection(tr("الخصوم"), d.liabilities, tr("إجمالي الخصوم"), d.totalLiabilities),
+            StmtSection(tr("حقوق الملكية"), d.equity, tr("إجمالي حقوق الملكية"), d.totalEquity),
         ) to listOf(
-            StmtTotal("الأصول", d.totalAssets),
-            StmtTotal("الخصوم + حقوق الملكية", d.totalLiabilities + d.totalEquity),
+            StmtTotal(tr("الأصول"), d.totalAssets),
+            StmtTotal(tr("الخصوم + حقوق الملكية"), d.totalLiabilities + d.totalEquity),
         )
     }
 }
 
 @Composable
 fun CashFlowScreen(nav: NavController) {
-    StatementScaffold(nav, "التدفق النقدي", null) {
+    StatementScaffold(nav, tr("التدفق النقدي"), null) {
         val d = ServiceLocator.repo.cashFlow()
         listOf(
-            StmtSection("الأنشطة التشغيلية", d.operating, "صافي التشغيل", d.opTotal),
-            StmtSection("الأنشطة الاستثمارية", d.investing, "صافي الاستثمار", d.invTotal),
-            StmtSection("الأنشطة التمويلية", d.financing, "صافي التمويل", d.finTotal),
+            StmtSection(tr("الأنشطة التشغيلية"), d.operating, tr("صافي التشغيل"), d.opTotal),
+            StmtSection(tr("الأنشطة الاستثمارية"), d.investing, tr("صافي الاستثمار"), d.invTotal),
+            StmtSection(tr("الأنشطة التمويلية"), d.financing, tr("صافي التمويل"), d.finTotal),
         ) to listOf(
-            StmtTotal("صافي التغيّر في النقدية", d.netChange),
-            StmtTotal("نقدية أول المدة", d.cashBegin),
-            StmtTotal("نقدية آخر المدة", d.cashEnd),
+            StmtTotal(tr("صافي التغيّر في النقدية"), d.netChange),
+            StmtTotal(tr("نقدية أول المدة"), d.cashBegin),
+            StmtTotal(tr("نقدية آخر المدة"), d.cashEnd),
         )
     }
 }

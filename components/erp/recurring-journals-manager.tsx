@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
+import { fill } from "@/lib/i18n";
 import { useT } from "@/lib/i18n/client";
 import { useRouter } from "next/navigation";
 import { toast } from "@/lib/i18n/toast";
@@ -82,7 +83,7 @@ function EditDialog({ rj, accounts, onClose }: { rj: RJ | null; accounts: Accoun
         </div>
         <div className="flex items-center justify-between">
           <Button variant="outline" size="sm" onClick={() => setLines((ls) => [...ls, nl()])}><Plus className="size-4" />{t("إضافة بند")}</Button>
-          <span className={`text-sm font-medium ${balanced ? "text-emerald-600" : "text-destructive"}`}>مدين {fmt(totDr)} · دائن {fmt(totCr)} {balanced ? t("· متوازن ✓") : t("· غير متوازن")}</span>
+          <span className={`text-sm font-medium ${balanced ? "text-emerald-600" : "text-destructive"}`}>{fill(t("مدين {0} · دائن {1}"), [fmt(totDr), fmt(totCr)])} {balanced ? t("· متوازن ✓") : t("· غير متوازن")}</span>
         </div>
       </div>
       <DialogFooter>

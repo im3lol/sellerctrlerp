@@ -197,7 +197,7 @@ export function BarcodePrintButton({ itemName, codes }: { itemName: string; code
 
           <DialogFooter>
             <Button onClick={print} disabled={busy || qzOk !== true}>
-              {busy ? <Loader2 className="size-4 animate-spin" /> : <Printer className="size-4" />}طباعة
+              {busy ? <Loader2 className="size-4 animate-spin" /> : <Printer className="size-4" />}{t("طباعة")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -338,7 +338,7 @@ export function BulkBarcodePrintButton({
           <DialogFooter className="sm:items-center sm:justify-between">
             <span className="text-sm text-muted-foreground">{totalLabels} {t("ملصق ·")} {included.length} {t("صنف")}</span>
             <Button onClick={print} disabled={busy || qzOk !== true || !totalLabels}>
-              {busy ? <Loader2 className="size-4 animate-spin" /> : <Printer className="size-4" />}طباعة
+              {busy ? <Loader2 className="size-4 animate-spin" /> : <Printer className="size-4" />}{t("طباعة")}
             </Button>
           </DialogFooter>
         </DialogContent>

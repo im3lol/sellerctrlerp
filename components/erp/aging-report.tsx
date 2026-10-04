@@ -54,6 +54,7 @@ function AgingTable({
   title: string;
 }) {
   const t = useT();
+  const locale = useLocale();
   const enriched = rows.map((r) => {
     const days = daysPastDue(r.dueDate, today);
     return { ...r, days, bucket: bucketOf(days) };
@@ -84,7 +85,7 @@ function AgingTable({
               {fmt(bucketTotals[i])}
             </p>
             <p className="text-xs text-muted-foreground">
-              {enriched.filter((r) => r.bucket === i).length} فاتورة
+              {fill(t("{0} فاتورة"), [enriched.filter((r) => r.bucket === i).length])}
             </p>
           </div>
         ))}
@@ -118,9 +119,9 @@ function AgingTable({
                   <div className="text-xs text-muted-foreground">{r.partyCode}</div>
                 </td>
                 <td className="font-mono text-xs">{r.number}</td>
-                <td className="text-xs">{new Date(r.date).toLocaleDateString("ar-EG")}</td>
+                <td className="text-xs">{new Date(r.date).toLocaleDateString(locale === "en" ? "en-GB" : "ar-EG")}</td>
                 <td className="text-xs">
-                  {r.dueDate ? new Date(r.dueDate).toLocaleDateString("ar-EG") : "—"}
+                  {r.dueDate ? new Date(r.dueDate).toLocaleDateString(locale === "en" ? "en-GB" : "ar-EG") : "—"}
                 </td>
                 <td className="tabular-nums text-xs">{fmt(r.totalAmount)}</td>
                 <td className="tabular-nums font-semibold">{fmt(r.balanceDue)}</td>
@@ -153,13 +154,13 @@ export function AgingReport({
     <Tabs defaultValue="ar" dir={dirOf(locale)}>
       <TabsList>
         <TabsTrigger value="ar">
-          ذمم مدينة (AR)
+          {t("ذمم مدينة (AR)")}
           {arRows.length > 0 && (
             <Badge variant="secondary" className="ms-2 text-xs">{arRows.length}</Badge>
           )}
         </TabsTrigger>
         <TabsTrigger value="ap">
-          ذمم دائنة (AP)
+          {t("ذمم دائنة (AP)")}
           {apRows.length > 0 && (
             <Badge variant="secondary" className="ms-2 text-xs">{apRows.length}</Badge>
           )}

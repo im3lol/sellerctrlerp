@@ -52,7 +52,7 @@ export function UnmatchedOrdersClient({ initial }: { initial: UnmatchedOrder[] }
                 <span className="text-sm font-normal text-muted-foreground">· {dt(o.createdAt)} {t("· الإجمالي")} {fmt(o.total)}</span>
               </CardTitle>
               <Button size="sm" variant="outline" onClick={() => resolve(o.id)} disabled={pending && busy === o.id}>
-                {pending && busy === o.id ? <Loader2 className="size-4 animate-spin" /> : <Check className="size-4" />}تمّت المعالجة
+                {pending && busy === o.id ? <Loader2 className="size-4 animate-spin" /> : <Check className="size-4" />}{t("تمّت المعالجة")}
               </Button>
             </div>
           </CardHeader>

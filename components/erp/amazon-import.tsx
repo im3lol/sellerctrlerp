@@ -60,9 +60,7 @@ export function AmazonImport() {
         <CardHeader>
           <CardTitle>{t("استيراد طلبات أمازون")}</CardTitle>
           <CardDescription>
-            ارفع تقرير الطلبات (Order Report) من Amazon Seller Central. كل طلب يُنشأ أمر بيع مستقل تحت عميل «أمازون مصر»
-            ومخزن «أمازون FBA». الطلبات المشحونة → أمر مؤكّد + إذن صرف + فاتورة بيع تلقائياً؛ المعلّقة تبقى مسودة؛ والمعلّق الذي اكتمل يُحدَّث ويأخذ الدورة.
-            الملغاة تُتجاهل، وإعادة الرفع لا تُكرّر. أي طلب ينقص مخزونه يُدرَج في تقرير (بلا حركة مخزون خاطئة).
+            {t("ارفع تقرير الطلبات (Order Report) من Amazon Seller Central. كل طلب يُنشأ أمر بيع مستقل تحت عميل «أمازون مصر» ومخزن «أمازون FBA». الطلبات المشحونة → أمر مؤكّد + إذن صرف + فاتورة بيع تلقائياً؛ المعلّقة تبقى مسودة؛ والمعلّق الذي اكتمل يُحدَّث ويأخذ الدورة. الملغاة تُتجاهل، وإعادة الرفع لا تُكرّر. أي طلب ينقص مخزونه يُدرَج في تقرير (بلا حركة مخزون خاطئة).")}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -76,12 +74,12 @@ export function AmazonImport() {
             />
             <Button onClick={doPreview} disabled={!file || previewing}>
               {previewing ? <Icon name="Loader2" className="size-4 animate-spin" /> : <Icon name="Eye" className="size-4" />}
-              معاينة
+              {t("معاينة")}
             </Button>
             {preview && (preview.toCreate.length > 0 || preview.transitions.length > 0) && (
               <Button variant="default" onClick={doImport} disabled={importing} className="bg-emerald-600 hover:bg-emerald-700">
                 {importing ? <Icon name="Loader2" className="size-4 animate-spin" /> : <Icon name="Check" className="size-4" />}
-                تنفيذ الاستيراد والدورة ({preview.toCreate.length + preview.transitions.length})
+                {fill(t("تنفيذ الاستيراد والدورة ({0})"), [preview.toCreate.length + preview.transitions.length])}
               </Button>
             )}
           </div>

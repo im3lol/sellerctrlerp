@@ -148,7 +148,7 @@ export default async function PurchaseInvoicesPage({ searchParams }: { searchPar
                   <Label htmlFor="supplier">{t("المورد")}</Label>
                   <select id="supplier" name="supplier" defaultValue={fSupplier} className={selectCls}>
                     <option value="">{t("الكل")}</option>
-                    {supList.map((s) => <option key={s.id} value={s.id}>{s.nameAr}</option>)}
+                    {supList.map((s) => <option key={s.id} value={s.id}>{t(s.nameAr)}</option>)}
                   </select>
                 </div>
                 <div className="space-y-1"><Label htmlFor="from">{t("من تاريخ")}</Label><Input id="from" name="from" type="date" defaultValue={from} /></div>

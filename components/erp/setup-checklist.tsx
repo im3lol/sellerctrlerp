@@ -120,7 +120,7 @@ export async function SetupChecklist({ status }: { status: SetupStatus }) {
       {amazon && (
         <>
           <div className="pt-2 text-sm font-semibold text-muted-foreground">
-            أمازون — {AMAZON_STEPS.filter((s) => amazon[s.key]).length} من {AMAZON_STEPS.length}
+            {fill(t("أمازون — {0} من {1}"), [AMAZON_STEPS.filter((s) => amazon[s.key]).length, AMAZON_STEPS.length])}
           </div>
           <div className="space-y-3">
             {AMAZON_STEPS.map((s) => <StepCard key={s.key} step={s} done={amazon[s.key]} isNext={s.key === nextAmazon?.key} manual={false} />)}

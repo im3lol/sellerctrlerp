@@ -169,8 +169,7 @@ export function RfqManager({ items, suppliers, warehouses, canManage }: {
               <div>
                 <CardTitle>{open.rfq.number}</CardTitle>
                 <CardDescription>
-                  {open.lines.length} صنف · {c.suppliers.length} مورّد ·{" "}
-                  {c.suppliers.filter((s) => s.quotedLines > 0).length} عرض وصل
+                  {fill(t("{0} صنف · {1} مورّد · {2} عرض وصل"), [open.lines.length, c.suppliers.length, c.suppliers.filter((s) => s.quotedLines > 0).length])}
                   {open.rfq.dueDate ? fill(t(" · الردود لحد {0}"), [open.rfq.dueDate]) : ""}
                 </CardDescription>
               </div>

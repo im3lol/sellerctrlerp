@@ -1,5 +1,7 @@
 package com.sellerctrl.app.ui
 
+import com.sellerctrl.app.tr
+
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -56,7 +58,7 @@ fun DetailScreen(nav: NavController, title: String, detailPath: String, confirmP
         busy = true; message = null
         scope.launch {
             try { ServiceLocator.repo.postAction(path); message = okMsg; reload++ }
-            catch (e: Exception) { message = e.message ?: "خطأ" }
+            catch (e: Exception) { message = e.message ?: tr("خطأ") }
             finally { busy = false }
         }
     }
@@ -84,7 +86,7 @@ fun DetailScreen(nav: NavController, title: String, detailPath: String, confirmP
                         }
                     }
 
-                    Text("البنود (${o.lines.size})", style = MaterialTheme.typography.titleMedium)
+                    Text(tr("البنود (${o.lines.size})"), style = MaterialTheme.typography.titleMedium)
                     o.lines.forEach { l ->
                         AppCard(Modifier.fillMaxWidth()) {
                             Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -101,25 +103,25 @@ fun DetailScreen(nav: NavController, title: String, detailPath: String, confirmP
 
                     if (o.status == "DRAFT" && confirmPath != null) {
                         Button(
-                            onClick = { runAction(confirmPath, "تم التأكيد ✓") },
+                            onClick = { runAction(confirmPath, tr("تم التأكيد ✓")) },
                             enabled = !busy,
                             modifier = Modifier.fillMaxWidth(),
-                        ) { Text(if (busy) "جارٍ التأكيد…" else "تأكيد الأمر") }
+                        ) { Text(if (busy) tr("جارٍ التأكيد…") else tr("تأكيد الأمر")) }
                     }
 
                     if (o.status == "CONFIRMED" && fulfillPath != null) {
                         Button(
-                            onClick = { runAction(fulfillPath, "تم التسليم والفوترة ✓") },
+                            onClick = { runAction(fulfillPath, tr("تم التسليم والفوترة ✓")) },
                             enabled = !busy,
                             modifier = Modifier.fillMaxWidth(),
-                        ) { Text(if (busy) "جارٍ التنفيذ…" else "تسليم وفوترة") }
+                        ) { Text(if (busy) tr("جارٍ التنفيذ…") else tr("تسليم وفوترة")) }
                     }
 
                     if (o.status == "DRAFT" && deletePath != null) {
                         androidx.compose.material3.OutlinedButton(
                             onClick = { confirmDelete = true }, enabled = !busy, modifier = Modifier.fillMaxWidth(),
                             colors = androidx.compose.material3.ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
-                        ) { Text("حذف") }
+                        ) { Text(tr("حذف")) }
                     }
                 }
             }
@@ -129,18 +131,18 @@ fun DetailScreen(nav: NavController, title: String, detailPath: String, confirmP
     if (confirmDelete && deletePath != null) {
         androidx.compose.material3.AlertDialog(
             onDismissRequest = { confirmDelete = false },
-            title = { Text("حذف") },
-            text = { Text("متأكد من حذف هذا المستند؟") },
+            title = { Text(tr("حذف")) },
+            text = { Text(tr("متأكد من حذف هذا المستند؟")) },
             confirmButton = {
                 androidx.compose.material3.TextButton(onClick = {
                     confirmDelete = false; busy = true; message = null
                     scope.launch {
                         try { ServiceLocator.repo.postAction(deletePath); nav.popBackStack() }
-                        catch (e: Exception) { message = e.message ?: "خطأ" } finally { busy = false }
+                        catch (e: Exception) { message = e.message ?: tr("خطأ") } finally { busy = false }
                     }
-                }) { Text("حذف", color = MaterialTheme.colorScheme.error) }
+                }) { Text(tr("حذف"), color = MaterialTheme.colorScheme.error) }
             },
-            dismissButton = { androidx.compose.material3.OutlinedButton(onClick = { confirmDelete = false }) { Text("إلغاء") } },
+            dismissButton = { androidx.compose.material3.OutlinedButton(onClick = { confirmDelete = false }) { Text(tr("إلغاء")) } },
         )
     }
 }

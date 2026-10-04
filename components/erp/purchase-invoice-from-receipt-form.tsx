@@ -70,7 +70,7 @@ export function PurchaseInvoiceFromReceiptForm({
   };
 
   const supplierReceipts = useMemo(() => receipts.filter((r) => r.supplierId === supplierId), [receipts, supplierId]);
-  const supplierOptions = useMemo(() => suppliers.map((s) => ({ id: s.id, label: s.nameAr })), [suppliers]);
+  const supplierOptions = useMemo(() => suppliers.map((s) => ({ id: s.id, label: t(s.nameAr) })), [suppliers, t]);
   const supplierLabelById = useMemo(() => new Map(supplierOptions.map((o) => [o.id, o.label])), [supplierOptions]);
 
   const onSupplier = (id: string) => { setSupplierId(id); setPicked([]); setPreview(null); };
@@ -193,10 +193,10 @@ export function PurchaseInvoiceFromReceiptForm({
             <div className="space-y-1">
               <Label>{t("سعر الصرف المعتمد")}</Label>
               <div className="flex h-9 items-center rounded-md border bg-muted/40 px-3 text-sm font-medium tabular-nums">
-                ١ {inherited.code} = {ratef(inherited.rate)} {baseCode}
+                {fill(t("١ {0} = {1} {2}"), [inherited.code, ratef(inherited.rate), baseCode])}
               </div>
               <p className="text-xs text-muted-foreground">
-                {inherited.from ? fill(t("سعر معتمد من أمر الشراء {0}"), [inherited.from]) : t("سعر معتمد من إذن الاستلام")} — مبيتغيّرش هنا
+                {inherited.from ? fill(t("سعر معتمد من أمر الشراء {0}"), [inherited.from]) : t("سعر معتمد من إذن الاستلام")} {t("— مبيتغيّرش هنا")}
               </p>
             </div>
             {foreignTotal !== null && (
@@ -213,13 +213,13 @@ export function PurchaseInvoiceFromReceiptForm({
               <Label>{t("عملة الفاتورة")}</Label>
               <select className={selectCls} value={currencyCode} onChange={(e) => onCurrencyChange(e.target.value)}>
                 {currencies.map((c) => (
-                  <option key={c.code} value={c.code}>{c.code} — {c.nameAr}{c.isBase ? t(" (أساسية)") : ""}</option>
+                  <option key={c.code} value={c.code}>{c.code} — {t(c.nameAr)}{c.isBase ? t(" (أساسية)") : ""}</option>
                 ))}
               </select>
             </div>
             {isForeign && (
               <div className="space-y-2">
-                <Label>{t("سعر الصرف (1")} {shownCurrency} = ؟ {baseCode})</Label>
+                <Label>{fill(t("سعر الصرف (1 {0} = ؟ {1})"), [shownCurrency, baseCode])}</Label>
                 <Input type="number" min="0.000001" step="0.000001" value={exchangeRate} onChange={(e) => setExchangeRate(e.target.value)} placeholder={t("مثال: 3.75")} />
                 <p className="text-xs text-muted-foreground">{t("الإذن ده مش جاي من أمر شراء، فمفيش سعر معتمد يورثه.")}</p>
               </div>
@@ -244,7 +244,7 @@ export function PurchaseInvoiceFromReceiptForm({
               {supplierReceipts.length > 1 && (
                 <Button type="button" variant="outline" size="sm"
                   onClick={() => selectReceipts(supplierReceipts.map((r) => r.id))}>
-                  اختر الكل ({supplierReceipts.length})
+                  {fill(t("اختر الكل ({0})"), [supplierReceipts.length])}
                 </Button>
               )}
               {picked.length > 0 && (
@@ -333,7 +333,7 @@ export function PurchaseInvoiceFromReceiptForm({
             <div>{t("الخصم:")} <span className="font-medium">{fmt(preview.discount)}</span></div>
             <div>{t("الضريبة:")} <span className="font-medium">{fmt(preview.tax)}</span></div>
             <div className="text-base font-bold text-primary">
-              الإجمالي: {fmt(preview.total)} {baseCode}
+              {t("الإجمالي:")} {fmt(preview.total)} {baseCode}
               {isForeign && foreignTotal !== null && (
                 <span className="ms-2 text-sm font-normal text-muted-foreground">= {fmt(foreignTotal)} {currencyCode}</span>
               )}

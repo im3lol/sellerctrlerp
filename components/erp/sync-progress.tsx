@@ -131,7 +131,7 @@ export function SyncProgress({ code, label = "المنصة", flags, auditInvento
     <div className="w-80 rounded-2xl border bg-background p-4 shadow-xl">
       <div className="mb-3 flex items-center justify-between">
         <div className="flex items-center gap-2 font-semibold">
-          <RefreshCw className={`size-4 ${running ? "animate-spin" : ""}`} />مزامنة {label}
+          <RefreshCw className={`size-4 ${running ? "animate-spin" : ""}`} />{fill(t("مزامنة {0}"), [label])}
         </div>
         {/* Always closable: the full product sync runs server-side and keeps
             going after the popup closes. */}

@@ -119,7 +119,7 @@ export function ItemsTable({ rows, total, canDelete, filter }: { rows: Row[]; to
                 <TableCell className="font-mono"><Link href={`/inventory/items/${encodeURIComponent(r.code)}`} className="text-primary underline">{r.code}</Link></TableCell>
                 <TableCell className="max-w-[360px]">
                   <div className="flex items-center gap-2">
-                    <div className="truncate" title={r.nameAr ?? ""}>{r.nameAr ?? "—"}</div>
+                    <div className="truncate" title={r.nameAr ?? ""}>{t(r.nameAr ?? "—")}</div>
                     {Number(r.childCount) > 0
                       ? <Badge variant="outline" className="shrink-0 gap-1"><Icon name="Boxes" className="size-3" />{t("أب ·")} {int(r.childCount)}</Badge>
                       : r.parentItemId ? <Badge variant="outline" className="shrink-0 text-muted-foreground">{t("تنويعة")}</Badge> : null}

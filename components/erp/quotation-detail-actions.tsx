@@ -66,7 +66,7 @@ export function QuotationDetailActions({
   if (waPhone) items.push({ label: "واتساب", icon: "MessageCircle", newTab: true,
     href: `https://wa.me/${waPhone}?text=${encodeURIComponent(message)}` });
   if (customerEmail) items.push({ label: "إيميل", icon: "Mail",
-    href: `mailto:${customerEmail}?subject=${encodeURIComponent(`عرض سعر رقم ${number}`)}&body=${encodeURIComponent(message)}` });
+    href: `mailto:${customerEmail}?subject=${encodeURIComponent(fill(t("عرض سعر رقم {0}"), [number]))}&body=${encodeURIComponent(message)}` });
   if (link) items.push({ label: "نسخ رابط العميل", icon: "Link",
     onSelect: () => { void navigator.clipboard.writeText(link).then(() => toast.success("اتنسخ الرابط — صالح ٣٠ يوم")); } });
 

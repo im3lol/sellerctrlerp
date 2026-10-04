@@ -95,7 +95,7 @@ export function MarketplaceReturnsClient({ initial, warehouses }: { initial: Mar
       <Card>
         <CardContent className="space-y-3 pt-6">
           <p className="text-sm text-muted-foreground">
-            دي مرتجعات عملاء من المنصات، لسه <b>{t("مسودّات")}</b>{t(". العميل بيرجّع للمنصة، والمنصة مش دايماً بتبعتهالك — فمفيش حاجة بتترحّل لحد ما تقول إيه اللي وصلك بالظبط.")}
+            {t("دي مرتجعات عملاء من المنصات، لسه")} <b>{t("مسودّات")}</b>{t(". العميل بيرجّع للمنصة، والمنصة مش دايماً بتبعتهالك — فمفيش حاجة بتترحّل لحد ما تقول إيه اللي وصلك بالظبط.")}
           </p>
           <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
             {CONDITIONS.map((c) => (
@@ -205,7 +205,7 @@ export function MarketplaceReturnsClient({ initial, warehouses }: { initial: Mar
 
                         <Button size="sm" className="mt-2 w-full" disabled={isBusy} onClick={() => confirm(o)}>
                           {isBusy ? <Loader2 className="size-4 animate-spin" /> : <PackageX className="size-4" />}
-                          تأكيد
+                          {t("تأكيد")}
                         </Button>
                       </TableCell>
                     </TableRow>

@@ -1,5 +1,7 @@
 package com.sellerctrl.app.ui
 
+import com.sellerctrl.app.tr
+
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -51,9 +53,9 @@ fun StatementScreen(nav: NavController, title: String, kind: String) {
         else -> "api/v1/accounting/accounts"   // leaf accounts hold the entries
     }
     val subjectLabel = when (kind) {
-        "customer" -> "اختر العميل"
-        "supplier" -> "اختر المورّد"
-        else -> "اختر الحساب"
+        "customer" -> tr("اختر العميل")
+        "supplier" -> tr("اختر المورّد")
+        else -> tr("اختر الحساب")
     }
 
     var subjects by remember { mutableStateOf<List<DocRow>>(emptyList()) }
@@ -69,7 +71,7 @@ fun StatementScreen(nav: NavController, title: String, kind: String) {
     LaunchedEffect(id, tick) {
         if (id.isBlank()) return@LaunchedEffect
         loading = true; error = null
-        st = try { ServiceLocator.repo.statement(kind, id) } catch (e: Exception) { error = "تعذّر التحميل"; null }
+        st = try { ServiceLocator.repo.statement(kind, id) } catch (e: Exception) { error = tr("تعذّر التحميل"); null }
         loading = false
     }
 
@@ -84,25 +86,25 @@ fun StatementScreen(nav: NavController, title: String, kind: String) {
             Box(Modifier.fillMaxSize()) {
                 val s = st
                 when {
-                    id.isBlank() -> Text("اختر لعرض الكشف", Modifier.align(Alignment.Center), color = MaterialTheme.colorScheme.outline)
+                    id.isBlank() -> Text(tr("اختر لعرض الكشف"), Modifier.align(Alignment.Center), color = MaterialTheme.colorScheme.outline)
                     loading -> CircularProgressIndicator(Modifier.align(Alignment.Center))
-                    s == null -> Text(error ?: "لا توجد بيانات", Modifier.align(Alignment.Center), color = MaterialTheme.colorScheme.outline)
+                    s == null -> Text(error ?: tr("لا توجد بيانات"), Modifier.align(Alignment.Center), color = MaterialTheme.colorScheme.outline)
                     else -> Column(Modifier.fillMaxSize().padding(top = 10.dp)) {
                         AppCard(Modifier.fillMaxWidth().padding(bottom = 8.dp)) {
                             Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                                 Text(s.title, style = MaterialTheme.typography.titleSmall)
                                 Text("${s.from} → ${s.to}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
                                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                    Text("رصيد افتتاحي ${money(s.opening)}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
-                                    Text("مدين ${fmt(s.totalDebit)} · دائن ${fmt(s.totalCredit)}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
+                                    Text(tr("رصيد افتتاحي ${money(s.opening)}"), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
+                                    Text(tr("مدين ${fmt(s.totalDebit)} · دائن ${fmt(s.totalCredit)}"), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
                                 }
                                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                                    Text("الرصيد الختامي", fontWeight = FontWeight.Bold)
+                                    Text(tr("الرصيد الختامي"), fontWeight = FontWeight.Bold)
                                     Text(money(s.closing), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
                                 }
                             }
                         }
-                        if (s.rows.isEmpty()) Text("لا توجد حركات في الفترة", Modifier.padding(top = 16.dp), color = MaterialTheme.colorScheme.outline)
+                        if (s.rows.isEmpty()) Text(tr("لا توجد حركات في الفترة"), Modifier.padding(top = 16.dp), color = MaterialTheme.colorScheme.outline)
                         else LazyColumn(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                             items(s.rows) { r ->
                                 AppCard(Modifier.fillMaxWidth()) {
@@ -114,7 +116,7 @@ fun StatementScreen(nav: NavController, title: String, kind: String) {
                                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                                             Text(r.date, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
                                             Text(
-                                                if (r.debit > 0) "مدين ${fmt(r.debit)}" else "دائن ${fmt(r.credit)}",
+                                                if (r.debit > 0) tr("مدين ${fmt(r.debit)}") else tr("دائن ${fmt(r.credit)}"),
                                                 style = MaterialTheme.typography.bodySmall,
                                                 color = if (r.debit > 0) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.tertiary,
                                             )

@@ -1,3 +1,4 @@
+import { fill as fillSlots, type T } from "@/lib/i18n";
 /**
  * Workflow automation — the pure half: what a rule is, what it can listen to and read,
  * how its conditions are judged. No database here; lib/erp/automation/engine.ts runs it.
@@ -126,8 +127,9 @@ export const maskSpec = (s: RuleSpec): RuleSpec => ({
 });
 
 /** «لما أمر بيع اتأكد» — the rule's trigger as a sentence. */
-export const describeTrigger = (t: Trigger) =>
-  `لما ${DOCS[t.entity]?.label ?? t.entity} ${isEvent(t.event) ? EVENT_LABEL[t.event] : t.event}`;
+/** "When <document> <event>", in the reader's language when a translator is passed. */
+export const describeTrigger = (trg: Trigger, t: T = (s) => s) =>
+  fillSlots(t("لما {0} {1}"), [t(DOCS[trg.entity]?.label ?? trg.entity), isEvent(trg.event) ? t(EVENT_LABEL[trg.event]) : trg.event]);
 
 const lower = (v: unknown) => String(v ?? "").trim().toLowerCase();
 const num = (v: unknown) => {

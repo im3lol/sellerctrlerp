@@ -151,7 +151,7 @@ async function StatementTable({
         {rows.map((r) => (
           <TableRow key={r.code}>
             <TableCell className="font-mono">{r.code}</TableCell>
-            <TableCell>{r.nameAr}</TableCell>
+            <TableCell>{t(r.nameAr)}</TableCell>
             <TableCell>{fmt(r.amount)}</TableCell>
           </TableRow>
         ))}

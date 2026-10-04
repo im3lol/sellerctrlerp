@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { getT } from "@/lib/i18n/server";
+import type { Locale } from "@/lib/i18n";
+import { getLocale, getT } from "@/lib/i18n/server";
 import { and, eq, ilike, or } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
@@ -13,7 +14,7 @@ import { FilterBar, filterFieldCls } from "@/components/erp/filter-bar";
 
 const fmt = (n: number) =>
   n.toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-const dt = (d: Date) => new Date(d).toLocaleDateString("ar-EG");
+const dt = (d: Date, locale: Locale) => new Date(d).toLocaleDateString(locale === "en" ? "en-GB" : "ar-EG");
 
 const CATEGORIES: Record<string, string> = {
   BUILDING: "مباني", VEHICLE: "مركبات", EQUIPMENT: "معدات",
@@ -29,6 +30,7 @@ type SP = { q?: string; category?: string; status?: string };
 
 export default async function FixedAssetsPage({ searchParams }: { searchParams: Promise<SP> }) {
   const t = await getT();
+  const locale = await getLocale();
   return loadErpPage("accounting.view", async ({ orgId, can }) => {
     const canEdit = can("accounting.create");
     const sp = await searchParams;
@@ -119,7 +121,7 @@ export default async function FixedAssetsPage({ searchParams }: { searchParams: 
         {assets.length === 0 ? (
           <div className="rounded-xl border border-dashed py-16 text-center text-muted-foreground">
             {hasFilters ? t("لا توجد أصول مطابقة للتصفية.") : (
-              <>لا توجد أصول مضافة.{" "}
+              <>{t("لا توجد أصول مضافة.")}{" "}
               {canEdit && <Link href="/accounting/assets/new" className="text-primary underline underline-offset-2">{t("إضافة أصل")}</Link>}</>
             )}
           </div>
@@ -149,9 +151,9 @@ export default async function FixedAssetsPage({ searchParams }: { searchParams: 
                       <td className="font-mono text-xs">
                         <Link href={`/accounting/assets/${a.id}`} className="text-primary hover:underline">{a.code}</Link>
                       </td>
-                      <td className="font-medium">{a.nameAr}</td>
+                      <td className="font-medium">{t(a.nameAr)}</td>
                       <td className="text-muted-foreground">{t(CATEGORIES[a.category] ?? a.category)}</td>
-                      <td className="text-xs text-muted-foreground">{dt(a.purchaseDate)}</td>
+                      <td className="text-xs text-muted-foreground">{dt(a.purchaseDate, locale)}</td>
                       <td className="text-end tabular-nums">{fmt(Number(a.purchaseCost))}</td>
                       <td className="text-end tabular-nums text-amber-700 dark:text-amber-400">
                         {fmt(Number(a.accumulatedDepreciation))}

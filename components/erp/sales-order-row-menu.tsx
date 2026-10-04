@@ -47,12 +47,12 @@ export function SalesOrderRowMenu({ orderId, number, status, canManage }: { orde
         if (!r.creditBlocked) { toast.error(r.error ?? t("تعذّر التنفيذ")); return; }
         const go = await confirm({
           danger: true,
-          title: "تجاوز حد الائتمان",
-          description: `${r.error ?? ""}
+          title: t("تجاوز حد الائتمان"),
+          description: `${r.error ? t(r.error) : ""}
 
-التأكيد هيتسجّل في سجل المراجعة كتجاوز باعتماد مالي.`,
-          confirmText: "أكّد رغم التجاوز",
-          cancelText: "رجوع",
+${t("التأكيد هيتسجّل في سجل المراجعة كتجاوز باعتماد مالي.")}`,
+          confirmText: t("أكّد رغم التجاوز"),
+          cancelText: t("رجوع"),
         });
         if (!go) return;
         start(async () => {

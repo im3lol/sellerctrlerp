@@ -95,7 +95,7 @@ export function BudgetEntryClient({
         <div className="flex gap-3">
           <Button onClick={handleSave} disabled={pending}>
             {pending ? <Icon name="Loader2" className="size-4 animate-spin" /> : <Icon name="Save" className="size-4" />}
-            حفظ الميزانية
+            {t("حفظ الميزانية")}
           </Button>
           <Button variant="outline" asChild>
             <Link href={`/accounting/budget/${year}/report`}>
@@ -140,7 +140,7 @@ function AccountSection({
           <tbody>
             {rows.map((r) => (
               <tr key={r.id} className="border-b last:border-0 hover:bg-muted/20">
-                <td className="px-4 py-2">{r.nameAr}</td>
+                <td className="px-4 py-2">{t(r.nameAr)}</td>
                 <td className="px-4 py-2 font-mono text-muted-foreground">{r.code}</td>
                 <td className="px-4 py-2 text-end">
                   {canEdit ? (

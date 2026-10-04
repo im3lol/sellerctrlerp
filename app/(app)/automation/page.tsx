@@ -67,12 +67,12 @@ export default async function AutomationPage() {
                       </div>
                     </div>
                     <p className="text-sm text-muted-foreground">
-                      {describeTrigger(spec.trigger)}
+                      {describeTrigger(spec.trigger, t)}
                       {spec.conditions.length > 0 && fill(t(" · {0} شرط"), [int(spec.conditions.length)])}
-                      {" ← "}{spec.actions.map((a) => ACTION_LABEL[a.type]).join("، ")}
+                      {" ← "}{spec.actions.map((a) => t(ACTION_LABEL[a.type])).join(t("، "))}
                     </p>
                     <p className="text-xs text-muted-foreground">
-                      اشتغلت {int(r.runCount)} مرة{r.lastRunAt ? fill(t(" · آخر مرة {0}"), [when(r.lastRunAt)]) : ""}
+                      {fill(t("اشتغلت {0} مرة"), [int(r.runCount)])}{r.lastRunAt ? fill(t(" · آخر مرة {0}"), [when(r.lastRunAt)]) : ""}
                     </p>
                   </CardContent>
                 </Card>
@@ -87,13 +87,13 @@ export default async function AutomationPage() {
             <CardDescription>{t("قواعد شائعة تتفعّل بضغطة، وتقدر تعدّلها بعدها.")}</CardDescription>
           </CardHeader>
           <CardContent className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {TEMPLATES.map((t) => (
-              <div key={t.key} className="flex flex-col justify-between gap-3 rounded-xl border p-4">
+            {TEMPLATES.map((tp) => (
+              <div key={tp.key} className="flex flex-col justify-between gap-3 rounded-xl border p-4">
                 <div>
-                  <div className="font-medium">{t.title}</div>
-                  <p className="mt-1 text-xs text-muted-foreground">{t.description}</p>
+                  <div className="font-medium">{t(tp.title)}</div>
+                  <p className="mt-1 text-xs text-muted-foreground">{t(tp.description)}</p>
                 </div>
-                {!full && <AddTemplateButton templateKey={t.key} needsSetup={t.spec.actions.some((a) => a.type === "webhook")} />}
+                {!full && <AddTemplateButton templateKey={tp.key} needsSetup={tp.spec.actions.some((a) => a.type === "webhook")} />}
               </div>
             ))}
           </CardContent>
@@ -128,7 +128,7 @@ export default async function AutomationPage() {
                             {def && x.number
                               ? <Link href={`${def.path}/${encodeURIComponent(x.number)}`} className="text-primary hover:underline">{t(def.label)} {x.number}</Link>
                               : `${def?.label ?? x.entity} ${x.number ?? ""}`}
-                            <div className="text-xs text-muted-foreground">{isEvent(x.event) ? EVENT_LABEL[x.event] : x.event}</div>
+                            <div className="text-xs text-muted-foreground">{isEvent(x.event) ? t(EVENT_LABEL[x.event]) : x.event}</div>
                           </TableCell>
                           <TableCell className="text-xs">
                             <Badge variant={x.status === "DONE" ? "outline" : "destructive"} className="mb-1">{x.status === "DONE" ? t("تم") : t("فيه فشل")}</Badge>

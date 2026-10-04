@@ -186,7 +186,7 @@ export function CustodyManager({ employees, cashAccounts, expenseAccounts, canMa
               <div>
                 <CardTitle>{t("تسوية عهدة")} {settling.number}</CardTitle>
                 <CardDescription>
-                  {settling.employeeName} · المتبقّي {money(settling.left)} — سجّل المصروفات والباقي اللي رجع.
+                  {fill(t("{0} · المتبقّي {1} — سجّل المصروفات والباقي اللي رجع."), [settling.employeeName, money(settling.left)])}
                 </CardDescription>
               </div>
               <div className="flex gap-2">
@@ -244,7 +244,7 @@ export function CustodyManager({ employees, cashAccounts, expenseAccounts, canMa
               <div className="space-y-2"><Label>{t("نقدية مرتجعة")}</Label>
                 <Input type="number" step="0.01" min="0" className="w-32" value={returned} onChange={(e) => setReturned(e.target.value)} placeholder="0" /></div>
               <span className="text-sm text-muted-foreground">
-                إجمالي التسوية {money(settlementTotal(sLines, Number(returned) || 0))} من {money(settling.left)}
+                {fill(t("إجمالي التسوية {0} من {1}"), [money(settlementTotal(sLines, Number(returned) || 0)), money(settling.left)])}
               </span>
             </div>
           </CardContent>

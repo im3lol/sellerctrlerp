@@ -195,8 +195,7 @@ export default async function PlatformPayoutsPage({ params, searchParams }: { pa
 
                   {gap !== null && !matched && (
                     <p className="mt-3 text-xs text-muted-foreground">
-                      فرق موجب = النظام يتوقّع من {platform.name} أكثر مما تقوله المنصّة. الأسباب المعتادة: تسويات مسحوبة ولم تُرحَّل بعد،
-                      طلبات لم تُزامَن، رسوم لم تُسجَّل، أو تحويل بنكي قيّدته المنصّة ولم يُقيَّد عندك.
+                      {fill(t("فرق موجب = النظام يتوقّع من {0} أكثر مما تقوله المنصّة. الأسباب المعتادة: تسويات مسحوبة ولم تُرحَّل بعد، طلبات لم تُزامَن، رسوم لم تُسجَّل، أو تحويل بنكي قيّدته المنصّة ولم يُقيَّد عندك."), [platform.name])}
                     </p>
                   )}
                 </>
@@ -239,7 +238,7 @@ export default async function PlatformPayoutsPage({ params, searchParams }: { pa
                 </Table>
               </div>
             )}
-            <p className="mt-3 text-xs text-muted-foreground">رصيد المحفظة = ما حصّلته المنصّة من مبيعاتك ولم تُودِعه في بنكك بعد (حساب المحفظة {wallet?.name ?? ""}{t("). التحويلات من صفوف «Transfer» في تقرير التسويات.")}</p>
+            <p className="mt-3 text-xs text-muted-foreground">{fill(t("رصيد المحفظة = ما حصّلته المنصّة من مبيعاتك ولم تُودِعه في بنكك بعد (حساب المحفظة {0}). التحويلات من صفوف «Transfer» في تقرير التسويات."), [wallet?.name ?? ""])}</p>
           </CardContent>
         </Card>
       </div>

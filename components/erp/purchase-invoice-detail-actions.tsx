@@ -24,7 +24,7 @@ export function PurchaseInvoiceDetailActions({ id, number, status, canPost, canM
       if (!(await confirm({ danger: /حذف|إلغاء|عكس/.test(ok) }))) return;
       start(async () => {
         const r = await fn();
-        if (r.ok) { toast.success(ok); if (dest) router.push(dest); router.refresh(); }
+        if (r.ok) { toast.success(t(ok)); if (dest) router.push(dest); router.refresh(); }
         else toast.error(r.error ?? t("تعذّر التنفيذ"));
       });
     })();
@@ -60,7 +60,7 @@ export function PurchaseInvoiceDetailActions({ id, number, status, canPost, canM
     <DocumentActions
       primary={status === "DRAFT" && canPost ? (
         <Button size="sm" disabled={pending} onClick={() => run(() => postPurchaseInvoiceAction(id), "تم تأكيد الفاتورة وترحيلها محاسبياً")}>
-          {pending ? <Loader2 className="size-4 animate-spin" /> : <Icon name="Check" className="size-4" />}تأكيد
+          {pending ? <Loader2 className="size-4 animate-spin" /> : <Icon name="Check" className="size-4" />}{t("تأكيد")}
         </Button>
       ) : undefined}
       items={items}

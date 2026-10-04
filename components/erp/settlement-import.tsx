@@ -140,9 +140,7 @@ export function SettlementImport({ code, rows = [], unpostedReleased = 0, isAmaz
         <CardHeader>
           <CardTitle>{t("بدء الربط المحاسبي (Go-Live)")}</CardTitle>
           <CardDescription>
-            حدّد تاريخ بدء المحاسبة على أمازون + رصيد أمازون المتاح وقت التشغيل. المعاملات الأقدم من التاريخ
-            تُعتبر تاريخية (لا تُرحّل — يغطّيها الرصيد الافتتاحي)، فلا تظهر محفظة أمازون سالبة بسبب تحويلات
-            تخصّ طلبات قبل التشغيل. اضبطها مرة واحدة عند أول تفعيل.
+            {t("حدّد تاريخ بدء المحاسبة على أمازون + رصيد أمازون المتاح وقت التشغيل. المعاملات الأقدم من التاريخ تُعتبر تاريخية (لا تُرحّل — يغطّيها الرصيد الافتتاحي)، فلا تظهر محفظة أمازون سالبة بسبب تحويلات تخصّ طلبات قبل التشغيل. اضبطها مرة واحدة عند أول تفعيل.")}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -157,7 +155,7 @@ export function SettlementImport({ code, rows = [], unpostedReleased = 0, isAmaz
             </div>
             <Button onClick={saveGoLive} disabled={savingGoLive} variant="outline">
               {savingGoLive ? <Icon name="Loader2" className="size-4 animate-spin" /> : <Icon name="Flag" className="size-4" />}
-              تفعيل بدء الربط
+              {t("تفعيل بدء الربط")}
             </Button>
           </div>
         </CardContent>
@@ -183,12 +181,12 @@ export function SettlementImport({ code, rows = [], unpostedReleased = 0, isAmaz
             {unpostedReleased > 0 && (
               <Button onClick={postPulled} disabled={posting} className="bg-emerald-600 hover:bg-emerald-700">
                 {posting ? <Icon name="Loader2" className="size-4 animate-spin" /> : <Icon name="Check" className="size-4" />}
-                ترحيل المعاملات المسحوبة ({unpostedReleased})
+                {fill(t("ترحيل المعاملات المسحوبة ({0})"), [unpostedReleased])}
               </Button>
             )}
             <Button onClick={reversePosting} disabled={reversing} variant="outline" title={t("يعكس قيود التسوية المرحّلة ويعيد الأرصدة، ثم أعد الترحيل ليُبنى على مستوى كل طلب")}>
               {reversing ? <Icon name="Loader2" className="size-4 animate-spin" /> : <Icon name="Undo2" className="size-4" />}
-              عكس ترحيل التسوية
+              {t("عكس ترحيل التسوية")}
             </Button>
           </div>
 
@@ -233,10 +231,10 @@ export function SettlementImport({ code, rows = [], unpostedReleased = 0, isAmaz
         <CardHeader>
           <CardTitle>{t("استيراد يدوي من ملف (اختياري)")}</CardTitle>
           <CardDescription>
-            بديل للسحب التلقائي: ارفع تقرير المعاملات (Payments → Reports → Transaction view). يُخزّن تفصيل كل طلب
-            ويُرحّل قيداً محاسبياً مجمّعاً للمعاملات <b>{t("المُفرج عنها")}</b> فقط. الإيراد يُعترف به مرة عند فاتورة البيع؛
-            التسوية <b>{t("تُحصّل ذمم أمازون")}</b> فقط، وتُسجّل العمولة/FBA رسوماً، والصافي على «رصيد أمازون الوسيط»، والتحويلات على البنك.
-            كل صف <b>Refund</b> {t("يُنشئ دورة مرتجع كاملة. المؤجّلة تُحفظ وتُرحّل عند إفراجها. إعادة الرفع لا تُكرّر.")}
+            {t("بديل للسحب التلقائي: ارفع تقرير المعاملات (Payments → Reports → Transaction view). يُخزّن تفصيل كل طلب ويُرحّل قيداً محاسبياً مجمّعاً للمعاملات")}{" "}
+            <b>{t("المُفرج عنها")}</b> {t("فقط. الإيراد يُعترف به مرة عند فاتورة البيع؛ التسوية")}{" "}
+            <b>{t("تُحصّل ذمم أمازون")}</b> {t("فقط، وتُسجّل العمولة/FBA رسوماً، والصافي على «رصيد أمازون الوسيط»، والتحويلات على البنك. كل صف")}{" "}
+            <b>Refund</b> {t("يُنشئ دورة مرتجع كاملة. المؤجّلة تُحفظ وتُرحّل عند إفراجها. إعادة الرفع لا تُكرّر.")}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -247,12 +245,12 @@ export function SettlementImport({ code, rows = [], unpostedReleased = 0, isAmaz
               className="block text-sm file:me-3 file:rounded-md file:border file:border-input file:bg-muted file:px-3 file:py-1.5 file:text-sm"
             />
             <Button onClick={doPreview} disabled={!file || previewing} variant="outline">
-              {previewing ? <Icon name="Loader2" className="size-4 animate-spin" /> : <Icon name="Eye" className="size-4" />}معاينة
+              {previewing ? <Icon name="Loader2" className="size-4 animate-spin" /> : <Icon name="Eye" className="size-4" />}{t("معاينة")}
             </Button>
             {preview && (
               <Button onClick={doImport} disabled={importing} className="bg-emerald-600 hover:bg-emerald-700">
                 {importing ? <Icon name="Loader2" className="size-4 animate-spin" /> : <Icon name="Check" className="size-4" />}
-                تنفيذ الاستيراد والترحيل
+                {t("تنفيذ الاستيراد والترحيل")}
               </Button>
             )}
           </div>

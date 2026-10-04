@@ -1,5 +1,7 @@
 package com.sellerctrl.app.ui
 
+import com.sellerctrl.app.tr
+
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -43,7 +45,7 @@ fun ReportListScreen(nav: NavController, title: String, key: String) {
     var error by remember { mutableStateOf<String?>(null) }
     val tick by ServiceLocator.repo.tick.collectAsState()
     LaunchedEffect(key, tick) {
-        try { r = ServiceLocator.repo.rankReport(key) } catch (e: Exception) { error = "تعذّر التحميل"; r = RankReportDto("", "", 0.0, emptyList()) }
+        try { r = ServiceLocator.repo.rankReport(key) } catch (e: Exception) { error = tr("تعذّر التحميل"); r = RankReportDto("", "", 0.0, emptyList()) }
     }
 
     Scaffold(topBar = {
@@ -54,12 +56,12 @@ fun ReportListScreen(nav: NavController, title: String, key: String) {
             val rep = r
             when {
                 rep == null -> CircularProgressIndicator(Modifier.align(Alignment.Center))
-                rep.rows.isEmpty() -> Text(error ?: "لا توجد بيانات في الفترة", Modifier.align(Alignment.Center), color = MaterialTheme.colorScheme.outline)
+                rep.rows.isEmpty() -> Text(error ?: tr("لا توجد بيانات في الفترة"), Modifier.align(Alignment.Center), color = MaterialTheme.colorScheme.outline)
                 else -> Column(Modifier.fillMaxSize().padding(12.dp)) {
                     AppCard(Modifier.fillMaxWidth().padding(bottom = 8.dp)) {
                         Row(Modifier.fillMaxWidth().padding(16.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                             Column {
-                                Text("الإجمالي", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.outline)
+                                Text(tr("الإجمالي"), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.outline)
                                 Text("${rep.from} → ${rep.to}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
                             }
                             Text(money(rep.total), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
@@ -71,7 +73,7 @@ fun ReportListScreen(nav: NavController, title: String, key: String) {
                                 Row(Modifier.fillMaxWidth().padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
                                     Column(Modifier.weight(1f)) {
                                         Text(row.name, style = MaterialTheme.typography.titleSmall)
-                                        val sub = if (row.count > 0) "${row.count} فاتورة" else "كمية: ${fmt(row.qty)}"
+                                        val sub = if (row.count > 0) tr("${row.count} فاتورة") else tr("كمية: ${fmt(row.qty)}")
                                         Text(sub, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
                                     }
                                     Text(money(row.amount), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)

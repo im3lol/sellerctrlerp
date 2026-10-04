@@ -39,7 +39,7 @@ export function ApprovalDecision({ requestId, compact }: { requestId: string; co
       <div className="flex flex-wrap items-center gap-2">
         <Input autoFocus value={comment} onChange={(e) => setComment(e.target.value)} placeholder={t("سبب الرفض — اللي طلب هيشوفه")} className="h-8 min-w-56 flex-1 text-sm" />
         <Button size="sm" variant="destructive" disabled={pending || !comment.trim()} onClick={() => decide("REJECT")}>
-          {pending && <Loader2 className="size-4 animate-spin" />}رفض
+          {pending && <Loader2 className="size-4 animate-spin" />}{t("رفض")}
         </Button>
         <Button size="sm" variant="ghost" disabled={pending} onClick={() => setRejecting(false)}>{t("رجوع")}</Button>
       </div>
@@ -48,7 +48,7 @@ export function ApprovalDecision({ requestId, compact }: { requestId: string; co
   return (
     <div className="flex items-center gap-2">
       <Button size={compact ? "sm" : "default"} disabled={pending} onClick={() => decide("APPROVE")}>
-        {pending ? <Loader2 className="size-4 animate-spin" /> : <Icon name="Check" className="size-4" />}اعتماد
+        {pending ? <Loader2 className="size-4 animate-spin" /> : <Icon name="Check" className="size-4" />}{t("اعتماد")}
       </Button>
       <Button size={compact ? "sm" : "default"} variant="outline" disabled={pending} onClick={() => setRejecting(true)}>{t("رفض")}</Button>
     </div>

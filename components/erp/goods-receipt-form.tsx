@@ -44,7 +44,7 @@ export function GoodsReceiptForm({
   const [lines, setLines] = useState<Line[]>([]);
 
   const supplierOrders = useMemo(() => openOrders.filter((o) => o.supplierId === supplierId), [openOrders, supplierId]);
-  const supplierOptions = useMemo(() => suppliers.map((s) => ({ id: s.id, label: s.nameAr })), [suppliers]);
+  const supplierOptions = useMemo(() => suppliers.map((s) => ({ id: s.id, label: t(s.nameAr) })), [suppliers, t]);
   const supplierLabelById = useMemo(() => new Map(supplierOptions.map((o) => [o.id, o.label])), [supplierOptions]);
 
   const onSupplier = (id: string) => { setSupplierId(id); setOrderId(""); setLines([]); };
@@ -166,7 +166,7 @@ export function GoodsReceiptForm({
                     <TableCell className="max-w-[22rem] whitespace-normal"><div dir="ltr" className="line-clamp-2 text-start leading-snug" title={l.name}>{l.name}</div><div className="mt-0.5 font-mono text-xs text-muted-foreground">{l.code}</div></TableCell>
                     <TableCell>
                       <select className={selectCls} value={l.warehouseId} onChange={(e) => setLine(l.itemId, { warehouseId: e.target.value })}>
-                        {warehouses.map((w) => <option key={w.id} value={w.id}>{w.nameAr}</option>)}
+                        {warehouses.map((w) => <option key={w.id} value={w.id}>{t(w.nameAr)}</option>)}
                       </select>
                     </TableCell>
                     <TableCell className="font-medium">{qtyf(l.remaining)}</TableCell>

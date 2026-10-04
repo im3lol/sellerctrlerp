@@ -110,9 +110,9 @@ export default async function ProjectsPage() {
             invoicedAt: r.s.invoicedAt ? new Date(r.s.invoicedAt).toISOString().slice(0, 10) : null,
             notes: r.s.notes,
           }))}
-          customers={custRows.map((c) => ({ id: c.id, label: `${c.code} — ${c.nameAr}` }))}
+          customers={custRows.map((c) => ({ id: c.id, label: `${c.code} — ${t(c.nameAr)}` }))}
           employees={empRows.map((e) => ({ id: e.id, label: e.name ?? e.code ?? "—" }))}
-          costCenters={ccRows.map((c) => ({ id: c.id, label: `${c.code} — ${c.nameAr}` }))}
+          costCenters={ccRows.map((c) => ({ id: c.id, label: `${c.code} — ${t(c.nameAr)}` }))}
           canManage={can("accounting.create")}
           canBill={can("sales.create")}
         />

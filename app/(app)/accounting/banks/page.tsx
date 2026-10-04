@@ -118,7 +118,7 @@ export default async function BankAccountsPage({ searchParams }: { searchParams:
         {rows.length === 0 ? (
           <div className="rounded-xl border border-dashed py-16 text-center text-muted-foreground">
             {hasFilters ? t("لا توجد حسابات مطابقة للتصفية.") : (
-              <>لا توجد حسابات بنكية مضافة بعد.{" "}
+              <>{t("لا توجد حسابات بنكية مضافة بعد.")}{" "}
               {canEdit && (
                 <Link href="/accounting/banks/new" className="text-primary underline underline-offset-2">
                   {t("إضافة حساب")}

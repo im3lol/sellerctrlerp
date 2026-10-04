@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useT } from "@/lib/i18n/client";
+import { fill } from "@/lib/i18n";
 import Link from "next/link";
 import { toast } from "@/lib/i18n/toast";
 import { RefreshCw, ClipboardCheck, Loader2, Settings, HandCoins, Percent, ShoppingCart, ArrowRightLeft, ChevronDown, Link2, Wallet, Image as ImageIcon, Barcode, Boxes, Warehouse } from "lucide-react";
@@ -115,7 +116,7 @@ export function PlatformHeaderActions({
     <div className="flex flex-wrap items-center gap-2">
       {connected && (
         <Button onClick={() => { setChosen(syncFlags); setChooseOpen(true); }} disabled={syncOpen}>
-          {syncOpen ? <Loader2 className="size-4 animate-spin" /> : <RefreshCw className="size-4" />}مزامنة الآن
+          {syncOpen ? <Loader2 className="size-4 animate-spin" /> : <RefreshCw className="size-4" />}{t("مزامنة الآن")}
         </Button>
       )}
 
@@ -127,7 +128,7 @@ export function PlatformHeaderActions({
           <DropdownMenuContent align="end" className="w-56">
             {connected && (
               <DropdownMenuItem asChild>
-                <Link href={`/platforms/${code}/verify`}><Link2 className="size-4" />تحقق من ربط {label}</Link>
+                <Link href={`/platforms/${code}/verify`}><Link2 className="size-4" />{fill(t("تحقق من ربط {0}"), [label])}</Link>
               </DropdownMenuItem>
             )}
             {connected && isAmazon && (
@@ -220,7 +221,7 @@ export function PlatformHeaderActions({
           )}
           <DialogFooter>
             <Button onClick={beginSync} disabled={startPending}>
-              {startPending ? <Loader2 className="size-4 animate-spin" /> : <RefreshCw className="size-4" />}بدء المزامنة
+              {startPending ? <Loader2 className="size-4 animate-spin" /> : <RefreshCw className="size-4" />}{t("بدء المزامنة")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -239,7 +240,7 @@ export function PlatformHeaderActions({
           </div>
           <DialogFooter>
             <Button onClick={pullOrders} disabled={pullPending}>
-              {pullPending ? <Loader2 className="size-4 animate-spin" /> : <ShoppingCart className="size-4" />}سحب المبيعات
+              {pullPending ? <Loader2 className="size-4 animate-spin" /> : <ShoppingCart className="size-4" />}{t("سحب المبيعات")}
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -103,7 +103,7 @@ export function BarcodeLabelsPicker() {
         <div className="flex items-center justify-between">
           <span className="text-sm text-muted-foreground">{rows.length ? fill(t("{0} ملصق"), [total]) : t("لم تُضف أصناف بعد")}</span>
           <Button onClick={print} disabled={!rows.length || busy || qzOk !== true}>
-            {busy ? <Loader2 className="size-4 animate-spin" /> : <Printer className="size-4" />}طباعة الملصقات
+            {busy ? <Loader2 className="size-4 animate-spin" /> : <Printer className="size-4" />}{t("طباعة الملصقات")}
           </Button>
         </div>
         <p className="text-xs text-muted-foreground">{t("طباعة مباشرة عبر QZ Tray — ملصق 50×25 مم.")}</p>

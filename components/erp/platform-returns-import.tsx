@@ -104,8 +104,8 @@ export function PlatformReturnsImport({ platformId, platformName }: { platformId
               <ColumnMapSelect label={t("التاريخ")} {...mapProps("date")} optional />
             </div>
             <div className="flex items-center justify-between rounded-xl border p-3 text-sm">
-              <span>{ready ? <>{t("جاهز:")} <b>{int(returns.length)}</b> {t("مرتجع")}</> : "اربط الطلب والصنف والكمية للمعاينة."}</span>
-              <Button onClick={run} disabled={pending || !ready || returns.length === 0}>{pending && <Loader2 className="size-4 animate-spin" />}استيراد {returns.length > 0 ? `(${int(returns.length)})` : ""}</Button>
+              <span>{ready ? <>{t("جاهز:")} <b>{int(returns.length)}</b> {t("مرتجع")}</> : t("اربط الطلب والصنف والكمية للمعاينة.")}</span>
+              <Button onClick={run} disabled={pending || !ready || returns.length === 0}>{pending && <Loader2 className="size-4 animate-spin" />}{t("استيراد")} {returns.length > 0 ? `(${int(returns.length)})` : ""}</Button>
             </div>
           </>
         )}
@@ -116,7 +116,7 @@ export function PlatformReturnsImport({ platformId, platformName }: { platformId
             {result.skippedDuplicate > 0 && <div>{t("↷ تخطّي")} <b>{int(result.skippedDuplicate)}</b> {t("مرتجع مكرر.")}</div>}
             {(result.noOrder + result.noInvoice + result.notOnInvoice + result.unmatchedSku + result.failed) > 0 && (
               <div className="mt-1 text-muted-foreground">
-                لم تُعالَج: {result.noOrder > 0 && <span>{int(result.noOrder)} {t("بلا أمر مطابق ·")} </span>}
+                {t("لم تُعالَج:")} {result.noOrder > 0 && <span>{int(result.noOrder)} {t("بلا أمر مطابق ·")} </span>}
                 {result.noInvoice > 0 && <span>{int(result.noInvoice)} {t("بلا فاتورة مُرحّلة ·")} </span>}
                 {result.notOnInvoice > 0 && <span>{int(result.notOnInvoice)} {t("الصنف ليس على الفاتورة ·")} </span>}
                 {result.unmatchedSku > 0 && <span>{int(result.unmatchedSku)} {t("SKU غير مربوط ·")} </span>}

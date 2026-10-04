@@ -61,7 +61,7 @@ export default async function ExpiryPage({ searchParams }: { searchParams: Promi
             <ReportField label={t("المستودع")}>
               <select name="warehouse" defaultValue={fWarehouse} className={selectCls}>
                 <option value="">{t("كل المستودعات")}</option>
-                {whList.map((w) => <option key={w.id} value={w.id}>{w.nameAr}</option>)}
+                {whList.map((w) => <option key={w.id} value={w.id}>{t(w.nameAr)}</option>)}
               </select>
             </ReportField>
             <ReportField label={t("الحالة")}>

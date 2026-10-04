@@ -166,7 +166,7 @@ export default async function DeliveriesPage({ searchParams }: { searchParams: P
                   <Label htmlFor="customer">{t("العميل")}</Label>
                   <select id="customer" name="customer" defaultValue={fCustomer} className={selectCls}>
                     <option value="">{t("الكل")}</option>
-                    {custList.map((c) => <option key={c.id} value={c.id}>{c.nameAr}</option>)}
+                    {custList.map((c) => <option key={c.id} value={c.id}>{t(c.nameAr)}</option>)}
                   </select>
                 </div>
                 <div className="space-y-1"><Label htmlFor="from">{t("من تاريخ")}</Label><Input id="from" name="from" type="date" defaultValue={from} /></div>

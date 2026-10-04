@@ -63,7 +63,7 @@ export default async function DistributionDetailPage({ params }: { params: Promi
 
         {drift !== 0 && (
           <p className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
-            مجموع الحصص لا يساوي إجمالي الربح (فرق {money(drift)}) — لا تُرحّل هذا التوزيع وأبلغ الدعم.
+            {fill(t("مجموع الحصص لا يساوي إجمالي الربح (فرق {0}) — لا تُرحّل هذا التوزيع وأبلغ الدعم."), [money(drift)])}
           </p>
         )}
 
@@ -101,7 +101,7 @@ export default async function DistributionDetailPage({ params }: { params: Promi
 
         {dist.status === "POSTED" && (
           <p className="text-sm text-muted-foreground">
-            تم ترحيل القيد: أرباح موزّعة (3103) مدين · أرباح مستحقة للمستثمرين (2104) دائن. يُصرف المستحق لكل مستثمر من{" "}
+            {t("تم ترحيل القيد: أرباح موزّعة (3103) مدين · أرباح مستحقة للمستثمرين (2104) دائن. يُصرف المستحق لكل مستثمر من")}{" "}
             <a href="/investors/withdrawals" className="text-primary underline">{t("السحوبات")}</a>.
           </p>
         )}

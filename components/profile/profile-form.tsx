@@ -8,18 +8,21 @@ import { updateProfileAction, type ActionState } from "@/app/actions/users";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useT } from "@/lib/i18n/client";
 
 function Submit() {
+  const t = useT();
   const { pending } = useFormStatus();
   return (
     <Button type="submit" disabled={pending}>
       {pending && <Loader2 className="size-4 animate-spin" />}
-      حفظ التغييرات
+      {t("حفظ التغييرات")}
     </Button>
   );
 }
 
 export function ProfileForm({ name, email }: { name: string; email: string }) {
+  const t = useT();
   const [state, formAction] = useActionState<ActionState, FormData>(updateProfileAction, {});
 
   useEffect(() => {
@@ -30,16 +33,16 @@ export function ProfileForm({ name, email }: { name: string; email: string }) {
   return (
     <form action={formAction} className="space-y-5">
       <div className="space-y-2">
-        <Label htmlFor="p-name">الاسم</Label>
+        <Label htmlFor="p-name">{t("الاسم")}</Label>
         <Input id="p-name" name="name" defaultValue={name} required />
       </div>
       <div className="space-y-2">
-        <Label htmlFor="p-email">البريد الإلكتروني</Label>
+        <Label htmlFor="p-email">{t("البريد الإلكتروني")}</Label>
         <Input id="p-email" value={email} dir="ltr" disabled />
-        <p className="text-xs text-muted-foreground">لا يمكن تغيير البريد الإلكتروني.</p>
+        <p className="text-xs text-muted-foreground">{t("لا يمكن تغيير البريد الإلكتروني.")}</p>
       </div>
       <p className="text-xs text-muted-foreground">
-        لتغيير كلمة المرور استخدم <a href="/settings/security" className="underline">صفحة الأمان</a> (تتطلب كلمة المرور الحالية).
+        {t("لتغيير كلمة المرور استخدم")} <a href="/settings/security" className="underline">{t("صفحة الأمان")}</a> {t("(تتطلب كلمة المرور الحالية).")}
       </p>
       <Submit />
     </form>

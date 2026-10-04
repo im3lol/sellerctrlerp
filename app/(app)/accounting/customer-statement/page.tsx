@@ -1,6 +1,7 @@
 import { and, asc, eq, gte, lte, sql } from "drizzle-orm";
 import { fill } from "@/lib/i18n";
-import { getT } from "@/lib/i18n/server";
+import type { Locale } from "@/lib/i18n";
+import { getLocale, getT } from "@/lib/i18n/server";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
 import { customers, salesInvoices, receiptVouchers, salesReturns } from "@/db/schema";
@@ -16,7 +17,7 @@ type Params = { searchParams: Promise<{ customerId?: string; from?: string; to?:
 
 const fmt = (n: number) =>
   n.toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-const dateStr = (d: Date) => new Date(d).toLocaleDateString("ar-EG");
+const dateStr = (d: Date, locale: Locale) => new Date(d).toLocaleDateString(locale === "en" ? "en-GB" : "ar-EG");
 
 type TxRow = {
   date: Date;
@@ -29,6 +30,7 @@ type TxRow = {
 
 export default async function CustomerStatementPage({ searchParams }: Params) {
   const t = await getT();
+  const locale = await getLocale();
   return loadErpPage("accounting.view", async ({ orgId, permissions }) => {
     const currency = await getBaseCurrencyCode(orgId);
     const sp = await searchParams;
@@ -177,7 +179,7 @@ export default async function CustomerStatementPage({ searchParams }: Params) {
           <>
             <ReportField label={t("العميل")}>
               <FormCombobox name="customerId" defaultValue={selectedId} placeholder={t("ابحث…")}
-                options={custRows.map((c) => ({ id: c.id, label: c.nameAr }))} />
+                options={custRows.map((c) => ({ id: c.id, label: t(c.nameAr) }))} />
             </ReportField>
             <ReportField label={t("من تاريخ")}><input name="from" type="date" defaultValue={fromISO} className={selectCls} /></ReportField>
             <ReportField label={t("إلى تاريخ")}><input name="to" type="date" defaultValue={toISO} className={selectCls} /></ReportField>
@@ -205,7 +207,7 @@ export default async function CustomerStatementPage({ searchParams }: Params) {
             <Card>
               <CardHeader>
                 <CardTitle className="text-base">
-                  كشف حساب: {selectedCust?.nameAr}
+                  {fill(t("كشف حساب: {0}"), [t(selectedCust?.nameAr ?? "")])}
                   <span className="ms-2 text-sm font-normal text-muted-foreground">
                     ({fromISO} → {toISO})
                   </span>
@@ -243,9 +245,9 @@ export default async function CustomerStatementPage({ searchParams }: Params) {
                         </tr>
                         {rows.map((r, i) => (
                           <tr key={i} className="border-t [&>td]:p-3">
-                            <td className="text-xs text-muted-foreground">{dateStr(r.date)}</td>
+                            <td className="text-xs text-muted-foreground">{dateStr(r.date, locale)}</td>
                             <td className="font-mono text-xs">{r.number}</td>
-                            <td>{r.description}</td>
+                            <td>{t(r.description)}</td>
                             <td>{typeBadge(r.type)}</td>
                             <td className="text-end tabular-nums text-blue-700 dark:text-blue-400">
                               {r.debit > 0 ? fmt(r.debit) : "—"}

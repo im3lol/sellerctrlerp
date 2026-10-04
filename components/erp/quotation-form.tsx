@@ -64,7 +64,7 @@ export function QuotationForm({ customers, items, orgName, vatRate, initial }: {
   const [quickOpen, setQuickOpen] = useState(false);
   const [quickName, setQuickName] = useState("");
   const allCustomers = useMemo(() => [...customers, ...newCustomers], [customers, newCustomers]);
-  const custOptions = useMemo(() => allCustomers.map((c) => ({ id: c.id, label: c.nameAr })), [allCustomers]);
+  const custOptions = useMemo(() => allCustomers.map((c) => ({ id: c.id, label: t(c.nameAr) })), [allCustomers, t]);
   const custLabel = useMemo(() => new Map(custOptions.map((o) => [o.id, o.label])), [custOptions]);
 
   const setLine = (i: number, patch: Partial<Line>) => setLines((ls) => ls.map((l, idx) => (idx === i ? { ...l, ...patch } : l)));

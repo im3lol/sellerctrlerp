@@ -1,5 +1,7 @@
 package com.sellerctrl.app.ui
 
+import com.sellerctrl.app.tr
+
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -58,14 +60,14 @@ fun ApprovalScreen(nav: NavController, title: String, listPath: String, actionBa
     var reload by remember { mutableIntStateOf(0) }
     val tick by ServiceLocator.repo.tick.collectAsState()
     LaunchedEffect(reload, tick) {
-        try { rows = ServiceLocator.repo.docList(listPath) } catch (e: Exception) { error = "تعذّر التحميل"; rows = emptyList() }
+        try { rows = ServiceLocator.repo.docList(listPath) } catch (e: Exception) { error = tr("تعذّر التحميل"); rows = emptyList() }
     }
 
     fun act(id: String, verb: String) {
         busy = true; error = null
         scope.launch {
             try { ServiceLocator.repo.postAction("$actionBase/$id/$verb"); reload++ }
-            catch (e: Exception) { error = e.message ?: "خطأ" }
+            catch (e: Exception) { error = e.message ?: tr("خطأ") }
             finally { busy = false }
         }
     }
@@ -74,15 +76,15 @@ fun ApprovalScreen(nav: NavController, title: String, listPath: String, actionBa
         TopAppBar(
             title = { Text(title) },
             navigationIcon = { IconButton(onClick = { nav.popBackStack() }) { Icon(Icons.AutoMirrored.Filled.ArrowBack, null) } },
-            actions = { val open = LocalOpenDrawer.current; IconButton(onClick = open) { Icon(Icons.Filled.Menu, "القائمة") } },
+            actions = { val open = LocalOpenDrawer.current; IconButton(onClick = open) { Icon(Icons.Filled.Menu, tr("القائمة")) } },
         )
     }, floatingActionButton = {
-        if (addRoute != null) androidx.compose.material3.FloatingActionButton(onClick = { nav.navigate(addRoute) }) { Icon(Icons.Filled.Add, "إضافة") }
+        if (addRoute != null) androidx.compose.material3.FloatingActionButton(onClick = { nav.navigate(addRoute) }) { Icon(Icons.Filled.Add, tr("إضافة")) }
     }) { pad ->
         Box(Modifier.fillMaxSize().padding(pad)) {
             when {
                 rows == null -> CircularProgressIndicator(Modifier.align(Alignment.Center))
-                rows!!.isEmpty() -> Text(error ?: "لا توجد طلبات", Modifier.align(Alignment.Center), color = MaterialTheme.colorScheme.outline)
+                rows!!.isEmpty() -> Text(error ?: tr("لا توجد طلبات"), Modifier.align(Alignment.Center), color = MaterialTheme.colorScheme.outline)
                 else -> LazyColumn(Modifier.fillMaxSize().padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     items(rows!!) { r ->
                         AppCard(Modifier.fillMaxWidth()) {
@@ -97,11 +99,11 @@ fun ApprovalScreen(nav: NavController, title: String, listPath: String, actionBa
                                 }
                                 if (r.status == "DRAFT") {
                                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                        Button(onClick = { act(r.id, "approve") }, enabled = !busy, modifier = Modifier.weight(1f)) { Text("موافقة") }
+                                        Button(onClick = { act(r.id, "approve") }, enabled = !busy, modifier = Modifier.weight(1f)) { Text(tr("موافقة")) }
                                         if (canReject) OutlinedButton(
                                             onClick = { act(r.id, "reject") }, enabled = !busy, modifier = Modifier.weight(1f),
                                             colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFC62828)),
-                                        ) { Text("رفض") }
+                                        ) { Text(tr("رفض")) }
                                     }
                                 }
                             }

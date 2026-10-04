@@ -56,7 +56,7 @@ export default async function InventoryValuationReconciliationPage() {
               <p className="text-sm text-muted-foreground">{t("دفتر المخزون يطابق حساب الأستاذ العام تماماً.")}</p>
             ) : (
               <p className="text-sm text-destructive">
-                يوجد فرق قدره {fmt(Math.abs(diff))}. راجِع القيود اليدوية على حساب المخزون أو حركات المخزون غير المُرحَّلة محاسبياً.
+                {fill(t("يوجد فرق قدره {0}. راجِع القيود اليدوية على حساب المخزون أو حركات المخزون غير المُرحَّلة محاسبياً."), [fmt(Math.abs(diff))])}
               </p>
             )}
           </CardContent>

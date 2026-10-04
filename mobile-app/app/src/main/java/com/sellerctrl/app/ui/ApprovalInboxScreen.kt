@@ -1,5 +1,7 @@
 package com.sellerctrl.app.ui
 
+import com.sellerctrl.app.tr
+
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -56,7 +58,7 @@ fun ApprovalInboxScreen(nav: NavController) {
         error = null
         runCatching { ServiceLocator.repo.approvals(scopeName) }
             .onSuccess { inbox = it }
-            .onFailure { error = "تعذّر تحميل صندوق الموافقات" }
+            .onFailure { error = tr("تعذّر تحميل صندوق الموافقات") }
     }
     LaunchedEffect(scopeName) { inbox = null; refresh() }
     fun decide(row: ApprovalDto, decision: String, comment: String? = null) {
@@ -64,15 +66,15 @@ fun ApprovalInboxScreen(nav: NavController) {
         scope.launch {
             runCatching { ServiceLocator.repo.decideApproval(row.id, decision, comment) }
                 .onSuccess { rejectTarget = null; rejectReason = ""; refresh() }
-                .onFailure { error = it.message ?: "تعذّر حفظ القرار" }
+                .onFailure { error = it.message ?: tr("تعذّر حفظ القرار") }
             busyId = null
         }
     }
     Scaffold(topBar = {
         TopAppBar(
-            title = { Text("الموافقات") },
-            navigationIcon = { IconButton(onClick = { nav.popBackStack() }) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "رجوع") } },
-            actions = { IconButton(onClick = { scope.launch { refresh() } }) { Icon(Icons.Filled.Refresh, "تحديث") } },
+            title = { Text(tr("الموافقات")) },
+            navigationIcon = { IconButton(onClick = { nav.popBackStack() }) { Icon(Icons.AutoMirrored.Filled.ArrowBack, tr("رجوع")) } },
+            actions = { IconButton(onClick = { scope.launch { refresh() } }) { Icon(Icons.Filled.Refresh, tr("تحديث")) } },
         )
     }) { pad ->
         val data = inbox
@@ -82,25 +84,25 @@ fun ApprovalInboxScreen(nav: NavController) {
             else -> LazyColumn(Modifier.fillMaxSize().padding(pad).padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 item {
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        if (data.canDecide) Button(onClick = { scopeName = "pending" }, modifier = Modifier.weight(1f), enabled = scopeName != "pending") { Text("بانتظارك") }
-                        OutlinedButton(onClick = { scopeName = "mine" }, modifier = Modifier.weight(1f), enabled = scopeName != "mine") { Text("طلباتي") }
-                        if (data.canDecide) OutlinedButton(onClick = { scopeName = "done" }, modifier = Modifier.weight(1f), enabled = scopeName != "done") { Text("المكتملة") }
+                        if (data.canDecide) Button(onClick = { scopeName = "pending" }, modifier = Modifier.weight(1f), enabled = scopeName != "pending") { Text(tr("بانتظارك")) }
+                        OutlinedButton(onClick = { scopeName = "mine" }, modifier = Modifier.weight(1f), enabled = scopeName != "mine") { Text(tr("طلباتي")) }
+                        if (data.canDecide) OutlinedButton(onClick = { scopeName = "done" }, modifier = Modifier.weight(1f), enabled = scopeName != "done") { Text(tr("المكتملة")) }
                     }
                 }
                 error?.let { message -> item { Text(message, color = MaterialTheme.colorScheme.error) } }
-                if (data.rows.isEmpty()) item { AppCard(Modifier.fillMaxWidth()) { Text(if (scopeName == "pending") "لا توجد موافقات بانتظارك." else "لا توجد طلبات في هذه القائمة.", Modifier.padding(20.dp), color = MaterialTheme.colorScheme.outline) } }
+                if (data.rows.isEmpty()) item { AppCard(Modifier.fillMaxWidth()) { Text(if (scopeName == "pending") tr("لا توجد موافقات بانتظارك.") else tr("لا توجد طلبات في هذه القائمة."), Modifier.padding(20.dp), color = MaterialTheme.colorScheme.outline) } }
                 items(data.rows, key = { it.id }) { row ->
                     AppCard(Modifier.fillMaxWidth()) {
                         Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                            Text("${approvalType(row.entityType)} • ${row.entityNumber ?: "بدون رقم"}", style = MaterialTheme.typography.titleSmall)
+                            Text("${approvalType(row.entityType)} • ${row.entityNumber ?: tr("بدون رقم")}", style = MaterialTheme.typography.titleSmall)
                             row.amount?.let { Text(money(it), style = MaterialTheme.typography.titleMedium, color = BrandBlue) }
                             Text(row.reason, style = MaterialTheme.typography.bodyMedium)
                             Text(approvalMeta(row), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
-                            row.comment?.let { Text("ملاحظة: $it", style = MaterialTheme.typography.bodySmall) }
+                            row.comment?.let { Text(tr("ملاحظة: $it"), style = MaterialTheme.typography.bodySmall) }
                             if (scopeName == "pending" && data.canDecide && row.status == "PENDING") {
                                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                    Button(onClick = { decide(row, "APPROVE") }, enabled = busyId == null, modifier = Modifier.weight(1f)) { Text(if (busyId == row.id) "جارٍ الحفظ…" else "اعتماد") }
-                                    OutlinedButton(onClick = { rejectTarget = row }, enabled = busyId == null, modifier = Modifier.weight(1f)) { Text("رفض", color = Color(0xFFB91C1C)) }
+                                    Button(onClick = { decide(row, "APPROVE") }, enabled = busyId == null, modifier = Modifier.weight(1f)) { Text(if (busyId == row.id) tr("جارٍ الحفظ…") else tr("اعتماد")) }
+                                    OutlinedButton(onClick = { rejectTarget = row }, enabled = busyId == null, modifier = Modifier.weight(1f)) { Text(tr("رفض"), color = Color(0xFFB91C1C)) }
                                 }
                             }
                         }
@@ -111,29 +113,29 @@ fun ApprovalInboxScreen(nav: NavController) {
     }
     rejectTarget?.let { row -> AlertDialog(
         onDismissRequest = { if (busyId == null) rejectTarget = null },
-        title = { Text("سبب الرفض") },
-        text = { OutlinedTextField(value = rejectReason, onValueChange = { rejectReason = it }, label = { Text("اكتب السبب ليعرف صاحب الطلب ما الذي يعدله") }, modifier = Modifier.fillMaxWidth()) },
-        confirmButton = { TextButton(onClick = { decide(row, "REJECT", rejectReason) }, enabled = rejectReason.trim().isNotEmpty() && busyId == null) { Text("تأكيد الرفض") } },
-        dismissButton = { TextButton(onClick = { rejectTarget = null }, enabled = busyId == null) { Text("إلغاء") } },
+        title = { Text(tr("سبب الرفض")) },
+        text = { OutlinedTextField(value = rejectReason, onValueChange = { rejectReason = it }, label = { Text(tr("اكتب السبب ليعرف صاحب الطلب ما الذي يعدله")) }, modifier = Modifier.fillMaxWidth()) },
+        confirmButton = { TextButton(onClick = { decide(row, "REJECT", rejectReason) }, enabled = rejectReason.trim().isNotEmpty() && busyId == null) { Text(tr("تأكيد الرفض")) } },
+        dismissButton = { TextButton(onClick = { rejectTarget = null }, enabled = busyId == null) { Text(tr("إلغاء")) } },
     ) }
 }
 
 private fun approvalType(type: String) = when (type) {
-    "PURCHASE_ORDER" -> "أمر شراء"
-    "SALES_ORDER" -> "أمر بيع"
-    "STOCK_ADJUSTMENT" -> "تسوية مخزون"
-    "PAYMENT" -> "سند صرف"
-    "EXPENSE" -> "مصروف"
-    "EXPENSE_CLAIM" -> "مطالبة مصروفات"
+    "PURCHASE_ORDER" -> tr("أمر شراء")
+    "SALES_ORDER" -> tr("أمر بيع")
+    "STOCK_ADJUSTMENT" -> tr("تسوية مخزون")
+    "PAYMENT" -> tr("سند صرف")
+    "EXPENSE" -> tr("مصروف")
+    "EXPENSE_CLAIM" -> tr("مطالبة مصروفات")
     else -> type
 }
 
 private fun approvalMeta(row: ApprovalDto): String = buildList {
-    row.requestedByName?.let { add("طلبه $it") }
+    row.requestedByName?.let { add(tr("طلبه $it")) }
     add(row.requestedAt.substringBefore("T"))
     when (row.status) {
-        "APPROVED" -> add("معتمد")
-        "REJECTED" -> add("مرفوض")
-        else -> add("بانتظار القرار")
+        "APPROVED" -> add(tr("معتمد"))
+        "REJECTED" -> add(tr("مرفوض"))
+        else -> add(tr("بانتظار القرار"))
     }
 }.joinToString(" • ")

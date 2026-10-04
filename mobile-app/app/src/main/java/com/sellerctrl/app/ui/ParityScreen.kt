@@ -1,5 +1,7 @@
 package com.sellerctrl.app.ui
 
+import com.sellerctrl.app.tr
+
 import android.net.Uri
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -29,7 +31,7 @@ fun ParityScreen(nav: NavController, encodedLabel: String) {
     Scaffold(topBar = {
         TopAppBar(
             title = { Text(label) },
-            navigationIcon = { IconButton(onClick = { nav.popBackStack() }) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "رجوع") } },
+            navigationIcon = { IconButton(onClick = { nav.popBackStack() }) { Icon(Icons.AutoMirrored.Filled.ArrowBack, tr("رجوع")) } },
         )
     }) { pad ->
         Column(
@@ -38,9 +40,9 @@ fun ParityScreen(nav: NavController, encodedLabel: String) {
             verticalArrangement = Arrangement.Center,
         ) {
             Icon(Icons.Filled.Construction, null, tint = BrandBlue)
-            Text("نقل تجربة الهاتف جارٍ", style = MaterialTheme.typography.titleLarge)
+            Text(tr("نقل تجربة الهاتف جارٍ"), style = MaterialTheme.typography.titleLarge)
             Text(
-                "هذه الوظيفة متاحة على الموقع. لا نعرضها كـ«قريبًا» لأن حالتها ليست كذلك؛ ستتحول إلى عملية موبايل كاملة ضمن خطة التكافؤ.",
+                tr("هذه الوظيفة متاحة على الموقع. لا نعرضها كـ«قريبًا» لأن حالتها ليست كذلك؛ ستتحول إلى عملية موبايل كاملة ضمن خطة التكافؤ."),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.outline,
             )

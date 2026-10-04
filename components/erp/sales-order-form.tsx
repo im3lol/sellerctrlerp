@@ -103,7 +103,7 @@ export function SalesOrderForm({ customers, items, orgName, vatRate, defaultCust
   const [quickOpen, setQuickOpen] = useState(false);
   const [quickName, setQuickName] = useState("");
   const allCustomers = useMemo(() => [...customers, ...newCustomers], [customers, newCustomers]);
-  const customerOptions = useMemo(() => allCustomers.map((c) => ({ id: c.id, label: c.nameAr })), [allCustomers]);
+  const customerOptions = useMemo(() => allCustomers.map((c) => ({ id: c.id, label: t(c.nameAr) })), [allCustomers, t]);
   const customerLabelById = useMemo(() => new Map(customerOptions.map((o) => [o.id, o.label])), [customerOptions]);
 
   const setLine = (i: number, patch: Partial<Line>) => setLines((ls) => ls.map((l, idx) => (idx === i ? { ...l, ...patch } : l)));

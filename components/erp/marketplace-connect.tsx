@@ -86,11 +86,11 @@ export function MarketplaceConnect({
               <CardTitle className="flex items-center gap-2"><PlugZap className="size-5 text-emerald-600" />{t("ربط")} {label}<Badge className="bg-emerald-600">{t("مربوط")}</Badge>{conn.realtime && <Badge variant="secondary" title={t("طلبات أمازون الجديدة تصل خلال ثوانٍ عبر إشعارات فورية")}>{t("التحديث الفوري مفعّل ⚡")}</Badge>}</CardTitle>
               <CardDescription className="mt-1.5">
                 {justConnected && <span className="text-emerald-600">{t("تم الربط بنجاح.")} </span>}
-                السوق: {market?.name ?? conn.marketplaceId ?? "—"} {t("· معرّف البائع:")} <span className="font-mono" dir="ltr">{conn.sellerId ?? "—"}</span> {t("· آخر مزامنة:")} {dt(conn.lastSyncAt)}
+                {fill(t("السوق: {0}"), [market?.name ?? conn.marketplaceId ?? "—"])} {t("· معرّف البائع:")} <span className="font-mono" dir="ltr">{conn.sellerId ?? "—"}</span> {t("· آخر مزامنة:")} {dt(conn.lastSyncAt)}
               </CardDescription>
             </div>
             <Button variant="ghost" size="sm" onClick={disconnect} disabled={pending} className="text-muted-foreground">
-              {pending ? <Loader2 className="size-4 animate-spin" /> : <Plug className="size-4" />}فصل الحساب
+              {pending ? <Loader2 className="size-4 animate-spin" /> : <Plug className="size-4" />}{t("فصل الحساب")}
             </Button>
           </div>
         </CardHeader>
@@ -98,11 +98,11 @@ export function MarketplaceConnect({
           {conn.needsReauth && (
             <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-destructive/40 bg-destructive/5 px-3 py-2.5">
               <div className="text-sm font-medium text-destructive">
-                انتهت صلاحية ربط {label} — توقفت المزامنة التلقائية حتى تعيد ربط الحساب.
+                {fill(t("انتهت صلاحية ربط {0} — توقفت المزامنة التلقائية حتى تعيد ربط الحساب."), [label])}
               </div>
               {needsCredential ? (
                 <Button size="sm" variant="destructive" onClick={disconnect} disabled={pending}>
-                  {pending ? <Loader2 className="size-4 animate-spin" /> : <Plug className="size-4" />}افصل ثم أعد لصق ملف الاعتماد
+                  {pending ? <Loader2 className="size-4 animate-spin" /> : <Plug className="size-4" />}{t("افصل ثم أعد لصق ملف الاعتماد")}
                 </Button>
               ) : (
                 <Button asChild size="sm" variant="destructive">
@@ -127,7 +127,7 @@ export function MarketplaceConnect({
           <div className="space-y-1.5">
             <label className="text-sm font-medium">{t("ملف اعتماد نون (JSON)")}</label>
             <p className="text-xs text-muted-foreground">
-              من <span dir="ltr">access.noon.partners</span> {t("← أنشئ Service Account ونزّل ملف المفاتيح، ثم الصقه هنا. بعد الربط نجلب مخازنك ومنتجاتك تلقائيًا — لا حاجة لإدخال كود المخزن.")}
+              {t("من")} <span dir="ltr">access.noon.partners</span> {t("← أنشئ Service Account ونزّل ملف المفاتيح، ثم الصقه هنا. بعد الربط نجلب مخازنك ومنتجاتك تلقائيًا — لا حاجة لإدخال كود المخزن.")}
             </p>
             <textarea
               value={cred} onChange={(e) => setCred(e.target.value)} dir="ltr" rows={6} spellCheck={false}
@@ -169,7 +169,7 @@ export function MarketplaceConnect({
         // OAuth-capable connector whose client keys aren't set yet (Amazon/Shopify).
         <CardContent>
           <div className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-800 dark:bg-amber-950/20">
-            لم تُضبط مفاتيح ربط {label} بعد. يضبطها مالك المنصّة من لوحة الأدمن ← التكاملات.
+            {fill(t("لم تُضبط مفاتيح ربط {0} بعد. يضبطها مالك المنصّة من لوحة الأدمن ← التكاملات."), [label])}
           </div>
         </CardContent>
       ) : needsShop ? (
@@ -193,7 +193,7 @@ export function MarketplaceConnect({
         // (app keys + webhook) from the admin panel.
         <CardContent>
           <Button asChild>
-            <a href={`/api/erp/marketplace/${provider}/connect`}><Plug className="size-4" />ربط {label} (تفويض بنقرة واحدة)</a>
+            <a href={`/api/erp/marketplace/${provider}/connect`}><Plug className="size-4" />{fill(t("ربط {0} (تفويض بنقرة واحدة)"), [label])}</a>
           </Button>
         </CardContent>
       ) : (
@@ -205,7 +205,7 @@ export function MarketplaceConnect({
             </select>
           </div>
           <Button asChild>
-            <a href={`/api/erp/marketplace/${provider}/connect?marketplace=${mp}`}><Plug className="size-4" />ربط {label}</a>
+            <a href={`/api/erp/marketplace/${provider}/connect?marketplace=${mp}`}><Plug className="size-4" />{fill(t("ربط {0}"), [label])}</a>
           </Button>
         </CardContent>
       )}

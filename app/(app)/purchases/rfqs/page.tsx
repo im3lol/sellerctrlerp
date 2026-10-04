@@ -31,9 +31,9 @@ export default async function RfqsPage() {
         />
         <RfqManager
           canManage={can("purchases.create")}
-          items={itemList.map((i) => ({ id: i.id, label: `${i.code} — ${i.nameAr ?? ""}` }))}
-          suppliers={supList.map((s) => ({ id: s.id, label: `${s.code} — ${s.nameAr}` }))}
-          warehouses={whList.map((w) => ({ id: w.id, label: w.nameAr }))}
+          items={itemList.map((i) => ({ id: i.id, label: `${i.code} — ${t(i.nameAr ?? "")}` }))}
+          suppliers={supList.map((s) => ({ id: s.id, label: `${s.code} — ${t(s.nameAr)}` }))}
+          warehouses={whList.map((w) => ({ id: w.id, label: t(w.nameAr) }))}
         />
       </div>
     );

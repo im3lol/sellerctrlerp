@@ -39,7 +39,7 @@ export function MarketplaceReimbursementsClient({ initial }: { initial: Reimburs
   return (
     <div className="space-y-4">
       <p className="text-sm text-muted-foreground">
-        تعويضات من المنصة عن مخزون ضائع/تالف. «سجّل» بيعمل <b>{t("قيد يومية مسودّة")}</b> {t("(مدين المحفظة / دائن تعويضات المنصات 4103) يراجعه المحاسب ويرحّله — عشان ماتتكرّرش مع التسوية. التعويض العيني (وحدات) بيتعرض وترجّعه من أوامر السحب/التسويات.")}
+        {t("تعويضات من المنصة عن مخزون ضائع/تالف. «سجّل» بيعمل")} <b>{t("قيد يومية مسودّة")}</b> {t("(مدين المحفظة / دائن تعويضات المنصات 4103) يراجعه المحاسب ويرحّله — عشان ماتتكرّرش مع التسوية. التعويض العيني (وحدات) بيتعرض وترجّعه من أوامر السحب/التسويات.")}
       </p>
       {rows.map((o) => {
         const isBusy = pending && busy === o.id;
@@ -61,7 +61,7 @@ export function MarketplaceReimbursementsClient({ initial }: { initial: Reimburs
                 </div>
               </div>
               <Button size="sm" variant="outline" disabled={isBusy} onClick={() => confirm(o.id)}>
-                {isBusy ? <Loader2 className="size-4 animate-spin" /> : <HandCoins className="size-4 text-emerald-600" />}سجّل
+                {isBusy ? <Loader2 className="size-4 animate-spin" /> : <HandCoins className="size-4 text-emerald-600" />}{t("سجّل")}
               </Button>
             </CardContent>
           </Card>

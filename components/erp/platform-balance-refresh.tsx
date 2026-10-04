@@ -24,7 +24,7 @@ export function PlatformBalanceRefresh({ code }: { code: string }) {
 
   return (
     <Button variant="outline" size="sm" onClick={run} disabled={pending}>
-      {pending ? <Loader2 className="size-4 animate-spin" /> : <RefreshCw className="size-4" />}تحديث رصيد المنصّة
+      {pending ? <Loader2 className="size-4 animate-spin" /> : <RefreshCw className="size-4" />}{t("تحديث رصيد المنصّة")}
     </Button>
   );
 }

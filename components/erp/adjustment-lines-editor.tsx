@@ -124,7 +124,7 @@ export function AdjustmentLinesEditor({ adjId, lines }: { adjId: string; lines: 
       <div className="flex items-center justify-end gap-2">
         <span className="text-xs text-muted-foreground">{t("التعديلات لا تُرحّل — التسوية تظل مسودة حتى الضغط على «تأكيد».")}</span>
         <Button onClick={save} disabled={pending || hasInvalid}>
-          {pending ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}حفظ الكميات
+          {pending ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}{t("حفظ الكميات")}
         </Button>
       </div>
     </div>

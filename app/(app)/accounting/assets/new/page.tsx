@@ -133,7 +133,7 @@ export default async function NewFixedAssetPage({ searchParams }: { searchParams
                   <FormCombobox
                     name="fundingAccountId"
                     placeholder={t("النقدية / البنك / الدائنون…")}
-                    options={fundingAccounts.map((a) => ({ id: a.id, label: `${a.code} — ${a.nameAr}` }))}
+                    options={fundingAccounts.map((a) => ({ id: a.id, label: `${a.code} — ${t(a.nameAr)}` }))}
                   />
                 </div>
               </div>
@@ -150,7 +150,7 @@ export default async function NewFixedAssetPage({ searchParams }: { searchParams
                     <FormCombobox
                       name={name}
                       placeholder={t("ابحث عن حساب… (اختياري)")}
-                      options={glAccounts.map((a) => ({ id: a.id, label: `${a.code} — ${a.nameAr}` }))}
+                      options={glAccounts.map((a) => ({ id: a.id, label: `${a.code} — ${t(a.nameAr)}` }))}
                     />
                   </div>
                 ))}

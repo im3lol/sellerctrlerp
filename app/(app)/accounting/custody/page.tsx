@@ -39,8 +39,8 @@ export default async function CustodyPage() {
         <CustodyManager
           canManage={can("accounting.post")}
           employees={staff.map((s) => ({ id: s.id, label: `${s.fullName ?? s.name ?? "—"}${s.code ? ` — ${s.code}` : ""}` }))}
-          cashAccounts={cash.map((a) => ({ id: a.id, label: `${a.code} — ${a.nameAr}` }))}
-          expenseAccounts={expense.map((a) => ({ id: a.id, label: `${a.code} — ${a.nameAr}` }))}
+          cashAccounts={cash.map((a) => ({ id: a.id, label: `${a.code} — ${t(a.nameAr)}` }))}
+          expenseAccounts={expense.map((a) => ({ id: a.id, label: `${a.code} — ${t(a.nameAr)}` }))}
         />
       </div>
     );

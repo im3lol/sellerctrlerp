@@ -30,7 +30,7 @@ export default async function ControlReconciliationPage() {
     const glValue = (code: string) => {
       const id = codeMap[code];
       const acc = id ? balances.find((b) => b.id === id) : undefined;
-      return acc ? { value: naturalAmount(acc), label: `${acc.code} — ${acc.nameAr}` } : { value: 0, label: fill(t("{0} (غير مضبوط)"), [code]) };
+      return acc ? { value: naturalAmount(acc), label: `${acc.code} — ${t(acc.nameAr)}` } : { value: 0, label: fill(t("{0} (غير مضبوط)"), [code]) };
     };
 
     const rows = [
@@ -66,7 +66,7 @@ export default async function ControlReconciliationPage() {
                 {rows.map((r) => (
                   <TableRow key={r.name}>
                     <TableCell>{r.name}</TableCell>
-                    <TableCell className="text-muted-foreground">{r.gl.label}</TableCell>
+                    <TableCell className="text-muted-foreground">{t(r.gl.label)}</TableCell>
                     <TableCell className="text-end tabular-nums">{fmt(r.sub)}</TableCell>
                     <TableCell className="text-end tabular-nums">{fmt(r.gl.value)}</TableCell>
                     <TableCell className={`text-end tabular-nums ${r.matched ? "" : "text-destructive font-medium"}`}>{fmt(r.diff)}</TableCell>

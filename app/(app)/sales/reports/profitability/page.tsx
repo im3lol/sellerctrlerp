@@ -186,8 +186,7 @@ export default async function ProfitabilityReportPage({ searchParams }: { search
           <CardHeader>
             <CardTitle>{t("ربحية القطعة الواحدة")}</CardTitle>
             <CardDescription>
-              متوسط سعر البيع الفعلي مقابل سعر التعادل — التكلفة الشاملة للقطعة زائد رسوم أمازون الفعلية.
-              أي صنف فرقه بالسالب بتبيعه بأقل مما يكلّفك.
+              {t("متوسط سعر البيع الفعلي مقابل سعر التعادل — التكلفة الشاملة للقطعة زائد رسوم أمازون الفعلية. أي صنف فرقه بالسالب بتبيعه بأقل مما يكلّفك.")}
               {missingFees > 0 && (
                 <span className="text-amber-600"> · {qtyf(missingFees)} {t("صنف لسه مافيش عليه تسوية أمازون — سعر تعادله ناقص الرسوم.")}</span>
               )}

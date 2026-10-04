@@ -133,9 +133,9 @@ export function PlatformImport({ platformId, platformName }: { platformId: strin
             </div>
 
             <div className="flex items-center justify-between rounded-xl border p-3 text-sm">
-              <span>{mappingReady ? <>{t("جاهز:")} <b>{orders.length}</b> {t("أمر ·")} <b>{orders.reduce((s, o) => s + o.lines.length, 0)}</b> {t("بند")}</> : "اربط الأعمدة الأساسية لعرض المعاينة."}</span>
+              <span>{mappingReady ? <>{t("جاهز:")} <b>{orders.length}</b> {t("أمر ·")} <b>{orders.reduce((s, o) => s + o.lines.length, 0)}</b> {t("بند")}</> : t("اربط الأعمدة الأساسية لعرض المعاينة.")}</span>
               <Button onClick={run} disabled={pending || !mappingReady || orders.length === 0}>
-                {pending && <Loader2 className="size-4 animate-spin" />}استيراد {orders.length > 0 ? `(${orders.length})` : ""}
+                {pending && <Loader2 className="size-4 animate-spin" />}{t("استيراد")} {orders.length > 0 ? `(${orders.length})` : ""}
               </Button>
             </div>
           </>
@@ -147,7 +147,7 @@ export function PlatformImport({ platformId, platformName }: { platformId: strin
             {result.skippedDuplicate > 0 && <div>{t("↷ تخطّي")} <b>{result.skippedDuplicate}</b> {t("أمر مكرر (مستورد سابقًا).")}</div>}
             {result.unmatched.length > 0 && (
               <div className="text-destructive">
-                ⚠ {result.unmatched.length} كود غير مربوط بصنف — رُبطها أولًا ثم أعد الاستيراد:
+                ⚠ {fill(t("{0} كود غير مربوط بصنف — رُبطها أولًا ثم أعد الاستيراد:"), [result.unmatched.length])}
                 <div className="mt-1 font-mono text-xs">{result.unmatched.slice(0, 30).join("، ")}{result.unmatched.length > 30 ? " …" : ""}</div>
               </div>
             )}

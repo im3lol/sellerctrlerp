@@ -1,5 +1,7 @@
 package com.sellerctrl.app.ui
 
+import com.sellerctrl.app.tr
+
 import android.net.Uri
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -61,9 +63,9 @@ fun AppsScreen(nav: NavController) {
 
     Scaffold(topBar = {
         TopAppBar(
-            title = { Text("كل التطبيقات") },
-            navigationIcon = { IconButton(onClick = { nav.popBackStack() }) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "رجوع") } },
-            actions = { IconButton(onClick = { scope.launch { refresh() } }) { Icon(Icons.Filled.Refresh, "تحديث") } },
+            title = { Text(tr("كل التطبيقات")) },
+            navigationIcon = { IconButton(onClick = { nav.popBackStack() }) { Icon(Icons.AutoMirrored.Filled.ArrowBack, tr("رجوع")) } },
+            actions = { IconButton(onClick = { scope.launch { refresh() } }) { Icon(Icons.Filled.Refresh, tr("تحديث")) } },
         )
     }) { pad ->
         when {
@@ -71,7 +73,7 @@ fun AppsScreen(nav: NavController) {
             failed -> CatalogError(Modifier.padding(pad)) { scope.launch { refresh() } }
             else -> LazyColumn(Modifier.fillMaxSize().padding(pad).padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
                 sections.filter { it.items.isNotEmpty() }.forEach { section ->
-                    item(key = section.heading ?: "home") { Text(section.heading ?: "الرئيسية", style = MaterialTheme.typography.titleLarge) }
+                    item(key = section.heading ?: "home") { Text(section.heading ?: tr("الرئيسية"), style = MaterialTheme.typography.titleLarge) }
                     items(section.items, key = { it.href }) { item -> CatalogRow(item) {
                         val route = MobileRouteRegistry.routeFor(item.href)
                         if (route != null) nav.navigate(route)
@@ -93,7 +95,7 @@ private fun CatalogRow(item: CatalogItemDto, onClick: () -> Unit) {
             Column(Modifier.weight(1f)) {
                 Text(item.label, style = MaterialTheme.typography.titleSmall)
                 item.group?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline) }
-                if (!native) Text("قيد نقل تجربة الموبايل", style = MaterialTheme.typography.labelSmall, color = Color(0xFFB45309))
+                if (!native) Text(tr("قيد نقل تجربة الموبايل"), style = MaterialTheme.typography.labelSmall, color = Color(0xFFB45309))
             }
             Icon(Icons.Filled.ChevronLeft, null, tint = MaterialTheme.colorScheme.outline)
         }
@@ -103,7 +105,7 @@ private fun CatalogRow(item: CatalogItemDto, onClick: () -> Unit) {
 @Composable
 private fun CatalogLoading(modifier: Modifier) {
     Column(modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-        Text("جارٍ تجهيز تطبيقاتك…", color = MaterialTheme.colorScheme.outline)
+        Text(tr("جارٍ تجهيز تطبيقاتك…"), color = MaterialTheme.colorScheme.outline)
     }
 }
 
@@ -111,9 +113,9 @@ private fun CatalogLoading(modifier: Modifier) {
 private fun CatalogError(modifier: Modifier, retry: () -> Unit) {
     Column(modifier.fillMaxSize().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
         Icon(Icons.Filled.ErrorOutline, null, tint = MaterialTheme.colorScheme.error)
-        Text("تعذّر تحميل التطبيقات", style = MaterialTheme.typography.titleMedium)
-        Text("تحقّق من الاتصال ثم أعد المحاولة.", color = MaterialTheme.colorScheme.outline)
-        IconButton(onClick = retry) { Icon(Icons.Filled.Refresh, "إعادة المحاولة") }
+        Text(tr("تعذّر تحميل التطبيقات"), style = MaterialTheme.typography.titleMedium)
+        Text(tr("تحقّق من الاتصال ثم أعد المحاولة."), color = MaterialTheme.colorScheme.outline)
+        IconButton(onClick = retry) { Icon(Icons.Filled.Refresh, tr("إعادة المحاولة")) }
     }
 }
 

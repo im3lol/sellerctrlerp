@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Search, Loader2, CornerDownLeft } from "lucide-react";
 import { Icon } from "@/components/icon";
+import { fill } from "@/lib/i18n";
 import { useT } from "@/lib/i18n/client";
 import { Input } from "@/components/ui/input";
 import { NAV, type NavItem } from "@/components/app-shell/nav-config";
@@ -136,7 +137,7 @@ export function AwesomeBar({
               {pageHits.map(({ item, heading }) => (
                 <Row key={item.href} onClick={() => go(item.href)}>
                   <Icon name={item.icon} className="size-4 shrink-0 text-muted-foreground" />
-                  <span className="min-w-0 flex-1 truncate">{item.label}</span>
+                  <span className="min-w-0 flex-1 truncate">{t(item.label)}</span>
                   {heading && <span className="shrink-0 text-xs text-muted-foreground">{heading}</span>}
                 </Row>
               ))}
@@ -147,7 +148,7 @@ export function AwesomeBar({
             <Section title="البيانات">
               {loading && hits.length === 0 && (
                 <div className="flex items-center gap-2 px-3 py-2 text-sm text-muted-foreground">
-                  <Loader2 className="size-4 animate-spin" />جارٍ البحث…
+                  <Loader2 className="size-4 animate-spin" />{t("جارٍ البحث…")}
                 </div>
               )}
               {hits.map((h) => (
@@ -162,7 +163,7 @@ export function AwesomeBar({
             </Section>
           )}
 
-          {nothing && <div className="px-3 py-6 text-center text-sm text-muted-foreground">مفيش نتائج لـ«{q.trim()}».</div>}
+          {nothing && <div className="px-3 py-6 text-center text-sm text-muted-foreground">{fill(t("مفيش نتائج لـ«{0}»."), [q.trim()])}</div>}
 
           <button
             type="button"
@@ -170,7 +171,7 @@ export function AwesomeBar({
             className="mt-1 flex w-full items-center gap-2 rounded-lg border-t px-3 py-2 text-sm text-muted-foreground hover:bg-accent hover:text-foreground"
           >
             <CornerDownLeft className="size-3.5" />
-            بحث كامل عن «{q.trim()}»
+            {fill(t("بحث كامل عن «{0}»"), [q.trim()])}
           </button>
         </div>
       )}
@@ -179,9 +180,10 @@ export function AwesomeBar({
 }
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
+  const t = useT();
   return (
     <div className="py-1">
-      <div className="px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground/60">{title}</div>
+      <div className="px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground/60">{t(title)}</div>
       {children}
     </div>
   );
