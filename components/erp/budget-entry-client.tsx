@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useT } from "@/lib/i18n/client";
-import { toast } from "sonner";
+import { toast } from "@/lib/i18n/toast";
 import { saveBudgetAction } from "@/app/actions/erp/budget";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";

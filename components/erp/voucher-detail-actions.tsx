@@ -4,7 +4,7 @@ import { useTransition } from "react";
 import { useT } from "@/lib/i18n/client";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "@/lib/i18n/toast";
 import { confirmReceiptVoucherAction, deleteReceiptVoucherAction, reverseReceiptVoucherAction } from "@/app/actions/erp/receipts";
 import { confirmPaymentVoucherAction, deletePaymentVoucherAction, reversePaymentVoucherAction } from "@/app/actions/erp/payments";
 import { Button } from "@/components/ui/button";

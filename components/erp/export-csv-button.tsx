@@ -1,7 +1,7 @@
 "use client";
 
 import { useTransition } from "react";
-import { toast } from "sonner";
+import { toast } from "@/lib/i18n/toast";
 import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/icon";
 import type { ExportResult } from "@/app/actions/erp/exports";

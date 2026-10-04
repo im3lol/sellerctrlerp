@@ -66,7 +66,7 @@ function ReverseDialog({ runId, onClose }: { runId: string; onClose: () => void 
     setError(undefined);
     startTransition(async () => {
       const res = await reversePayrollRunAction(runId, reason);
-      if (res.error) { setError(res.error); return; }
+      if (res.error) { setError(res.error ? t(res.error) : res.error); return; }
       onClose();
       router.refresh();
     });
@@ -104,7 +104,7 @@ export function PayrollRunDetail({ run, lines }: { run: Run; lines: Line[] }) {
     setError(undefined);
     startTransition(async () => {
       const res = await confirmPayrollRunAction(run.id);
-      if (res.error) { setError(res.error); return; }
+      if (res.error) { setError(res.error ? t(res.error) : res.error); return; }
       router.refresh();
     });
   }

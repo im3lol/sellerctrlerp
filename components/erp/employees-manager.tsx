@@ -70,7 +70,7 @@ function EmployeeDialog({
         position: position || undefined,
         department: department || undefined,
       });
-      if (res.error) { setError(res.error); return; }
+      if (res.error) { setError(res.error ? t(res.error) : res.error); return; }
       onClose();
     });
   }

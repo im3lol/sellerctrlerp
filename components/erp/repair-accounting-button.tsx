@@ -3,7 +3,7 @@
 import { useTransition } from "react";
 import { useT } from "@/lib/i18n/client";
 import { useRouter } from "next/navigation";
-import { toast } from "sonner";
+import { toast } from "@/lib/i18n/toast";
 import { Loader2, Wrench } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { initializeChartAction } from "@/app/actions/erp/accounts";

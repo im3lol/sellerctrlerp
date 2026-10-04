@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import { useT } from "@/lib/i18n/client";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { toast } from "sonner";
+import { toast } from "@/lib/i18n/toast";
 import { setItemParentAction } from "@/app/actions/erp/items";
 import type { FamilyMember } from "@/lib/erp/item-family";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";

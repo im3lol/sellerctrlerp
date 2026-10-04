@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { useT } from "@/lib/i18n/client";
 import { useRouter } from "next/navigation";
-import { toast } from "sonner";
+import { toast } from "@/lib/i18n/toast";
 import { Loader2, Send } from "lucide-react";
 import { submitFeedbackAction } from "@/app/actions/erp/feedback";
 import { Button } from "@/components/ui/button";

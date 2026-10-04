@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useT } from "@/lib/i18n/client";
 import { useRouter } from "next/navigation";
-import { toast } from "sonner";
+import { toast } from "@/lib/i18n/toast";
 import { Loader2, ShieldCheck, Zap, Lock, ArrowRight } from "lucide-react";
 import { Logo } from "@/components/brand/logo";
 import { Button } from "@/components/ui/button";

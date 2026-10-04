@@ -3,7 +3,7 @@
 import { useActionState, useEffect } from "react";
 import { useFormStatus } from "react-dom";
 import { Loader2 } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "@/lib/i18n/toast";
 import { updateProfileAction, type ActionState } from "@/app/actions/users";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";

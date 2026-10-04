@@ -4,7 +4,7 @@ import { useMemo, useState, useTransition } from "react";
 import { useT } from "@/lib/i18n/client";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "@/lib/i18n/toast";
 import { createReceiptFromOrderAction, getReceivableOrderLinesAction, type ReceivableLine } from "@/app/actions/erp/goods-receipts";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";

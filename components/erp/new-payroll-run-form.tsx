@@ -34,7 +34,7 @@ export function NewPayrollRunForm() {
         paymentDate: payDate || undefined,
         notes: notes || undefined,
       });
-      if (res.error) { setError(res.error); return; }
+      if (res.error) { setError(res.error ? t(res.error) : res.error); return; }
       router.push(`/hr/payroll/${encodeURIComponent(res.number!)}`);
     });
   }

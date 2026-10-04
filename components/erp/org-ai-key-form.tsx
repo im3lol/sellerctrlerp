@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { useT } from "@/lib/i18n/client";
 import { useRouter } from "next/navigation";
-import { toast } from "sonner";
+import { toast } from "@/lib/i18n/toast";
 import { saveOrgAiKeyAction, removeOrgAiKeyAction } from "@/app/actions/erp/ai-settings";
 import { AI_MODELS, DEFAULT_AI_MODEL } from "@/lib/erp/ai-bill";
 import { Button } from "@/components/ui/button";

@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useT } from "@/lib/i18n/client";
 import JsBarcode from "jsbarcode";
-import { toast } from "sonner";
+import { toast } from "@/lib/i18n/toast";
 import { Printer, Loader2, Trash2, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";

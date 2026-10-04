@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useTransition } from "react";
 import { useT } from "@/lib/i18n/client";
-import { toast } from "sonner";
+import { toast } from "@/lib/i18n/toast";
 import { saveSupplierAction } from "@/app/actions/erp/suppliers";
 import { saveCustomerAction } from "@/app/actions/erp/customers";
 import { Button } from "@/components/ui/button";

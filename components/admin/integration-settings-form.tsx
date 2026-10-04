@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { toast } from "sonner";
+import { toast } from "@/lib/i18n/toast";
 import { Loader2, Copy } from "lucide-react";
 import { saveIntegrationSettingsAction } from "@/app/actions/admin/platform-settings";
 import { getNoonWebhookInfo, regenerateNoonWebhookAction } from "@/app/actions/erp/noon-webhook";

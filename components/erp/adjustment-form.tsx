@@ -3,7 +3,7 @@
 import { useMemo, useState, useTransition } from "react";
 import { useT } from "@/lib/i18n/client";
 import { useRouter } from "next/navigation";
-import { toast } from "sonner";
+import { toast } from "@/lib/i18n/toast";
 import { createStockAdjustmentAction } from "@/app/actions/erp/stock-adjustments";
 import { searchItemsAction } from "@/app/actions/erp/item-search";
 import { CellCombobox } from "@/components/erp/cell-combobox";

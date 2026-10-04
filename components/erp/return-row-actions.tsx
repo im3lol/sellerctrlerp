@@ -3,7 +3,7 @@
 import { useTransition } from "react";
 import { useT } from "@/lib/i18n/client";
 import { useRouter } from "next/navigation";
-import { toast } from "sonner";
+import { toast } from "@/lib/i18n/toast";
 import { confirmSalesReturnAction, deleteSalesReturnAction } from "@/app/actions/erp/sales-returns";
 import { confirmPurchaseReturnAction, deletePurchaseReturnAction } from "@/app/actions/erp/purchase-returns";
 import { Button } from "@/components/ui/button";

@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useT } from "@/lib/i18n/client";
-import { toast } from "sonner";
+import { toast } from "@/lib/i18n/toast";
 import { changePasswordAction, beginMfaSetupAction, enableMfaAction, disableMfaAction, signOutEverywhereAction } from "@/app/actions/account";
 import { validatePassword, PASSWORD_RULE_AR } from "@/lib/auth/password-policy";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";

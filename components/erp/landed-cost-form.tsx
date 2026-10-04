@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState, useTransition } from "react";
 import { useT } from "@/lib/i18n/client";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "@/lib/i18n/toast";
 import { createLandedCostVoucherAction, getLandedCostBasisAction, type LcBasisLine } from "@/app/actions/erp/landed-costs";
 import { allocateLandedPerUnit } from "@/lib/erp/landed-cost";
 import { round2 } from "@/lib/erp/money";

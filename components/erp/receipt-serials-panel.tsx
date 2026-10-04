@@ -3,7 +3,7 @@
 import { useEffect, useState, useTransition } from "react";
 import { useT } from "@/lib/i18n/client";
 import { useRouter } from "next/navigation";
-import { toast } from "sonner";
+import { toast } from "@/lib/i18n/toast";
 import { getReceiptSerialsAction, saveReceiptSerialsAction } from "@/app/actions/erp/serials";
 import { parseSerials, validateSerials } from "@/lib/erp/serials";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";

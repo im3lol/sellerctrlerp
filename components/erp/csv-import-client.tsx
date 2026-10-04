@@ -2,7 +2,7 @@
 
 import { useState, useRef, useTransition } from "react";
 import { useT } from "@/lib/i18n/client";
-import { toast } from "sonner";
+import { toast } from "@/lib/i18n/toast";
 import { importCustomersCSV, importItemsCSV, importSuppliersCSV, type ImportResult } from "@/app/actions/erp/csv-import";
 import { importSalesOrdersCSV, importPurchaseOrdersCSV, importStockTransfersCSV } from "@/app/actions/erp/doc-import";
 import type { DocImportResult } from "@/lib/erp/doc-import-core";
@@ -58,7 +58,6 @@ function ResultBadge({ result }: { result: ImportResult }) {
 }
 
 function DocResultBadge({ result }: { result: DocImportResult }) {
-  const t = useT();
   return (
     <div className="mt-4 space-y-2">
       <div className="flex gap-4 text-sm">

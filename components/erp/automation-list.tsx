@@ -3,7 +3,7 @@
 import { useTransition } from "react";
 import { useT } from "@/lib/i18n/client";
 import { useRouter } from "next/navigation";
-import { toast } from "sonner";
+import { toast } from "@/lib/i18n/toast";
 import { addTemplateAction, deleteRuleAction, toggleRuleAction } from "@/app/actions/erp/automation";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";

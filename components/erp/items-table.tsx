@@ -4,7 +4,7 @@ import { useMemo, useState, useTransition } from "react";
 import { useT } from "@/lib/i18n/client";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { toast } from "sonner";
+import { toast } from "@/lib/i18n/toast";
 import { Trash2, Loader2 } from "lucide-react";
 import { bulkDeleteItemsAction, type ItemsFilter } from "@/app/actions/erp/items";
 import { Button } from "@/components/ui/button";

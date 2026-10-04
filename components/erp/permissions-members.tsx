@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useT } from "@/lib/i18n/client";
-import { toast } from "sonner";
+import { toast } from "@/lib/i18n/toast";
 import { Plus, Trash2, Loader2, SlidersHorizontal } from "lucide-react";
 import { addUserToOrgAction, removeUserFromOrgAction, setMemberOverridesAction, inviteMemberAction } from "@/app/actions/erp/members";
 import { validatePassword, PASSWORD_RULE_AR } from "@/lib/auth/password-policy";

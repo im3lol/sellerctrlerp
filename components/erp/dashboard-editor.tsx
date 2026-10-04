@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useT } from "@/lib/i18n/client";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { toast } from "sonner";
+import { toast } from "@/lib/i18n/toast";
 import { saveDashboardAction, deleteDashboardAction } from "@/app/actions/erp/dashboards";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";

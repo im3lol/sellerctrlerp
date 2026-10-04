@@ -3,7 +3,7 @@
 import { useEffect, useState, useTransition } from "react";
 import { useT } from "@/lib/i18n/client";
 import { useRouter } from "next/navigation";
-import { toast } from "sonner";
+import { toast } from "@/lib/i18n/toast";
 import { setPeriodStatusAction, previewYearClosingAction, runYearClosingAction } from "@/app/actions/erp/periods";
 import type { YearClosingPreview } from "@/app/actions/erp/periods";
 import { Button } from "@/components/ui/button";

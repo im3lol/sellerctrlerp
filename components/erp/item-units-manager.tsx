@@ -3,7 +3,7 @@
 import { useEffect, useState, useTransition } from "react";
 import { useT } from "@/lib/i18n/client";
 import { useRouter } from "next/navigation";
-import { toast } from "sonner";
+import { toast } from "@/lib/i18n/toast";
 import { getItemUnitsAction, saveItemUnitsAction, type ItemUnitRow } from "@/app/actions/erp/item-units";
 import { validateUnitSet } from "@/lib/erp/item-units";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";

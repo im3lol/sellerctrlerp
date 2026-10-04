@@ -4,7 +4,7 @@ import { useActionState, useEffect, useState, useTransition } from "react";
 import { useT } from "@/lib/i18n/client";
 import { useFormStatus } from "react-dom";
 import { Plus, Pencil, Trash2, Loader2 } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "@/lib/i18n/toast";
 import { saveInvestorAction, deleteInvestorAction, bulkDeleteInvestorsAction } from "@/app/actions/erp/investors";
 import type { ActionState } from "@/lib/erp/action-auth";
 import { useSelection, BulkDeleteBar, SelectBox } from "@/components/erp/bulk-select";

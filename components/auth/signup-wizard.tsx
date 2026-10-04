@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import Link from "next/link";
-import { toast } from "sonner";
+import { toast } from "@/lib/i18n/toast";
 import { Loader2, Check, ArrowLeft, ArrowRight, Copy } from "lucide-react";
 import { signupAction } from "@/app/(auth)/signup/actions";
 import { ALL_MODULES, MODULE_LABELS } from "@/lib/erp/module-list";

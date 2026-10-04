@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { useT } from "@/lib/i18n/client";
 import { useRouter } from "next/navigation";
-import { toast } from "sonner";
+import { toast } from "@/lib/i18n/toast";
 import { createDeliveryFromOrderAction } from "@/app/actions/erp/deliveries";
 import { createReceiptFromOrderAction } from "@/app/actions/erp/goods-receipts";
 import { Button } from "@/components/ui/button";

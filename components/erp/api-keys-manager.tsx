@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { useT } from "@/lib/i18n/client";
 import { useRouter } from "next/navigation";
-import { toast } from "sonner";
+import { toast } from "@/lib/i18n/toast";
 import { Loader2, Plus, Copy, Trash2 } from "lucide-react";
 import { createApiKeyAction, revokeApiKeyAction } from "@/app/actions/erp/api-keys";
 import { Button } from "@/components/ui/button";

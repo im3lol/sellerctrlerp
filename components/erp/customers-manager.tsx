@@ -4,7 +4,7 @@ import { useActionState, useEffect, useState, useTransition } from "react";
 import { useT } from "@/lib/i18n/client";
 import { useFormStatus } from "react-dom";
 import { Plus, Pencil, Trash2, Loader2 } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "@/lib/i18n/toast";
 import { saveCustomerAction, deleteCustomerAction, bulkDeleteCustomersAction, linkCustomerPortalUserAction, type ActionState } from "@/app/actions/erp/customers";
 import { exportCustomersCsvAction } from "@/app/actions/erp/exports";
 import { ExportCsvButton } from "@/components/erp/export-csv-button";

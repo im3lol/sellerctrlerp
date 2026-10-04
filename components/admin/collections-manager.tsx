@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { toast } from "sonner";
+import { toast } from "@/lib/i18n/toast";
 import { Loader2, Plus, Trash2 } from "lucide-react";
 import { recordCollectionAction, deleteCollectionAction } from "@/app/actions/admin/collections";
 import { Button } from "@/components/ui/button";

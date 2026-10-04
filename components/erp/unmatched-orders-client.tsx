@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { useT } from "@/lib/i18n/client";
 import Link from "next/link";
-import { toast } from "sonner";
+import { toast } from "@/lib/i18n/toast";
 import { Check, Loader2, PackagePlus } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";

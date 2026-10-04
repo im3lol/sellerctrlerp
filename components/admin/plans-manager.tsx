@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { toast } from "sonner";
+import { toast } from "@/lib/i18n/toast";
 import { Loader2, Plus, Trash2, Pencil } from "lucide-react";
 import { upsertPlanAction, togglePlanAction, deletePlanAction } from "@/app/actions/admin/plans";
 import { ALL_MODULES, MODULE_LABELS } from "@/lib/erp/module-list";

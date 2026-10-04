@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useT } from "@/lib/i18n/client";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { toast } from "sonner";
+import { toast } from "@/lib/i18n/toast";
 import { bulkSalesReturnsAction } from "@/app/actions/erp/sales-returns";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";

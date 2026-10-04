@@ -5,7 +5,7 @@ import { useT } from "@/lib/i18n/client";
 import { useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "@/lib/i18n/toast";
 import { postSalesInvoiceAction, deleteSalesInvoiceAction } from "@/app/actions/erp/sales-invoices";
 import { Button } from "@/components/ui/button";
 import { DocumentActions, type DocAction } from "@/components/erp/document-actions";

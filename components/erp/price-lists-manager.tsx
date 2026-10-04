@@ -3,7 +3,7 @@
 import { useMemo, useState, useTransition } from "react";
 import { useT } from "@/lib/i18n/client";
 import { useRouter } from "next/navigation";
-import { toast } from "sonner";
+import { toast } from "@/lib/i18n/toast";
 import { savePriceListAction, deletePriceListAction } from "@/app/actions/erp/price-lists";
 import { validatePriceRows } from "@/lib/erp/price-list";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";

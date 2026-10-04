@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { toast } from "sonner";
+import { toast } from "@/lib/i18n/toast";
 import { LogIn, SlidersHorizontal, Wallet, Loader2, Download, Trash2, TriangleAlert } from "lucide-react";
 import { impersonateTenantAction } from "@/app/actions/admin/impersonate";
 import { recordCollectionAction } from "@/app/actions/admin/collections";

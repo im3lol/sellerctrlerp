@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { useT } from "@/lib/i18n/client";
 import { useRouter } from "next/navigation";
-import { toast } from "sonner";
+import { toast } from "@/lib/i18n/toast";
 import { saveRuleAction, testRuleAction, type RuleTestResult } from "@/app/actions/erp/automation";
 import {
   ACTION_LABEL, DOCS, EVENT_LABEL, OPS_FOR, OP_LABEL, PLACEHOLDERS, SECRET_KEPT, fieldsOf,

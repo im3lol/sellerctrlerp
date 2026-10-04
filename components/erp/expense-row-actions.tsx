@@ -4,7 +4,7 @@ import { useTransition } from "react";
 import { useT } from "@/lib/i18n/client";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { toast } from "sonner";
+import { toast } from "@/lib/i18n/toast";
 import { confirmExpenseAction, deleteExpenseAction } from "@/app/actions/erp/expenses";
 import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/icon";

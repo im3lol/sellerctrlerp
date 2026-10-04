@@ -4,7 +4,7 @@ import { useMemo, useRef, useState, useTransition } from "react";
 import { useT } from "@/lib/i18n/client";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { toast } from "sonner";
+import { toast } from "@/lib/i18n/toast";
 import { Loader2, Upload, FileSpreadsheet } from "lucide-react";
 import { importPlatformRemovalsAction, type PlatformRemovalsResult } from "@/app/actions/erp/platform-removals";
 import { parseCsvWithHeader } from "@/lib/erp/csv";

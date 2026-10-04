@@ -4,7 +4,7 @@ import { useRef, useState, useTransition } from "react";
 import { useT } from "@/lib/i18n/client";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { toast } from "sonner";
+import { toast } from "@/lib/i18n/toast";
 import { previewAmazonImportAction, runAmazonImportAction, type AmazonPreview, type ImportResult } from "@/app/actions/erp/amazon-import";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";

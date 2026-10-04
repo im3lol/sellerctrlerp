@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { useT } from "@/lib/i18n/client";
 import { useRouter } from "next/navigation";
-import { toast } from "sonner";
+import { toast } from "@/lib/i18n/toast";
 import { createStockTransferAction } from "@/app/actions/erp/stock-transfers";
 import { toCsv } from "@/lib/erp/csv";
 import type { FbaPlanRow } from "@/lib/erp/fba-plan";

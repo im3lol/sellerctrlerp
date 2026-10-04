@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import { useT } from "@/lib/i18n/client";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { toast } from "sonner";
+import { toast } from "@/lib/i18n/toast";
 import { Loader2, Pencil, Trash2, FileText } from "lucide-react";
 import { upsertBankAccountAction, toggleBankAccountActiveAction, deleteBankAccountAction, bulkDeleteBanksAction } from "@/app/actions/erp/bank-accounts";
 import { useSelection, SelectBox, BulkDeleteBar } from "@/components/erp/bulk-select";

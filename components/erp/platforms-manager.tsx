@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import { useT } from "@/lib/i18n/client";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { toast } from "sonner";
+import { toast } from "@/lib/i18n/toast";
 import { Plus, Loader2, Pencil, PlugZap, Settings, ExternalLink } from "lucide-react";
 import { createPlatformAction, togglePlatformActiveAction, provisionMarketplaceAction } from "@/app/actions/erp/platforms";
 import { Button } from "@/components/ui/button";

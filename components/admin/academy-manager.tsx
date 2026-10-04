@@ -2,7 +2,7 @@
 
 import { useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { toast } from "sonner";
+import { toast } from "@/lib/i18n/toast";
 import { Loader2, Plus, Trash2, Pencil, Eye, EyeOff, ArrowRight, ImagePlus } from "lucide-react";
 import { saveLessonAction, toggleLessonAction, deleteLessonAction } from "@/app/actions/admin/academy";
 import { uploadAcademyImageAction } from "@/app/actions/admin/academy-image";

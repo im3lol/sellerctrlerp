@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useT } from "@/lib/i18n/client";
 import { useState, useTransition, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
-import { toast } from "sonner";
+import { toast } from "@/lib/i18n/toast";
 import {
   DndContext, DragOverlay, KeyboardSensor, PointerSensor, useDraggable, useDroppable, useSensor, useSensors,
   type DragEndEvent,

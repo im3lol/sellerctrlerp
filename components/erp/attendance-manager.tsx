@@ -3,7 +3,7 @@
 import { useEffect, useState, useTransition } from "react";
 import { useT } from "@/lib/i18n/client";
 import { useRouter } from "next/navigation";
-import { toast } from "sonner";
+import { toast } from "@/lib/i18n/toast";
 import {
   getAttendanceMonthAction, saveAttendanceAction, deleteAttendanceAction, importAttendanceCsvAction,
 } from "@/app/actions/erp/attendance";

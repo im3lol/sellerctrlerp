@@ -4,7 +4,7 @@ import { useTransition } from "react";
 import { useT } from "@/lib/i18n/client";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "@/lib/i18n/toast";
 import { postLandedCostVoucherAction, deleteLandedCostVoucherAction, cancelLandedCostVoucherAction } from "@/app/actions/erp/landed-costs";
 import { deleteCancelledDocumentAction } from "@/app/actions/erp/doc-purge";
 import { confirmPurge } from "@/components/erp/purge-confirm";

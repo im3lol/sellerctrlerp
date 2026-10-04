@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useT } from "@/lib/i18n/client";
 import { useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { toast } from "sonner";
+import { toast } from "@/lib/i18n/toast";
 import { setQuotationStatusAction, deleteQuotationAction } from "@/app/actions/erp/quotations";
 import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/icon";

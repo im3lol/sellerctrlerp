@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { toast } from "sonner";
+import { toast } from "@/lib/i18n/toast";
 import { Loader2, Lightbulb, TriangleAlert } from "lucide-react";
 import { replyFeedbackAction } from "@/app/actions/admin/feedback";
 import { Button } from "@/components/ui/button";

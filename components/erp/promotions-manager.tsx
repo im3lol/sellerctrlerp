@@ -3,7 +3,7 @@
 import { useMemo, useState, useTransition } from "react";
 import { useT } from "@/lib/i18n/client";
 import type { T } from "@/lib/i18n";
-import { toast } from "sonner";
+import { toast } from "@/lib/i18n/toast";
 import { useRouter } from "next/navigation";
 import {
   savePromotionAction, deletePromotionAction, saveLoyaltySettingsAction,

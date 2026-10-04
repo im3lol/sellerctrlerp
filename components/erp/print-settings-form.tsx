@@ -4,7 +4,7 @@ import { useActionState, useEffect, useMemo, useRef, useState } from "react";
 import { useT } from "@/lib/i18n/client";
 import { useFormStatus } from "react-dom";
 import { Loader2, ImagePlus, X } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "@/lib/i18n/toast";
 import { savePrintSettingsAction, uploadOrgLogoAction } from "@/app/actions/erp/settings";
 import { PRINT_DOC_REGISTRY, type PrintSettings } from "@/lib/erp/print-settings";
 import type { ActionState } from "@/lib/erp/action-auth";

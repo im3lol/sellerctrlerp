@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { toast } from "sonner";
+import { toast } from "@/lib/i18n/toast";
 import { Loader2, Copy } from "lucide-react";
 import { saveXpaySettingsAction } from "@/app/actions/admin/platform-settings";
 import { Button } from "@/components/ui/button";

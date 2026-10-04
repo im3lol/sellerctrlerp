@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { useT } from "@/lib/i18n/client";
 import { useRouter } from "next/navigation";
-import { toast } from "sonner";
+import { toast } from "@/lib/i18n/toast";
 import { Loader2, FileText, CheckCircle2, Truck, ReceiptText } from "lucide-react";
 import { updatePlatformAction } from "@/app/actions/erp/platforms";
 import { setAutoSyncAction } from "@/app/actions/erp/marketplace-connect";

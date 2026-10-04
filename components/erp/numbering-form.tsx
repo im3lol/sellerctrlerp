@@ -4,7 +4,7 @@ import { useActionState, useEffect, useState } from "react";
 import { useT } from "@/lib/i18n/client";
 import { useFormStatus } from "react-dom";
 import { Loader2 } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "@/lib/i18n/toast";
 import { saveDocumentPrefixesAction } from "@/app/actions/erp/numbering";
 import { DOC_TYPES } from "@/lib/erp/doc-types";
 import type { ActionState } from "@/lib/erp/action-auth";

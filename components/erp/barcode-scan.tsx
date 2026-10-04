@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useT } from "@/lib/i18n/client";
-import { toast } from "sonner";
+import { toast } from "@/lib/i18n/toast";
 import { scanItemAction, type ItemSearchResult } from "@/app/actions/erp/item-search";
 import { isNativeApp, scanBarcode } from "@/lib/native";
 import { Input } from "@/components/ui/input";

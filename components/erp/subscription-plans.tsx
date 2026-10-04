@@ -3,7 +3,7 @@
 import { useEffect, useState, useTransition } from "react";
 import { useT } from "@/lib/i18n/client";
 import { useRouter } from "next/navigation";
-import { toast } from "sonner";
+import { toast } from "@/lib/i18n/toast";
 import { Loader2, Check, Copy, MessageCircle, CreditCard } from "lucide-react";
 import { requestSubscriptionAction, startXpaySubscriptionAction } from "@/app/actions/erp/subscription";
 import { MODULE_LABELS } from "@/lib/erp/module-list";

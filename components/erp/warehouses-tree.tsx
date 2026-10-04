@@ -4,7 +4,7 @@ import { useActionState, useEffect, useMemo, useRef, useState, useTransition } f
 import { useT } from "@/lib/i18n/client";
 import { useFormStatus } from "react-dom";
 import { Pencil, Trash2, Plus, Loader2, Upload } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "@/lib/i18n/toast";
 import { saveWarehouseAction, deleteWarehouseAction, importWarehousesCsvAction } from "@/app/actions/erp/warehouses";
 import { exportWarehousesCsvAction } from "@/app/actions/erp/exports";
 import { ExportCsvButton } from "@/components/erp/export-csv-button";

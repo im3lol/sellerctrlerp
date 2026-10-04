@@ -4,7 +4,7 @@ import { useActionState, useEffect, useRef, useState } from "react";
 import { useT } from "@/lib/i18n/client";
 import { useFormStatus } from "react-dom";
 import { Loader2, ImagePlus, X } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "@/lib/i18n/toast";
 import { saveOrgProfileAction, saveAccountingConfigAction, uploadOrgLogoAction } from "@/app/actions/erp/settings";
 import { HIDEABLE_SECTIONS } from "@/components/app-shell/nav-config";
 import type { ActionState } from "@/lib/erp/action-auth";

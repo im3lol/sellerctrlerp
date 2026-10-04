@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useTransition } from "react";
 import { useT } from "@/lib/i18n/client";
-import { toast } from "sonner";
+import { toast } from "@/lib/i18n/toast";
 import { clockAction, getMyClockAction } from "@/app/actions/erp/attendance";
 import { formatDuration } from "@/lib/erp/attendance";
 import { Button } from "@/components/ui/button";

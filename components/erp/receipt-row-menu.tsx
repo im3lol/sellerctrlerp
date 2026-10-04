@@ -3,7 +3,7 @@
 import { useTransition } from "react";
 import { useT } from "@/lib/i18n/client";
 import { useRouter } from "next/navigation";
-import { toast } from "sonner";
+import { toast } from "@/lib/i18n/toast";
 import { confirmReceiptAction, deleteReceiptAction, convertReceiptToInvoiceAction } from "@/app/actions/erp/goods-receipts";
 import { DocumentActions, type DocAction } from "@/components/erp/document-actions";
 import { confirm } from "@/components/erp/confirm";

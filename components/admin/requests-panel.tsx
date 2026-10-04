@@ -2,7 +2,7 @@
 
 import { useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { toast } from "sonner";
+import { toast } from "@/lib/i18n/toast";
 import { Loader2 } from "lucide-react";
 import { approveRequestAction, rejectRequestAction } from "@/app/actions/admin/subscription-requests";
 import { Button } from "@/components/ui/button";

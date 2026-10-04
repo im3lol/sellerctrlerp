@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useT } from "@/lib/i18n/client";
-import { toast } from "sonner";
+import { toast } from "@/lib/i18n/toast";
 import {
   getMyShiftAction, openShiftAction, ringSaleAction, closeShiftAction, type ShiftState,
 } from "@/app/actions/erp/pos";

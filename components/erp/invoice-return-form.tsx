@@ -4,7 +4,7 @@ import { useMemo, useState, useTransition } from "react";
 import { useT } from "@/lib/i18n/client";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "@/lib/i18n/toast";
 import { createSalesReturnAction, createDeliveryReturnAction } from "@/app/actions/erp/sales-returns";
 import { createPurchaseReturnAction, createReceiptReturnAction } from "@/app/actions/erp/purchase-returns";
 import { Button } from "@/components/ui/button";

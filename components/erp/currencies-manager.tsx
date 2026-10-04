@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { useT } from "@/lib/i18n/client";
 import { useRouter } from "next/navigation";
-import { toast } from "sonner";
+import { toast } from "@/lib/i18n/toast";
 import { Star, Plus, Power } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -74,7 +74,7 @@ function CurrencyDialog({ onClose }: { onClose: () => void }) {
         isBase,
         currentRate: currentRate ? Number(currentRate) : undefined,
       });
-      if (!res.ok) { setError(res.error); return; }
+      if (!res.ok) { setError(res.error ? t(res.error) : res.error); return; }
       toast.success("تمت إضافة العملة");
       onClose();
       router.refresh();
@@ -172,7 +172,7 @@ function RateDialog({ currencies, baseCurrency, onClose }: { currencies: Currenc
     setError(undefined);
     startTransition(async () => {
       const res = await upsertExchangeRateAction({ currencyCode: currCode, date, rate: Number(rate) });
-      if (!res.ok) { setError(res.error); return; }
+      if (!res.ok) { setError(res.error ? t(res.error) : res.error); return; }
       toast.success("تم حفظ سعر الصرف");
       onClose();
       router.refresh();
