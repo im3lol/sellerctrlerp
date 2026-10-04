@@ -52,3 +52,18 @@ describe("fill", () => {
     expect(fill("{0} و{2}", ["x"])).toBe("x و{2}");
   });
 });
+
+describe("sentences with values", () => {
+  const t = translator("en");
+  it("translates a message built around values by its slotted entry", () => {
+    expect(t("فاتورة بيع SI-2026-0005")).toBe("Sales invoice SI-2026-0005");
+    expect(t("سند قبض RV-2026-0001 — تحويل بنكي")).toBe("Receipt RV-2026-0001 — Bank transfer");
+  });
+  it("leaves names and unknown text alone", () => {
+    expect(t("شاحن سريع 65 واط")).toBe("شاحن سريع 65 واط");
+    expect(t("PO-2026-0001")).toBe("PO-2026-0001");
+  });
+  it("is a no-op in Arabic", () => {
+    expect(translator("ar")("فاتورة بيع SI-2026-0005")).toBe("فاتورة بيع SI-2026-0005");
+  });
+});
