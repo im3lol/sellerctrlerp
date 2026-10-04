@@ -110,7 +110,7 @@ function EditDialog({ lesson, preset, onClose }: { lesson: AdminLesson | null; p
               {LESSON_KINDS.map((k) => (
                 <button key={k} type="button" onClick={() => setKind(k)}
                   className={cn(
-                    "flex items-center gap-2.5 rounded-lg border p-3 text-right transition-colors",
+                    "flex items-center gap-2.5 rounded-lg border p-3 text-start transition-colors",
                     kind === k ? "border-primary bg-primary/5" : "border-border hover:bg-muted",
                   )}>
                   <Icon name={KIND_ICONS[k]} className="size-4 shrink-0 text-muted-foreground" />
@@ -344,10 +344,10 @@ export function AcademyManager({ lessons }: { lessons: AdminLesson[] }) {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="text-right">{t("العنوان")}</TableHead>
-                  <TableHead className="text-right">{t("الحالة")}</TableHead>
-                  <TableHead className="text-right">{t("المدة")}</TableHead>
-                  <TableHead className="text-right">{t("الترتيب")}</TableHead>
+                  <TableHead className="text-start">{t("العنوان")}</TableHead>
+                  <TableHead className="text-start">{t("الحالة")}</TableHead>
+                  <TableHead className="text-start">{t("المدة")}</TableHead>
+                  <TableHead className="text-start">{t("الترتيب")}</TableHead>
                   <TableHead className="w-28" />
                 </TableRow>
               </TableHeader>
@@ -424,7 +424,7 @@ export function AcademyManager({ lessons }: { lessons: AdminLesson[] }) {
             // noticed, and it's still clickable because that's where you'd add the
             // first lesson.
             className={cn(
-              "rounded-xl border border-border p-5 text-right transition-colors hover:bg-muted",
+              "rounded-xl border border-border p-5 text-start transition-colors hover:bg-muted",
               c.total === 0 && "border-dashed",
             )}>
             <div className="flex items-start justify-between">

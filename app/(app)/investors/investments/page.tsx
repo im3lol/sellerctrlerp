@@ -48,7 +48,7 @@ export default async function InvestmentsPage() {
               <p className="py-12 text-center text-sm text-muted-foreground">{t("لا توجد مساهمات بعد.")}</p>
             ) : (
               <table className="w-full text-sm">
-                <thead className="border-b bg-muted/40 text-right">
+                <thead className="border-b bg-muted/40 text-start">
                   <tr>
                     <th className="p-3 font-medium">{t("التاريخ")}</th>
                     <th className="p-3 font-medium">{t("المستثمر")}</th>

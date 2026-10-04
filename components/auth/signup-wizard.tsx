@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { fill, type Locale } from "@/lib/i18n";
+import { useLocale, useT } from "@/lib/i18n/client";
 import Link from "next/link";
 import { toast } from "@/lib/i18n/toast";
 import { Loader2, Check, ArrowLeft, ArrowRight, Copy } from "lucide-react";
@@ -16,7 +18,7 @@ import { TRIAL_DAYS } from "@/lib/erp/trial";
 
 export type PlanCard = { id: string; name: string; priceMonthly: number; priceAnnual: number; maxUsers: number | null; storageGb: number | null; modules: string[] };
 
-const egp = (n: number) => n.toLocaleString("ar-EG");
+const egp = (n: number, locale: Locale) => n.toLocaleString(locale === "en" ? "en-US" : "ar-EG");
 const STEPS = ["بيانات الشركة", "الوحدات", "الباقة والتجربة"];
 
 /** Acquisition source: this URL's utm/ref param first, else the first-touch `sc_src`
@@ -32,6 +34,8 @@ function detectSource(): string | undefined {
 }
 
 export function SignupWizard({ plans }: { plans: PlanCard[] }) {
+  const t = useT();
+  const locale = useLocale();
   const [step, setStep] = useState(0);
   const [pending, start] = useTransition();
 
@@ -87,7 +91,7 @@ export function SignupWizard({ plans }: { plans: PlanCard[] }) {
             <div className={cn("grid size-8 place-items-center rounded-full text-sm font-bold transition-colors", i < step ? "bg-primary text-primary-foreground" : i === step ? "bg-primary text-primary-foreground ring-4 ring-primary/20" : "bg-muted text-muted-foreground")}>
               {i < step ? <Check className="size-4" /> : i + 1}
             </div>
-            <span className={cn("hidden text-sm sm:block", i === step ? "font-semibold" : "text-muted-foreground")}>{label}</span>
+            <span className={cn("hidden text-sm sm:block", i === step ? "font-semibold" : "text-muted-foreground")}>{t(label)}</span>
             {i < STEPS.length - 1 && <span className="mx-1 h-px w-6 bg-border" />}
           </div>
         ))}
@@ -96,18 +100,18 @@ export function SignupWizard({ plans }: { plans: PlanCard[] }) {
       {step === 0 && (
         <div className="space-y-4">
           <div className="text-center">
-            <h1 className="text-xl font-bold">أنشئ حساب شركتك</h1>
-            <p className="text-sm text-muted-foreground">ابدأ تجربتك المجانية {TRIAL_DAYS} يوماً — بدون بطاقة ائتمان.</p>
+            <h1 className="text-xl font-bold">{t("أنشئ حساب شركتك")}</h1>
+            <p className="text-sm text-muted-foreground">{t("ابدأ تجربتك المجانية")} {TRIAL_DAYS} {t("يوماً — بدون بطاقة ائتمان.")}</p>
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
-            <div className="space-y-1.5 sm:col-span-2"><Label htmlFor="su-company">اسم الشركة *</Label><Input id="su-company" autoComplete="organization" value={companyName} onChange={(e) => setCompanyName(e.target.value)} placeholder="شركتك" /></div>
-            <div className="space-y-1.5"><Label htmlFor="su-name">اسم المسؤول *</Label><Input id="su-name" autoComplete="name" value={personName} onChange={(e) => setPersonName(e.target.value)} placeholder="الاسم الكامل" /></div>
-            <div className="space-y-1.5"><Label htmlFor="su-email">البريد الإلكتروني *</Label><Input id="su-email" autoComplete="email" type="email" dir="ltr" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@company.com" /></div>
-            <div className="space-y-1.5"><Label htmlFor="su-phone">رقم الهاتف</Label><Input id="su-phone" autoComplete="tel" dir="ltr" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="01xxxxxxxxx" /></div>
-            <div className="space-y-1.5"><Label htmlFor="su-tax">الرقم الضريبي</Label><Input id="su-tax" value={taxNumber} onChange={(e) => setTaxNumber(e.target.value)} placeholder="اختياري" /></div>
-            <div className="space-y-1.5 sm:col-span-2"><Label htmlFor="su-address">العنوان</Label><Input id="su-address" autoComplete="street-address" value={address} onChange={(e) => setAddress(e.target.value)} placeholder="اختياري" /></div>
-            <div className="space-y-1.5"><Label htmlFor="su-password">كلمة المرور *</Label><Input id="su-password" autoComplete="new-password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder={PASSWORD_RULE_AR} /></div>
-            <div className="space-y-1.5"><Label htmlFor="su-confirm">تأكيد كلمة المرور *</Label><Input id="su-confirm" autoComplete="new-password" type="password" value={confirm} onChange={(e) => setConfirm(e.target.value)} /></div>
+            <div className="space-y-1.5 sm:col-span-2"><Label htmlFor="su-company">{t("اسم الشركة *")}</Label><Input id="su-company" autoComplete="organization" value={companyName} onChange={(e) => setCompanyName(e.target.value)} placeholder={t("شركتك")} /></div>
+            <div className="space-y-1.5"><Label htmlFor="su-name">{t("اسم المسؤول *")}</Label><Input id="su-name" autoComplete="name" value={personName} onChange={(e) => setPersonName(e.target.value)} placeholder={t("الاسم الكامل")} /></div>
+            <div className="space-y-1.5"><Label htmlFor="su-email">{t("البريد الإلكتروني *")}</Label><Input id="su-email" autoComplete="email" type="email" dir="ltr" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@company.com" /></div>
+            <div className="space-y-1.5"><Label htmlFor="su-phone">{t("رقم الهاتف")}</Label><Input id="su-phone" autoComplete="tel" dir="ltr" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="01xxxxxxxxx" /></div>
+            <div className="space-y-1.5"><Label htmlFor="su-tax">{t("الرقم الضريبي")}</Label><Input id="su-tax" value={taxNumber} onChange={(e) => setTaxNumber(e.target.value)} placeholder={t("اختياري")} /></div>
+            <div className="space-y-1.5 sm:col-span-2"><Label htmlFor="su-address">{t("العنوان")}</Label><Input id="su-address" autoComplete="street-address" value={address} onChange={(e) => setAddress(e.target.value)} placeholder={t("اختياري")} /></div>
+            <div className="space-y-1.5"><Label htmlFor="su-password">{t("كلمة المرور *")}</Label><Input id="su-password" autoComplete="new-password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder={PASSWORD_RULE_AR} /></div>
+            <div className="space-y-1.5"><Label htmlFor="su-confirm">{t("تأكيد كلمة المرور *")}</Label><Input id="su-confirm" autoComplete="new-password" type="password" value={confirm} onChange={(e) => setConfirm(e.target.value)} /></div>
           </div>
         </div>
       )}
@@ -115,15 +119,15 @@ export function SignupWizard({ plans }: { plans: PlanCard[] }) {
       {step === 1 && (
         <div className="space-y-4">
           <div className="text-center">
-            <h1 className="text-xl font-bold">اختر الوحدات المطلوبة</h1>
-            <p className="text-sm text-muted-foreground">فعّل ما تحتاجه — يمكنك تغييرها لاحقاً. كلها متاحة خلال التجربة.</p>
+            <h1 className="text-xl font-bold">{t("اختر الوحدات المطلوبة")}</h1>
+            <p className="text-sm text-muted-foreground">{t("فعّل ما تحتاجه — يمكنك تغييرها لاحقاً. كلها متاحة خلال التجربة.")}</p>
           </div>
           <div className="grid gap-2 sm:grid-cols-2">
             {ALL_MODULES.map((m) => {
               const on = modules.includes(m);
               return (
                 <button type="button" key={m} onClick={() => toggle(m)} className={cn("flex items-center justify-between rounded-xl border p-3 text-start transition-colors", on ? "border-primary bg-primary/5" : "hover:bg-accent")}>
-                  <span className="text-sm font-medium">{MODULE_LABELS[m] ?? m}</span>
+                  <span className="text-sm font-medium">{t(MODULE_LABELS[m] ?? m)}</span>
                   <span className={cn("grid size-5 place-items-center rounded-full border", on ? "border-primary bg-primary text-primary-foreground" : "border-muted-foreground/30")}>{on && <Check className="size-3" />}</span>
                 </button>
               );
@@ -135,8 +139,8 @@ export function SignupWizard({ plans }: { plans: PlanCard[] }) {
       {step === 2 && (
         <div className="space-y-4">
           <div className="text-center">
-            <h1 className="text-xl font-bold">اختر باقتك أو ابدأ بالتجربة</h1>
-            <p className="text-sm text-muted-foreground">اشترك الآن في باقة، أو ابدأ بتجربة مجانية {TRIAL_DAYS} يوماً وقرّر لاحقاً.</p>
+            <h1 className="text-xl font-bold">{t("اختر باقتك أو ابدأ بالتجربة")}</h1>
+            <p className="text-sm text-muted-foreground">{fill(t("اشترك الآن في باقة، أو ابدأ بتجربة مجانية {0} يوماً وقرّر لاحقاً."), [TRIAL_DAYS])}</p>
           </div>
 
           {plans.length > 0 && (
@@ -147,10 +151,10 @@ export function SignupWizard({ plans }: { plans: PlanCard[] }) {
                   <button type="button" key={p.id} onClick={() => setPlanId(on ? null : p.id)}
                     className={cn("rounded-xl border bg-card p-4 text-center transition-colors", on ? "border-primary ring-2 ring-primary/30" : "hover:border-primary/50")}>
                     <div className="font-bold">{p.name}</div>
-                    <div className="mt-1 text-lg font-black tabular-nums">{p.priceMonthly > 0 ? `${egp(p.priceMonthly)} ج.م` : "مجاناً"}</div>
-                    <div className="text-[11px] text-muted-foreground">{p.priceMonthly > 0 ? "/ شهر" : ""}</div>
-                    <div className="mt-2 text-[11px] text-muted-foreground">{p.maxUsers == null ? "مستخدمون بلا حد" : `${egp(p.maxUsers)} مستخدم`} · {p.storageGb == null ? "تخزين بلا حد" : `${egp(p.storageGb)} جيجا تخزين`}</div>
-                    {on && <div className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-primary"><Check className="size-3" />مختارة</div>}
+                    <div className="mt-1 text-lg font-black tabular-nums">{p.priceMonthly > 0 ? `${egp(p.priceMonthly, locale)} ${t("ج.م")}` : t("مجاناً")}</div>
+                    <div className="text-[11px] text-muted-foreground">{p.priceMonthly > 0 ? t("/ شهر") : ""}</div>
+                    <div className="mt-2 text-[11px] text-muted-foreground">{p.maxUsers == null ? t("مستخدمون بلا حد") : fill(t("{0} مستخدم"), [egp(p.maxUsers, locale)])} · {p.storageGb == null ? t("تخزين بلا حد") : fill(t("{0} جيجا تخزين"), [egp(p.storageGb, locale)])}</div>
+                    {on && <div className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-primary"><Check className="size-3" />{t("مختارة")}</div>}
                   </button>
                 );
               })}
@@ -160,24 +164,24 @@ export function SignupWizard({ plans }: { plans: PlanCard[] }) {
           {selectedPlan ? (
             <div className="space-y-3 rounded-xl border p-4">
               <div className="flex items-center justify-between">
-                <span className="font-semibold">الاشتراك في باقة {selectedPlan.name}</span>
-                <button type="button" onClick={() => setPlanId(null)} className="text-xs text-muted-foreground hover:underline">أو ابدأ بتجربة مجانية</button>
+                <span className="font-semibold">{t("الاشتراك في باقة")} {selectedPlan.name}</span>
+                <button type="button" onClick={() => setPlanId(null)} className="text-xs text-muted-foreground hover:underline">{t("أو ابدأ بتجربة مجانية")}</button>
               </div>
               <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1.5"><Label htmlFor="su-interval">الدورة</Label>
+                <div className="space-y-1.5"><Label htmlFor="su-interval">{t("الدورة")}</Label>
                   <select id="su-interval" className={selectCls} value={interval} onChange={(e) => setInterval(e.target.value as "MONTHLY" | "ANNUAL")}>
-                    <option value="MONTHLY">شهري — {egp(selectedPlan.priceMonthly)} ج.م</option>
-                    <option value="ANNUAL">سنوي — {egp(selectedPlan.priceAnnual)} ج.م</option>
+                    <option value="MONTHLY">{t("شهري —")} {egp(selectedPlan.priceMonthly, locale)} {t("ج.م")}</option>
+                    <option value="ANNUAL">{t("سنوي —")} {egp(selectedPlan.priceAnnual, locale)} {t("ج.م")}</option>
                   </select>
                 </div>
-                <div className="space-y-1.5"><Label htmlFor="su-paymethod">طريقة الدفع</Label>
+                <div className="space-y-1.5"><Label htmlFor="su-paymethod">{t("طريقة الدفع")}</Label>
                   <select id="su-paymethod" className={selectCls} value={payMethod} onChange={(e) => setPayMethod(e.target.value)}>
-                    {PAYMENT_METHODS.filter((m) => m.enabled && m.key !== "XPAY").map((m) => <option key={m.key} value={m.key}>{m.label}</option>)}
+                    {PAYMENT_METHODS.filter((m) => m.enabled && m.key !== "XPAY").map((m) => <option key={m.key} value={m.key}>{t(m.label)}</option>)}
                   </select>
                 </div>
               </div>
               <div className="rounded-lg border bg-muted/30 p-3 text-sm">
-                <div className="mb-1 font-medium">المبلغ: {egp(planPrice)} ج.م</div>
+                <div className="mb-1 font-medium">{t("المبلغ:")} {egp(planPrice, locale)} {t("ج.م")}</div>
                 <p className="text-muted-foreground">{chosenMethod.detail}</p>
                 {(payMethod === "INSTAPAY" || payMethod === "VODAFONE") && (
                   <button type="button" onClick={() => { navigator.clipboard?.writeText(WALLET_NUMBER); toast.success("تم نسخ الرقم"); }}
@@ -187,14 +191,14 @@ export function SignupWizard({ plans }: { plans: PlanCard[] }) {
                 )}
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="su-payref">رقم/مرجع عملية الدفع <span className="text-muted-foreground">(اختياري)</span></Label>
-                <Input id="su-payref" value={payReference} onChange={(e) => setPayReference(e.target.value)} placeholder="رقم التحويل من إنستا باي أو البنك" />
+                <Label htmlFor="su-payref">{t("رقم/مرجع عملية الدفع")} <span className="text-muted-foreground">{t("(اختياري)")}</span></Label>
+                <Input id="su-payref" value={payReference} onChange={(e) => setPayReference(e.target.value)} placeholder={t("رقم التحويل من إنستا باي أو البنك")} />
               </div>
-              <p className="text-xs text-muted-foreground">تبدأ التجربة فوراً، ويُفعّل اشتراكك بعد مراجعة الدفع.</p>
+              <p className="text-xs text-muted-foreground">{t("تبدأ التجربة فوراً، ويُفعّل اشتراكك بعد مراجعة الدفع.")}</p>
             </div>
           ) : (
             <div className="rounded-xl border border-primary/30 bg-primary/5 p-4 text-center text-sm">
-              تبدأ بـ <b>تجربة مجانية {TRIAL_DAYS} يوماً</b> بكل الوحدات المختارة. لن تُطالب بأي دفع الآن.
+              {t("تبدأ بـ")} <b>{fill(t("تجربة مجانية {0} يوماً"), [TRIAL_DAYS])}</b> {t("بكل الوحدات المختارة. لن تُطالب بأي دفع الآن.")}
             </div>
           )}
         </div>
@@ -203,23 +207,23 @@ export function SignupWizard({ plans }: { plans: PlanCard[] }) {
       {/* Controls */}
       <div className="mt-8 flex items-center justify-between gap-3">
         <Button variant="ghost" disabled={step === 0 || pending} onClick={() => setStep((s) => Math.max(0, s - 1))}>
-          <ArrowRight className="size-4" /> رجوع
+          <ArrowRight className="size-4" /> {t("رجوع")}
         </Button>
         {step < 2 ? (
-          <Button onClick={next} disabled={pending}>التالي <ArrowLeft className="size-4" /></Button>
+          <Button onClick={next} disabled={pending}>{t("التالي")} <ArrowLeft className="size-4" /></Button>
         ) : selectedPlan ? (
           <Button onClick={() => submit(true)} disabled={pending}>
-            {pending && <Loader2 className="size-4 animate-spin" />}اشترك الآن — {egp(planPrice)} ج.م
+            {pending && <Loader2 className="size-4 animate-spin" />}{t("اشترك الآن —")} {egp(planPrice, locale)} {t("ج.م")}
           </Button>
         ) : (
           <Button onClick={() => submit(false)} disabled={pending} className="bg-brand-yellow text-foreground hover:bg-brand-yellow/90">
-            {pending && <Loader2 className="size-4 animate-spin" />}ابدأ التجربة المجانية
+            {pending && <Loader2 className="size-4 animate-spin" />}{t("ابدأ التجربة المجانية")}
           </Button>
         )}
       </div>
 
       <p className="mt-6 text-center text-sm text-muted-foreground">
-        لديك حساب بالفعل؟ <Link href="/login" className="font-medium text-primary hover:underline">تسجيل الدخول</Link>
+        {t("لديك حساب بالفعل؟")} <Link href="/login" className="font-medium text-primary hover:underline">{t("تسجيل الدخول")}</Link>
       </p>
     </div>
   );

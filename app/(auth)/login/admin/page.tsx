@@ -1,10 +1,12 @@
 import { AuthShell } from "@/components/auth/auth-shell";
+import { getT } from "@/lib/i18n/server";
 import { LoginForm } from "@/components/auth/login-form";
 
-export default function AdminLoginPage() {
+export default async function AdminLoginPage() {
+  const t = await getT();
   return (
     <AuthShell
-      heading="إدارة النظام بالكامل"
+      heading={t("إدارة النظام بالكامل")}
       text="صلاحيات كاملة لإدارة الفرق والعملاء والمنتجات والتوزيع ومتابعة الأداء واتخاذ القرار."
       points={[
         "إدارة الموظفين والشركاء والصلاحيات",
@@ -14,8 +16,8 @@ export default function AdminLoginPage() {
     >
       <LoginForm
         callbackUrl="/admin"
-        title="دخول الإدارة"
-        subtitle="لوحة تحكم مدير النظام ومدير العمليات"
+        title={t("دخول الإدارة")}
+        subtitle={t("لوحة تحكم مدير النظام ومدير العمليات")}
         welcome="🔐 منطقة الإدارة — صلاحيات كاملة لإدارة النظام والفرق والعملاء."
       />
     </AuthShell>

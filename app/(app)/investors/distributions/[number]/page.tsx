@@ -71,7 +71,7 @@ export default async function DistributionDetailPage({ params }: { params: Promi
           <CardHeader><CardTitle className="text-base">{t("حصص المستثمرين")}</CardTitle></CardHeader>
           <CardContent className="p-0">
             <table className="w-full text-sm">
-              <thead className="border-b bg-muted/40 text-right">
+              <thead className="border-b bg-muted/40 text-start">
                 <tr>
                   <th className="p-3 font-medium">{t("المستثمر")}</th>
                   <th className="p-3 font-medium">{t("نسبة الملكية")}</th>

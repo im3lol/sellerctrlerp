@@ -44,7 +44,7 @@ export function FeedbackForm() {
             {KINDS.map((k) => (
               <button key={k.value} type="button" onClick={() => setKind(k.value)}
                 className={cn(
-                  "rounded-lg border p-3 text-right transition-colors",
+                  "rounded-lg border p-3 text-start transition-colors",
                   kind === k.value ? "border-primary bg-primary/5" : "border-border hover:bg-muted",
                 )}>
                 <div className="text-sm font-medium">{t(k.label)}</div>

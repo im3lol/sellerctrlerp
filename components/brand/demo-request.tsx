@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useT } from "@/lib/i18n/client";
 import { MessageCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -37,6 +38,7 @@ type BtnProps = {
  * We then send the demo link back manually.
  */
 export function DemoRequestButton({ label = "اطلب ديمو", size, variant, className }: BtnProps) {
+  const t = useT();
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
@@ -69,65 +71,65 @@ export function DemoRequestButton({ label = "اطلب ديمو", size, variant, 
       <DialogTrigger asChild>
         <Button size={size} variant={variant} className={className}>
           <MessageCircle className="size-4" />
-          {label}
+          {t(label)}
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-h-[90vh] max-w-md overflow-y-auto text-right">
+      <DialogContent className="max-h-[90vh] max-w-md overflow-y-auto text-start">
         <DialogHeader>
-          <DialogTitle>اطلب نسخة تجريبية</DialogTitle>
-          <DialogDescription>سجّل بياناتك وهنبعتلك لينك الديمو على واتساب تجرّب النظام بنفسك.</DialogDescription>
+          <DialogTitle>{t("اطلب نسخة تجريبية")}</DialogTitle>
+          <DialogDescription>{t("سجّل بياناتك وهنبعتلك لينك الديمو على واتساب تجرّب النظام بنفسك.")}</DialogDescription>
         </DialogHeader>
         <form onSubmit={submit} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="dr-name">الاسم</Label>
-            <Input id="dr-name" value={name} onChange={(e) => setName(e.target.value)} placeholder="اسمك" required />
+            <Label htmlFor="dr-name">{t("الاسم")}</Label>
+            <Input id="dr-name" value={name} onChange={(e) => setName(e.target.value)} placeholder={t("اسمك")} required />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="dr-phone">رقم واتساب</Label>
+            <Label htmlFor="dr-phone">{t("رقم واتساب")}</Label>
             <Input id="dr-phone" value={phone} onChange={(e) => setPhone(e.target.value)} dir="ltr" inputMode="tel" placeholder="01xxxxxxxxx" required />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="dr-business">اسم النشاط / المتجر (اختياري)</Label>
-            <Input id="dr-business" value={business} onChange={(e) => setBusiness(e.target.value)} placeholder="مثال: متجر النخبة" />
+            <Label htmlFor="dr-business">{t("اسم النشاط / المتجر (اختياري)")}</Label>
+            <Input id="dr-business" value={business} onChange={(e) => setBusiness(e.target.value)} placeholder={t("مثال: متجر النخبة")} />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="dr-sells">بتبيع على إيه؟</Label>
+            <Label htmlFor="dr-sells">{t("بتبيع على إيه؟")}</Label>
             <select
               id="dr-sells"
               value={sells}
               onChange={(e) => setSells(e.target.value)}
               className="h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
             >
-              {SELLS_ON.map((s) => <option key={s} value={s}>{s}</option>)}
+              {SELLS_ON.map((s) => <option key={s} value={s}>{t(s)}</option>)}
             </select>
           </div>
           <div className="space-y-2">
-            <Label>الوحدات اللي مهتم بيها (اختياري)</Label>
+            <Label>{t("الوحدات اللي مهتم بيها (اختياري)")}</Label>
             <div className="grid grid-cols-2 gap-2">
               {MODULES.map((m) => (
                 <label key={m} className="flex cursor-pointer items-center gap-2 rounded-md border p-2 text-xs has-[:checked]:border-primary has-[:checked]:bg-primary/5">
                   <Checkbox checked={modules.includes(m)} onCheckedChange={() => toggleModule(m)} />
-                  <span>{m}</span>
+                  <span>{t(m)}</span>
                 </label>
               ))}
             </div>
           </div>
           <div className="space-y-2">
-            <Label htmlFor="dr-notes">ملاحظات (اختياري)</Label>
+            <Label htmlFor="dr-notes">{t("ملاحظات (اختياري)")}</Label>
             <Textarea
               id="dr-notes"
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               rows={3}
-              placeholder="مشاكل بتواجهك في نظامك الحالي، أو حاجات معيّنة بتدوّر عليها في النظام…"
+              placeholder={t("مشاكل بتواجهك في نظامك الحالي، أو حاجات معيّنة بتدوّر عليها في النظام…")}
             />
           </div>
           <Button type="submit" className="w-full" size="lg" disabled={!valid}>
             <MessageCircle className="size-4" />
-            أكمل على واتساب
+            {t("أكمل على واتساب")}
           </Button>
         </form>
-        <p className="text-center text-xs text-muted-foreground">أو راسلنا مباشرة على واتساب ‎+{WHATSAPP}</p>
+        <p className="text-center text-xs text-muted-foreground">{t("أو راسلنا مباشرة على واتساب ‎+")}{WHATSAPP}</p>
       </DialogContent>
     </Dialog>
   );

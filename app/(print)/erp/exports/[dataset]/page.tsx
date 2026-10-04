@@ -25,13 +25,13 @@ export default async function ExportPrintPage({ params }: { params: Promise<{ da
           <span className="text-sm text-gray-500">{t("اضغط «طباعة / حفظ PDF» ثم اختر «حفظ كـ PDF».")}</span>
           <PrintNowButton />
         </div>
-        <h1 className="mb-1 text-xl font-bold">{ds.title}</h1>
+        <h1 className="mb-1 text-xl font-bold">{t(ds.title)}</h1>
         <p className="mb-4 text-sm text-gray-500">{today} — {rows.length} {t("سجل")}</p>
         <table className="w-full border-collapse text-sm">
           <thead>
             <tr>
               {ds.headers.map((h, i) => (
-                <th key={i} className="border border-gray-300 bg-gray-100 px-2 py-1 text-right font-semibold">{h}</th>
+                <th key={i} className="border border-gray-300 bg-gray-100 px-2 py-1 text-start font-semibold">{t(h)}</th>
               ))}
             </tr>
           </thead>
@@ -39,7 +39,7 @@ export default async function ExportPrintPage({ params }: { params: Promise<{ da
             {rows.map((r, ri) => (
               <tr key={ri}>
                 {r.map((c, ci) => (
-                  <td key={ci} className="border border-gray-300 px-2 py-1 text-right">{cell(c)}</td>
+                  <td key={ci} className="border border-gray-300 px-2 py-1 text-start">{cell(c)}</td>
                 ))}
               </tr>
             ))}

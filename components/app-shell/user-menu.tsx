@@ -45,7 +45,7 @@ export function UserMenu({
             {initials}
           </AvatarFallback>
         </Avatar>
-        <div className="hidden text-right leading-tight md:block">
+        <div className="hidden text-start leading-tight md:block">
           <p className="text-sm font-semibold">{name}</p>
           {subtitle && <p className="text-xs text-muted-foreground">{subtitle}</p>}
         </div>

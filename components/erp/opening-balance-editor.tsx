@@ -152,7 +152,7 @@ function CsvImport({ kind, onAdd, amazonCode }: { kind: OpeningKind; onAdd: (row
             <div className="flex gap-2"><Button type="button" size="sm" variant="ghost" onClick={() => setPreview(null)}>{t("إلغاء")}</Button><Button type="button" size="sm" onClick={apply}>{t("إضافة الصالح")}</Button></div>
           </div>
           <div className="max-h-64 overflow-auto"><table className="w-full text-xs">
-            <thead className="text-right text-muted-foreground"><tr><th className="p-2">{t("الكود")}</th><th className="p-2">{t("المطابقة")}</th><th className="p-2">{t("القيمة")}</th><th className="p-2">{t("الحالة")}</th></tr></thead>
+            <thead className="text-start text-muted-foreground"><tr><th className="p-2">{t("الكود")}</th><th className="p-2">{t("المطابقة")}</th><th className="p-2">{t("القيمة")}</th><th className="p-2">{t("الحالة")}</th></tr></thead>
             <tbody>{preview.slice(0, 300).map((p, i) => (
               <tr key={i} className="border-t">
                 <td className="p-2 font-mono" dir="ltr">{p.code}</td><td className="p-2">{p.name ?? "—"}</td>
@@ -300,7 +300,7 @@ export function OpeningBalanceEditor({ posted, date: initialDate, initial, accou
           <Card><CardContent className="space-y-3 pt-6">
             <CsvImport kind="ACCOUNT" onAdd={mergeCsv} />
             <div className="overflow-x-auto"><table className="w-full min-w-[640px] text-sm">
-              <thead className="text-right text-xs text-muted-foreground"><tr>
+              <thead className="text-start text-xs text-muted-foreground"><tr>
                 <th className="p-2 font-medium">{t("الحساب")}</th><th className={cn("p-2 font-medium", numCell)}>{t("مدين")}</th><th className={cn("p-2 font-medium", numCell)}>{t("دائن")}</th><th className="w-10" />
               </tr></thead>
               <tbody>{byKind("ACCOUNT").slice(0, RENDER_CAP).map((r) => (
@@ -323,7 +323,7 @@ export function OpeningBalanceEditor({ posted, date: initialDate, initial, accou
             <CsvImport kind="CUSTOMER" onAdd={mergeCsv} />
             <p className="text-xs text-muted-foreground">{t("كل سطر = فاتورة مفتوحة بتاريخ استحقاقها — عشان تحليل الأعمار يطلع صح.")}</p>
             <div className="overflow-x-auto"><table className="w-full min-w-[720px] text-sm">
-              <thead className="text-right text-xs text-muted-foreground"><tr>
+              <thead className="text-start text-xs text-muted-foreground"><tr>
                 <th className="p-2 font-medium">{t("العميل")}</th><th className="p-2 font-medium w-32">{t("رقم الفاتورة")}</th><th className="p-2 font-medium w-40">{t("تاريخ الاستحقاق")}</th><th className={cn("p-2 font-medium", numCell)}>{t("المبلغ (مدين)")}</th><th className="w-10" />
               </tr></thead>
               <tbody>{byKind("CUSTOMER").slice(0, RENDER_CAP).map((r) => (
@@ -347,7 +347,7 @@ export function OpeningBalanceEditor({ posted, date: initialDate, initial, accou
             <CsvImport kind="SUPPLIER" onAdd={mergeCsv} />
             <p className="text-xs text-muted-foreground">{t("كل سطر = فاتورة مورّد مفتوحة بتاريخ استحقاقها.")}</p>
             <div className="overflow-x-auto"><table className="w-full min-w-[720px] text-sm">
-              <thead className="text-right text-xs text-muted-foreground"><tr>
+              <thead className="text-start text-xs text-muted-foreground"><tr>
                 <th className="p-2 font-medium">{t("المورّد")}</th><th className="p-2 font-medium w-32">{t("رقم الفاتورة")}</th><th className="p-2 font-medium w-40">{t("تاريخ الاستحقاق")}</th><th className={cn("p-2 font-medium", numCell)}>{t("المبلغ (دائن)")}</th><th className="w-10" />
               </tr></thead>
               <tbody>{byKind("SUPPLIER").slice(0, RENDER_CAP).map((r) => (
@@ -371,7 +371,7 @@ export function OpeningBalanceEditor({ posted, date: initialDate, initial, accou
             <CsvImport kind="ITEM" onAdd={mergeCsv} amazonCode={amazonCode} />
             {amazonCode && <p className="text-xs text-muted-foreground">{t("«استيراد المخزون من أمازون» يجلب كميات FBA الحالية للأصناف المربوطة. أدخل تكلفة الوحدة لكل صنف قبل الترحيل — أمازون لا يعرف تكلفة شرائك.")}</p>}
             <div className="overflow-x-auto"><table className="w-full min-w-[760px] text-sm">
-              <thead className="text-right text-xs text-muted-foreground"><tr>
+              <thead className="text-start text-xs text-muted-foreground"><tr>
                 <th className="p-2 font-medium">{t("الصنف")}</th><th className="p-2 font-medium w-44">{t("المخزن")}</th><th className="p-2 font-medium w-24">{t("الكمية")}</th><th className="p-2 font-medium w-32">{t("تكلفة الوحدة")}</th><th className="p-2 font-medium w-32">{t("القيمة")}</th><th className="w-10" />
               </tr></thead>
               <tbody>{byKind("ITEM").slice(0, RENDER_CAP).map((r) => (

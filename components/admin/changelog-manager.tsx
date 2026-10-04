@@ -137,11 +137,11 @@ export function ChangelogManager({ entries, today }: { entries: AdminEntry[]; to
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="text-right">{t("العنوان")}</TableHead>
-                <TableHead className="text-right">{t("النوع")}</TableHead>
-                <TableHead className="text-right">{t("الموديول")}</TableHead>
-                <TableHead className="text-right">{t("التاريخ")}</TableHead>
-                <TableHead className="text-right">{t("الحالة")}</TableHead>
+                <TableHead className="text-start">{t("العنوان")}</TableHead>
+                <TableHead className="text-start">{t("النوع")}</TableHead>
+                <TableHead className="text-start">{t("الموديول")}</TableHead>
+                <TableHead className="text-start">{t("التاريخ")}</TableHead>
+                <TableHead className="text-start">{t("الحالة")}</TableHead>
                 <TableHead className="w-28" />
               </TableRow>
             </TableHeader>

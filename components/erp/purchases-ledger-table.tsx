@@ -51,11 +51,11 @@ export function PurchasesLedgerTable({
       <table className="w-full text-sm">
         <thead className="bg-muted/50 text-muted-foreground text-xs">
           <tr>
-            <th className="px-3 py-2 text-right font-medium">{t("الرقم")}</th>
-            <th className="px-3 py-2 text-right font-medium">{t("التاريخ")}</th>
-            <th className="px-3 py-2 text-right font-medium">{t("المورد")}</th>
-            <th className="px-3 py-2 text-right font-medium">{t("النوع")}</th>
-            <th className="px-3 py-2 text-right font-medium">{t("الحالة")}</th>
+            <th className="px-3 py-2 text-start font-medium">{t("الرقم")}</th>
+            <th className="px-3 py-2 text-start font-medium">{t("التاريخ")}</th>
+            <th className="px-3 py-2 text-start font-medium">{t("المورد")}</th>
+            <th className="px-3 py-2 text-start font-medium">{t("النوع")}</th>
+            <th className="px-3 py-2 text-start font-medium">{t("الحالة")}</th>
             <th className="px-3 py-2 text-left font-medium">{t("الكلي")}</th>
             <th className="px-3 py-2 text-left font-medium">{t("المستلم")}</th>
             <th className="px-3 py-2 text-left font-medium">{t("المرفوض")}</th>
@@ -104,7 +104,7 @@ export function PurchasesLedgerTable({
         </tbody>
         <tfoot className="border-t-2 border-border bg-muted/40">
           <tr className="font-semibold text-sm">
-            <td colSpan={5} className="px-3 py-2.5 text-right text-muted-foreground">
+            <td colSpan={5} className="px-3 py-2.5 text-start text-muted-foreground">
               {t("الإجمالي الكلي")}
             </td>
             <td className="px-3 py-2.5 text-left tabular-nums">{fmtQty(totals.qtyTotal)}</td>
