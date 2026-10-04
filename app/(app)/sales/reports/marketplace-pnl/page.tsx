@@ -200,7 +200,7 @@ export default async function MarketplacePnlPage({ searchParams }: { searchParam
                             // The SKU is right there in the previous column — say what to do
                             // about it instead of just calling it unlinked.
                             <span className="text-amber-600" title={t("اربط الكود ده بصنف من صفحة الصنف ← الأكواد")}>
-                              صنف غير مربوط — اربط الكود بصنف
+                              {t("صنف غير مربوط — اربط الكود بصنف")}
                             </span>
                           )}
                         </TableCell>

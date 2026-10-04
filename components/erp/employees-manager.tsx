@@ -168,7 +168,7 @@ export function EmployeesManager({ members }: { members: Member[]; orgId: string
     <div className="space-y-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <p className="max-w-2xl text-sm text-muted-foreground">
-          كل عضو في المؤسسة يمكن إضافته كموظف بإعداد بيانات راتبه. أو أضف موظفاً على كشف الرواتب فقط دون حساب دخول للنظام.
+          {t("كل عضو في المؤسسة يمكن إضافته كموظف بإعداد بيانات راتبه. أو أضف موظفاً على كشف الرواتب فقط دون حساب دخول للنظام.")}
         </p>
         <Button onClick={addStandalone}><Plus className="me-1 size-4" />{t("موظف بدون حساب")}</Button>
       </div>

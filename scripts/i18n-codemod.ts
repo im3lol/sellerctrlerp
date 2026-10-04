@@ -59,6 +59,15 @@ for (const file of files) {
     return `>${lead}{t(${JSON.stringify(decoded)})}${trail}<`;
   });
 
+  // 2b) JSX text alone on its own line(s):  >\n      عربي\n    <  — same rules as above.
+  src = src.replace(/>(\s*\n[ \t]*)([^<>{}\n]*[؀-ۿ][^<>{}\n]*?)([ \t]*\n\s*)</g, (m, lead: string, text: string, trail: string) => {
+    const trimmed = text.trim();
+    if (!trimmed || trimmed.includes('"') || /\s\?\s.*:/.test(trimmed) || /^(\/\/|\*|\/\*)/.test(trimmed)) return m;
+    wrapped++;
+    const decoded = trimmed.replace(/&quot;/g, '"').replace(/&apos;/g, "'").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&");
+    return `>${lead}{t(${JSON.stringify(decoded)})}${trail}<`;
+  });
+
   // 3) ternary + fallback literals — only Arabic, only plain (no braces / interpolation).
   const LIT = `"([^"{}\\n$]*[\\u0600-\\u06FF][^"{}\\n$]*)"`;
   src = src.replace(new RegExp(`(\\?\\s*)${LIT}(?=\\s*:)`, "g"), (_m, lhs, text) => { wrapped++; return `${lhs}t(${JSON.stringify(text)})`; });
@@ -92,6 +101,8 @@ for (const file of files) {
       const end = i + 1 < fnStarts.length ? fnStarts[i + 1].index! : src.length;
       const body = src.slice(start, end);
       if (!/\bt\(/.test(body) || /const t = useT\(\)/.test(body)) continue;
+      // Hooks only belong in components and hooks — a helper gets `t` passed in by hand.
+      if (!/^(?:[A-Z]|use[A-Z])/.test(fnStarts[i][1])) { skipped.push(`${file}: ${fnStarts[i][1]}() uses t( but isn't a component — pass t in`); continue; }
       // Insert right after the function's opening brace (the first `{\n` after the signature).
       const open = body.indexOf(") {\n");
       if (open === -1) { skipped.push(`${file}: ${fnStarts[i][1]} — could not find the body start`); continue; }

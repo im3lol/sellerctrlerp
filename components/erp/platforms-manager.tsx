@@ -260,7 +260,7 @@ export function PlatformsManager({
 
       {platforms.length === 0 ? (
         <div className="rounded-xl border border-dashed py-16 text-center text-muted-foreground">
-          لا توجد منصات — أضف أمازون للبدء. نون وبقية المنصات قريبًا.
+          {t("لا توجد منصات — أضف أمازون للبدء. نون وبقية المنصات قريبًا.")}
         </div>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">

@@ -73,7 +73,7 @@ export default async function PurchasesLedgerPage({ searchParams }: { searchPara
           <CardHeader>
             <CardTitle>{t("دفتر المشتريات (Ledger)")}</CardTitle>
             <CardDescription>
-              حصر شامل لكل حركات المشتريات — أوامر الشراء، إذون الاستلام، فواتير الشراء، والمرتجعات — مع تفصيل السعر والشحن والخصم والضريبة والإجمالي. استخدم الفلاتر لحصر مورد أو نوع وثيقة أو فترة زمنية.
+              {t("حصر شامل لكل حركات المشتريات — أوامر الشراء، إذون الاستلام، فواتير الشراء، والمرتجعات — مع تفصيل السعر والشحن والخصم والضريبة والإجمالي. استخدم الفلاتر لحصر مورد أو نوع وثيقة أو فترة زمنية.")}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">

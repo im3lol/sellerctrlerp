@@ -107,7 +107,7 @@ export function ItemForm({ initial }: { initial?: ItemFormInitial }) {
               <Label>{t("الوزن بالكيلوجرام")} <span className="font-normal text-muted-foreground">{t("(يوزّع تكلفة الشحن)")}</span></Label>
               <Input type="number" step="0.001" min="0" value={weightKg} onChange={(e) => setWeightKg(e.target.value)} placeholder="0.500" dir="ltr" />
               <p className="text-xs text-muted-foreground">
-                اكتب وزن الشحن الفعلي. لو سِبته فاضي، الصنف ده مش هياخد نصيبه من مصاريف الشحن الموزّعة بالوزن.
+                {t("اكتب وزن الشحن الفعلي. لو سِبته فاضي، الصنف ده مش هياخد نصيبه من مصاريف الشحن الموزّعة بالوزن.")}
               </p>
             </div>
             <div className="space-y-2"><Label>{t("الأبعاد")}</Label><Input value={dimensions} onChange={(e) => setDimensions(e.target.value)} placeholder={t("10 × 5 × 3 سم")} /></div>

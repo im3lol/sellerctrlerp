@@ -62,13 +62,13 @@ export default async function LandedCostsPage({ searchParams }: { searchParams: 
           <CardHeader>
             <CardTitle>{t("مستندات تكاليف الاستيراد")}</CardTitle>
             <CardDescription>
-              فاتورة الشحن/الجمارك التي تصل بعد استلام البضاعة. الترحيل يرفع تكلفة المخزون المتاح، وما بِيع منه بالفعل يذهب إلى تكلفة المبيعات، والمقابل مستحق للمورّد.
+              {t("فاتورة الشحن/الجمارك التي تصل بعد استلام البضاعة. الترحيل يرفع تكلفة المخزون المتاح، وما بِيع منه بالفعل يذهب إلى تكلفة المبيعات، والمقابل مستحق للمورّد.")}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             {rows.length === 0 ? (
               <div className="rounded-xl border border-dashed py-12 text-center text-muted-foreground">
-                لا توجد مستندات بعد — أنشئ واحداً بعد استلام البضاعة ووصول فاتورة الشحن.
+                {t("لا توجد مستندات بعد — أنشئ واحداً بعد استلام البضاعة ووصول فاتورة الشحن.")}
               </div>
             ) : (
               <>

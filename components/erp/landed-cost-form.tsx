@@ -170,7 +170,7 @@ export function LandedCostForm({ suppliers, receipts }: { suppliers: Supplier[];
                 </Button>
                 {picked.length > 0 && (
                   <Button type="button" variant="ghost" size="sm" onClick={() => setPickedAll([])}>
-                    امسح الاختيار
+                    {t("امسح الاختيار")}
                   </Button>
                 )}
                 <span className="text-sm text-muted-foreground">محدَّد {picked.length}</span>

@@ -217,7 +217,7 @@ export function JournalEntryForm({
               ) : (
                 <>
                   <Button type="button" variant="outline" disabled={pending} onClick={() => submit("draft")}>
-                    حفظ كمسودة
+                    {t("حفظ كمسودة")}
                   </Button>
                   <Button type="button" disabled={pending || !totals.balanced} onClick={() => submit("post")}>
                     <Icon name="Check" className="size-4" />حفظ وترحيل

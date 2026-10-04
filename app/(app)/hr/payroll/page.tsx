@@ -27,7 +27,7 @@ export default async function PayrollPage() {
               href="/hr/payroll/new"
               className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
             >
-              + مسير جديد
+              {t("+ مسير جديد")}
             </Link>
           }
         />

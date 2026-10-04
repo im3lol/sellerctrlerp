@@ -68,7 +68,7 @@ function LogoField({ initial, disabled }: { initial: string | null; disabled: bo
           <img src={url} alt="" className="size-14 rounded-xl border object-contain" />
         ) : (
           <div className="flex size-14 items-center justify-center rounded-xl border border-dashed text-xs text-muted-foreground">
-            بدون
+            {t("بدون")}
           </div>
         )}
         <input ref={fileRef} type="file" accept="image/*" className="hidden"
@@ -85,7 +85,7 @@ function LogoField({ initial, disabled }: { initial: string | null; disabled: bo
         )}
       </div>
       <p className="text-xs text-muted-foreground">
-        يظهر في ترويسة كل مستند مطبوع. بدون شعار، بيظهر مربّع بأول حروف اسم الشركة. الحد 2MB.
+        {t("يظهر في ترويسة كل مستند مطبوع. بدون شعار، بيظهر مربّع بأول حروف اسم الشركة. الحد 2MB.")}
       </p>
     </div>
   );
@@ -148,7 +148,7 @@ export function SettingsForm({
                 <div className="space-y-3 rounded-md border bg-background p-3 sm:col-span-2">
                   <label className="flex cursor-pointer items-center gap-2 text-sm font-medium">
                     <input type="checkbox" name="apEnabled" className="size-4 rounded border-input" defaultChecked={profile.approvalPolicy.enabled} />
-                    اعتمادات المدير — المستند اللي فوق الحد يستنى موافقة حد عنده صلاحية «الاعتماد» قبل ما يتأكد
+                    {t("اعتمادات المدير — المستند اللي فوق الحد يستنى موافقة حد عنده صلاحية «الاعتماد» قبل ما يتأكد")}
                   </label>
                   <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                     <div className="space-y-1"><Label htmlFor="apPurchaseOrder">{t("أمر شراء فوق")}</Label><Input id="apPurchaseOrder" name="apPurchaseOrder" type="number" step="0.01" min="0" defaultValue={profile.approvalPolicy.purchaseOrder || ""} dir="ltr" placeholder={t("0 = بدون")} /></div>
@@ -158,7 +158,7 @@ export function SettingsForm({
                     <div className="space-y-1"><Label htmlFor="apSalesDiscountPct">{t("خصم على أمر بيع فوق (%)")}</Label><Input id="apSalesDiscountPct" name="apSalesDiscountPct" type="number" step="0.1" min="0" max="100" defaultValue={profile.approvalPolicy.salesDiscountPct || ""} dir="ltr" placeholder={t("0 = بدون")} /></div>
                     <label className="flex cursor-pointer items-center gap-2 self-end pb-2 text-sm">
                       <input type="checkbox" name="apSalesBelowCost" className="size-4 rounded border-input" defaultChecked={profile.approvalPolicy.salesBelowCost} />
-                      البيع بأقل من التكلفة
+                      {t("البيع بأقل من التكلفة")}
                     </label>
                   </div>
                   <p className="text-xs text-muted-foreground">
@@ -189,7 +189,7 @@ export function SettingsForm({
                 <div className="space-y-3 rounded-md border bg-background p-3 sm:col-span-2">
                   <label className="flex cursor-pointer items-center gap-2 text-sm font-medium">
                     <input type="checkbox" name="rmEnabled" className="size-4 rounded border-input" defaultChecked={profile.reminders.enabled} />
-                    فكّر العملاء بالفواتير المتأخرة بإيميل
+                    {t("فكّر العملاء بالفواتير المتأخرة بإيميل")}
                   </label>
                   <div className="space-y-1">
                     <Label htmlFor="rmStages">{t("بعد كام يوم من الاستحقاق (أرقام مفصولة بفاصلة)")}</Label>
@@ -227,7 +227,7 @@ export function SettingsForm({
                   <Label htmlFor="purchaseVatCapitalised">{t("ضريبة المشتريات")}</Label>
                   <label className="flex cursor-pointer items-center gap-2 rounded-md border bg-background px-3 py-2 text-sm">
                     <input id="purchaseVatCapitalised" name="purchaseVatCapitalised" type="checkbox" className="size-4 rounded border-input" defaultChecked={profile.purchaseVatCapitalised} />
-                    تُحمَّل على تكلفة البضاعة
+                    {t("تُحمَّل على تكلفة البضاعة")}
                   </label>
                   <p className="text-xs text-muted-foreground">
                     افتحه لو مش بتسترد الضريبة من المصلحة — الضريبة هتدخل في تكلفة المخزون بدل حساب «ضريبة المدخلات».

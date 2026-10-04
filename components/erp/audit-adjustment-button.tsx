@@ -24,7 +24,7 @@ export function AuditAdjustmentButton() {
         } else toast.error(r.error ?? t("تعذّر إنشاء التسوية"));
       })}>
       <Icon name="ClipboardCheck" className="size-4" />
-      إنشاء تسوية من الفروقات
+      {t("إنشاء تسوية من الفروقات")}
     </Button>
   );
 }

@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { getLocale, getT } from "@/lib/i18n/server";
 import { and, eq } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
@@ -21,6 +22,8 @@ type Params = { params: Promise<{ number: string }> };
  * customer paid.
  */
 export default async function PrintDeliveryNotePage({ params }: Params) {
+  const t = await getT();
+  const locale = await getLocale();
   const raw = decodeURIComponent((await params).number);
   return loadErpPage("sales.view", async ({ orgId }) => {
     const [dn] = await db
@@ -56,12 +59,12 @@ export default async function PrintDeliveryNotePage({ params }: Params) {
         org={org}
         hiddenColumns={hiddenFor("sales-delivery")}
         footerText={footerText}
-        title="إذن صرف"
+        title={t("إذن صرف")}
         number={dn.number}
-        watermark={dn.status === "DRAFT" ? "مسودة" : undefined}
+        watermark={dn.status === "DRAFT" ? t("مسودة") : undefined}
         backHref={`/sales/deliveries/${encodeURIComponent(raw)}`}
         meta={[
-          { label: "التاريخ", value: dt(dn.date) },
+          { label: "التاريخ", value: dt(dn.date, locale) },
           { label: "الحالة", value: STATUS[dn.status] ?? dn.status },
         ]}
         parties={[

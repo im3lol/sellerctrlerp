@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { getLocale, getT } from "@/lib/i18n/server";
 import { and, eq } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
@@ -26,6 +27,8 @@ type Params = { params: Promise<{ number: string }> };
  * columns, so «الإعدادات ← الطباعة» can switch them off for the copy that gets signed.
  */
 export default async function PrintGoodsReceiptPage({ params }: Params) {
+  const t = await getT();
+  const locale = await getLocale();
   const raw = decodeURIComponent((await params).number);
   return loadErpPage("purchases.view", async ({ orgId, can }) => {
     const canSeeCost = can("purchases.create") || can("accounting.view");
@@ -89,12 +92,12 @@ export default async function PrintGoodsReceiptPage({ params }: Params) {
         org={org}
         hiddenColumns={hiddenFor("purchase-receipt")}
         footerText={footerText}
-        title="إذن استلام"
+        title={t("إذن استلام")}
         number={grn.number}
-        watermark={grn.status === "DRAFT" ? "مسودة" : undefined}
+        watermark={grn.status === "DRAFT" ? t("مسودة") : undefined}
         backHref={`/purchases/receipts/${encodeURIComponent(raw)}`}
         meta={[
-          { label: "التاريخ", value: dt(grn.date) },
+          { label: "التاريخ", value: dt(grn.date, locale) },
           { label: "الحالة", value: STATUS[grn.status] ?? grn.status },
         ]}
         parties={[
@@ -131,7 +134,7 @@ export default async function PrintGoodsReceiptPage({ params }: Params) {
           </span>,
           ...(hasBatch ? [
             <span key="b" style={{ fontSize: 10.5, color: "#5b6478" }}>
-              {[l.batchNo, l.expiryDate ? dt(l.expiryDate) : null].filter(Boolean).join(" · ") || "—"}
+              {[l.batchNo, l.expiryDate ? dt(l.expiryDate, locale) : null].filter(Boolean).join(" · ") || "—"}
             </span>,
           ] : []),
           <b key="q">{qty(l.qty)}</b>,

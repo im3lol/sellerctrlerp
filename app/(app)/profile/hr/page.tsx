@@ -35,7 +35,7 @@ export default async function MyHrPage() {
         <Card>
           <CardContent className="pt-6">
             <p className="text-sm text-muted-foreground">
-              حسابك مش مربوط بملف موظف. اطلب من الموارد البشرية يربطوا حسابك بملفك عشان تشوف راتبك وإجازاتك هنا.
+              {t("حسابك مش مربوط بملف موظف. اطلب من الموارد البشرية يربطوا حسابك بملفك عشان تشوف راتبك وإجازاتك هنا.")}
             </p>
           </CardContent>
         </Card>
@@ -116,7 +116,7 @@ export default async function MyHrPage() {
                             href={`/erp/hr/payroll/${encodeURIComponent(s.runNumber)}/payslip/${d.employee!.id}/print`}
                             target="_blank" rel="noopener"
                           >
-                            طباعة
+                            {t("طباعة")}
                           </Link>
                         )}
                       </TableCell>

@@ -107,7 +107,7 @@ export function DashboardEditor({ dashboard, reports }: {
           <label className="flex cursor-pointer items-center gap-2 pb-2 text-sm">
             <input type="checkbox" className="size-4 rounded border-input" checked={isShared}
               onChange={(e) => setShared(e.target.checked)} />
-            شاركها مع باقي الفريق
+            {t("شاركها مع باقي الفريق")}
           </label>
         </div>
 
@@ -156,7 +156,7 @@ export function DashboardEditor({ dashboard, reports }: {
 
         {privateOnShared && (
           <p className="text-xs text-amber-700 dark:text-amber-400">
-            فيه تقارير خاصة بيك في اللوحة دي — مش هتظهر لزمايلك غير لما تشاركها من باني التقارير.
+            {t("فيه تقارير خاصة بيك في اللوحة دي — مش هتظهر لزمايلك غير لما تشاركها من باني التقارير.")}
           </p>
         )}
 

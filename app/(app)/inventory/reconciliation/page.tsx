@@ -75,7 +75,7 @@ export default async function InventoryReconciliationPage({ searchParams }: { se
 
         {!audit ? (
           <Card><CardContent className="py-12 text-center text-sm text-muted-foreground">
-            لا يوجد تدقيق بعد. شغّل «تدقيق المخزون» من صفحة منصّة أمازون.
+            {t("لا يوجد تدقيق بعد. شغّل «تدقيق المخزون» من صفحة منصّة أمازون.")}
           </CardContent></Card>
         ) : (
           <>

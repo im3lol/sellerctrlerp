@@ -69,7 +69,7 @@ export function DistributionForm({ suggestedProfit }: { suggestedProfit: number 
             </div>
           </div>
           <p className="text-xs text-muted-foreground">
-            تُحسب حصة كل مستثمر تلقائيًا من نسبة ملكيته (صافي رأس ماله)، بالقرش — ولا يُرحَّل أي قيد حتى تأكيد التوزيع.
+            {t("تُحسب حصة كل مستثمر تلقائيًا من نسبة ملكيته (صافي رأس ماله)، بالقرش — ولا يُرحَّل أي قيد حتى تأكيد التوزيع.")}
           </p>
           <div className="flex gap-2">
             <Button type="submit" size="sm" disabled={pending}>{t("إنشاء مسودة")}</Button>

@@ -1,4 +1,6 @@
 import { and, eq, gte, inArray, isNull, lte, sql } from "drizzle-orm";
+import { fill } from "@/lib/i18n";
+import { getLocale, getT } from "@/lib/i18n/server";
 import { loadErpPage } from "@/lib/erp/org";
 import { orgFiscalYearStartISO } from "@/lib/erp/fiscal";
 import { db } from "@/lib/db";
@@ -17,6 +19,8 @@ const POSTED = ["POSTED", "PARTIAL_PAID", "PAID"];
 const SALE_REFS = ["DELIVERY", "SALES_INVOICE", "SALES_RETURN"];
 
 export default async function PrintProfitabilityReportPage({ searchParams }: { searchParams: Promise<SP> }) {
+  const t = await getT();
+  const locale = await getLocale();
   return loadErpPage("reports.view", async ({ orgId }) => {
     const sp = await searchParams;
     const from = one(sp.from) || (await orgFiscalYearStartISO(orgId));
@@ -73,13 +77,13 @@ export default async function PrintProfitabilityReportPage({ searchParams }: { s
     const hasFees = tFees > 0;
 
     const kpis: ReportKpi[] = [
-      { label: "صافي الإيراد (بدون ضريبة)", value: money(tRevenue, currency) },
-      { label: "تكلفة البضاعة المباعة", value: money(tCogs, currency) },
-      { label: "الربح الإجمالي", value: money(tProfit, currency), tone: tProfit >= 0 ? "success" : "danger" },
+      { label: "صافي الإيراد (بدون ضريبة)", value: money(tRevenue, currency, locale) },
+      { label: "تكلفة البضاعة المباعة", value: money(tCogs, currency, locale) },
+      { label: "الربح الإجمالي", value: money(tProfit, currency, locale), tone: tProfit >= 0 ? "success" : "danger" },
       { label: "هامش الربح", value: pct(tMargin) },
       ...(hasFees ? [
-        { label: "رسوم أمازون الفعلية", value: money(tFees, currency) },
-        { label: "صافي الربح بعد الرسوم", value: money(tNet, currency), tone: (tNet >= 0 ? "success" : "danger") as ReportKpi["tone"] },
+        { label: "رسوم أمازون الفعلية", value: money(tFees, currency, locale) },
+        { label: "صافي الربح بعد الرسوم", value: money(tNet, currency, locale), tone: (tNet >= 0 ? "success" : "danger") as ReportKpi["tone"] },
       ] : []),
     ];
 
@@ -92,8 +96,8 @@ export default async function PrintProfitabilityReportPage({ searchParams }: { s
     return (
       <ReportSheet
         org={org}
-        title="ربحية المنتجات"
-        period={`من ${dt(from)} إلى ${dt(to)}`}
+        title={t("ربحية المنتجات")}
+        period={fill(t("من {0} إلى {1}"), [dt(from, locale), dt(to, locale)])}
         filters={search ? [{ label: "بحث", value: search }] : []}
         kpis={kpis}
         sections={[{
@@ -141,7 +145,7 @@ export default async function PrintProfitabilityReportPage({ searchParams }: { s
             { label: "رسوم أمازون/وحدة", align: "end" as const },
             { label: "سعر التعادل", align: "end" as const },
             { label: "الفرق", align: "end" as const },
-            { label: `السعر المقترح (${targetMargin}%)`, align: "end" as const },
+            { label: fill(t("السعر المقترح ({0}%)"), [targetMargin]), align: "end" as const },
           ],
           rows: list.map((r) => [
             <span key="n">
@@ -158,10 +162,10 @@ export default async function PrintProfitabilityReportPage({ searchParams }: { s
           ]),
         }]}
         note={list.length === 0
-          ? "لا توجد مبيعات في هذه الفترة."
-          : "التكلفة من إذون الصرف/الفواتير المرحّلة (قد تختلف توقيتاً عن الإيراد في دورة التسليم-ثم-الفوترة)."
+          ? t("لا توجد مبيعات في هذه الفترة.")
+          : t("التكلفة من إذون الصرف/الفواتير المرحّلة (قد تختلف توقيتاً عن الإيراد في دورة التسليم-ثم-الفوترة).")
             + " سعر التعادل = التكلفة الشاملة للقطعة + رسوم أمازون الفعلية."
-            + (missingFees > 0 ? ` ${missingFees} صنف لسه مافيش عليه تسوية أمازون — سعر تعادله ناقص الرسوم.` : "")}
+            + (missingFees > 0 ? fill(t(" {0} صنف لسه مافيش عليه تسوية أمازون — سعر تعادله ناقص الرسوم."), [missingFees]) : "")}
         backHref={`/sales/reports/profitability?${qs.toString()}`}
       />
     );

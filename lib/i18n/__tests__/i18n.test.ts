@@ -43,3 +43,12 @@ describe("i18n core", () => {
     }
   });
 });
+
+describe("fill", () => {
+  it("puts values into numbered slots, in whatever order the sentence needs", async () => {
+    const { fill } = await import("@/lib/i18n");
+    expect(fill("من {0} إلى {1}", ["1 يناير", "5 يناير"])).toBe("من 1 يناير إلى 5 يناير");
+    expect(fill("{1} back to {0}", ["a", "b"])).toBe("b back to a");
+    expect(fill("{0} و{2}", ["x"])).toBe("x و{2}");
+  });
+});

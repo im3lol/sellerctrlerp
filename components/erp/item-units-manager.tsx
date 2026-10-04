@@ -184,7 +184,7 @@ export function ItemUnitsManager({ itemId, canEdit }: { itemId: string; canEdit:
         )}
         {rows.some((r) => r.inUse) && (
           <p className="mt-3 text-xs text-muted-foreground">
-            الوحدات المقفولة اتسجّلت عليها مستندات — تعديل معاملها كان هيغيّر كميات محفوظة بأثر رجعي.
+            {t("الوحدات المقفولة اتسجّلت عليها مستندات — تعديل معاملها كان هيغيّر كميات محفوظة بأثر رجعي.")}
           </p>
         )}
       </CardContent>

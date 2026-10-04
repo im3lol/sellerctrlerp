@@ -84,7 +84,7 @@ export default async function PlatformReimbursementsPage({ params, searchParams 
 
         {rows.length === 0 ? (
           <Card><CardContent className="py-12 text-center text-sm text-muted-foreground">
-            لا توجد تعويضات بعد — تُسحب تلقائيًا يوميًا من أمازون بعد الربط.
+            {t("لا توجد تعويضات بعد — تُسحب تلقائيًا يوميًا من أمازون بعد الربط.")}
           </CardContent></Card>
         ) : (
           <>

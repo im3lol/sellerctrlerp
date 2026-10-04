@@ -264,7 +264,7 @@ export function CurrenciesManager({
         <CardContent>
           {currList.length === 0 ? (
             <div className="rounded-xl border border-dashed py-10 text-center text-muted-foreground text-sm">
-              لا توجد عملات — أضف العملة الأساسية أولًا (الجنيه المصري EGP).
+              {t("لا توجد عملات — أضف العملة الأساسية أولًا (الجنيه المصري EGP).")}
             </div>
           ) : (
             <div className="overflow-hidden rounded-xl border">
@@ -343,7 +343,7 @@ export function CurrenciesManager({
         <CardContent>
           {rates.length === 0 ? (
             <div className="rounded-xl border border-dashed py-10 text-center text-muted-foreground text-sm">
-              لا يوجد سجل أسعار — أضف سعر الصرف لكل عملة أجنبية.
+              {t("لا يوجد سجل أسعار — أضف سعر الصرف لكل عملة أجنبية.")}
             </div>
           ) : (
             <div className="overflow-hidden rounded-xl border">

@@ -1,4 +1,6 @@
 import { loadErpPage } from "@/lib/erp/org";
+import { fill } from "@/lib/i18n";
+import { getLocale, getT } from "@/lib/i18n/server";
 import { orgFiscalYearStartISO } from "@/lib/erp/fiscal";
 import { accountBalances, naturalAmount } from "@/lib/erp/financials";
 import { fmt, dt } from "@/lib/erp/print-format";
@@ -18,6 +20,8 @@ export default async function PrintIncomeStatementPage({
 }: {
   searchParams: Promise<{ from?: string; to?: string }>;
 }) {
+  const t = await getT();
+  const locale = await getLocale();
   return loadErpPage("reports.view", async ({ orgId }) => {
     const sp = await searchParams;
     const now = new Date();
@@ -50,8 +54,8 @@ export default async function PrintIncomeStatementPage({
     return (
       <ReportSheet
         org={org}
-        title="قائمة الدخل"
-        period={`من ${dt(from)} إلى ${dt(to)} — من القيود المُرحّلة`}
+        title={t("قائمة الدخل")}
+        period={fill(t("من {0} إلى {1} — من القيود المُرحّلة"), [dt(from, locale), dt(to, locale)])}
         backHref={`/reports/income-statement?${new URLSearchParams({ from, to }).toString()}`}
         kpis={[
           { label: "إجمالي الإيرادات", value: fmt(totalRevenue), tone: "success" },

@@ -55,7 +55,7 @@ export default async function BuyBoxPage({ params }: { params: Promise<{ code: s
 
         {rows.length === 0 ? (
           <p className="rounded-2xl border border-dashed p-8 text-center text-sm text-muted-foreground">
-            لسه مفيش قراءة — بتتحدّث لوحدها كل يوم، أو دوس «حدّث دلوقتي».
+            {t("لسه مفيش قراءة — بتتحدّث لوحدها كل يوم، أو دوس «حدّث دلوقتي».")}
           </p>
         ) : (
           <>

@@ -101,7 +101,7 @@ export function InvestorTxnForm({ kind, investors, cashAccounts }: {
                 <option value="capital">{t("سحب من رأس المال")}</option>
               </select>
               <p className="text-xs text-muted-foreground">
-                صرف الأرباح يُقفل المستحق فقط ولا يمسّ رأس المال. سحب رأس المال يقلّل حصة المستثمر ونسبة ملكيته.
+                {t("صرف الأرباح يُقفل المستحق فقط ولا يمسّ رأس المال. سحب رأس المال يقلّل حصة المستثمر ونسبة ملكيته.")}
               </p>
             </div>
           )}

@@ -185,7 +185,7 @@ export function GoodsReceiptForm({
         {lines.length > 0 && (
           <>
             <p className="text-xs text-muted-foreground">
-              تكاليف الشحن والجمارك تُسجَّل بعد الاستلام من «المشتريات ← تكاليف الاستيراد»، وتُوزَّع هناك على هذا الإذن.
+              {t("تكاليف الشحن والجمارك تُسجَّل بعد الاستلام من «المشتريات ← تكاليف الاستيراد»، وتُوزَّع هناك على هذا الإذن.")}
             </p>
             <div className="flex justify-end gap-6 text-sm">
               <div>{t("إجمالي المستلم:")} <span className="font-medium">{qtyf(totalReceived)}</span></div>

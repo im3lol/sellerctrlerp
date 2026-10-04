@@ -96,7 +96,7 @@ export function AttachmentsCard({ entityType, entityId, canManage }: { entityTyp
           {canManage && (
             <Button size="sm" variant="outline" onClick={() => fileRef.current?.click()} disabled={uploadPending}>
               <Icon name={uploadPending ? "Loader2" : "Paperclip"} className={`size-4 ${uploadPending ? "animate-spin" : ""}`} />
-              إرفاق ملف
+              {t("إرفاق ملف")}
             </Button>
           )}
         </div>

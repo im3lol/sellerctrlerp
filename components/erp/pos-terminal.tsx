@@ -232,7 +232,7 @@ export function PosTerminal({ warehouses, cashAccounts, customers, defaultCustom
         <CardHeader>
           <CardTitle>{t("افتح وردية")}</CardTitle>
           <CardDescription>
-            الوردية بتربط كل بيعة بالكاشير والدرج، وفي الآخر بتقارن اللي في الدرج باللي الدفاتر بتقوله.
+            {t("الوردية بتربط كل بيعة بالكاشير والدرج، وفي الآخر بتقارن اللي في الدرج باللي الدفاتر بتقوله.")}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -407,7 +407,7 @@ export function PosTerminal({ warehouses, cashAccounts, customers, defaultCustom
                       value={redeem} onChange={(e) => setRedeem(e.target.value)} />
                     <Button size="sm" variant="outline"
                       onClick={() => setRedeem(String(maxRedeemable(points, beforePoints, loyalty)))}>
-                      الأقصى
+                      {t("الأقصى")}
                     </Button>
                   </div>
                 )}
@@ -437,7 +437,7 @@ export function PosTerminal({ warehouses, cashAccounts, customers, defaultCustom
             {vatRate > 0 && (
               <label className="flex cursor-pointer items-center gap-2 text-sm">
                 <input type="checkbox" className="size-4 rounded border-input" checked={applyVat} onChange={(e) => setApplyVat(e.target.checked)} />
-                إضافة ضريبة القيمة المضافة
+                {t("إضافة ضريبة القيمة المضافة")}
               </label>
             )}
 
@@ -464,7 +464,7 @@ export function PosTerminal({ warehouses, cashAccounts, customers, defaultCustom
                   <Icon name="Plus" className="size-4" />طريقة تانية
                 </Button>
                 <Button size="sm" variant="ghost" onClick={() => setPayments((ps) => ps.map((x, k) => (k === 0 ? { ...x, amount: totals.total } : x)).slice(0, 1))}>
-                  المبلغ بالظبط
+                  {t("المبلغ بالظبط")}
                 </Button>
               </div>
             </div>
@@ -492,7 +492,7 @@ export function PosTerminal({ warehouses, cashAccounts, customers, defaultCustom
               <div>
                 <CardTitle>{t("بيعات لسه ما اترحّلتش")}</CardTitle>
                 <CardDescription>
-                  الفلوس اتاخدت والبضاعة مشيت. البيعة بتفضل هنا لحد ما تترحّل — ولا بتتشال لوحدها أبداً.
+                  {t("الفلوس اتاخدت والبضاعة مشيت. البيعة بتفضل هنا لحد ما تترحّل — ولا بتتشال لوحدها أبداً.")}
                 </CardDescription>
               </div>
               <Button size="sm" variant="outline" disabled={!q.online || q.syncing}
@@ -533,7 +533,7 @@ export function PosTerminal({ warehouses, cashAccounts, customers, defaultCustom
                         {x.status === "FAILED" && (
                           <div className="flex gap-1">
                             <Button size="sm" variant="outline" onClick={() => { q.retry(x.clientRef); void q.sync().then(() => load()); }}>
-                              أعِد المحاولة
+                              {t("أعِد المحاولة")}
                             </Button>
                             <Button size="sm" variant="ghost" aria-label={t("إلغاء")} onClick={() => void (async () => {
                               const go = await confirm({

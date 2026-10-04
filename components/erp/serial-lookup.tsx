@@ -68,7 +68,7 @@ export function SerialLookup() {
           <CardContent>
             {hits.length === 0 ? (
               <p className="text-sm text-muted-foreground">
-                الرقم ده مش مسجّل. لو القطعة اتستلمت من غير ما يتسجّل رقمها، هتلاقيها في المخزون بالكمية بس.
+                {t("الرقم ده مش مسجّل. لو القطعة اتستلمت من غير ما يتسجّل رقمها، هتلاقيها في المخزون بالكمية بس.")}
               </p>
             ) : (
               <div className="rounded-xl border overflow-x-auto">

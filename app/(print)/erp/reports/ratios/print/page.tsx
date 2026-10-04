@@ -1,4 +1,6 @@
 import { loadErpPage } from "@/lib/erp/org";
+import { fill } from "@/lib/i18n";
+import { getT } from "@/lib/i18n/server";
 import { accountBalances, naturalAmount } from "@/lib/erp/financials";
 import { resolveAccountCodes } from "@/lib/erp/accounting-config";
 import { fmt } from "@/lib/erp/print-format";
@@ -9,6 +11,7 @@ const ratio = (n: number) => (Number.isFinite(n) ? n.toFixed(2) : "—");
 const pctv = (n: number) => (Number.isFinite(n) ? `${(n * 100).toFixed(1)}%` : "—");
 
 export default async function PrintRatiosReportPage() {
+  const t = await getT();
   return loadErpPage("reports.view", async ({ orgId }) => {
     const [{ org }, balances] = await Promise.all([loadPrintHeader(orgId), accountBalances({ orgId })]);
 
@@ -57,7 +60,7 @@ export default async function PrintRatiosReportPage() {
     return (
       <ReportSheet
         org={org}
-        title="المؤشرات المالية"
+        title={t("المؤشرات المالية")}
         backHref="/reports/ratios"
         sections={[
           {
@@ -74,8 +77,8 @@ export default async function PrintRatiosReportPage() {
             title: "الربحية",
             columns,
             rows: [
-              row("هامش الربح الإجمالي", pctv(grossMargin), `إجمالي ${fmt(grossProfit)}`, grossProfit < 0),
-              row("هامش الربح الصافي", pctv(netMargin), `صافي ${fmt(netProfit)}`, netProfit < 0),
+              row("هامش الربح الإجمالي", pctv(grossMargin), fill(t("إجمالي {0}"), [fmt(grossProfit)]), grossProfit < 0),
+              row("هامش الربح الصافي", pctv(netMargin), fill(t("صافي {0}"), [fmt(netProfit)]), netProfit < 0),
               row("الإيراد", fmt(revenue)),
               row("المصروفات التشغيلية", fmt(opex)),
             ],
@@ -91,7 +94,7 @@ export default async function PrintRatiosReportPage() {
             ],
           },
         ]}
-        note="المؤشرات محسوبة من أرصدة الأستاذ الحالية؛ نسب النشاط (DSO/DPO/الدوران) تفترض الأرصدة الجارية معدّلاً سنوياً — للإرشاد لا للتقارير الرسمية."
+        note={t("المؤشرات محسوبة من أرصدة الأستاذ الحالية؛ نسب النشاط (DSO/DPO/الدوران) تفترض الأرصدة الجارية معدّلاً سنوياً — للإرشاد لا للتقارير الرسمية.")}
       />
     );
   });

@@ -39,7 +39,7 @@ export function PayrollRunsList({ runs }: { runs: Run[] }) {
         <FileText className="mx-auto mb-3 h-8 w-8 opacity-40" />
         <p className="text-sm">{t("لا توجد مسيرات رواتب بعد")}</p>
         <Link href="/hr/payroll/new" className="mt-2 inline-block text-sm text-primary hover:underline">
-          إنشاء أول مسير
+          {t("إنشاء أول مسير")}
         </Link>
       </div>
     );
@@ -83,7 +83,7 @@ export function PayrollRunsList({ runs }: { runs: Run[] }) {
                   href={`/hr/payroll/${encodeURIComponent(r.number)}`}
                   className="text-xs text-primary hover:underline"
                 >
-                  عرض
+                  {t("عرض")}
                 </Link>
               </td>
             </tr>

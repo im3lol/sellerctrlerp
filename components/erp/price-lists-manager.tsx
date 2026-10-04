@@ -132,12 +132,12 @@ export function PriceListsManager({
             <label className="flex cursor-pointer items-center gap-2 text-sm">
               <input type="checkbox" className="size-4 rounded border-input" checked={draft.isDefault}
                 onChange={(e) => setDraft({ ...draft, isDefault: e.target.checked })} />
-              القائمة الافتراضية للشركة
+              {t("القائمة الافتراضية للشركة")}
             </label>
             <label className="flex cursor-pointer items-center gap-2 text-sm">
               <input type="checkbox" className="size-4 rounded border-input" checked={draft.isActive}
                 onChange={(e) => setDraft({ ...draft, isActive: e.target.checked })} />
-              مفعّلة
+              {t("مفعّلة")}
             </label>
             <div className="ms-auto">
               <Button size="sm" variant="outline" onClick={addRow} disabled={pending}>
@@ -216,7 +216,7 @@ export function PriceListsManager({
       <CardContent>
         {lists.length === 0 ? (
           <p className="text-sm text-muted-foreground">
-            من غير قوائم، كل عميل بيشتري بسعر البيع المسجّل على الصنف. أنشئ قائمة جملة وقائمة تجزئة واربط كل عميل بواحدة.
+            {t("من غير قوائم، كل عميل بيشتري بسعر البيع المسجّل على الصنف. أنشئ قائمة جملة وقائمة تجزئة واربط كل عميل بواحدة.")}
           </p>
         ) : (
           <div className="rounded-xl border">

@@ -42,7 +42,7 @@ export function ReportField({ label, children }: { label: string; children: Reac
   );
 }
 
-export function ReportShell({
+export async function ReportShell({
   /** Catalogue key — the Excel and print links come from it, so no page hand-writes them. */
   reportKey,
   icon,
@@ -84,6 +84,7 @@ export function ReportShell({
   actions?: ReactNode;
   children: ReactNode;
 }) {
+  const t = await getT();
   const entry = REPORT_MODULES.flatMap((m) => m.reports).find((r) => r.key === reportKey);
   const view = current ?? entry?.view ?? "";
   // Export and print must show what the screen shows, so both carry the live filters.
@@ -117,7 +118,7 @@ export function ReportShell({
               {filters}
               <Button type="submit" className="h-9">
                 <Icon name="Search" className="size-4" />
-                عرض
+                {t("عرض")}
               </Button>
             </form>
           </CardContent>

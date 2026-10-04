@@ -126,7 +126,7 @@ export default async function SupplierRatingPage() {
           <CardContent>
             {scores.length === 0 ? (
               <p className="text-sm text-muted-foreground">
-                التقييم بيظهر بعد أول إذن استلام مؤكّد. مفيش حاجة تتملى هنا — الأرقام بتيجي من المستندات نفسها.
+                {t("التقييم بيظهر بعد أول إذن استلام مؤكّد. مفيش حاجة تتملى هنا — الأرقام بتيجي من المستندات نفسها.")}
               </p>
             ) : (
               <div className="rounded-xl border overflow-x-auto">

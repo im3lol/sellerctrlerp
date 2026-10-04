@@ -174,7 +174,7 @@ export function CycleCountManager({ warehouses, canManage, canPost: mayPost }: {
             <div><div className="text-muted-foreground">{t("زيادة")}</div><div className="font-bold tabular-nums text-emerald-600">{money(live.surplusValue)}</div></div>
             <label className="ms-auto flex cursor-pointer items-center gap-2">
               <input type="checkbox" className="size-4 rounded border-input" checked={blind} onChange={(e) => setBlind(e.target.checked)} />
-              جرد أعمى (إخفاء رصيد الدفاتر)
+              {t("جرد أعمى (إخفاء رصيد الدفاتر)")}
             </label>
           </CardContent>
         </Card>
@@ -183,7 +183,7 @@ export function CycleCountManager({ warehouses, canManage, canPost: mayPost }: {
           <CardHeader>
             <CardTitle>{t("ورقة العدّ")}</CardTitle>
             <CardDescription>
-              الجرد الأعمى بيخفي رصيد الدفاتر أثناء العدّ — اللي بيشوف الرقم المتوقّع بيلاقيه.
+              {t("الجرد الأعمى بيخفي رصيد الدفاتر أثناء العدّ — اللي بيشوف الرقم المتوقّع بيلاقيه.")}
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -279,7 +279,7 @@ export function CycleCountManager({ warehouses, canManage, canPost: mayPost }: {
         <CardContent>
           {rows.length === 0 && !loading ? (
             <p className="text-sm text-muted-foreground">
-              مفيش أوراق جرد. الجرد الدوري بيعدّ شريحة كل أسبوع بدل ما تقفل المخزن يوم كامل مرة في السنة.
+              {t("مفيش أوراق جرد. الجرد الدوري بيعدّ شريحة كل أسبوع بدل ما تقفل المخزن يوم كامل مرة في السنة.")}
             </p>
           ) : (
             <div className="rounded-xl border overflow-x-auto">

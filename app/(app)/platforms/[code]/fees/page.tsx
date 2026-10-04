@@ -97,7 +97,7 @@ export default async function PlatformFeesPage({ params, searchParams }: { param
           <CardContent className="pt-6">
             {s.categories.length === 0 ? (
               <div className="rounded-xl border border-dashed py-12 text-center text-muted-foreground">
-                لا توجد تسويات مُرحّلة إلى الدفتر في هذه الفترة. اسحب تقرير التسويات ثم رحّله من صفحة المنصّة أولًا.
+                {t("لا توجد تسويات مُرحّلة إلى الدفتر في هذه الفترة. اسحب تقرير التسويات ثم رحّله من صفحة المنصّة أولًا.")}
               </div>
             ) : (
               <div className="overflow-x-auto">

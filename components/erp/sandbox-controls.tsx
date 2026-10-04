@@ -53,7 +53,7 @@ export function SandboxBanner({ realOrgId }: { realOrgId: string | null }) {
     <div className="flex flex-wrap items-center justify-between gap-2 border-b border-sky-500/40 bg-sky-500/10 px-4 py-2 text-sm md:px-6">
       <span className="flex items-center gap-2 font-medium text-sky-800 dark:text-sky-300">
         <Icon name="FlaskConical" className="size-4" />
-        انت في الشركة التجريبية — كل البيانات هنا وهمية، جرّب براحتك
+        {t("انت في الشركة التجريبية — كل البيانات هنا وهمية، جرّب براحتك")}
       </span>
       <div className="flex gap-2">
         {realOrgId && (

@@ -62,7 +62,7 @@ export default async function ErpReportsPage({ searchParams }: { searchParams: P
           <CardContent>
             {lines.length === 0 ? (
               <div className="rounded-xl border border-dashed py-12 text-center text-muted-foreground">
-                لا توجد قيود مُرحّلة في هذه الفترة.
+                {t("لا توجد قيود مُرحّلة في هذه الفترة.")}
               </div>
             ) : (
               <Table>

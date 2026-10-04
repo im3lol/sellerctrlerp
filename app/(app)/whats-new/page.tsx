@@ -38,7 +38,7 @@ export default async function WhatsNewPage() {
       {entries.length === 0 ? (
         <Card>
           <CardContent className="py-12 text-center text-sm text-muted-foreground">
-            لسه مافيش تحديثات منشورة.
+            {t("لسه مافيش تحديثات منشورة.")}
           </CardContent>
         </Card>
       ) : (

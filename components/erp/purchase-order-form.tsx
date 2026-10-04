@@ -270,7 +270,7 @@ export function PurchaseOrderForm({ suppliers, warehouses, items, unitsByItem = 
                       : autoRate > 0 && <span className="ms-2 rounded bg-muted px-2 py-0.5 text-xs text-muted-foreground">سعر {date}</span>}
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    ده السعر المعتمد للأمر كله — إذن الاستلام والفاتورة هيمشوا بيه.
+                    {t("ده السعر المعتمد للأمر كله — إذن الاستلام والفاتورة هيمشوا بيه.")}
                   </p>
                 </>
               ) : (
@@ -284,7 +284,7 @@ export function PurchaseOrderForm({ suppliers, warehouses, items, unitsByItem = 
                   className="self-start text-xs text-primary underline"
                   onClick={() => setRateOverride("")}
                 >
-                  رجّع السعر الافتراضي
+                  {t("رجّع السعر الافتراضي")}
                 </button>
               )}
             </div>

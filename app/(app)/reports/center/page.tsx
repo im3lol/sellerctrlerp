@@ -49,7 +49,7 @@ export default async function ReportsCenterPage() {
             <div>
               <div className="font-medium">{t("باني التقارير")}</div>
               <div className="text-sm text-muted-foreground">
-                التقرير اللي مش موجود في القايمة — اختار البيانات وفلتر وجمّع بنفسك.
+                {t("التقرير اللي مش موجود في القايمة — اختار البيانات وفلتر وجمّع بنفسك.")}
               </div>
             </div>
           </div>
@@ -63,7 +63,7 @@ export default async function ReportsCenterPage() {
             <div>
               <div className="font-medium">{t("لوحات التقارير")}</div>
               <div className="text-sm text-muted-foreground">
-                تقاريرك المحفوظة ورسوماتها في صفحة واحدة — ليك أو للفريق كله.
+                {t("تقاريرك المحفوظة ورسوماتها في صفحة واحدة — ليك أو للفريق كله.")}
               </div>
             </div>
           </div>

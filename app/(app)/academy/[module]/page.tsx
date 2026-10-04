@@ -54,7 +54,7 @@ export default async function AcademyModulePage({ params }: { params: Promise<{ 
       {lessons.length === 0 ? (
         <Card>
           <CardContent className="py-12 text-center text-sm text-muted-foreground">
-            لسه مافيش دروس للموديول ده — بنجهّزها.
+            {t("لسه مافيش دروس للموديول ده — بنجهّزها.")}
           </CardContent>
         </Card>
       ) : (

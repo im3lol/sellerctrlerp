@@ -1,4 +1,6 @@
 import { and, desc, eq, gte, inArray, lte, sql } from "drizzle-orm";
+import { fill } from "@/lib/i18n";
+import { getLocale, getT } from "@/lib/i18n/server";
 import { loadErpPage } from "@/lib/erp/org";
 import { orgFiscalYearStartISO } from "@/lib/erp/fiscal";
 import { db } from "@/lib/db";
@@ -13,6 +15,8 @@ const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) 
 const POSTED = ["POSTED", "PARTIAL_PAID", "PAID"];
 
 export default async function PrintItemSalesReportPage({ searchParams }: { searchParams: Promise<SP> }) {
+  const t = await getT();
+  const locale = await getLocale();
   return loadErpPage("sales.view", async ({ orgId }) => {
     const sp = await searchParams;
     const from = one(sp.from) || (await orgFiscalYearStartISO(orgId));
@@ -57,11 +61,11 @@ export default async function PrintItemSalesReportPage({ searchParams }: { searc
     return (
       <ReportSheet
         org={org}
-        title="تقرير مبيعات الأصناف"
-        period={`من ${dt(from)} إلى ${dt(to)}`}
+        title={t("تقرير مبيعات الأصناف")}
+        period={fill(t("من {0} إلى {1}"), [dt(from, locale), dt(to, locale)])}
         filters={search ? [{ label: "بحث", value: search }] : []}
         kpis={[
-          { label: "إجمالي الإيراد", value: money(totalRevenue, currency) },
+          { label: "إجمالي الإيراد", value: money(totalRevenue, currency, locale) },
           { label: "إجمالي الكميات", value: qty(totalQty) },
           { label: "عدد الأصناف", value: String(filtered.length) },
         ]}
@@ -95,7 +99,7 @@ export default async function PrintItemSalesReportPage({ searchParams }: { searc
           }),
           footerRow: ["", "الإجمالي", qty(totalQty), "", fmt(totalRevenue), "", "", ""],
         }]}
-        note={filtered.length === 0 ? "لا توجد مبيعات في هذه الفترة." : null}
+        note={filtered.length === 0 ? t("لا توجد مبيعات في هذه الفترة.") : null}
         backHref={`/sales/reports/items?${qs.toString()}`}
       />
     );

@@ -90,7 +90,7 @@ export function PlatformPaymentsImport({ platformId, platformName, hasBank }: { 
       <CardContent className="space-y-5">
         {!hasBank && (
           <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
-            اضبط الحساب البنكي للمنصة أولًا (من تعديل المنصة) قبل استيراد المدفوعات.
+            {t("اضبط الحساب البنكي للمنصة أولًا (من تعديل المنصة) قبل استيراد المدفوعات.")}
           </div>
         )}
         <div>

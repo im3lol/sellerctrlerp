@@ -1,10 +1,11 @@
 import { notFound } from "next/navigation";
+import { getLocale, getT } from "@/lib/i18n/server";
 import { and, eq, sql } from "drizzle-orm";
 import { loadErpPage, getActiveOrg } from "@/lib/erp/org";
 import { withOrgScope } from "@/lib/db-scope";
 import { db } from "@/lib/db";
 import { payrollRuns, payrollLines, employees, users } from "@/db/schema";
-import { fmt, dt, money, toArabicWords } from "@/lib/erp/print-format";
+import { fmt, dt, money, amountInWords } from "@/lib/erp/print-format";
 import { loadPrintHeader } from "@/lib/erp/print-org";
 import { DocumentSheet } from "@/components/erp/print/document-sheet";
 import { docNumberParam } from "@/lib/erp/doc-route";
@@ -14,6 +15,8 @@ const DANGER = "#d64545";
 type Params = { params: Promise<{ number: string; employeeId: string }> };
 
 export default async function PrintPayslipPage({ params }: Params) {
+  const t = await getT();
+  const locale = await getLocale();
   const { number: raw, employeeId } = await params;
 
   // An employee printing their OWN payslip needs no HR rights — requiring hr.view would
@@ -72,11 +75,11 @@ export default async function PrintPayslipPage({ params }: Params) {
       <DocumentSheet
         org={org}
         footerText={footerText}
-        title="قسيمة راتب"
+        title={t("قسيمة راتب")}
         number={run.number}
         backHref={`/hr/payroll/${encodeURIComponent(run.number)}`}
-        watermark={run.status === "DRAFT" ? "مسودة" : undefined}
-        meta={[{ label: "الفترة", value: `${dt(run.periodStart)} — ${dt(run.periodEnd)}` }]}
+        watermark={run.status === "DRAFT" ? t("مسودة") : undefined}
+        meta={[{ label: "الفترة", value: `${dt(run.periodStart, locale)} — ${dt(run.periodEnd, locale)}` }]}
         parties={[{
           label: "الموظف",
           name: line.userName,
@@ -92,8 +95,8 @@ export default async function PrintPayslipPage({ params }: Params) {
           ...(deductions > 0 ? [["الاستقطاعات", minus(deductions)] as const] : []),
           ...(tax > 0 ? [["الضريبة", minus(tax)] as const] : []),
         ].map((r) => [...r])}
-        balance={{ label: "صافي الراتب", value: money(line.netPay, currency) }}
-        note={`فقط وقدره: ${toArabicWords(Number(line.netPay))} جنيهاً مصرياً لا غير`}
+        balance={{ label: "صافي الراتب", value: money(line.netPay, currency, locale) }}
+        note={amountInWords(Number(line.netPay), locale, locale === "en" ? "Egyptian pounds" : t("جنيهاً مصرياً"))}
         signatures={["الموظف", "الموارد البشرية"]}
       />
     );

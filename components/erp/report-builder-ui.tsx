@@ -129,7 +129,7 @@ export function ReportBuilderUI({ datasets, saved, initialId }: { datasets: Data
         <CardHeader>
           <CardTitle>{t("ابنِ تقرير")}</CardTitle>
           <CardDescription>
-            اختار البيانات، حدّد الأعمدة، حطّ الشروط، وجمّع. كل حاجة بتقرأ بس — مفيش أي كتابة.
+            {t("اختار البيانات، حدّد الأعمدة، حطّ الشروط، وجمّع. كل حاجة بتقرأ بس — مفيش أي كتابة.")}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -184,7 +184,7 @@ export function ReportBuilderUI({ datasets, saved, initialId }: { datasets: Data
               <Icon name="Play" className="size-4" />شغّل
             </Button>
             <Button variant="outline" onClick={() => { setSpec({ ...EMPTY_SPEC }); setSavingAs(null); run(dataset, { ...EMPTY_SPEC }); }}>
-              ابدأ من جديد
+              {t("ابدأ من جديد")}
             </Button>
           </div>
 
@@ -317,7 +317,7 @@ export function ReportBuilderUI({ datasets, saved, initialId }: { datasets: Data
                 <label className="flex cursor-pointer items-center gap-2 pb-2 text-sm">
                   <input type="checkbox" className="size-4 rounded border-input" checked={savingAs.isShared}
                     onChange={(e) => setSavingAs((v) => (v ? { ...v, isShared: e.target.checked } : v))} />
-                  شاركه مع باقي الفريق
+                  {t("شاركه مع باقي الفريق")}
                 </label>
                 <Button disabled={pending || !savingAs.nameAr.trim()}
                   onClick={() => start(async () => {

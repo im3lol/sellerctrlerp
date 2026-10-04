@@ -49,7 +49,7 @@ export function OrgDeletionCard({ orgName, dueAt, graceDays }: { orgName: string
             </div>
             <Button variant="destructive" disabled={pending || name.trim() !== orgName.trim()}
               onClick={() => run(() => requestOrgDeletionAction(name), `الشركة هتتمسح بعد ${graceDays} يوم`)}>
-              اطلب حذف الشركة
+              {t("اطلب حذف الشركة")}
             </Button>
           </div>
         )}

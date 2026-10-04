@@ -195,7 +195,7 @@ export function AutomationEditor({ rule, members, roles }: {
                     <label className="flex items-center gap-2">
                       <input type="checkbox" className="size-4" checked={!!a.to.creator}
                         onChange={(e) => setAction(i, { ...a, to: { ...a.to, creator: e.target.checked } })} />
-                      صاحب المستند
+                      {t("صاحب المستند")}
                     </label>
                     {roles.map((r) => (
                       <label key={r.value} className="flex items-center gap-2">
@@ -266,7 +266,7 @@ export function AutomationEditor({ rule, members, roles }: {
                       )}
                     </div>
                     <p className="text-xs text-muted-foreground">
-                      بيتبعت POST فيه بيانات المستند. لو فيه مفتاح، الرسالة بتتوقّع في الهيدر
+                      {t("بيتبعت POST فيه بيانات المستند. لو فيه مفتاح، الرسالة بتتوقّع في الهيدر")}
                       <span dir="ltr" className="mx-1 font-mono">x-sellerctrl-signature: sha256=…</span>
                     </p>
                   </div>

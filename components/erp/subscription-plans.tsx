@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useTransition } from "react";
 import { useT } from "@/lib/i18n/client";
+import type { T } from "@/lib/i18n";
 import { useRouter } from "next/navigation";
 import { toast } from "@/lib/i18n/toast";
 import { Loader2, Check, Copy, MessageCircle, CreditCard } from "lucide-react";
@@ -20,7 +21,7 @@ export type PlanCard = { id: string; name: string; priceMonthly: number; priceAn
 export type Account = { orgName: string; userName: string; email: string };
 
 const egp = (n: number) => `${n.toLocaleString("ar-EG")} ج.م`;
-const cap = (n: number | null, unit: string) => (n == null ? "بلا حد" : `${n.toLocaleString("ar-EG")} ${unit}`);
+const cap = (n: number | null, unit: string, t: T) => (n == null ? t("بلا حد") : `${n.toLocaleString("ar-EG")} ${unit}`);
 // Effective monthly price + % saved when billed annually.
 const effMonthly = (p: PlanCard, annual: boolean) => (annual ? Math.round(p.priceAnnual / 12) : p.priceMonthly);
 const discountPct = (p: PlanCard) => (p.priceMonthly > 0 ? Math.round((1 - p.priceAnnual / (p.priceMonthly * 12)) * 100) : 0);
@@ -150,7 +151,7 @@ export function SubscriptionPlans({ plans, currentPlanId, canSubscribe, hasPendi
         <div className="inline-flex items-center rounded-full border bg-card p-1 text-sm">
           <button type="button" onClick={() => setAnnual(false)} className={`rounded-full px-5 py-1.5 font-medium transition ${!annual ? "bg-primary text-primary-foreground" : ""}`}>{t("شهري")}</button>
           <button type="button" onClick={() => setAnnual(true)} className={`flex items-center gap-1.5 rounded-full px-5 py-1.5 font-medium transition ${annual ? "bg-primary text-primary-foreground" : ""}`}>
-            سنوي
+            {t("سنوي")}
             <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${annual ? "bg-primary-foreground/20" : "bg-emerald-500/15 text-emerald-600"}`}>وفّر حتى {topPct}%</span>
           </button>
         </div>
@@ -173,8 +174,8 @@ export function SubscriptionPlans({ plans, currentPlanId, canSubscribe, hasPendi
                   ? <div className="flex flex-wrap items-center gap-2 text-xs"><s className="text-muted-foreground tabular-nums">{egp(p.priceMonthly)}</s><span className="rounded-full bg-emerald-500/15 px-2 py-0.5 font-semibold text-emerald-600">وفّر {pct}%</span><span className="text-muted-foreground">يُدفع {egp(p.priceAnnual)} سنوياً</span></div>
                   : <div className="text-xs text-muted-foreground">أو {egp(p.priceAnnual)} سنوياً — وفّر {pct}%</div>}
                 <ul className="space-y-1.5 text-sm">
-                  <li className="flex items-center gap-2"><Check className="size-4 text-primary" />حتى {cap(p.maxUsers, "مستخدم")}</li>
-                  <li className="flex items-center gap-2"><Check className="size-4 text-primary" />تخزين {cap(p.storageGb, "جيجابايت")}</li>
+                  <li className="flex items-center gap-2"><Check className="size-4 text-primary" />حتى {cap(p.maxUsers, "مستخدم", t)}</li>
+                  <li className="flex items-center gap-2"><Check className="size-4 text-primary" />تخزين {cap(p.storageGb, "جيجابايت", t)}</li>
                   {p.enabledModules.map((m) => (
                     <li key={m} className="flex items-center gap-2"><Check className="size-4 text-primary" />{t(MODULE_LABELS[m] ?? m)}</li>
                   ))}

@@ -1,4 +1,6 @@
 import { loadErpPage } from "@/lib/erp/org";
+import { fill } from "@/lib/i18n";
+import { getLocale, getT } from "@/lib/i18n/server";
 import { getSalesLedger } from "@/lib/erp/sales-ledger";
 import { fmt, qty, dt } from "@/lib/erp/print-format";
 import { loadPrintHeader } from "@/lib/erp/print-org";
@@ -22,6 +24,8 @@ const MAX_ROWS = 3000;
 const cell = (v: number | null, f: (n: number) => string) => (v !== null ? f(v) : "—");
 
 export default async function PrintSalesLedgerPage({ searchParams }: { searchParams: Promise<SP> }) {
+  const t = await getT();
+  const locale = await getLocale();
   return loadErpPage("sales.view", async ({ orgId }) => {
     const sp = await searchParams;
     const fCustomer = one(sp.customer).trim();
@@ -45,13 +49,13 @@ export default async function PrintSalesLedgerPage({ searchParams }: { searchPar
     if (fProduct) qs.set("product", fProduct);
 
     const period = from || to
-      ? `من ${from ? dt(from) : "البداية"} إلى ${to ? dt(to) : "اليوم"}`
+      ? fill(t("من {0} إلى {1}"), [from ? dt(from, locale) : t("البداية"), to ? dt(to, locale) : t("اليوم")])
       : undefined;
 
     return (
       <ReportSheet
         org={org}
-        title="تقرير دفتر المبيعات"
+        title={t("تقرير دفتر المبيعات")}
         period={period}
         filters={[
           ...(fCustomer ? [{ label: "العميل", value: fCustomer }] : []),
@@ -76,7 +80,7 @@ export default async function PrintSalesLedgerPage({ searchParams }: { searchPar
           ],
           rows: shown.map((r) => [
             <span key="num" dir="ltr" style={{ fontSize: 10 }}>{r.number}</span>,
-            dt(r.date),
+            dt(r.date, locale),
             r.customerName,
             DOC_LABELS[r.docType],
             STATUS[r.status] ?? r.status,
@@ -95,9 +99,9 @@ export default async function PrintSalesLedgerPage({ searchParams }: { searchPar
         }]}
         note={
           rows.length === 0
-            ? "لا توجد حركات مبيعات مطابقة."
+            ? t("لا توجد حركات مبيعات مطابقة.")
             : rows.length > MAX_ROWS
-              ? `عُرضت أول ${MAX_ROWS} صف من ${rows.length} — الإجماليات تشمل كل الحركات.`
+              ? fill(t("عُرضت أول {0} صف من {1} — الإجماليات تشمل كل الحركات."), [MAX_ROWS, rows.length])
               : null
         }
         backHref={`/sales/reports/ledger${qs.toString() ? `?${qs.toString()}` : ""}`}

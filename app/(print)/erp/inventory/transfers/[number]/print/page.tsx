@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { getLocale, getT } from "@/lib/i18n/server";
 import { and, asc, eq } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { loadErpPage } from "@/lib/erp/org";
@@ -12,6 +13,8 @@ import { docNumberParam } from "@/lib/erp/doc-route";
 type Params = { params: Promise<{ number: string }> };
 
 export default async function PrintStockTransferPage({ params }: Params) {
+  const t = await getT();
+  const locale = await getLocale();
   const raw = (await params).number;
   return loadErpPage("inventory.view", async ({ orgId }) => {
     const number = await docNumberParam(raw, orgId, stockTransfers,
@@ -51,13 +54,13 @@ export default async function PrintStockTransferPage({ params }: Params) {
         org={org}
         hiddenColumns={hiddenFor("inventory-transfer")}
         footerText={footerText}
-        title="تحويل مخزني"
+        title={t("تحويل مخزني")}
         number={tr.number}
         backHref={`/inventory/transfers/${encodeURIComponent(tr.number)}`}
-        watermark={tr.status === "DRAFT" ? "مسودة" : undefined}
+        watermark={tr.status === "DRAFT" ? t("مسودة") : undefined}
         meta={[
-          { label: "التاريخ", value: dt(tr.date) },
-          { label: "الحالة", value: tr.status === "POSTED" ? "مرحّل" : "مسودة" },
+          { label: "التاريخ", value: dt(tr.date, locale) },
+          { label: "الحالة", value: tr.status === "POSTED" ? t("مرحّل") : t("مسودة") },
           ...(tr.notes ? [{ label: "الملاحظات", value: tr.notes }] : []),
         ]}
         parties={[

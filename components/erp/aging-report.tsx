@@ -66,7 +66,7 @@ function AgingTable({
   if (rows.length === 0) {
     return (
       <div className="rounded-xl border border-dashed py-12 text-center text-muted-foreground">
-        لا توجد مستحقات مفتوحة.
+        {t("لا توجد مستحقات مفتوحة.")}
       </div>
     );
   }

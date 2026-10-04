@@ -87,7 +87,7 @@ export default async function BankAccountsPage({ searchParams }: { searchParams:
               <Button asChild>
                 <Link href="/accounting/banks/new">
                   <Icon name="Plus" className="size-4" />
-                  حساب بنكي جديد
+                  {t("حساب بنكي جديد")}
                 </Link>
               </Button>
             ) : undefined
@@ -121,7 +121,7 @@ export default async function BankAccountsPage({ searchParams }: { searchParams:
               <>لا توجد حسابات بنكية مضافة بعد.{" "}
               {canEdit && (
                 <Link href="/accounting/banks/new" className="text-primary underline underline-offset-2">
-                  إضافة حساب
+                  {t("إضافة حساب")}
                 </Link>
               )}</>
             )}

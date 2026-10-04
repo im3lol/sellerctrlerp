@@ -70,7 +70,7 @@ export function ReceiptSerialsPanel({ receiptId, lines, canEdit }: {
           <div>
             <CardTitle>{t("الأرقام التسلسلية")}</CardTitle>
             <CardDescription>
-              رقم لكل قطعة، واحد في كل سطر (أو مفصولين بفاصلة). لازم العدد يساوي الكمية قبل تأكيد الاستلام.
+              {t("رقم لكل قطعة، واحد في كل سطر (أو مفصولين بفاصلة). لازم العدد يساوي الكمية قبل تأكيد الاستلام.")}
             </CardDescription>
           </div>
           {canEdit && (

@@ -1,4 +1,6 @@
 import { and, eq, gte, inArray, lte, sql } from "drizzle-orm";
+import { fill } from "@/lib/i18n";
+import { getLocale, getT } from "@/lib/i18n/server";
 import { loadErpPage } from "@/lib/erp/org";
 import { orgFiscalYearStartISO } from "@/lib/erp/fiscal";
 import { db } from "@/lib/db";
@@ -13,6 +15,8 @@ const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) 
 const POSTED = ["POSTED", "PARTIAL_PAID", "PAID"];
 
 export default async function PrintCustomerRankingPage({ searchParams }: { searchParams: Promise<SP> }) {
+  const t = await getT();
+  const locale = await getLocale();
   return loadErpPage("sales.view", async ({ orgId }) => {
     const sp = await searchParams;
     const from = one(sp.from) || (await orgFiscalYearStartISO(orgId));
@@ -51,13 +55,13 @@ export default async function PrintCustomerRankingPage({ searchParams }: { searc
     return (
       <ReportSheet
         org={org}
-        title="ترتيب العملاء"
-        period={`من ${dt(from)} إلى ${dt(to)}`}
+        title={t("ترتيب العملاء")}
+        period={fill(t("من {0} إلى {1}"), [dt(from, locale), dt(to, locale)])}
         filters={search ? [{ label: "بحث", value: search }] : []}
         kpis={[
           { label: "عملاء لديهم مبيعات", value: String(list.length) },
-          { label: "إجمالي الإيراد (بدون ضريبة)", value: money(tRevenue, currency), tone: "success" },
-          { label: "إجمالي الذمم المستحقة", value: money(tAr, currency) },
+          { label: "إجمالي الإيراد (بدون ضريبة)", value: money(tRevenue, currency, locale), tone: "success" },
+          { label: "إجمالي الذمم المستحقة", value: money(tAr, currency, locale) },
         ]}
         sections={[{
           title: "العملاء حسب الإيراد",
@@ -81,13 +85,13 @@ export default async function PrintCustomerRankingPage({ searchParams }: { searc
               <b key="rev">{fmt(r.revenue)}</b>,
               r.invoices,
               fmt(r.balance),
-              r.last ? dt(r.last) : "—",
+              r.last ? dt(r.last, locale) : "—",
               `${pct.toFixed(1)}%`,
             ];
           }),
           footerRow: ["", "الإجمالي", fmt(tRevenue), "", fmt(tAr), "", ""],
         }]}
-        note={list.length === 0 ? "لا توجد مبيعات في هذه الفترة." : "الإيراد صافٍ من الضريبة؛ الرصيد المستحق هو الرصيد الحالي."}
+        note={list.length === 0 ? t("لا توجد مبيعات في هذه الفترة.") : t("الإيراد صافٍ من الضريبة؛ الرصيد المستحق هو الرصيد الحالي.")}
         backHref={`/sales/reports/customers?${qs.toString()}`}
       />
     );

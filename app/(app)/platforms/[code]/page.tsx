@@ -223,7 +223,7 @@ export default async function PlatformDetailPage({ params, searchParams }: { par
 
         {analyticsFailed && (
           <div className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-800 dark:bg-amber-950/20">
-            تعذّر تحميل التحليلات مؤقتًا — أعد تحميل الصفحة. (بقية الصفحة تعمل بشكل طبيعي.)
+            {t("تعذّر تحميل التحليلات مؤقتًا — أعد تحميل الصفحة. (بقية الصفحة تعمل بشكل طبيعي.)")}
           </div>
         )}
 

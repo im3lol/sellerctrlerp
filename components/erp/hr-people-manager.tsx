@@ -297,7 +297,7 @@ export function RecruitmentManager({ openings, applicants, employees, canManage 
                           ))}
                         </select>
                         <Button size="sm" variant="outline" onClick={() => setInterviewFor(interviewFor === a.id ? null : a.id)}>
-                          مقابلة
+                          {t("مقابلة")}
                         </Button>
                       </>
                     )}
@@ -316,7 +316,7 @@ export function RecruitmentManager({ openings, applicants, employees, canManage 
                       />
                     </div>
                     <p className="pb-2 text-xs text-muted-foreground">
-                      «اتعيّن» بيعني إنه على المرتبات فعلاً — فمحتاج سجل موظف الأول.
+                      {t("«اتعيّن» بيعني إنه على المرتبات فعلاً — فمحتاج سجل موظف الأول.")}
                     </p>
                   </div>
                 )}
@@ -415,7 +415,7 @@ export function PerformanceManager({ reviews, employees, canManage }: {
             <div>
               <CardTitle>{t("تقييمات الأداء")}</CardTitle>
               <CardDescription>
-                الدرجة موزونة بأهمية كل بند. والتقييم اللي الموظف وقّع عليه بيتقفل — دي ورقة محضر، مش مسودة.
+                {t("الدرجة موزونة بأهمية كل بند. والتقييم اللي الموظف وقّع عليه بيتقفل — دي ورقة محضر، مش مسودة.")}
               </CardDescription>
             </div>
             {canManage && (
@@ -556,7 +556,7 @@ export function PerformanceManager({ reviews, employees, canManage }: {
                               });
                               if (go) run(() => acknowledgeReviewAction(r.id), "اتوقّع");
                             })()}>
-                              وقّع
+                              {t("وقّع")}
                             </Button>
                           )}
                           {canManage && r.status !== "ACKNOWLEDGED" && (
@@ -615,7 +615,7 @@ export function TrainingManager({ courses, employees, canManage }: {
             <div>
               <CardTitle>{t("الكورسات")}</CardTitle>
               <CardDescription>
-                التكلفة بتتحسب على المقاعد المحجوزة، مش اللي اتمّوا — اللي ما حضرش اتدفع فيه برضه.
+                {t("التكلفة بتتحسب على المقاعد المحجوزة، مش اللي اتمّوا — اللي ما حضرش اتدفع فيه برضه.")}
               </CardDescription>
             </div>
             {canManage && (

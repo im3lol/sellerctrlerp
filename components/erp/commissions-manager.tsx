@@ -125,7 +125,7 @@ export function CommissionsManager({ reps, canManage }: { reps: Rep[]; canManage
             </div>
             {form.employeeId && (
               <Button size="sm" variant="ghost" onClick={() => setForm((f) => ({ ...f, employeeId: "" }))}>
-                رجوع للقاعدة الافتراضية
+                {t("رجوع للقاعدة الافتراضية")}
               </Button>
             )}
 
@@ -187,7 +187,7 @@ export function CommissionsManager({ reps, canManage }: { reps: Rep[]; canManage
         <CardContent className="space-y-5">
           {(report?.totals.length ?? 0) === 0 ? (
             <p className="text-sm text-muted-foreground">
-              مفيش عمولات في الفترة دي. اتأكد إن العملاء متوزّعين على مناديب (من صفحة العملاء) وإن في قاعدة عمولة سارية.
+              {t("مفيش عمولات في الفترة دي. اتأكد إن العملاء متوزّعين على مناديب (من صفحة العملاء) وإن في قاعدة عمولة سارية.")}
             </p>
           ) : (
             <>
@@ -255,7 +255,7 @@ export function CommissionsManager({ reps, canManage }: { reps: Rep[]; canManage
               </div>
 
               <p className="text-xs text-muted-foreground">
-                الصرف بيتم كبدل على مسير الرواتب — الشاشة دي بتحسب المستحق وما بترحّلش أي قيد.
+                {t("الصرف بيتم كبدل على مسير الرواتب — الشاشة دي بتحسب المستحق وما بترحّلش أي قيد.")}
               </p>
             </>
           )}

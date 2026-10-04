@@ -1,4 +1,6 @@
 import { sql } from "drizzle-orm";
+import { fill } from "@/lib/i18n";
+import { getT } from "@/lib/i18n/server";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
 import { loadPrintHeader } from "@/lib/erp/print-org";
@@ -15,6 +17,7 @@ const DAYS = [30, 60, 90, 180, 365];
 type Row = { code: string | null; name: string | null; qty: number; val: number; sold: number; last: string | null };
 
 export default async function PrintDeadStockPage({ searchParams }: { searchParams: Promise<SP> }) {
+  const t = await getT();
   return loadErpPage("inventory.view", async ({ orgId }) => {
     const sp = await searchParams;
     const days = DAYS.includes(Number(sp.days)) ? Number(sp.days) : 90;
@@ -71,10 +74,10 @@ export default async function PrintDeadStockPage({ searchParams }: { searchParam
     return (
       <ReportSheet
         org={org}
-        title="المخزون الراكد وبطيء الحركة"
+        title={t("المخزون الراكد وبطيء الحركة")}
         backHref={`/inventory/dead-stock${backQs.size ? `?${backQs}` : ""}`}
         filters={[
-          { label: "فترة القياس", value: `آخر ${intl(days)} يوم` },
+          { label: "فترة القياس", value: fill(t("آخر {0} يوم"), [intl(days)]) },
           ...(q ? [{ label: "بحث", value: q }] : []),
         ]}
         kpis={[
@@ -105,7 +108,7 @@ export default async function PrintDeadStockPage({ searchParams }: { searchParam
             r.status,
           ]),
         }]}
-        note={list.length > CAP ? `عُرضت أول ${intl(CAP)} صف من ${intl(list.length)}.` : null}
+        note={list.length > CAP ? fill(t("عُرضت أول {0} صف من {1}."), [intl(CAP), intl(list.length)]) : null}
       />
     );
   });

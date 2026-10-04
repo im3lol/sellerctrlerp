@@ -65,7 +65,7 @@ export function FeedbackForm() {
           <Textarea id="message" rows={6} value={message} onChange={(e) => setMessage(e.target.value)}
             placeholder={t("اشرح المشكلة أو الفكرة — لو شكوى، قول لنا كنت بتعمل إيه بالظبط لما حصلت.")} />
           <p className="text-xs text-muted-foreground">
-            كل ما التفاصيل تزيد كل ما الرد يبقى أسرع وأدق.
+            {t("كل ما التفاصيل تزيد كل ما الرد يبقى أسرع وأدق.")}
           </p>
         </div>
 

@@ -93,7 +93,7 @@ export default async function OpeningBalancePage() {
         {custs.length + supps.length + itms.length === 0 && (
           <Card>
             <CardContent className="py-6 text-sm text-muted-foreground">
-              سجّل العملاء والموردين والأصناف أولاً (أو استوردهم من «الاستيراد والتصدير») ثم أدخل أرصدتهم الافتتاحية هنا.
+              {t("سجّل العملاء والموردين والأصناف أولاً (أو استوردهم من «الاستيراد والتصدير») ثم أدخل أرصدتهم الافتتاحية هنا.")}
             </CardContent>
           </Card>
         )}

@@ -105,7 +105,7 @@ export function PurchasesLedgerTable({
         <tfoot className="border-t-2 border-border bg-muted/40">
           <tr className="font-semibold text-sm">
             <td colSpan={5} className="px-3 py-2.5 text-right text-muted-foreground">
-              الإجمالي الكلي
+              {t("الإجمالي الكلي")}
             </td>
             <td className="px-3 py-2.5 text-left tabular-nums">{fmtQty(totals.qtyTotal)}</td>
             <td className="px-3 py-2.5 text-left tabular-nums text-emerald-700">{fmtQty(totals.qtyReceived)}</td>

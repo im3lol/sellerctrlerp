@@ -51,7 +51,7 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
       {!query ? (
         <div className="rounded-xl border border-dashed py-16 text-center text-muted-foreground">
           <SearchIcon className="mx-auto mb-3 size-8 opacity-40" />
-          اكتب كلمة في خانة البحث بالأعلى — بنبحث في الأصناف والعملاء والموردين بالاسم أو الكود.
+          {t("اكتب كلمة في خانة البحث بالأعلى — بنبحث في الأصناف والعملاء والموردين بالاسم أو الكود.")}
         </div>
       ) : total === 0 ? (
         <div className="rounded-xl border border-dashed py-16 text-center text-muted-foreground">

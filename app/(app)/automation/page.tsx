@@ -49,7 +49,7 @@ export default async function AutomationPage() {
 
         {rules.length === 0 ? (
           <p className="rounded-2xl border border-dashed p-8 text-center text-sm text-muted-foreground">
-            لسه مفيش قواعد. ابدأ بوصفة جاهزة تحت، أو اعمل قاعدتك.
+            {t("لسه مفيش قواعد. ابدأ بوصفة جاهزة تحت، أو اعمل قاعدتك.")}
           </p>
         ) : (
           <div className="grid gap-3 md:grid-cols-2">

@@ -1,4 +1,6 @@
 import "server-only";
+import { fill } from "@/lib/i18n";
+import { getLocale, getT } from "@/lib/i18n/server";
 import { and, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { salesInvoices, salesInvoiceLines, salesQuotations, salesQuotationLines, customers, items } from "@/db/schema";
@@ -26,6 +28,8 @@ async function customerOf(id: string | null) {
 }
 
 export async function invoiceSheet(orgId: string, key: Key) {
+  const locale = await getLocale();
+  const t = await getT();
   const [inv] = await db.select().from(salesInvoices)
     .where(and(
       "id" in key ? eq(salesInvoices.id, key.id) : eq(salesInvoices.number, key.number),
@@ -53,8 +57,8 @@ export async function invoiceSheet(orgId: string, key: Key) {
     number: inv.number,
     watermark: inv.status === "DRAFT" ? "مسودة" : undefined,
     meta: [
-      { label: "التاريخ", value: dt(inv.date) },
-      ...(inv.dueDate ? [{ label: "الاستحقاق", value: dt(inv.dueDate) }] : []),
+      { label: "التاريخ", value: dt(inv.date, locale) },
+      ...(inv.dueDate ? [{ label: "الاستحقاق", value: dt(inv.dueDate, locale) }] : []),
     ],
     parties: cust ? [{ label: "فاتورة إلى", name: cust.nameAr, lines: [cust.address, cust.phone] }] : [],
     columns: [
@@ -77,22 +81,24 @@ export async function invoiceSheet(orgId: string, key: Key) {
       <b key="t">{fmt(l.total)}</b>,
     ]),
     totals: [
-      { label: "الإجمالي الفرعي", value: money(subtotal, currency) },
-      ...(shipping > 0 ? [{ label: "الشحن", value: money(shipping, currency) }] : []),
-      ...(tax > 0 ? [{ label: `ضريبة القيمة المضافة (${inv.taxPercent}%)`, value: money(tax, currency) }] : []),
-      { label: "الإجمالي", value: money(inv.totalAmount, currency), tone: "strong" as const },
-      ...(paid > 0 ? [{ label: "المدفوع", value: `− ${money(paid, currency)}`, tone: "success" as const }] : []),
+      { label: "الإجمالي الفرعي", value: money(subtotal, currency, locale) },
+      ...(shipping > 0 ? [{ label: "الشحن", value: money(shipping, currency, locale) }] : []),
+      ...(tax > 0 ? [{ label: fill(t("ضريبة القيمة المضافة ({0}%)"), [inv.taxPercent]), value: money(tax, currency, locale) }] : []),
+      { label: "الإجمالي", value: money(inv.totalAmount, currency, locale), tone: "strong" as const },
+      ...(paid > 0 ? [{ label: "المدفوع", value: `− ${money(paid, currency, locale)}`, tone: "success" as const }] : []),
     ],
-    balance: { label: "المتبقّي", value: money(inv.balanceDue, currency) },
+    balance: { label: "المتبقّي", value: money(inv.balanceDue, currency, locale) },
     note: inv.notes,
   };
   return {
     sheet,
-    doc: { id: inv.id, number: inv.number, status: inv.status, balanceDue: Number(inv.balanceDue), balanceText: money(inv.balanceDue, currency) },
+    doc: { id: inv.id, number: inv.number, status: inv.status, balanceDue: Number(inv.balanceDue), balanceText: money(inv.balanceDue, currency, locale) },
   };
 }
 
 export async function quotationSheet(orgId: string, key: Key) {
+  const locale = await getLocale();
+  const t = await getT();
   const [q] = await db.select().from(salesQuotations)
     .where(and(
       "id" in key ? eq(salesQuotations.id, key.id) : eq(salesQuotations.number, key.number),
@@ -126,8 +132,8 @@ export async function quotationSheet(orgId: string, key: Key) {
     number: q.number,
     watermark: q.status === "DRAFT" ? "مسودة" : undefined,
     meta: [
-      { label: "التاريخ", value: dt(q.date) },
-      ...(q.validUntil ? [{ label: "ساري حتى", value: dt(q.validUntil) }] : []),
+      { label: "التاريخ", value: dt(q.date, locale) },
+      ...(q.validUntil ? [{ label: "ساري حتى", value: dt(q.validUntil, locale) }] : []),
       { label: "الحالة", value: QUOTE_STATUS[q.status] ?? q.status },
     ],
     parties: cust ? [{ label: "عرض إلى", name: cust.nameAr, lines: [cust.address, cust.phone] }] : [],
@@ -162,13 +168,13 @@ export async function quotationSheet(orgId: string, key: Key) {
       <b key="t">{fmt(lineNet(l))}</b>,
     ]),
     totals: [
-      { label: "الإجمالي الفرعي", value: money(subtotal, currency) },
-      ...(discount > 0 ? [{ label: "الخصم", value: `− ${money(discount, currency)}`, tone: "danger" as const }] : []),
-      ...(tax > 0 ? [{ label: "الضريبة", value: money(tax, currency) }] : []),
-      ...(headerDiscount > 0 ? [{ label: "خصم على الإجمالي", value: `− ${money(headerDiscount, currency)}`, tone: "danger" as const }] : []),
+      { label: "الإجمالي الفرعي", value: money(subtotal, currency, locale) },
+      ...(discount > 0 ? [{ label: "الخصم", value: `− ${money(discount, currency, locale)}`, tone: "danger" as const }] : []),
+      ...(tax > 0 ? [{ label: "الضريبة", value: money(tax, currency, locale) }] : []),
+      ...(headerDiscount > 0 ? [{ label: "خصم على الإجمالي", value: `− ${money(headerDiscount, currency, locale)}`, tone: "danger" as const }] : []),
     ],
-    balance: { label: "الإجمالي", value: money(total, currency) },
-    note: renderRichText(q.notes) ?? (q.validUntil ? `هذا العرض ساري حتى ${dt(q.validUntil)}.` : null),
+    balance: { label: "الإجمالي", value: money(total, currency, locale) },
+    note: renderRichText(q.notes) ?? (q.validUntil ? fill(t("هذا العرض ساري حتى {0}."), [dt(q.validUntil, locale)]) : null),
     signatures: ["إعداد", "اعتماد"],
   };
   return { sheet, doc: { id: q.id, number: q.number, status: q.status } };

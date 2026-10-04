@@ -119,7 +119,7 @@ export function ExpenseForm({ expenseAccounts, cashAccounts, projects = [], init
             {projectId && (
               <button type="button" className="text-xs text-muted-foreground underline"
                 onClick={() => setProjectId("")}>
-                شيل المشروع
+                {t("شيل المشروع")}
               </button>
             )}
           </div>

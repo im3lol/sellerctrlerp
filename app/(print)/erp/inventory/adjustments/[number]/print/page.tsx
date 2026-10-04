@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { getLocale, getT } from "@/lib/i18n/server";
 import { and, asc, eq } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
@@ -11,6 +12,8 @@ import { docNumberParam } from "@/lib/erp/doc-route";
 type Params = { params: Promise<{ number: string }> };
 
 export default async function PrintStockAdjustmentPage({ params }: Params) {
+  const t = await getT();
+  const locale = await getLocale();
   const raw = (await params).number;
   return loadErpPage("inventory.view", async ({ orgId }) => {
     const number = await docNumberParam(raw, orgId, stockAdjustments,
@@ -43,14 +46,14 @@ export default async function PrintStockAdjustmentPage({ params }: Params) {
         org={org}
         hiddenColumns={hiddenFor("inventory-adjustment")}
         footerText={footerText}
-        title="تسوية مخزون"
+        title={t("تسوية مخزون")}
         number={adj.number}
         backHref={`/inventory/adjustments/${encodeURIComponent(adj.number)}`}
-        watermark={adj.status === "DRAFT" ? "مسودة" : undefined}
+        watermark={adj.status === "DRAFT" ? t("مسودة") : undefined}
         meta={[
-          { label: "التاريخ", value: dt(adj.date) },
+          { label: "التاريخ", value: dt(adj.date, locale) },
           { label: "السبب", value: adj.reason },
-          { label: "الحالة", value: adj.status === "POSTED" ? "مرحّل" : "مسودة" },
+          { label: "الحالة", value: adj.status === "POSTED" ? t("مرحّل") : t("مسودة") },
         ]}
         columns={[
           { label: "الصنف", width: "34%" },
@@ -74,7 +77,7 @@ export default async function PrintStockAdjustmentPage({ params }: Params) {
             <b key="t">{fmt(l.totalValue)}</b>,
           ];
         })}
-        totals={[{ label: "الإجمالي", value: money(adj.totalValue, currency), tone: "strong" as const }]}
+        totals={[{ label: "الإجمالي", value: money(adj.totalValue, currency, locale), tone: "strong" as const }]}
         signatures={["أمين المخزن", "المراجع"]}
       />
     );

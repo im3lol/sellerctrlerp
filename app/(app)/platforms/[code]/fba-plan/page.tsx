@@ -111,7 +111,7 @@ export default async function FbaPlanPage({ params, searchParams }: {
 
         {plan.length === 0 ? (
           <p className="rounded-2xl border border-dashed p-8 text-center text-sm text-muted-foreground">
-            كل اللي بيتباع في أمازون مغطّي — مفيش حاجة محتاجة تتبعت دلوقتي.
+            {t("كل اللي بيتباع في أمازون مغطّي — مفيش حاجة محتاجة تتبعت دلوقتي.")}
           </p>
         ) : (
           <FbaPlanTable

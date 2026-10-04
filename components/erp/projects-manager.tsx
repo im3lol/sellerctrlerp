@@ -489,7 +489,7 @@ export function ProjectsManager({ rows, phases, tasks, sheets, customers, employ
                       <label className="flex cursor-pointer items-center gap-2 text-sm">
                         <input type="checkbox" className="size-4 rounded border-input" checked={sheetForm.billable}
                           onChange={(e) => setSheetForm((f) => (f ? { ...f, billable: e.target.checked } : f))} />
-                        تتفوتر
+                        {t("تتفوتر")}
                       </label>
                       <Button size="sm" disabled={pending || !sheetForm.employeeId || !sheetForm.hours}
                         onClick={() => run(async () => {

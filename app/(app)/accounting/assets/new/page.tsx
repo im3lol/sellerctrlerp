@@ -115,7 +115,7 @@ export default async function NewFixedAssetPage({ searchParams }: { searchParams
                   <span>
                     <span className="font-medium">{t("الأصل مُسجَّل بالفعل في الدفاتر")}</span>
                     <span className="block text-xs text-muted-foreground">
-                      رصيد افتتاحي من نظام قديم، أو اشتريته بفاتورة شراء مُرحَّلة. لا يُرحَّل قيد — لأن الأصل وثمنه مسجّلان بالفعل، وترحيله تاني هيحسبهم مرتين.
+                      {t("رصيد افتتاحي من نظام قديم، أو اشتريته بفاتورة شراء مُرحَّلة. لا يُرحَّل قيد — لأن الأصل وثمنه مسجّلان بالفعل، وترحيله تاني هيحسبهم مرتين.")}
                     </span>
                   </span>
                 </label>
@@ -124,7 +124,7 @@ export default async function NewFixedAssetPage({ searchParams }: { searchParams
                   <span>
                     <span className="font-medium">{t("شراء جديد — رحّل قيد الاقتناء")}</span>
                     <span className="block text-xs text-muted-foreground">
-                      يُرحَّل: حساب الأصل مدين بالتكلفة، وحساب السداد دائن. يتطلّب حساب الأصل وحساب السداد أدناه.
+                      {t("يُرحَّل: حساب الأصل مدين بالتكلفة، وحساب السداد دائن. يتطلّب حساب الأصل وحساب السداد أدناه.")}
                     </span>
                   </span>
                 </label>

@@ -135,7 +135,7 @@ export function BinsManager({ warehouses, items, canEdit }: {
 
           {bins.length === 0 && !loading ? (
             <p className="text-sm text-muted-foreground">
-              مفيش مواقع في المستودع ده. الكود هو اللي بيرتّب المشي — استخدم نظام زي «ممر-رف-دور» (A-1-3).
+              {t("مفيش مواقع في المستودع ده. الكود هو اللي بيرتّب المشي — استخدم نظام زي «ممر-رف-دور» (A-1-3).")}
             </p>
           ) : (
             <div className="rounded-xl border">
@@ -199,7 +199,7 @@ export function BinsManager({ warehouses, items, canEdit }: {
               <label className="flex cursor-pointer items-center gap-2 pb-2 text-sm">
                 <input type="checkbox" className="size-4 rounded border-input" checked={assign.isPrimary}
                   onChange={(e) => setAssign((a) => ({ ...a, isPrimary: e.target.checked }))} />
-                أساسي
+                {t("أساسي")}
               </label>
               <Button onClick={putAway} disabled={pending}><Icon name="Check" className="size-4" />{t("سجّل")}</Button>
             </div>

@@ -1,4 +1,6 @@
 import { notFound } from "next/navigation";
+import { fill } from "@/lib/i18n";
+import { getLocale, getT } from "@/lib/i18n/server";
 import { and, eq } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
@@ -19,6 +21,8 @@ const STATUS: Record<string, string> = {
 type Params = { params: Promise<{ number: string }> };
 
 export default async function PrintPurchaseOrderPage({ params }: Params) {
+  const t = await getT();
+  const locale = await getLocale();
   const raw = decodeURIComponent((await params).number);
   return loadErpPage("purchases.view", async ({ orgId }) => {
     const [po] = await db
@@ -82,20 +86,20 @@ export default async function PrintPurchaseOrderPage({ params }: Params) {
         org={org}
         hiddenColumns={hiddenFor("purchase-order")}
         footerText={footerText}
-        title="أمر شراء"
+        title={t("أمر شراء")}
         number={po.number}
-        watermark={po.status === "DRAFT" ? "مسودة" : undefined}
+        watermark={po.status === "DRAFT" ? t("مسودة") : undefined}
         backHref={`/purchases/orders/${encodeURIComponent(raw)}`}
         // No delivery-date column on purchase orders — only `date`.
         meta={[
-          { label: "التاريخ", value: dt(po.date) },
+          { label: "التاريخ", value: dt(po.date, locale) },
           { label: "الحالة", value: STATUS[po.status] ?? po.status },
           // The rate is part of the document, not a detail: every base figure below is
           // this multiplication, and a reader must be able to redo it.
           ...(isForeign ? [
             { label: "العملة", value: cur },
-            { label: "سعر الصرف", value: `١ ${cur} = ${rate6(docRate)} ${baseCode}` },
-            { label: "مصدر السعر", value: po.rateSource === "MANUAL" ? "يدوي" : `سعر ${dt(po.date)}` },
+            { label: "سعر الصرف", value: fill(t("١ {0} = {1} {2}"), [cur, rate6(docRate), baseCode]) },
+            { label: "مصدر السعر", value: po.rateSource === "MANUAL" ? t("يدوي") : fill(t("سعر {0}"), [dt(po.date, locale)]) },
           ] : []),
         ]}
         parties={[
@@ -115,7 +119,7 @@ export default async function PrintPurchaseOrderPage({ params }: Params) {
           { label: cx("الإجمالي"), align: "end", width: isForeign ? "13%" : "16%" },
           // The same line in pounds — shipping included, because that is what the books
           // and the stock valuation will carry.
-          ...(isForeign ? [{ label: `الإجمالي (${baseCode})`, align: "end" as const, width: "14%" }] : []),
+          ...(isForeign ? [{ label: fill(t("الإجمالي ({0})"), [baseCode]), align: "end" as const, width: "14%" }] : []),
         ]}
         rows={lines.map((l, i) => [
           <span key="i" style={{ color: "#8a93a6" }}>{i + 1}</span>,
@@ -148,15 +152,15 @@ export default async function PrintPurchaseOrderPage({ params }: Params) {
           { label: "الإجمالي الفرعي", value: `${fmt(d(subtotal))} ${cur}` },
           ...(shipping > 0 ? [{ label: "الشحن الداخلي", value: `${fmt(d(shipping))} ${cur}` }] : []),
           ...(discount > 0 ? [{ label: "الخصم", value: `− ${fmt(d(discount))} ${cur}`, tone: "danger" as const }] : []),
-          ...(tax > 0 ? [{ label: `الضريبة (${po.taxPercent}%)`, value: `${fmt(d(tax))} ${cur}` }] : []),
+          ...(tax > 0 ? [{ label: fill(t("الضريبة ({0}%)"), [po.taxPercent]), value: `${fmt(d(tax))} ${cur}` }] : []),
           ...(isForeign ? [
-            { label: `الإجمالي شامل الشحن (${cur})`, value: `${fmt(d(po.totalAmount))} ${cur}` },
-            { label: "سعر الصرف المعتمد", value: `١ ${cur} = ${rate6(docRate)} ${baseCode}` },
+            { label: fill(t("الإجمالي شامل الشحن ({0})"), [cur]), value: `${fmt(d(po.totalAmount))} ${cur}` },
+            { label: "سعر الصرف المعتمد", value: fill(t("١ {0} = {1} {2}"), [cur, rate6(docRate), baseCode]) },
           ] : []),
         ]}
         balance={isForeign
-          ? { label: `الإجمالي بالـ${baseCode} (شامل الشحن)`, value: `${fmt(b(po.totalAmount))} ${baseCode}` }
-          : { label: `الإجمالي (${cur})`, value: `${fmt(d(po.totalAmount))} ${cur}` }}
+          ? { label: fill(t("الإجمالي بالـ{0} (شامل الشحن)"), [baseCode]), value: `${fmt(b(po.totalAmount))} ${baseCode}` }
+          : { label: fill(t("الإجمالي ({0})"), [cur]), value: `${fmt(d(po.totalAmount))} ${cur}` }}
         note={po.notes}
         signatures={["إعداد", "اعتماد", "المورّد"]}
       />

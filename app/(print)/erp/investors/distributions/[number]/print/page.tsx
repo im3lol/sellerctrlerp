@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { getLocale, getT } from "@/lib/i18n/server";
 import { and, desc, eq } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
@@ -11,6 +12,8 @@ import { docNumberParam } from "@/lib/erp/doc-route";
 type Params = { params: Promise<{ number: string }> };
 
 export default async function PrintDistributionPage({ params }: Params) {
+  const t = await getT();
+  const locale = await getLocale();
   const raw = (await params).number;
   return loadErpPage("investors.view", async ({ orgId }) => {
     const number = await docNumberParam(raw, orgId, profitDistributions,
@@ -44,14 +47,14 @@ export default async function PrintDistributionPage({ params }: Params) {
         org={org}
         hiddenColumns={hiddenFor("distribution")}
         footerText={footerText}
-        title="توزيع أرباح"
+        title={t("توزيع أرباح")}
         number={dist.periodName}
         backHref={`/investors/distributions/${encodeURIComponent(dist.number)}`}
-        watermark={dist.status !== "POSTED" ? "مسودة" : undefined}
+        watermark={dist.status !== "POSTED" ? t("مسودة") : undefined}
         meta={[
-          { label: "الفترة", value: `${dt(dist.periodStart)} — ${dt(dist.periodEnd)}` },
-          { label: "تاريخ التوزيع", value: dt(dist.distributionDate) },
-          { label: "الحالة", value: dist.status === "POSTED" ? "مُرحّل" : "مسودة" },
+          { label: "الفترة", value: `${dt(dist.periodStart, locale)} — ${dt(dist.periodEnd, locale)}` },
+          { label: "تاريخ التوزيع", value: dt(dist.distributionDate, locale) },
+          { label: "الحالة", value: dist.status === "POSTED" ? t("مُرحّل") : t("مسودة") },
         ]}
         columns={[
           { label: "المستثمر", width: "50%" },
@@ -66,7 +69,7 @@ export default async function PrintDistributionPage({ params }: Params) {
           `${qty(r.percent)}%`,
           <b key="t">{fmt(r.share)}</b>,
         ])}
-        totals={[{ label: "الإجمالي", value: money(total, currency), tone: "strong" as const }]}
+        totals={[{ label: "الإجمالي", value: money(total, currency, locale), tone: "strong" as const }]}
         signatures={["المحاسب", "المدير العام"]}
       />
     );

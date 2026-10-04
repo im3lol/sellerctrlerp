@@ -87,7 +87,7 @@ export function BankStatementClient({ bankAccountId, lines, glLines, canEdit }: 
           {canEdit && (
             <Button size="sm" onClick={() => setShowAdd(!showAdd)} disabled={pending}>
               <Icon name="Plus" className="size-4" />
-              إضافة سطر
+              {t("إضافة سطر")}
             </Button>
           )}
         </CardHeader>
@@ -127,7 +127,7 @@ export function BankStatementClient({ bankAccountId, lines, glLines, canEdit }: 
 
           {withBalance.length === 0 ? (
             <div className="rounded-xl border border-dashed py-10 text-center text-sm text-muted-foreground">
-              لا توجد سطور في الكشف. أضف سطرًا أو استورد الكشف من البنك.
+              {t("لا توجد سطور في الكشف. أضف سطرًا أو استورد الكشف من البنك.")}
             </div>
           ) : (
             <div className="overflow-hidden rounded-xl border">

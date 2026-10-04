@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
-import { getT } from "@/lib/i18n/server";
+import { fill } from "@/lib/i18n";
+import { getLocale, getT } from "@/lib/i18n/server";
 import { PrintNowButton } from "@/components/erp/print-now-button";
 import type { PrintOrg, PrintColumn } from "@/components/erp/print/document-sheet";
 
@@ -44,12 +45,14 @@ export type ReportSheetProps = {
   backHref: string;
 };
 
+/** Shown when the company has no name yet. */
+const NO_NAME = "؟";
 const initials = (name: string | null | undefined) =>
-  (name ?? "؟").trim().split(/\s+/).slice(0, 2).map((w) => w[0]).join("");
+  (name ?? NO_NAME).trim().split(/\s+/).slice(0, 2).map((w) => w[0]).join("");
 
 export async function ReportSheet({ org, title, period, filters = [], kpis = [], sections, note, backHref }: ReportSheetProps) {
   const t = await getT();
-  const printedAt = new Date().toLocaleString("ar-EG-u-nu-latn", { dateStyle: "long", timeStyle: "short" });
+  const printedAt = new Date().toLocaleString((await getLocale()) === "en" ? "en-GB" : "ar-EG-u-nu-latn", { dateStyle: "long", timeStyle: "short" });
   return (
     <>
       <style>{`
@@ -80,7 +83,7 @@ export async function ReportSheet({ org, title, period, filters = [], kpis = [],
       <div className="no-print fixed top-4 start-4 z-50 flex gap-2">
         <PrintNowButton />
         <a href={backHref} className="rounded border bg-white px-4 py-2 text-sm font-medium shadow hover:bg-muted">
-          رجوع
+          {t("رجوع")}
         </a>
       </div>
 
@@ -109,7 +112,7 @@ export async function ReportSheet({ org, title, period, filters = [], kpis = [],
           </div>
 
           <div style={{ textAlign: "end" }}>
-            <div style={{ fontSize: 20, fontWeight: 800, letterSpacing: ".5px", color: T.primary }}>{title}</div>
+            <div style={{ fontSize: 20, fontWeight: 800, letterSpacing: ".5px", color: T.primary }}>{t(title)}</div>
             <div style={{ marginTop: 6, fontSize: 11, color: T.muted, lineHeight: 1.8 }}>
               {period && <div>{period}</div>}
               <div>{t("طُبع في")} <b style={{ color: T.ink }}>{printedAt}</b></div>
@@ -139,7 +142,7 @@ export async function ReportSheet({ org, title, period, filters = [], kpis = [],
         {sections.map((s, si) => (
           <div key={si} style={{ marginBottom: 22 }}>
             {s.title && (
-              <div style={{ fontSize: 13, fontWeight: 800, color: T.primary, margin: "0 0 8px" }}>{s.title}</div>
+              <div style={{ fontSize: 13, fontWeight: 800, color: T.primary, margin: "0 0 8px" }}>{t(s.title)}</div>
             )}
             <table>
               <thead>
@@ -172,11 +175,11 @@ export async function ReportSheet({ org, title, period, filters = [], kpis = [],
         ))}
 
         {note && (
-          <div style={{ marginTop: 8, fontSize: 10.5, color: T.body }}>{note}</div>
+          <div style={{ marginTop: 8, fontSize: 10.5, color: T.body }}>{t(note)}</div>
         )}
 
         <div style={{ marginTop: 28, paddingTop: 12, borderTop: `1px solid ${T.line}`, textAlign: "center", fontSize: 10, color: T.muted }}>
-          {[org?.nameAr, org?.phone, org?.taxNumber && `الرقم الضريبي: ${org.taxNumber}`].filter(Boolean).join(" · ")}
+          {[org?.nameAr, org?.phone, org?.taxNumber && fill(t("الرقم الضريبي: {0}"), [org.taxNumber])].filter(Boolean).join(" · ")}
         </div>
       </div>
     </>

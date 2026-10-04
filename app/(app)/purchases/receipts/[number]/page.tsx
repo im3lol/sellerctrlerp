@@ -200,7 +200,7 @@ export default async function ReceiptDetailPage({ params }: { params: Promise<{ 
                 <div className="text-base font-bold text-primary">الإجمالي الشامل: {fmt(totals.goods + totals.landed)}</div>
                 {!anyLanded && (
                   <p className="text-xs text-muted-foreground">
-                    لم تُحمَّل تكاليف استيراد على هذه الشحنة بعد — تُسجَّل من «المشتريات ← تكاليف الاستيراد».
+                    {t("لم تُحمَّل تكاليف استيراد على هذه الشحنة بعد — تُسجَّل من «المشتريات ← تكاليف الاستيراد».")}
                   </p>
                 )}
               </div>

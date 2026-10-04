@@ -39,7 +39,7 @@ export default async function AttendancePage() {
         {options.length === 0 && (
           <Card><CardContent className="pt-6">
             <p className="text-sm text-muted-foreground">
-              مفيش موظف مربوط بحساب دخول. الحضور بيتسجّل على الحساب، فاربط كل موظف بمستخدم من صفحة الموظفين الأول.
+              {t("مفيش موظف مربوط بحساب دخول. الحضور بيتسجّل على الحساب، فاربط كل موظف بمستخدم من صفحة الموظفين الأول.")}
             </p>
           </CardContent></Card>
         )}

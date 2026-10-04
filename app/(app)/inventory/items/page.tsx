@@ -162,7 +162,7 @@ export default async function ItemsPage({ searchParams }: { searchParams: Promis
                 {hasFilters && <Button type="button" variant="outline" asChild><Link href="/inventory/items">{t("مسح")}</Link></Button>}
                 <label className="flex cursor-pointer items-center gap-2 text-sm" title={t("عند البحث بكود صنف، أظهر معه بقية عائلته (الأب والتنويعات الأخرى)")}>
                   <input type="checkbox" name="related" value="1" defaultChecked={showRelated} className="size-4 rounded border-input" />
-                  إظهار المنتجات المرتبطة
+                  {t("إظهار المنتجات المرتبطة")}
                 </label>
               </div>
             </form>

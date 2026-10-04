@@ -101,7 +101,7 @@ export default async function SalesReturnDetailPage({ params }: { params: Promis
         </div>
         {ret.status === "DRAFT" && ret.disposition && ret.disposition !== "SELLABLE" && (
           <div className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-2 text-sm text-amber-800 dark:bg-amber-950/20">
-            بضاعة تالفة/غير قابلة للبيع — عند التأكيد لن تُعاد للمخزون القابل للبيع؛ تُقيَّد تكلفتها كخسارة (عجز وتالف).
+            {t("بضاعة تالفة/غير قابلة للبيع — عند التأكيد لن تُعاد للمخزون القابل للبيع؛ تُقيَّد تكلفتها كخسارة (عجز وتالف).")}
           </div>
         )}
 

@@ -192,7 +192,7 @@ export default async function SupplierStatementPage({ searchParams }: Params) {
       >
         {!selectedId ? (
           <div className="rounded-xl border border-dashed py-16 text-center text-muted-foreground">
-            اختر مورّدًا لعرض كشف حسابه.
+            {t("اختر مورّدًا لعرض كشف حسابه.")}
           </div>
         ) : (
           <>
@@ -208,7 +208,7 @@ export default async function SupplierStatementPage({ searchParams }: Params) {
               <CardContent>
                 {rows.length === 0 ? (
                   <div className="rounded-xl border border-dashed py-10 text-center text-sm text-muted-foreground">
-                    لا توجد حركات في هذه الفترة.
+                    {t("لا توجد حركات في هذه الفترة.")}
                   </div>
                 ) : (
                   <div className="overflow-hidden rounded-xl border">

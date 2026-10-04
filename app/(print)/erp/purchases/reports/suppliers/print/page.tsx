@@ -1,4 +1,6 @@
 import { and, eq, gte, inArray, lte, sql } from "drizzle-orm";
+import { fill } from "@/lib/i18n";
+import { getLocale, getT } from "@/lib/i18n/server";
 import { loadErpPage } from "@/lib/erp/org";
 import { orgFiscalYearStartISO } from "@/lib/erp/fiscal";
 import { db } from "@/lib/db";
@@ -12,6 +14,8 @@ const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) 
 const POSTED = ["POSTED", "PARTIAL_PAID", "PAID"];
 
 export default async function PrintSupplierRankingPage({ searchParams }: { searchParams: Promise<SP> }) {
+  const t = await getT();
+  const locale = await getLocale();
   return loadErpPage("purchases.view", async ({ orgId }) => {
     const sp = await searchParams;
     const from = one(sp.from) || (await orgFiscalYearStartISO(orgId));
@@ -46,8 +50,8 @@ export default async function PrintSupplierRankingPage({ searchParams }: { searc
     return (
       <ReportSheet
         org={org}
-        title="ترتيب الموردين"
-        period={`من ${dt(from)} إلى ${dt(to)}`}
+        title={t("ترتيب الموردين")}
+        period={fill(t("من {0} إلى {1}"), [dt(from, locale), dt(to, locale)])}
         filters={search ? [{ label: "بحث", value: search }] : []}
         kpis={[
           { label: "موردون لديهم مشتريات", value: String(list.length) },
@@ -71,12 +75,12 @@ export default async function PrintSupplierRankingPage({ searchParams }: { searc
             <b key="s">{fmt(r.spend)}</b>,
             String(r.invoices),
             fmt(r.balance),
-            dt(r.last),
+            dt(r.last, locale),
             tSpend > 0 ? `${((r.spend / tSpend) * 100).toFixed(1)}%` : "—",
           ]),
           footerRow: ["", "الإجمالي", fmt(tSpend), "", fmt(tAp), "", ""],
         }]}
-        note={list.length === 0 ? "لا توجد مشتريات في هذه الفترة." : "المشتريات صافٍ من الضريبة؛ الرصيد المستحق هو الرصيد الحالي."}
+        note={list.length === 0 ? t("لا توجد مشتريات في هذه الفترة.") : t("المشتريات صافٍ من الضريبة؛ الرصيد المستحق هو الرصيد الحالي.")}
         backHref={`/purchases/reports/suppliers${backQs.size ? `?${backQs}` : ""}`}
       />
     );

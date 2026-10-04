@@ -144,7 +144,7 @@ export default async function PlatformPayoutsPage({ params, searchParams }: { pa
 
               {reported.length === 0 ? (
                 <div className="mt-4 rounded-xl border border-dashed py-8 text-center text-sm text-muted-foreground">
-                  لا توجد قراءة رصيد بعد.
+                  {t("لا توجد قراءة رصيد بعد.")}
                 </div>
               ) : (
                 <>

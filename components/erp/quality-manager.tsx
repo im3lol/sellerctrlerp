@@ -124,7 +124,7 @@ export function QualityManager({ items, canDecide, canEdit }: {
           <CardHeader>
             <CardTitle>{t("أصناف تحت الفحص")}</CardTitle>
             <CardDescription>
-              الصنف المعلَّم هنا بيدخل الحجر أول ما يُستلم، وما يبقاش متاح للبيع غير لما حد يقبله.
+              {t("الصنف المعلَّم هنا بيدخل الحجر أول ما يُستلم، وما يبقاش متاح للبيع غير لما حد يقبله.")}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
@@ -204,7 +204,7 @@ export function QualityManager({ items, canDecide, canEdit }: {
         <CardContent>
           {rows.length === 0 && !loading ? (
             <p className="text-sm text-muted-foreground">
-              مفيش سجلات فحص. علّم صنف بأنه «تحت الفحص» وأول استلام ليه هيدخل الحجر بدل المخزن.
+              {t("مفيش سجلات فحص. علّم صنف بأنه «تحت الفحص» وأول استلام ليه هيدخل الحجر بدل المخزن.")}
             </p>
           ) : (
             <div className="rounded-xl border overflow-x-auto">

@@ -19,6 +19,15 @@ export const dirOf = (locale: Locale) => (locale === "ar" ? "rtl" : "ltr");
 
 export type T = (ar: string) => string;
 
+/**
+ * Fill numbered slots in a translated string: `fill(t("من {0} إلى {1}"), [from, to])`.
+ * The dictionary key keeps the slots, so an English sentence can put them in its own
+ * order — which is why sentences with values in them are keyed this way rather than
+ * glued together around separately-translated fragments.
+ */
+export const fill = (s: string, vals: (string | number | null | undefined)[]): string =>
+  s.replace(/\{(\d+)\}/g, (m, i: string) => (Number(i) < vals.length ? String(vals[Number(i)] ?? "") : m));
+
 /** The translator for a locale. Arabic returns the source untouched (zero lookups). */
 export function translator(locale: Locale): T {
   if (locale === "ar") return (ar) => ar;

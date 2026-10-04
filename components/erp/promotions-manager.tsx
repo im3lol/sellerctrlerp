@@ -120,7 +120,7 @@ export function PromotionsManager({ rows, items, loyalty, canManage, canEditSett
             <div>
               <CardTitle>{t("العروض")}</CardTitle>
               <CardDescription>
-                بتتطبّق لوحدها على نقطة البيع. السطر بياخد عرض واحد — الأكبر خصماً — والعروض مبتتجمّعش فوق بعض.
+                {t("بتتطبّق لوحدها على نقطة البيع. السطر بياخد عرض واحد — الأكبر خصماً — والعروض مبتتجمّعش فوق بعض.")}
               </CardDescription>
             </div>
             {canManage && (
@@ -191,7 +191,7 @@ export function PromotionsManager({ rows, items, loyalty, canManage, canEditSett
                 <label className="flex cursor-pointer items-center gap-2 text-sm">
                   <input type="checkbox" className="size-4 rounded border-input" checked={form.isActive}
                     onChange={(e) => set("isActive", e.target.checked)} />
-                  مفعّل
+                  {t("مفعّل")}
                 </label>
                 <Button onClick={save} disabled={pending || !form.nameAr.trim()}>
                   <Icon name="Check" className="size-4" />احفظ
@@ -264,7 +264,7 @@ export function PromotionsManager({ rows, items, loyalty, canManage, canEditSett
         <CardHeader>
           <CardTitle>{t("نقط الولاء")}</CardTitle>
           <CardDescription>
-            العميل بيكسب نقط على كل بيعة، وبيصرفها كخصم على بيعة بعدين. صفر في الكسب = البرنامج مقفول.
+            {t("العميل بيكسب نقط على كل بيعة، وبيصرفها كخصم على بيعة بعدين. صفر في الكسب = البرنامج مقفول.")}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">

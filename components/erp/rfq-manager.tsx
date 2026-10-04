@@ -460,7 +460,7 @@ export function RfqManager({ items, suppliers, warehouses, canManage }: {
       <CardContent>
         {rows.length === 0 && !loading ? (
           <p className="text-sm text-muted-foreground">
-            مفيش طلبات. الطلب بيبعت نفس السلة لكذا مورّد، وبعدين تقارن ردودهم في جدول واحد بدل ما تفضل تقلّب في الواتساب.
+            {t("مفيش طلبات. الطلب بيبعت نفس السلة لكذا مورّد، وبعدين تقارن ردودهم في جدول واحد بدل ما تفضل تقلّب في الواتساب.")}
           </p>
         ) : (
           <div className="rounded-xl border overflow-x-auto">

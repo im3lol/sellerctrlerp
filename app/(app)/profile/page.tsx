@@ -57,7 +57,7 @@ export default async function ProfilePage() {
             className="mt-2 flex w-full items-center justify-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium hover:bg-accent"
           >
             <Icon name="IdCard" className="size-4" />
-            ملفي الوظيفي — راتبي وإجازاتي
+            {t("ملفي الوظيفي — راتبي وإجازاتي")}
           </Link>
 
           {member?.chatId ? (
@@ -70,7 +70,7 @@ export default async function ProfilePage() {
               title={t("الرابط صالح 15 دقيقة")}
               className="flex w-full items-center justify-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium hover:bg-accent">
               <Icon name="Send" className="size-4" />
-              اربط تليجرام — توصلك الموافقات على موبايلك
+              {t("اربط تليجرام — توصلك الموافقات على موبايلك")}
             </a>
           ) : null}
         </Card>

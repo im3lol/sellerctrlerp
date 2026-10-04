@@ -59,7 +59,7 @@ export default function PostDepreciationPage() {
                 className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm shadow-sm"
               >
                 {Array.from({ length: 6 }, (_, i) => now.getFullYear() - 2 + i).map((y) => (
-                  <option key={y} value={y}>{y}</option>
+                  <option key={y} value={y}>{String(y)}</option>
                 ))}
               </select>
             </div>

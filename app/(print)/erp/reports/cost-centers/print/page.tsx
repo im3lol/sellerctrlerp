@@ -1,4 +1,6 @@
 import { and, eq, gte, inArray, lte, sql } from "drizzle-orm";
+import { fill } from "@/lib/i18n";
+import { getLocale, getT } from "@/lib/i18n/server";
 import { loadErpPage } from "@/lib/erp/org";
 import { orgFiscalYearStartISO } from "@/lib/erp/fiscal";
 import { db } from "@/lib/db";
@@ -14,6 +16,8 @@ type SP = { [k: string]: string | string[] | undefined };
 const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) ?? "";
 
 export default async function PrintCostCenterReportPage({ searchParams }: { searchParams: Promise<SP> }) {
+  const t = await getT();
+  const locale = await getLocale();
   return loadErpPage("reports.view", async ({ orgId }) => {
     const sp = await searchParams;
     const from = one(sp.from) || (await orgFiscalYearStartISO(orgId));
@@ -43,7 +47,7 @@ export default async function PrintCostCenterReportPage({ searchParams }: { sear
     let list = rows.map((r) => {
       const revenue = Number(r.revenue ?? 0), expense = Number(r.expense ?? 0);
       const net = revenue - expense;
-      return { code: r.code, name: r.name ?? "غير محدّد", revenue, expense, net, margin: revenue > 0 ? (net / revenue) * 100 : 0 };
+      return { code: r.code, name: r.name ?? t("غير محدّد"), revenue, expense, net, margin: revenue > 0 ? (net / revenue) * 100 : 0 };
     });
     if (search) list = list.filter((r) => r.code?.toLowerCase().includes(search) || r.name.toLowerCase().includes(search));
     list.sort((a, b) => b.net - a.net);
@@ -56,8 +60,8 @@ export default async function PrintCostCenterReportPage({ searchParams }: { sear
     return (
       <ReportSheet
         org={org}
-        title="الأرباح والخسائر حسب مركز التكلفة"
-        period={`من ${dt(from)} إلى ${dt(to)}`}
+        title={t("الأرباح والخسائر حسب مركز التكلفة")}
+        period={fill(t("من {0} إلى {1}"), [dt(from, locale), dt(to, locale)])}
         filters={search ? [{ label: "بحث", value: one(sp.q).trim() }] : []}
         backHref="/reports/cost-centers"
         kpis={[
@@ -88,7 +92,7 @@ export default async function PrintCostCenterReportPage({ searchParams }: { sear
         }]}
         note={[
           "من القيود المرحّلة. «غير محدّد» = بنود بلا مركز تكلفة.",
-          list.length > CAP ? `عُرضت أول ${CAP} صف من ${list.length}.` : "",
+          list.length > CAP ? fill(t("عُرضت أول {0} صف من {1}."), [CAP, list.length]) : "",
         ].filter(Boolean).join(" ")}
       />
     );

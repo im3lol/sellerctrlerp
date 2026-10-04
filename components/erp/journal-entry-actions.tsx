@@ -75,7 +75,7 @@ export function JournalEntryActions({
               <Icon name="Undo2" className="size-4" />تأكيد العكس
             </Button>
             <Button variant="outline" disabled={pending} onClick={() => setConfirmReverse(false)}>
-              إلغاء
+              {t("إلغاء")}
             </Button>
           </>
         ) : (

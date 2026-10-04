@@ -73,7 +73,7 @@ export default async function SalesLedgerPage({ searchParams }: { searchParams: 
           <CardHeader>
             <CardTitle>{t("دفتر المبيعات (Ledger)")}</CardTitle>
             <CardDescription>
-              حصر شامل لكل حركات المبيعات — أوامر البيع، إذون الصرف، فواتير البيع، والمرتجعات — مع تفصيل السعر والخصم والضريبة والإجمالي. استخدم الفلاتر لحصر عميل أو منتج أو نوع وثيقة أو فترة زمنية.
+              {t("حصر شامل لكل حركات المبيعات — أوامر البيع، إذون الصرف، فواتير البيع، والمرتجعات — مع تفصيل السعر والخصم والضريبة والإجمالي. استخدم الفلاتر لحصر عميل أو منتج أو نوع وثيقة أو فترة زمنية.")}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">

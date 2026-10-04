@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { fill } from "@/lib/i18n";
 import { getT } from "@/lib/i18n/server";
 import { PrintNowButton } from "@/components/erp/print-now-button";
 
@@ -90,8 +91,10 @@ export type DocumentSheetProps = {
   backHref?: string;
 };
 
+/** Shown when the company has no name yet. */
+const NO_NAME = "؟";
 const initials = (name: string | null | undefined) =>
-  (name ?? "؟").trim().split(/\s+/).slice(0, 2).map((w) => w[0]).join("");
+  (name ?? NO_NAME).trim().split(/\s+/).slice(0, 2).map((w) => w[0]).join("");
 
 export async function DocumentSheet({
   org, title, number, meta = [], parties = [], columns: allColumns = [], rows: allRows = [],
@@ -139,7 +142,7 @@ export async function DocumentSheet({
         <PrintNowButton />
         {backHref && (
           <a href={backHref} className="rounded border bg-white px-4 py-2 text-sm font-medium shadow hover:bg-muted">
-            رجوع
+            {t("رجوع")}
           </a>
         )}
       </div>
@@ -182,7 +185,7 @@ export async function DocumentSheet({
           </div>
 
           <div style={{ textAlign: "end" }}>
-            <div style={{ fontSize: 22, fontWeight: 800, letterSpacing: ".5px", color: T.primary }}>{title}</div>
+            <div style={{ fontSize: 22, fontWeight: 800, letterSpacing: ".5px", color: T.primary }}>{t(title)}</div>
             <div style={{ marginTop: 8, fontSize: 11, color: T.muted, lineHeight: 1.8 }}>
               <div>{t("رقم المستند")} <b style={{ color: T.ink }} dir="ltr">{number}</b></div>
               {meta.map((m) => (
@@ -263,14 +266,14 @@ export async function DocumentSheet({
         )}
 
         {note && (
-          <div style={{ marginTop: 24, fontSize: 12, color: T.body, lineHeight: 1.7 }}>{note}</div>
+          <div style={{ marginTop: 24, fontSize: 12, color: T.body, lineHeight: 1.7 }}>{typeof note === "string" ? t(note) : note}</div>
         )}
 
         {signatures.length > 0 && (
           <div className="mt-12 grid gap-8" style={{ gridTemplateColumns: `repeat(${signatures.length}, 1fr)` }}>
             {signatures.map((s) => (
               <div key={s} style={{ textAlign: "center" }}>
-                <div style={{ borderTop: `1px solid ${T.line}`, paddingTop: 6, fontSize: 11, color: T.muted }}>{s}</div>
+                <div style={{ borderTop: `1px solid ${T.line}`, paddingTop: 6, fontSize: 11, color: T.muted }}>{t(s)}</div>
               </div>
             ))}
           </div>
@@ -280,7 +283,7 @@ export async function DocumentSheet({
           <div style={{ marginTop: 28, textAlign: "center", fontSize: 11, color: T.body, lineHeight: 1.7 }}>{footerText}</div>
         )}
         <div style={{ marginTop: footerText ? 12 : 32, paddingTop: 12, borderTop: `1px solid ${T.line}`, textAlign: "center", fontSize: 10, color: T.muted }}>
-          {[org?.nameAr, org?.phone, org?.taxNumber && `الرقم الضريبي: ${org.taxNumber}`].filter(Boolean).join(" · ")}
+          {[org?.nameAr, org?.phone, org?.taxNumber && fill(t("الرقم الضريبي: {0}"), [org.taxNumber])].filter(Boolean).join(" · ")}
         </div>
       </div>
     </>

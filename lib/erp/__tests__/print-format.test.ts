@@ -116,3 +116,25 @@ describe("dt", () => {
     expect(dt(undefined)).toBe("");
   });
 });
+
+describe("print-format in English", () => {
+  it("prints English month names and ISO codes instead of Arabic symbols", async () => {
+    const { dt: d, money: m } = await import("../print-format");
+    expect(d("2026-01-15", "en")).toBe("15 January 2026");
+    expect(m(240, "EGP", "en")).toBe("240.00 EGP");
+    expect(m(240, "USD", "en")).toBe("240.00 $");
+    // Arabic stays exactly as before.
+    expect(m(240, "EGP")).toBe("240.00 ج.م");
+  });
+
+  it("spells amounts out in English", async () => {
+    const { toEnglishWords, amountInWords } = await import("../print-format");
+    expect(toEnglishWords(0)).toBe("zero");
+    expect(toEnglishWords(21)).toBe("twenty-one");
+    expect(toEnglishWords(100)).toBe("one hundred");
+    expect(toEnglishWords(1000)).toBe("one thousand");
+    expect(toEnglishWords(1_250_340)).toBe("one million two hundred and fifty thousand three hundred and forty");
+    expect(amountInWords(240, "en", "Egyptian pounds")).toBe("Amount in words: two hundred and forty Egyptian pounds only");
+    expect(amountInWords(240)).toBe("فقط وقدره مئتان وأربعون لا غير");
+  });
+});

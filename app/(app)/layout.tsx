@@ -98,7 +98,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             </span>
             <form action={exitImpersonationAction}>
               <button type="submit" className="shrink-0 rounded-md border border-amber-500/50 px-2.5 py-1 text-xs font-medium text-amber-700 transition-colors hover:bg-amber-500/20 dark:text-amber-400">
-                خروج للوحة الإدارة
+                {t("خروج للوحة الإدارة")}
               </button>
             </form>
           </div>

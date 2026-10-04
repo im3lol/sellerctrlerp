@@ -127,7 +127,7 @@ export function AmazonImport() {
           <CardHeader>
             <CardTitle className="text-base text-destructive">أصناف غير مربوطة ({preview.unmatched.length})</CardTitle>
             <CardDescription>
-              هذه الأكواد (SKU) غير مرتبطة بأي صنف في النظام، فطلباتها لن تُستورد. اربط الأكواد بالأصناف دفعة واحدة من الأداة أدناه، ثم أعد رفع الملف.
+              {t("هذه الأكواد (SKU) غير مرتبطة بأي صنف في النظام، فطلباتها لن تُستورد. اربط الأكواد بالأصناف دفعة واحدة من الأداة أدناه، ثم أعد رفع الملف.")}
             </CardDescription>
           </CardHeader>
           <CardContent>
