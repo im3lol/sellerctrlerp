@@ -215,7 +215,7 @@ export default async function PlatformDetailPage({ params, searchParams }: { par
             marketplaces={(connectable?.marketplaces ?? []).map((m) => ({ code: m.code, name: m.name, marketplaceId: m.marketplaceId }))}
             conn={conn}
             justConnected={connected === "1"}
-            error={connected === "0" ? (err ?? t("خطأ غير معروف")) : undefined}
+            error={connected === "0" ? (err ? t(err) : t("خطأ غير معروف")) : undefined}
             needsShop={connectable?.needsTarget}
             credentialKind={connector.code === "WOO" ? "woo" : connector.code === "JUMIA" ? "jumia" : (connector.code === "NOON" && !oauthReady) ? "noon" : undefined}
             oauthReady={oauthReady}

@@ -5,6 +5,7 @@ import { withOrgScope } from "@/lib/db-scope";
 import { db } from "@/lib/db";
 import { journalEntryLines, journalEntries, accounts, costCenters } from "@/db/schema";
 import { xlsxResponse } from "@/lib/erp/xlsx";
+import { getT } from "@/lib/i18n/server";
 
 export const runtime = "nodejs";
 
@@ -34,9 +35,10 @@ export async function GET(req: Request) {
     ))
     .groupBy(costCenters.id, costCenters.code, costCenters.nameAr);
 
+  const t = await getT();
   const list = raw.map((r) => {
     const revenue = Number(r.revenue ?? 0), expense = Number(r.expense ?? 0);
-    return { name: `${r.code ? r.code + " " : ""}${r.name ?? "غير محدّد"}`, revenue, expense, net: revenue - expense, margin: revenue > 0 ? ((revenue - expense) / revenue) * 100 : 0 };
+    return { name: `${r.code ? r.code + " " : ""}${r.name ?? t("غير محدّد")}`, revenue, expense, net: revenue - expense, margin: revenue > 0 ? ((revenue - expense) / revenue) * 100 : 0 };
   }).sort((a, b) => b.net - a.net);
 
   const tRev = list.reduce((s, r) => s + r.revenue, 0);

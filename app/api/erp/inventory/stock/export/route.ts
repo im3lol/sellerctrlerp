@@ -1,4 +1,4 @@
-import * as XLSX from "xlsx";
+import { xlsxBuild } from "@/lib/erp/xlsx";
 import { requireErpModule } from "@/lib/erp/org";
 import { withOrgScope } from "@/lib/db-scope";
 import { getStockBalances } from "@/lib/erp/stock-balances";
@@ -7,10 +7,6 @@ export const runtime = "nodejs";
 
 const STATUS_LABEL: Record<string, string> = { OK: "متوفّر", LOW: "منخفض", OUT: "نافد" };
 
-const today = () => {
-  const x = new Date();
-  return `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, "0")}-${String(x.getDate()).padStart(2, "0")}`;
-};
 
 /** Excel export of stock balances, honouring the page filters. */
 export async function GET(req: Request) {
@@ -27,18 +23,5 @@ export async function GET(req: Request) {
   const body = lines.map((l) => [l.code, l.name, l.warehouse, l.quantity, l.avgCost, l.value, expFmt(l.nearestExpiry), STATUS_LABEL[l.status] ?? l.status]);
   const totalRow = ["الإجمالي", "", "", totals.quantity, "", totals.value, "", ""];
 
-  const ws = XLSX.utils.aoa_to_sheet([headers, ...body, totalRow]);
-  ws["!cols"] = [{ wch: 16 }, { wch: 28 }, { wch: 18 }, { wch: 12 }, { wch: 14 }, { wch: 14 }, { wch: 12 }, { wch: 10 }];
-
-  const wb = XLSX.utils.book_new();
-  wb.Workbook = { Views: [{ RTL: true }] };
-  XLSX.utils.book_append_sheet(wb, ws, "أرصدة المخزون");
-  const buffer = XLSX.write(wb, { type: "buffer", bookType: "xlsx" }) as Buffer;
-
-  return new Response(new Uint8Array(buffer), {
-    headers: {
-      "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-      "Content-Disposition": `attachment; filename="stock-balances-${today()}.xlsx"`,
-    },
-  });
+  return xlsxBuild([headers, ...body, totalRow], "أرصدة المخزون", "stock-balances", [16, 28, 18, 12, 14, 14, 12, 10]);
 }
