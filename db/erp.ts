@@ -2648,6 +2648,7 @@ export const purchaseOrders = pgTable(
     // supplier scorecard can measure punctuality against — without it a receipt has no
     // "late", and that supplier simply carries no delivery score rather than a made-up one.
     expectedDate: ts("expected_date"),
+    originCostInput: jsonb("origin_cost_input").$type<import("../lib/erp/purchase-origin-costs").OriginCostInput>(),
     status: text("status").notNull().default("DRAFT"),
     subtotal: money("subtotal").notNull().default("0"),
     discountAmount: money("discount_amount").notNull().default("0"),

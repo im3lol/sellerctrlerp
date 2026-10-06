@@ -1,3 +1,4 @@
+import { originDisplayLines } from "@/lib/erp/purchase-origin-costs";
 import { notFound, redirect } from "next/navigation";
 import { and, eq, inArray } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
@@ -48,11 +49,11 @@ export default async function PurchaseOrderDetailPage({ params }: { params: Prom
     if (!po) notFound();
 
     // Phase 1 — independent of each other once `po` is known.
-    const [[sup], lines, grns, audit] = await Promise.all([
+    const [[sup], storedLines, grns, audit] = await Promise.all([
       po.supplierId
         ? db.select({ code: suppliers.code, name: suppliers.nameAr }).from(suppliers).where(eq(suppliers.id, po.supplierId)).limit(1)
         : Promise.resolve([undefined] as { code: string; name: string }[] | [undefined]),
-      db.select({ id: purchaseOrderLines.id, qty: purchaseOrderLines.quantity, unitPrice: purchaseOrderLines.unitPrice, shipping: purchaseOrderLines.shippingPerUnit, discount: purchaseOrderLines.discountAmount, tax: purchaseOrderLines.taxAmount, total: purchaseOrderLines.totalAmount, uomFactor: purchaseOrderLines.uomFactor, uomLabel: unitsOfMeasure.nameAr, code: items.code, name: items.nameAr, image: items.image })
+      db.select({ id: purchaseOrderLines.id, itemId: purchaseOrderLines.itemId, qty: purchaseOrderLines.quantity, unitPrice: purchaseOrderLines.unitPrice, shipping: purchaseOrderLines.shippingPerUnit, discount: purchaseOrderLines.discountAmount, tax: purchaseOrderLines.taxAmount, total: purchaseOrderLines.totalAmount, uomFactor: purchaseOrderLines.uomFactor, uomLabel: unitsOfMeasure.nameAr, code: items.code, name: items.nameAr, image: items.image })
         .from(purchaseOrderLines).leftJoin(items, eq(items.id, purchaseOrderLines.itemId))
         .leftJoin(unitsOfMeasure, eq(unitsOfMeasure.id, purchaseOrderLines.uomId))
         .where(eq(purchaseOrderLines.purchaseOrderId, po.id)),
@@ -61,6 +62,13 @@ export default async function PurchaseOrderDetailPage({ params }: { params: Prom
       getDocumentAudit(orgId, po.id),
     ]);
 
+    const breakdown = new Map(po.originCostInput ? originDisplayLines(po.originCostInput, Number(po.exchangeRate) || 1).map(l => [l.itemId, l]) : []);
+    const lines = storedLines.map(l => {
+      const d = breakdown.get(l.itemId);
+      return d ? { ...l, unitPrice: String(d.unitPrice), shipping: String(d.shippingPerUnit), discount: String(d.discountAmount), tax: String(d.taxAmount), total: String(d.totalAmount), other: d.otherAmount }
+        : { ...l, other: 0 };
+    });
+    const hasOther = lines.some(l => l.other !== 0);
     // Phase 2 — linked invoices (need the GRN invoice ids) in a single query.
     const invoiceIds = [...new Set(grns.map((g) => g.invoiceId).filter((x): x is string => !!x))];
     const invRows = invoiceIds.length
@@ -107,8 +115,8 @@ export default async function PurchaseOrderDetailPage({ params }: { params: Prom
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <Field label="الحالة"><Badge variant={st.variant}>{st.label}</Badge></Field>
           <Field label="التاريخ">{dt(po.date)}</Field>
-          <Field label="الشحن">{dfmt(po.shippingAmount)}</Field>
-          <Field label="الضريبة">{dfmt(po.taxAmount)}</Field>
+          <Field label="الشحن">{dfmt(lines.reduce((sum, l) => sum + Number(l.shipping) * Number(l.qty), 0))}</Field>
+          <Field label="الضريبة">{dfmt(lines.reduce((sum, l) => sum + Number(l.tax), 0))}</Field>
           <Field label={`الإجمالي (${cur})`}>{dfmt(po.totalAmount)}</Field>
           {isForeignDoc && (
             <Field label="الإجمالي بالحسابات (EGP)">
@@ -117,6 +125,15 @@ export default async function PurchaseOrderDetailPage({ params }: { params: Prom
           )}
         </div>
 
+        {!!po.originCostInput?.costs.length && <Card>
+          <CardHeader><CardTitle>مصاريف وخصومات أمر الشراء</CardTitle></CardHeader>
+          <CardContent className="space-y-2">
+            {po.originCostInput.costs.map((c, i) => <div key={i} className="flex flex-wrap justify-between gap-2 border-b pb-2 text-sm">
+              <span>{{ MARKETPLACE_TAX: "ضريبة بلد الشراء", DOMESTIC_FREIGHT: "شحن محلي", PREP: "تجهيز", OTHER: "مصروف آخر", DISCOUNT: "خصم الطلب" }[c.kind]} {c.description && `— ${c.description}`}</span>
+              <span>{c.kind === "DISCOUNT" ? "−" : "+"}{fmt(c.amount)} {cur} · {{ VALUE: "حسب القيمة", QUANTITY: "حسب الكمية", MANUAL: "يدويًا" }[c.allocationMethod]}</span>
+            </div>)}
+          </CardContent>
+        </Card>}
         <Card>
           <CardHeader><CardTitle>البنود</CardTitle><CardDescription>أصناف الأمر.</CardDescription></CardHeader>
           <CardContent>
@@ -130,6 +147,7 @@ export default async function PurchaseOrderDetailPage({ params }: { params: Prom
                   <TableHead className="text-start">الخصم</TableHead>
                   <TableHead className="text-start">الضريبة</TableHead>
                   <TableHead className="text-start">شحن/وحدة</TableHead>
+                  {hasOther && <TableHead className="text-start">مصاريف أخرى</TableHead>}
                   <TableHead className="text-start">الإجمالي</TableHead>
                 </TableRow>
               </TableHeader>
@@ -155,13 +173,14 @@ export default async function PurchaseOrderDetailPage({ params }: { params: Prom
                     <TableCell>{dfmt(l.discount)}</TableCell>
                     <TableCell>{dfmt(l.tax)}</TableCell>
                     <TableCell>{dfmt(l.shipping)}</TableCell>
+                    {hasOther && <TableCell>{dfmt(l.other)}</TableCell>}
                     <TableCell>{dfmt(l.total)}</TableCell>
                   </TableRow>
                 ))} />
               </TableBody>
               <TableFooter>
                 <TableRow className="font-bold">
-                  <TableCell colSpan={6}>الإجمالي ({cur})</TableCell>
+                  <TableCell colSpan={hasOther ? 8 : 7}>الإجمالي ({cur})</TableCell>
                   <TableCell>{dfmt(po.totalAmount)}</TableCell>
                 </TableRow>
               </TableFooter>

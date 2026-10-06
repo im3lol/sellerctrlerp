@@ -1,5 +1,6 @@
 "use client";
 
+import { allocateOriginCosts, allocateOriginShares, emptyOriginShare, type OriginCost, type OriginLine } from "@/lib/erp/purchase-origin-costs";
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Plus, Trash2, Loader2 } from "lucide-react";
@@ -34,12 +35,13 @@ type Line = { itemId: string; quantity: number; unitPrice: number; shippingPerUn
 // The line's row-editor id: purely client-side (React key + drag identity for
 // SortableLineRows), regenerated on every load, never sent in the save payload.
 type LineRow = Line & { id: string };
+
 const newId = () => crypto.randomUUID();
 // Editing an existing DRAFT: line amounts are already in the document currency (the edit
 // page converts the stored base amounts back to foreign), so they seed Line directly.
 export type PurchaseOrderInitial = {
   id: string; number: string; supplierId: string; warehouseId: string; date: string; expectedDate?: string; notes: string;
-  currencyCode: string; exchangeRate: number; applyVat: boolean; lines: Line[];
+  currencyCode: string; exchangeRate: number; applyVat: boolean; lines: Line[]; originCosts?: OriginCost[];
 };
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
@@ -50,7 +52,7 @@ const ratef = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { maximumFracti
 // VAT is a single document-level choice (not per line). Base = goods value net of discount
 // (freight excluded), same convention as the sales side. `applyVat=false` → tax 0.
 const lineTax = (l: Line, vatRate: number, applyVat: boolean) => (applyVat && vatRate > 0 ? lineVat(l.quantity, l.unitPrice, l.quantity * l.discountPerUnit, vatRate, false) : 0);
-const lineTotal = (l: Line, vatRate: number, applyVat: boolean) => round2(l.quantity * l.unitPrice + l.quantity * l.shippingPerUnit - l.quantity * l.discountPerUnit + lineTax(l, vatRate, applyVat));
+const toOriginLines = (lines: Line[], vatRate: number, applyVat: boolean): OriginLine[] => lines.map(l => ({ ...l, discountAmount: round2(l.quantity * l.discountPerUnit), taxAmount: lineTax(l, vatRate, applyVat), exempt: false }));
 const newLine = (): LineRow => ({ id: newId(), itemId: "", quantity: 1, unitPrice: 0, shippingPerUnit: 0, discountPerUnit: 0, uomId: "", uomFactor: 1 });
 
 export function PurchaseOrderForm({ suppliers, warehouses, items, unitsByItem = {}, orgName, vatRate, initialLines, initialSupplierId, requisitionId, lastPrices = {}, supplierPrices = {}, currencies = [], latestRates = {}, rateHistory = {}, initial }: { suppliers: Supplier[]; warehouses: Warehouse[]; items: Item[]; unitsByItem?: Record<string, FormUnit[]>; orgName: string; vatRate: number; initialLines?: { itemId: string; quantity: number }[]; initialSupplierId?: string; requisitionId?: string; lastPrices?: Record<string, number>; supplierPrices?: Record<string, Record<string, number>>; currencies?: Currency[]; latestRates?: Record<string, number>; rateHistory?: Record<string, { date: string; rate: number }[]>; initial?: PurchaseOrderInitial }) {
@@ -95,6 +97,7 @@ export function PurchaseOrderForm({ suppliers, warehouses, items, unitsByItem = 
       : initialLines?.length ? initialLines.map((l) => ({ ...newLine(), itemId: l.itemId, quantity: l.quantity, unitPrice: priceOf(l.itemId) }))
       : [newLine()],
   );
+  const [originCosts, setOriginCosts] = useState<OriginCost[]>(initial?.originCosts ?? []);
   // id → row, so a line cell can show the item's picture and code without another query.
   const itemById = useMemo(() => new Map(items.map((it) => [it.id, it])), [items]);
   const [newSuppliers, setNewSuppliers] = useState<Supplier[]>([]);
@@ -118,27 +121,60 @@ export function PurchaseOrderForm({ suppliers, warehouses, items, unitsByItem = 
       return [...ls, { ...line, id: newId() }];
     });
 
-  const totals = useMemo(() => {
-    const subtotal = round2(lines.reduce((s, l) => s + l.quantity * l.unitPrice, 0));
-    const shipping = round2(lines.reduce((s, l) => s + l.quantity * l.shippingPerUnit, 0));
-    const discount = round2(lines.reduce((s, l) => s + l.quantity * l.discountPerUnit, 0));
-    const tax = round2(lines.reduce((s, l) => s + lineTax(l, vatRate, applyVat), 0));
-    const qty = round2(lines.reduce((s, l) => s + (Number(l.quantity) || 0), 0));
-    return { subtotal, shipping, discount, tax, qty, total: round2(subtotal + shipping - discount + tax) };
-  }, [lines, vatRate, applyVat]);
+  const allocationKey = JSON.stringify({
+    lines: toOriginLines(lines, vatRate, applyVat).map(({ itemId, quantity, unitPrice, shippingPerUnit, discountAmount, taxAmount }) => ({ itemId, quantity, unitPrice, shippingPerUnit, discountAmount, taxAmount })),
+    costs: originCosts, currency,
+  });
+  const [applied, setApplied] = useState(() => {
+    const costs = initial?.originCosts ?? [];
+    const shares = allocateOriginShares(toOriginLines(lines, vatRate, applyVat), costs);
+    return { costs, shares: Object.fromEntries(lines.map((l, i) => [l.itemId, shares[i]])), key: allocationKey };
+  });
+  const [allocationError, setAllocationError] = useState("");
+  const distributionPending = (originCosts.length > 0 || applied.costs.length > 0) && allocationKey !== applied.key;
+  const shareOf = (l: Line) => applied.shares[l.itemId] ?? emptyOriginShare();
+  const applyDistribution = () => {
+    try {
+      if (lines.some(l => !l.itemId)) throw new Error("اختر الصنف في كل بند");
+      const input = toOriginLines(lines, vatRate, applyVat);
+      allocateOriginCosts(input, originCosts, 1); // same validation as the write path
+      const shares = allocateOriginShares(input, originCosts);
+      setApplied({ costs: structuredClone(originCosts), shares: Object.fromEntries(lines.map((l, i) => [l.itemId, shares[i]])), key: allocationKey });
+      setAllocationError("");
+      toast.success("تم التوزيع");
+    } catch (e) { setAllocationError(e instanceof Error ? e.message : "راجع التوزيع"); }
+  };
+  const rowTotal = (l: Line) => {
+    const a = shareOf(l);
+    return round2(l.quantity * (l.unitPrice + l.shippingPerUnit - l.discountPerUnit) + lineTax(l, vatRate, applyVat) + a.shipping + a.tax + a.other - a.discount);
+  };
+  const totals = {
+    subtotal: round2(lines.reduce((s, l) => s + l.quantity * l.unitPrice, 0)),
+    shipping: round2(lines.reduce((s, l) => s + l.quantity * l.shippingPerUnit + shareOf(l).shipping, 0)),
+    discount: round2(lines.reduce((s, l) => s + l.quantity * l.discountPerUnit + shareOf(l).discount, 0)),
+    tax: round2(lines.reduce((s, l) => s + lineTax(l, vatRate, applyVat) + shareOf(l).tax, 0)),
+    other: round2(lines.reduce((s, l) => s + shareOf(l).other, 0)),
+    qty: round2(lines.reduce((s, l) => s + l.quantity, 0)),
+    total: 0,
+  };
+  totals.total = round2(totals.subtotal + totals.shipping - totals.discount + totals.tax + totals.other);
+  const hasOther = lines.some(l => shareOf(l).other !== 0);
 
+  const setCost = (index: number, patch: Partial<OriginCost>) => setOriginCosts(cs => cs.map((c, i) => i === index ? { ...c, ...patch } : c));
   const submit = () => {
     if (!supplierId) return toast.error("اختر المورد");
     if (!warehouseId) return toast.error("اختر المستودع");
     if (isForeign && rate <= 0) return toast.error(`أضِف سعر صرف لـ${currency} من الإعدادات ← العملات أولاً`);
     if (lines.some((l) => !l.itemId)) return toast.error("اختر الصنف في كل بند");
+    if (distributionPending) return toast.error("اضغط توزيع قبل الحفظ");
+    if (allocationError) return toast.error(allocationError);
     start(async () => {
       const payload = lines.map((l) => ({
         itemId: l.itemId, quantity: l.quantity, unitPrice: l.unitPrice, shippingPerUnit: l.shippingPerUnit,
         taxAmount: lineTax(l, vatRate, applyVat), discountAmount: round2(l.quantity * l.discountPerUnit),
         uomId: l.uomId || undefined, uomFactor: l.uomFactor,
       }));
-      const body = { supplierId, warehouseId, date, expectedDate: expectedDate || null, notes, currencyCode: currency, exchangeRate: isManualRate ? rate : undefined, materialRequestId: requisitionId, lines: payload };
+      const body = { supplierId, warehouseId, date, expectedDate: expectedDate || null, notes, currencyCode: currency, exchangeRate: isManualRate ? rate : undefined, materialRequestId: requisitionId, originCosts: applied.costs, lines: payload };
       const r = isEdit ? await updatePurchaseOrderAction(initial!.id, body) : await createPurchaseOrderAction(body);
       if (r.ok) {
         toast.success(isEdit ? "تم حفظ التعديلات" : "تم حفظ أمر الشراء (مسودة) — أكّده أو ألغِه");
@@ -289,6 +325,8 @@ export function PurchaseOrderForm({ suppliers, warehouses, items, unitsByItem = 
           </div>
         )}
 
+
+
         <div className="rounded-xl border">
           <Table>
             <TableHeader>
@@ -303,6 +341,7 @@ export function PurchaseOrderForm({ suppliers, warehouses, items, unitsByItem = 
                 <TableHead className="w-28 text-start">خصم/وحدة</TableHead>
                 <TableHead className="w-28 text-start">الضريبة</TableHead>
                 <TableHead className="w-28 text-start">الإجمالي</TableHead>
+                {hasOther && <TableHead className="w-28 text-start">مصاريف/وحدة</TableHead>}
                 <TableHead className="w-10"></TableHead>
                 <TableHead className="w-8" />
               </TableRow>
@@ -334,11 +373,12 @@ export function PurchaseOrderForm({ suppliers, warehouses, items, unitsByItem = 
                     <TableCell><Input type="number" step="0.01" inputMode="decimal" value={round2(l.unitPrice * l.uomFactor)} onChange={(e) => setLine(i, { unitPrice: toBasePrice(Number(e.target.value) || 0, l.uomFactor) })} className="w-24 min-w-24 text-start tabular-nums" /></TableCell>
                     {/* Internal freight agreed with the supplier — shown per the chosen unit
                         like the price, stored per base unit. The receipt inherits it. */}
-                    <TableCell><Input type="number" step="0.01" min="0" inputMode="decimal" value={round2(l.shippingPerUnit * l.uomFactor)} onChange={(e) => setLine(i, { shippingPerUnit: toBasePrice(Math.max(0, Number(e.target.value) || 0), l.uomFactor) })} className="w-24 min-w-24 text-start tabular-nums" /></TableCell>
-                    <TableCell><Input type="number" step="0.01" min="0" inputMode="decimal" value={l.discountPerUnit} onChange={(e) => setLine(i, { discountPerUnit: Number(e.target.value) })} className="w-24 min-w-24 text-start tabular-nums" /></TableCell>
+                    <TableCell><Input type="number" step="0.01" min="0" inputMode="decimal" readOnly={shareOf(l).shipping !== 0} value={Math.round((l.shippingPerUnit + shareOf(l).shipping / l.quantity) * l.uomFactor * 10000) / 10000} onChange={(e) => setLine(i, { shippingPerUnit: toBasePrice(Math.max(0, Number(e.target.value) || 0), l.uomFactor) })} className="w-24 min-w-24 text-start tabular-nums" /></TableCell>
+                    <TableCell><Input type="number" step="0.01" min="0" inputMode="decimal" readOnly={shareOf(l).discount !== 0} value={Math.round((l.discountPerUnit + shareOf(l).discount / l.quantity) * 10000) / 10000} onChange={(e) => setLine(i, { discountPerUnit: Number(e.target.value) })} className="w-24 min-w-24 text-start tabular-nums" /></TableCell>
                     {/* VAT is the document-level choice, not a per-line entry — read only. */}
-                    <TableCell className="tabular-nums text-muted-foreground">{fmt(lineTax(l, vatRate, applyVat))}</TableCell>
-                    <TableCell className="font-medium">{fmt(lineTotal(l, vatRate, applyVat))}</TableCell>
+                    <TableCell className="tabular-nums text-muted-foreground">{fmt(lineTax(l, vatRate, applyVat) + shareOf(l).tax)}</TableCell>
+                    <TableCell className="font-medium">{fmt(rowTotal(l))}</TableCell>
+                    {hasOther && <TableCell className="tabular-nums">{fmt(shareOf(l).other / l.quantity * l.uomFactor)}</TableCell>}
                     <TableCell><Button variant="ghost" size="icon" onClick={() => removeLine(i)} aria-label="حذف"><Trash2 className="size-4 text-destructive" /></Button></TableCell>
                   </>
                 )}
@@ -348,15 +388,6 @@ export function PurchaseOrderForm({ suppliers, warehouses, items, unitsByItem = 
         </div>
         <Button variant="outline" onClick={addLine}><Plus className="size-4" />إضافة بند</Button>
 
-        {/* Two different costs, two different places. What the supplier charges for
-            getting the goods to you is part of the agreed price and belongs on the line
-            above (the receipt inherits it and capitalises it). Import freight and customs
-            arrive later, from other suppliers, on their own voucher — entering those here
-            would capitalise the same cost twice. */}
-        <p className="text-xs text-muted-foreground">
-          «شحن/وحدة» هو الشحن الداخلي المتفق عليه مع المورد — جزء من سعر البضاعة، وإذن الاستلام بيرثه.
-          أمّا شحن الاستيراد والجمارك فتُسجَّل بعد الاستلام من «المشتريات ← تكاليف الاستيراد».
-        </p>
 
         <div className="flex items-start justify-between gap-4 text-sm">
           <div className="flex flex-col items-start gap-1">
@@ -367,12 +398,43 @@ export function PurchaseOrderForm({ suppliers, warehouses, items, unitsByItem = 
             <div>الشحن: <span className="font-medium">{fmt(totals.shipping)}</span></div>
             <div>الخصم: <span className="font-medium">{fmt(totals.discount)}</span></div>
             <div>الضريبة: <span className="font-medium">{fmt(totals.tax)}</span></div>
+            {totals.other !== 0 && <div>مصاريف أخرى: <span className="font-medium">{fmt(totals.other)}</span></div>}
             <div className="text-base font-bold text-primary">الإجمالي: {fmt(totals.total)} {isForeign ? currency : baseCode}</div>
             {isForeign && rate > 0 && (
               <div className="text-base font-bold">الإجمالي: {fmt(round2(totals.total * rate))} {baseCode} <span className="text-xs font-normal text-muted-foreground">(يُرحّل بالحسابات)</span></div>
             )}
           </div>
         </div>
+        <section className="space-y-4 rounded-xl border border-primary/20 bg-primary/5 p-4" aria-label="مصاريف وخصومات أمر الشراء">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h3 className="font-semibold">مصاريف وخصومات أمر الشراء</h3>
+            </div>
+            <Button size="sm" variant="outline" onClick={() => setOriginCosts(cs => [...cs, { kind: "DOMESTIC_FREIGHT", amount: 0, allocationMethod: "VALUE", description: "", manual: {} }])}><Plus className="size-4" />إضافة مصروف أو خصم</Button>
+          </div>
+          {originCosts.map((c, i) => (
+            <div key={i} className="space-y-3 rounded-lg border bg-background p-3">
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[1fr_1fr_1fr_1fr_auto]">
+                <label className="space-y-1 text-sm"><span>نوع البند</span><select aria-label="نوع المصروف" className={selectCls} value={c.kind} onChange={e => setCost(i, { kind: e.target.value as OriginCost["kind"] })}>
+                  <option value="MARKETPLACE_TAX">ضريبة بلد الشراء</option><option value="DOMESTIC_FREIGHT">شحن محلي</option><option value="PREP">تجهيز</option><option value="OTHER">مصروف آخر</option><option value="DISCOUNT">خصم على الطلب</option>
+                </select></label>
+                <label className="space-y-1 text-sm"><span>المبلغ ({currency})</span><Input aria-label="قيمة المصروف أو الخصم" type="number" step="0.01" min="0" value={c.amount} onChange={e => setCost(i, { amount: Number(e.target.value) })} /></label>
+                <label className="space-y-1 text-sm"><span>طريقة التوزيع</span><select aria-label="طريقة التوزيع" className={selectCls} value={c.allocationMethod} onChange={e => setCost(i, { allocationMethod: e.target.value as OriginCost["allocationMethod"] })}><option value="VALUE">حسب صافي قيمة الأصناف</option><option value="QUANTITY">حسب الكمية</option><option value="MANUAL">يدويًا لكل صنف</option></select></label>
+                <label className="space-y-1 text-sm"><span>الوصف (اختياري)</span><Input maxLength={300} value={c.description} onChange={e => setCost(i, { description: e.target.value })} /></label>
+                <Button className="self-end" size="icon" variant="ghost" aria-label="حذف المصروف" onClick={() => setOriginCosts(cs => cs.filter((_, n) => n !== i))}><Trash2 className="size-4 text-destructive" /></Button>
+              </div>
+              {c.allocationMethod === "MANUAL" && <div className="grid gap-3 border-t pt-3 sm:grid-cols-2">
+                {lines.filter(l => l.itemId).map(l => <label key={l.id} className="space-y-1 text-sm"><span>{itemById.get(l.itemId)?.nameAr ?? l.itemId}</span><Input aria-label={`نصيب ${itemById.get(l.itemId)?.nameAr ?? l.itemId}`} type="number" step="0.01" min="0" value={c.manual[l.itemId] ?? 0} onChange={e => setCost(i, { manual: { ...c.manual, [l.itemId]: Number(e.target.value) } })} /></label>)}
+                <p className="text-sm sm:col-span-2">الموزّع: {fmt(Object.values(c.manual).reduce((sum, n) => sum + n, 0))} / {fmt(c.amount)} {currency}</p>
+              </div>}
+            </div>
+          ))}
+          <div className="flex items-center gap-3">
+            <Button type="button" onClick={applyDistribution} disabled={pending}>توزيع</Button>
+            {distributionPending && <span className="text-xs text-amber-700">بانتظار التوزيع</span>}
+          </div>
+          {allocationError && <p role="alert" className="text-sm text-destructive">{allocationError}</p>}
+        </section>
       </CardContent>
     </Card>
   );

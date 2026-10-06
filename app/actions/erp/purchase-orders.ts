@@ -2,6 +2,7 @@
 
 import { withOrgScope } from "@/lib/db-scope";
 import { revalidatePath } from "@/lib/safe-revalidate";
+import { allocateOriginCosts } from "@/lib/erp/purchase-origin-costs";
 import { round2 } from "@/lib/erp/money";
 import { and, eq } from "drizzle-orm";
 import { z } from "zod";
@@ -53,6 +54,13 @@ const schema = z.object({
   exchangeRate: z.coerce.number().positive().optional(),
   /** Set when the order was raised from an approved requisition — links them and closes it. */
   materialRequestId: z.string().optional(),
+  /** Charges before goods leave the origin country; international freight stays in Landed Cost. */
+  originCosts: z.array(z.object({
+    kind: z.enum(["MARKETPLACE_TAX", "DOMESTIC_FREIGHT", "PREP", "OTHER", "DISCOUNT"]),
+    description: z.string().trim().max(300).default(""), amount: z.coerce.number().min(0),
+    allocationMethod: z.enum(["VALUE", "QUANTITY", "MANUAL"]).default("VALUE"),
+    manual: z.record(z.string(), z.coerce.number().min(0)).default({}),
+  })).default([]),
   lines: z.array(lineSchema).min(1, "أضف بنداً واحداً على الأقل"),
 });
 async function nextNumber(orgId: string, year: number): Promise<string> {
@@ -92,22 +100,15 @@ async function resolvePurchaseOrderValues(orgId: string, data: POParsed) {
   // true for an API caller too.
   const rateSource = isForeign ? rateSourceOf(manual, auto) : "AUTO";
   if (isForeign && rate <= 0) return { error: `لا يوجد سعر صرف مسجّل لـ${code} — أضِفه من الإعدادات ← العملات، أو اكتب السعر يدوياً` };
-  const toBase = (n: number) => round2(n * rate);
-  const foreignTotal = round2(data.lines.reduce((s, l) => s + l.quantity * l.unitPrice + l.quantity * l.shippingPerUnit - l.discountAmount + l.taxAmount, 0));
-
-  const computed = data.lines.map((l) => {
-    const unitPrice = toBase(l.unitPrice);
-    const shippingPerUnit = toBase(l.shippingPerUnit);
-    const discountAmount = toBase(l.discountAmount);
-    const taxAmount = toBase(l.taxAmount);
-    return { itemId: l.itemId, quantity: l.quantity, unitPrice, shippingPerUnit, discountAmount, taxAmount, exempt: l.exempt,
-      uomId: l.uomId, uomFactor: l.uomFactor,
-      totalAmount: round2(l.quantity * unitPrice + l.quantity * shippingPerUnit - discountAmount + taxAmount) };
-  });
-  const subtotal = round2(computed.reduce((s, l) => s + l.quantity * l.unitPrice, 0));
-  const shippingAmount = round2(computed.reduce((s, l) => s + l.quantity * l.shippingPerUnit, 0));
-  const discountAmount = round2(computed.reduce((s, l) => s + l.discountAmount, 0));
-  const taxAmount = round2(computed.reduce((s, l) => s + l.taxAmount, 0));
+  let computed;
+  try { computed = allocateOriginCosts(data.lines, data.originCosts, rate); }
+  catch (e) { return { error: e instanceof Error ? e.message : "تعذّر توزيع المصاريف" }; }
+  const originTotal = data.originCosts.reduce((sum, c) => sum + (c.kind === "DISCOUNT" ? -c.amount : c.amount), 0);
+  const foreignTotal = round2(data.lines.reduce((sum, l) => sum + l.quantity * (l.unitPrice + l.shippingPerUnit) - l.discountAmount + l.taxAmount, 0) + originTotal);
+  const subtotal = round2(computed.reduce((sum, l) => sum + l.quantity * l.unitPrice, 0));
+  const shippingAmount = round2(computed.reduce((sum, l) => sum + l.quantity * l.shippingPerUnit, 0));
+  const discountAmount = round2(computed.reduce((sum, l) => sum + l.discountAmount, 0));
+  const taxAmount = round2(computed.reduce((sum, l) => sum + l.taxAmount, 0));
   const totalAmount = round2(subtotal + shippingAmount - discountAmount + taxAmount);
   return { values: { d, code, rate, rateSource, isForeign, foreignTotal, computed, subtotal, shippingAmount, discountAmount, taxAmount, totalAmount } };
 }
@@ -142,9 +143,11 @@ export async function createPurchaseOrderAction(input: unknown): Promise<SaveOrd
           expectedDate: parsed.data.expectedDate ? new Date(parsed.data.expectedDate) : null,
           subtotal: String(subtotal), shippingAmount: String(shippingAmount), discountAmount: String(discountAmount), taxAmount: String(taxAmount),
           totalAmount: String(totalAmount), notes: notes || null,
+          originCostInput: { lines: parsed.data.lines, costs: parsed.data.originCosts },
           currencyCode: code, exchangeRate: String(rate), rateSource, foreignAmount: isForeign ? String(foreignTotal) : null,
         }).returning({ id: purchaseOrders.id });
         await tx.insert(purchaseOrderLines).values(poLineRows(po.id, computed));
+
 
         // Close the requisition and record the link, so it can't raise a second order
         // and the two documents point at each other from now on.
@@ -180,9 +183,10 @@ export async function updatePurchaseOrderAction(id: string, input: unknown): Pro
   return withOrgScope(auth.orgId, false, async () => {
     const parsed = schema.safeParse(input);
     if (!parsed.success) return { error: parsed.error.issues[0].message };
-    const [existing] = await db.select({ status: purchaseOrders.status, number: purchaseOrders.number }).from(purchaseOrders)
+    const [existing] = await db.select({ status: purchaseOrders.status, number: purchaseOrders.number, originCostInput: purchaseOrders.originCostInput }).from(purchaseOrders)
       .where(and(eq(purchaseOrders.id, id), eq(purchaseOrders.organizationId, auth.orgId))).limit(1);
     if (!existing) return { error: "الأمر غير موجود" };
+    if (existing.originCostInput?.costs.length && (!input || typeof input !== "object" || !("originCosts" in input))) return { error: "هذا الأمر يحتوي على توزيع مصاريف — عدّله من واجهة أوامر الشراء المحدّثة حتى لا تضيع المصاريف" };
     if (existing.status !== "DRAFT") return { error: "لا يمكن تعديل أمر مؤكّد — أعِد فتحه كمسودة أولاً" };
 
     const r = await resolvePurchaseOrderValues(auth.orgId, parsed.data);
@@ -203,12 +207,15 @@ export async function updatePurchaseOrderAction(id: string, input: unknown): Pro
           expectedDate: parsed.data.expectedDate ? new Date(parsed.data.expectedDate) : null,
           subtotal: String(subtotal), shippingAmount: String(shippingAmount), discountAmount: String(discountAmount), taxAmount: String(taxAmount),
           totalAmount: String(totalAmount), notes: notes || null,
+          originCostInput: { lines: parsed.data.lines, costs: parsed.data.originCosts },
           currencyCode: code, exchangeRate: String(rate), rateSource, foreignAmount: isForeign ? String(foreignTotal) : null, updatedAt: new Date(),
           // An approval covers the order as it was approved — an edit needs a fresh one.
           approvedBy: null, approvedAt: null,
         }).where(and(eq(purchaseOrders.id, id), eq(purchaseOrders.organizationId, auth.orgId)));
         await tx.delete(purchaseOrderLines).where(eq(purchaseOrderLines.purchaseOrderId, id));
         await tx.insert(purchaseOrderLines).values(poLineRows(id, computed));
+
+
       });
       await tryRecordAudit({ orgId: auth.orgId, userId: auth.userId, action: "UPDATE", entityType: "PURCHASE_ORDER", entityId: id, entityNumber: existing.number, summary: `تعديل أمر شراء ${existing.number} (مسودة)`, metadata: { total: totalAmount } });
       revalidatePath("/purchases/orders");
@@ -391,3 +398,4 @@ export async function revertPurchaseOrderToDraftAction(id: string): Promise<Acti
     return { ok: true };
   });
 }
+

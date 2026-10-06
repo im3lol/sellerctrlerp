@@ -51,7 +51,11 @@ export default async function EditPurchaseOrderPage({ params }: { params: Promis
       expectedDate: po.expectedDate ? new Date(po.expectedDate).toISOString().slice(0, 10) : "",
       notes: po.notes ?? "",
       currencyCode: po.currencyCode, exchangeRate: rate, applyVat: Number(po.taxAmount) > 0,
-      lines: poLines.map((l) => {
+      originCosts: po.originCostInput?.costs ?? [],
+      lines: po.originCostInput ? po.originCostInput.lines.map(l => ({
+        itemId: l.itemId, quantity: l.quantity, unitPrice: l.unitPrice, shippingPerUnit: l.shippingPerUnit,
+        discountPerUnit: l.discountAmount / l.quantity, uomId: l.uomId ?? "", uomFactor: l.uomFactor,
+      })) : poLines.map((l) => {
         const qty = Number(l.quantity) || 0;
         return {
           itemId: l.itemId, quantity: qty, unitPrice: toForeign(l.unitPrice), shippingPerUnit: toForeign(l.shippingPerUnit),
