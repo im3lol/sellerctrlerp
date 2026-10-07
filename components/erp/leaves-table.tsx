@@ -1,6 +1,7 @@
 "use client";
 
 import { bulkLeaveRequestsAction } from "@/app/actions/erp/leave-requests";
+import { useT } from "@/lib/i18n/client";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { LeaveRequestRowActions } from "@/components/erp/leave-request-row-actions";
@@ -14,6 +15,7 @@ const statusVariant = (s: string) => (s === "APPROVED" ? "default" : s === "REJE
 
 // Only DRAFT requests are selectable — bulkLeaveRequestsAction skips ineligible rows.
 export function LeavesTable({ rows, canApprove, canCreate }: { rows: Row[]; canApprove: boolean; canCreate: boolean }) {
+  const t = useT();
   const sel = useSelection();
   const pageIds = rows.map((r) => r.id);
   const showSelect = canApprove || canCreate;
@@ -24,28 +26,28 @@ export function LeavesTable({ rows, canApprove, canCreate }: { rows: Row[]; canA
 
   return (
     <>
-      {showSelect && <BulkBar ids={sel.ids} ops={ops} action={bulkLeaveRequestsAction} onDone={sel.clear} entity="طلب إجازة" />}
+      {showSelect && <BulkBar ids={sel.ids} ops={ops} action={bulkLeaveRequestsAction} onDone={sel.clear} entity={t("طلب إجازة")} />}
       <Table>
         <TableHeader><TableRow>
-          {showSelect && <TableHead className="w-10"><SelectBox checked={sel.allOf(pageIds)} indeterminate={sel.someOf(pageIds)} onChange={() => sel.togglePage(pageIds)} label="تحديد الكل" /></TableHead>}
-          <TableHead className="text-start">الرقم</TableHead><TableHead className="text-start">الموظف</TableHead>
-          <TableHead className="text-start">النوع</TableHead><TableHead className="text-start">من</TableHead>
-          <TableHead className="text-start">إلى</TableHead><TableHead className="text-end">أيام</TableHead>
-          <TableHead className="text-start">الحالة</TableHead>{showSelect && <TableHead className="text-start">إجراءات</TableHead>}
+          {showSelect && <TableHead className="w-10"><SelectBox checked={sel.allOf(pageIds)} indeterminate={sel.someOf(pageIds)} onChange={() => sel.togglePage(pageIds)} label={t("تحديد الكل")} /></TableHead>}
+          <TableHead className="text-start">{t("الرقم")}</TableHead><TableHead className="text-start">{t("الموظف")}</TableHead>
+          <TableHead className="text-start">{t("النوع")}</TableHead><TableHead className="text-start">{t("من")}</TableHead>
+          <TableHead className="text-start">{t("إلى")}</TableHead><TableHead className="text-end">{t("أيام")}</TableHead>
+          <TableHead className="text-start">{t("الحالة")}</TableHead>{showSelect && <TableHead className="text-start">{t("إجراءات")}</TableHead>}
         </TableRow></TableHeader>
         <TableBody>
           {rows.map((r) => {
             const selectable = showSelect;
             return (
               <TableRow key={r.id} data-state={selectable && sel.has(r.id) ? "selected" : undefined}>
-                {showSelect && <TableCell>{selectable && <SelectBox checked={sel.has(r.id)} onChange={() => sel.toggle(r.id)} label="تحديد" />}</TableCell>}
+                {showSelect && <TableCell>{selectable && <SelectBox checked={sel.has(r.id)} onChange={() => sel.toggle(r.id)} label={t("تحديد")} />}</TableCell>}
                 <TableCell className="font-mono">{r.number}</TableCell>
                 <TableCell>{r.employee}</TableCell>
-                <TableCell>{LEAVE_TYPE_LABEL[r.type] ?? r.type}</TableCell>
+                <TableCell>{t(LEAVE_TYPE_LABEL[r.type] ?? r.type)}</TableCell>
                 <TableCell>{dt(r.start)}</TableCell>
                 <TableCell>{dt(r.end)}</TableCell>
                 <TableCell className="text-end tabular-nums">{r.days as number}</TableCell>
-                <TableCell><Badge variant={statusVariant(r.status)}>{LEAVE_STATUS_LABEL[r.status] ?? r.status}</Badge></TableCell>
+                <TableCell><Badge variant={statusVariant(r.status)}>{t(LEAVE_STATUS_LABEL[r.status] ?? r.status)}</Badge></TableCell>
                 {showSelect && <TableCell><LeaveRequestRowActions id={r.id} status={r.status} canManage={showSelect} /></TableCell>}
               </TableRow>
             );

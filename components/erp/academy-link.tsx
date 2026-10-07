@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { getT } from "@/lib/i18n/server";
 import { listLessonsFor, canSeeAcademy } from "@/lib/erp/academy";
 import type { ModuleKey } from "@/lib/erp/module-list";
 import { Icon } from "@/components/icon";
@@ -15,6 +16,7 @@ import { Icon } from "@/components/icon";
  * hides the last lesson.
  */
 export async function AcademyLink({ module }: { module: ModuleKey }) {
+  const t = await getT();
   // While the academy is admin-only, this button must vanish too — it sits on six
   // module overviews, and a link that bounces you to the dashboard is worse than no
   // link.
@@ -29,7 +31,7 @@ export async function AcademyLink({ module }: { module: ModuleKey }) {
       className="inline-flex items-center gap-2 rounded-md border border-border px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
     >
       <Icon name="GraduationCap" className="size-4" />
-      اتعلّم
+      {t("اتعلّم")}
       <span className="rounded-full bg-muted px-1.5 text-xs tabular-nums">{lessons.length}</span>
     </Link>
   );

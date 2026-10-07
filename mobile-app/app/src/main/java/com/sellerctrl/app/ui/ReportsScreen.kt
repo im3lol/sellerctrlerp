@@ -1,5 +1,7 @@
 package com.sellerctrl.app.ui
 
+import com.sellerctrl.app.tr
+
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -46,32 +48,32 @@ fun ReportsScreen(nav: NavController) {
 
     Scaffold(topBar = {
         TopAppBar(
-            title = { Text("التقارير") },
+            title = { Text(tr("التقارير")) },
             navigationIcon = { IconButton(onClick = { nav.popBackStack() }) { Icon(Icons.AutoMirrored.Filled.ArrowBack, null) } },
-            actions = { val open = LocalOpenDrawer.current; IconButton(onClick = open) { Icon(Icons.Filled.Menu, "القائمة") } },
+            actions = { val open = LocalOpenDrawer.current; IconButton(onClick = open) { Icon(Icons.Filled.Menu, tr("القائمة")) } },
         )
     }) { pad ->
         Box(Modifier.fillMaxSize().padding(pad)) {
             val d = r
             when {
-                failed -> Text("لا تملك صلاحية عرض التقارير", Modifier.align(Alignment.Center), color = MaterialTheme.colorScheme.outline)
+                failed -> Text(tr("لا تملك صلاحية عرض التقارير"), Modifier.align(Alignment.Center), color = MaterialTheme.colorScheme.outline)
                 d == null -> CircularProgressIndicator(Modifier.align(Alignment.Center))
                 else -> Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Section("قائمة الدخل") {
-                        Line("الإيرادات", money(d.income))
-                        Line("المصروفات", money(d.expense))
-                        Line("صافي الربح", money(d.net), bold = true)
+                    Section(tr("قائمة الدخل")) {
+                        Line(tr("الإيرادات"), money(d.income))
+                        Line(tr("المصروفات"), money(d.expense))
+                        Line(tr("صافي الربح"), money(d.net), bold = true)
                     }
-                    Section("الذمم") {
-                        Line("ذمم مدينة (عملاء)", money(d.ar))
-                        Line("ذمم دائنة (موردون)", money(d.ap))
-                        Line("متأخرات مدينة", money(d.overdueAR))
-                        Line("متأخرات دائنة", money(d.overdueAP))
+                    Section(tr("الذمم")) {
+                        Line(tr("ذمم مدينة (عملاء)"), money(d.ar))
+                        Line(tr("ذمم دائنة (موردون)"), money(d.ap))
+                        Line(tr("متأخرات مدينة"), money(d.overdueAR))
+                        Line(tr("متأخرات دائنة"), money(d.overdueAP))
                     }
-                    Section("المخزون والتداول") {
-                        Line("قيمة المخزون", money(d.inventoryValue))
-                        Line("مبيعات الشهر", money(d.salesMonth))
-                        Line("مشتريات الشهر", money(d.purchasesMonth))
+                    Section(tr("المخزون والتداول")) {
+                        Line(tr("قيمة المخزون"), money(d.inventoryValue))
+                        Line(tr("مبيعات الشهر"), money(d.salesMonth))
+                        Line(tr("مشتريات الشهر"), money(d.purchasesMonth))
                     }
                 }
             }

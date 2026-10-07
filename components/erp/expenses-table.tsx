@@ -1,6 +1,7 @@
 "use client";
 
 import { Badge } from "@/components/ui/badge";
+import { useT } from "@/lib/i18n/client";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ExpenseRowActions } from "@/components/erp/expense-row-actions";
 import { useSelection, BulkBar, SelectBox } from "@/components/erp/bulk-select";
@@ -12,6 +13,7 @@ const fmt = (v: string | null) => Number(v ?? 0).toLocaleString("ar-EG-u-nu-latn
 const dt = (d: Date) => new Date(d).toLocaleDateString("en-GB", { year: "numeric", month: "2-digit", day: "2-digit" });
 
 export function ExpensesTable({ rows, canPost, canCreate, total, filter }: { rows: Row[]; canPost: boolean; canCreate: boolean; total: number; filter: ExpensesFilter }) {
+  const t = useT();
   const sel = useSelection(total);
   const ids = rows.map((r) => r.id);
   const showSelect = canPost || canCreate;
@@ -28,7 +30,7 @@ export function ExpensesTable({ rows, canPost, canCreate, total, filter }: { row
           ops={ops}
           action={(op, opIds, allPages) => bulkExpensesAction(op, allPages ? [] : opIds, allPages ? filter : undefined)}
           onDone={sel.clear}
-          entity="مصروف"
+          entity={t("مصروف")}
           all={{ total, active: sel.allPages, canOffer: sel.allOf(ids) && total > ids.length, onSelectAll: sel.selectAllPages }}
         />
       )}
@@ -37,17 +39,17 @@ export function ExpensesTable({ rows, canPost, canCreate, total, filter }: { row
           <TableRow>
             {showSelect && (
               <TableHead className="w-10">
-                <SelectBox checked={sel.allOf(ids)} indeterminate={sel.someOf(ids)} onChange={() => sel.togglePage(ids)} label="تحديد كل الصفحة" />
+                <SelectBox checked={sel.allOf(ids)} indeterminate={sel.someOf(ids)} onChange={() => sel.togglePage(ids)} label={t("تحديد كل الصفحة")} />
               </TableHead>
             )}
-            <TableHead className="text-start">الرقم</TableHead>
-            <TableHead className="text-start">التاريخ</TableHead>
-            <TableHead className="text-start">البند</TableHead>
-            <TableHead className="text-start">المستفيد</TableHead>
-            <TableHead className="text-start">الدفع من</TableHead>
-            <TableHead className="text-start">المبلغ</TableHead>
-            <TableHead className="text-start">الحالة</TableHead>
-            {showSelect && <TableHead className="text-start">إجراءات</TableHead>}
+            <TableHead className="text-start">{t("الرقم")}</TableHead>
+            <TableHead className="text-start">{t("التاريخ")}</TableHead>
+            <TableHead className="text-start">{t("البند")}</TableHead>
+            <TableHead className="text-start">{t("المستفيد")}</TableHead>
+            <TableHead className="text-start">{t("الدفع من")}</TableHead>
+            <TableHead className="text-start">{t("المبلغ")}</TableHead>
+            <TableHead className="text-start">{t("الحالة")}</TableHead>
+            {showSelect && <TableHead className="text-start">{t("إجراءات")}</TableHead>}
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -55,7 +57,7 @@ export function ExpensesTable({ rows, canPost, canCreate, total, filter }: { row
             <TableRow key={r.id} data-state={sel.has(r.id) ? "selected" : undefined}>
               {showSelect && (
                 <TableCell>
-                  <SelectBox checked={sel.has(r.id)} onChange={() => sel.toggle(r.id)} label="تحديد" />
+                  <SelectBox checked={sel.has(r.id)} onChange={() => sel.toggle(r.id)} label={t("تحديد")} />
                 </TableCell>
               )}
               <TableCell className="font-mono">{r.number}</TableCell>
@@ -64,7 +66,7 @@ export function ExpensesTable({ rows, canPost, canCreate, total, filter }: { row
               <TableCell>{r.payee ?? "—"}</TableCell>
               <TableCell>{r.paidFrom ?? "—"}</TableCell>
               <TableCell>{fmt(r.amount)}</TableCell>
-              <TableCell><Badge variant={r.status === "POSTED" ? "default" : "secondary"}>{r.status === "POSTED" ? "مرحّل" : "مسودة"}</Badge></TableCell>
+              <TableCell><Badge variant={r.status === "POSTED" ? "default" : "secondary"}>{r.status === "POSTED" ? t("مرحّل") : t("مسودة")}</Badge></TableCell>
               {showSelect && <TableCell><ExpenseRowActions id={r.id} number={r.number} status={r.status} canManage /></TableCell>}
             </TableRow>
           ))}

@@ -1,4 +1,5 @@
 import { and, asc, eq, inArray, sql } from "drizzle-orm";
+import { getT } from "@/lib/i18n/server";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
 import { accounts, projects } from "@/db/schema";
@@ -6,6 +7,7 @@ import { ErpPageHeader } from "@/components/erp/page-header";
 import { ExpenseForm } from "@/components/erp/expense-form";
 
 export default async function NewExpensePage() {
+  const t = await getT();
   return loadErpPage("accounting.view", async ({ orgId }) => {
     const [expenseAccs, cashAccs, projectRows] = await Promise.all([
       db.select({ id: accounts.id, code: accounts.code, name: accounts.nameAr })
@@ -27,9 +29,9 @@ export default async function NewExpensePage() {
 
     return (
       <div className="space-y-6">
-        <ErpPageHeader icon="Wallet" title="مصروف جديد" subtitle="صرف مصروف تشغيلي من النقدية/البنك" backHref="/accounting/expenses" />
+        <ErpPageHeader icon="Wallet" title={t("مصروف جديد")} subtitle={t("صرف مصروف تشغيلي من النقدية/البنك")} backHref="/accounting/expenses" />
         <ExpenseForm expenseAccounts={expenseAccs} cashAccounts={cashAccs}
-          projects={projectRows.map((p) => ({ id: p.id, label: `${p.code} — ${p.nameAr}` }))} />
+          projects={projectRows.map((p) => ({ id: p.id, label: `${p.code} — ${t(p.nameAr)}` }))} />
       </div>
     );
   });

@@ -1,6 +1,7 @@
 "use client";
 
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
+import { useT } from "@/lib/i18n/client";
 
 const fmt = (v: number) => v.toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
@@ -29,6 +30,7 @@ type Props = {
  * way Seller Central prints it: each fee, its base and its tax.
  */
 export function FeeCell({ commission, commissionTax, fbaFee, fbaFeeTax, otherFees }: Props) {
+  const t = useT();
   const total = Math.round((commission + fbaFee + otherFees) * 100) / 100;
   if (!total) return <span className="text-muted-foreground">—</span>;
 
@@ -43,29 +45,29 @@ export function FeeCell({ commission, commissionTax, fbaFee, fbaFeeTax, otherFee
         <div className="space-y-1.5 text-xs">
           {commission !== 0 && (
             <div className="space-y-0.5">
-              <Line label="عمولة البيع" value={commission} />
+              <Line label={t("عمولة البيع")} value={commission} />
               {commissionTax !== 0 && (
                 <div className="ps-3 text-[11px] leading-tight">
-                  <Line label="الأساسي" value={commission - commissionTax} muted />
-                  <Line label="الضريبة" value={commissionTax} muted />
+                  <Line label={t("الأساسي")} value={commission - commissionTax} muted />
+                  <Line label={t("الضريبة")} value={commissionTax} muted />
                 </div>
               )}
             </div>
           )}
           {fbaFee !== 0 && (
             <div className="space-y-0.5">
-              <Line label="رسوم FBA" value={fbaFee} />
+              <Line label={t("رسوم FBA")} value={fbaFee} />
               {fbaFeeTax !== 0 && (
                 <div className="ps-3 text-[11px] leading-tight">
-                  <Line label="الأساسي" value={fbaFee - fbaFeeTax} muted />
-                  <Line label="الضريبة" value={fbaFeeTax} muted />
+                  <Line label={t("الأساسي")} value={fbaFee - fbaFeeTax} muted />
+                  <Line label={t("الضريبة")} value={fbaFeeTax} muted />
                 </div>
               )}
             </div>
           )}
-          {otherFees !== 0 && <Line label="رسوم أخرى" value={otherFees} />}
+          {otherFees !== 0 && <Line label={t("رسوم أخرى")} value={otherFees} />}
           <div className="border-t border-background/25 pt-1 font-medium">
-            <Line label="الإجمالي" value={total} />
+            <Line label={t("الإجمالي")} value={total} />
           </div>
         </div>
       </TooltipContent>

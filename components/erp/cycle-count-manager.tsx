@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
-import { toast } from "sonner";
+import { fill } from "@/lib/i18n";
+import { useT } from "@/lib/i18n/client";
+import { toast } from "@/lib/i18n/toast";
 import {
   listCountsAction, generateCountAction, getCountAction, saveCountAction,
   postCountAction, cancelCountAction, type CountDetail,
@@ -39,6 +41,7 @@ const STATUS: Record<string, { label: string; tone: "secondary" | "outline" | "d
 export function CycleCountManager({ warehouses, canManage, canPost: mayPost }: {
   warehouses: Option[]; canManage: boolean; canPost: boolean;
 }) {
+  const t = useT();
   const [rows, setRows] = useState<ListRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [pending, start] = useTransition();
@@ -52,7 +55,7 @@ export function CycleCountManager({ warehouses, canManage, canPost: mayPost }: {
     setLoading(true);
     void listCountsAction().then((r) => {
       setLoading(false);
-      if (!r.ok) { toast.error(r.error ?? "تعذّر التحميل"); return; }
+      if (!r.ok) { toast.error(r.error ?? t("تعذّر التحميل")); return; }
       setRows(r.rows ?? []);
     });
   };
@@ -60,7 +63,7 @@ export function CycleCountManager({ warehouses, canManage, canPost: mayPost }: {
 
   const openSession = (id: string) =>
     void getCountAction(id).then((r) => {
-      if (!r.ok || !r.detail) { toast.error(r.error ?? "تعذّر الفتح"); return; }
+      if (!r.ok || !r.detail) { toast.error(r.error ?? t("تعذّر الفتح")); return; }
       setOpen(r.detail);
       setCounts(Object.fromEntries(r.detail.lines.map((l) => [l.itemId, l.countedQty == null ? "" : String(l.countedQty)])));
     });
@@ -73,8 +76,8 @@ export function CycleCountManager({ warehouses, canManage, canPost: mayPost }: {
         method: gen.method as "VALUE" | "MOVEMENT",
         limit: Number(gen.limit) || 25,
       });
-      if (!r.ok) { toast.error(r.error ?? "تعذّر الإنشاء"); return; }
-      toast.success(`ورقة ${r.number} — ${r.count} صنف`);
+      if (!r.ok) { toast.error(r.error ?? t("تعذّر الإنشاء")); return; }
+      toast.success(fill(t("ورقة {0} — {1} صنف"), [r.number, r.count]));
       load();
       if (r.id) openSession(r.id);
     });
@@ -91,7 +94,7 @@ export function CycleCountManager({ warehouses, canManage, canPost: mayPost }: {
         })),
       });
       if (r.ok) { toast.success("تم الحفظ"); openSession(open.session.id); load(); }
-      else toast.error(r.error ?? "تعذّر الحفظ");
+      else toast.error(r.error ?? t("تعذّر الحفظ"));
     });
   };
 
@@ -107,26 +110,26 @@ export function CycleCountManager({ warehouses, canManage, canPost: mayPost }: {
       const s = countSummary(shaped);
       const go = await confirm({
         danger: true,
-        title: `ترحيل جرد ${open.session.number}؟`,
-        description: `هيتعمل تسوية مخزون بـ${s.counted - s.matched} فرق، صافي أثرها ${money(s.netValue)} ج.م — وده بيتقيّد في الدفاتر.`,
+        title: fill(t("ترحيل جرد {0}؟"), [open.session.number]),
+        description: fill(t("هيتعمل تسوية مخزون بـ{0} فرق، صافي أثرها {1} ج.م — وده بيتقيّد في الدفاتر."), [s.counted - s.matched, money(s.netValue)]),
         confirmText: "رحّل التسوية", cancelText: "رجوع",
       });
       if (!go) return;
       start(async () => {
         const r = await postCountAction(open.session.id);
-        if (r.ok) { toast.success(`تم الترحيل عبر تسوية ${r.adjustmentNumber ?? ""}`); setOpen(null); load(); }
-        else toast.error(r.error ?? "تعذّر الترحيل");
+        if (r.ok) { toast.success(fill(t("تم الترحيل عبر تسوية {0}"), [r.adjustmentNumber ?? ""])); setOpen(null); load(); }
+        else toast.error(r.error ?? t("تعذّر الترحيل"));
       });
     })();
 
   const cancel = (row: ListRow) =>
     void (async () => {
-      const go = await confirm({ danger: true, title: `إلغاء ${row.number}؟`, description: "الورقة هتتقفل من غير تسوية.", confirmText: "ألغِ", cancelText: "رجوع" });
+      const go = await confirm({ danger: true, title: fill(t("إلغاء {0}؟"), [row.number]), description: "الورقة هتتقفل من غير تسوية.", confirmText: "ألغِ", cancelText: "رجوع" });
       if (!go) return;
       start(async () => {
         const r = await cancelCountAction(row.id);
         if (r.ok) { toast.success("تم الإلغاء"); load(); setOpen(null); }
-        else toast.error(r.error ?? "تعذّر الإلغاء");
+        else toast.error(r.error ?? t("تعذّر الإلغاء"));
       });
     })();
 
@@ -145,43 +148,43 @@ export function CycleCountManager({ warehouses, canManage, canPost: mayPost }: {
               <div>
                 <CardTitle>{open.session.number}</CardTitle>
                 <CardDescription>
-                  {open.session.warehouseName} · {open.session.date} · {open.lines.length} صنف — مرتّبة بترتيب المشي في المخزن
+                  {t(open.session.warehouseName)} · {open.session.date} · {fill(t("{0} صنف — مرتّبة بترتيب المشي في المخزن"), [open.lines.length])}
                 </CardDescription>
               </div>
               <div className="flex flex-wrap gap-2">
-                <Badge variant={STATUS[open.session.status]?.tone ?? "outline"}>{STATUS[open.session.status]?.label ?? open.session.status}</Badge>
+                <Badge variant={STATUS[open.session.status]?.tone ?? "outline"}>{t(STATUS[open.session.status]?.label ?? open.session.status)}</Badge>
                 {canManage && editable && (
                   <Button size="sm" variant="outline" onClick={saveCounts} disabled={pending}>
-                    <Icon name="Check" className="size-4" />احفظ العدّ
+                    <Icon name="Check" className="size-4" />{t("احفظ العدّ")}
                   </Button>
                 )}
                 {mayPost && editable && (
                   <Button size="sm" onClick={post} disabled={pending}>
-                    <Icon name="Upload" className="size-4" />رحّل الفروق
+                    <Icon name="Upload" className="size-4" />{t("رحّل الفروق")}
                   </Button>
                 )}
-                <Button size="sm" variant="ghost" onClick={() => setOpen(null)}>رجوع</Button>
+                <Button size="sm" variant="ghost" onClick={() => setOpen(null)}>{t("رجوع")}</Button>
               </div>
             </div>
           </CardHeader>
           <CardContent className="flex flex-wrap gap-6 text-sm">
-            <div><div className="text-muted-foreground">اتعدّ</div><div className="font-bold tabular-nums">{live.counted} / {live.total}</div></div>
-            <div><div className="text-muted-foreground">مطابق</div><div className="font-bold tabular-nums">{live.matched}</div></div>
-            <div><div className="text-muted-foreground">الدقة</div><div className="font-bold tabular-nums">{live.accuracy == null ? "—" : `${live.accuracy}%`}</div></div>
-            <div><div className="text-muted-foreground">عجز</div><div className="font-bold tabular-nums text-destructive">{money(live.shortageValue)}</div></div>
-            <div><div className="text-muted-foreground">زيادة</div><div className="font-bold tabular-nums text-emerald-600">{money(live.surplusValue)}</div></div>
+            <div><div className="text-muted-foreground">{t("اتعدّ")}</div><div className="font-bold tabular-nums">{live.counted} / {live.total}</div></div>
+            <div><div className="text-muted-foreground">{t("مطابق")}</div><div className="font-bold tabular-nums">{live.matched}</div></div>
+            <div><div className="text-muted-foreground">{t("الدقة")}</div><div className="font-bold tabular-nums">{live.accuracy == null ? "—" : `${live.accuracy}%`}</div></div>
+            <div><div className="text-muted-foreground">{t("عجز")}</div><div className="font-bold tabular-nums text-destructive">{money(live.shortageValue)}</div></div>
+            <div><div className="text-muted-foreground">{t("زيادة")}</div><div className="font-bold tabular-nums text-emerald-600">{money(live.surplusValue)}</div></div>
             <label className="ms-auto flex cursor-pointer items-center gap-2">
               <input type="checkbox" className="size-4 rounded border-input" checked={blind} onChange={(e) => setBlind(e.target.checked)} />
-              جرد أعمى (إخفاء رصيد الدفاتر)
+              {t("جرد أعمى (إخفاء رصيد الدفاتر)")}
             </label>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader>
-            <CardTitle>ورقة العدّ</CardTitle>
+            <CardTitle>{t("ورقة العدّ")}</CardTitle>
             <CardDescription>
-              الجرد الأعمى بيخفي رصيد الدفاتر أثناء العدّ — اللي بيشوف الرقم المتوقّع بيلاقيه.
+              {t("الجرد الأعمى بيخفي رصيد الدفاتر أثناء العدّ — اللي بيشوف الرقم المتوقّع بيلاقيه.")}
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -189,11 +192,11 @@ export function CycleCountManager({ warehouses, canManage, canPost: mayPost }: {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="text-start">الموقع</TableHead>
-                    <TableHead className="text-start">الصنف</TableHead>
-                    {!blind && <TableHead className="text-start">الدفاتر</TableHead>}
-                    <TableHead className="w-32 text-start">المعدود</TableHead>
-                    {!blind && <TableHead className="text-start">الفرق</TableHead>}
+                    <TableHead className="text-start">{t("الموقع")}</TableHead>
+                    <TableHead className="text-start">{t("الصنف")}</TableHead>
+                    {!blind && <TableHead className="text-start">{t("الدفاتر")}</TableHead>}
+                    <TableHead className="w-32 text-start">{t("المعدود")}</TableHead>
+                    {!blind && <TableHead className="text-start">{t("الفرق")}</TableHead>}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -205,7 +208,7 @@ export function CycleCountManager({ warehouses, canManage, canPost: mayPost }: {
                       <TableRow key={l.itemId}>
                         <TableCell className="font-mono text-xs" dir="ltr">{l.binCode ?? "—"}</TableCell>
                         <TableCell>
-                          <div className="font-medium">{l.name}</div>
+                          <div className="font-medium">{t(l.name)}</div>
                           <div className="font-mono text-xs text-muted-foreground" dir="ltr">{l.code}</div>
                         </TableCell>
                         {!blind && <TableCell className="tabular-nums text-muted-foreground">{qf(l.systemQty)}</TableCell>}
@@ -239,31 +242,30 @@ export function CycleCountManager({ warehouses, canManage, canPost: mayPost }: {
       {canManage && (
         <Card>
           <CardHeader>
-            <CardTitle>ورقة جرد جديدة</CardTitle>
+            <CardTitle>{t("ورقة جرد جديدة")}</CardTitle>
             <CardDescription>
-              «بالقيمة» بتختار الأصناف اللي الخطأ فيها بيكلّف أكتر · «بالحركة» بتختار اللي بتتحرّك كتير فالخطأ بيتسلّل ليها.
-              الصنف اللي معدّش قبل كده بييجي الأول دايماً.
+              {t("«بالقيمة» بتختار الأصناف اللي الخطأ فيها بيكلّف أكتر · «بالحركة» بتختار اللي بتتحرّك كتير فالخطأ بيتسلّل ليها. الصنف اللي معدّش قبل كده بييجي الأول دايماً.")}
             </CardDescription>
           </CardHeader>
           <CardContent>
             <div className="flex flex-wrap items-end gap-3">
               <div className="space-y-2">
-                <Label>المستودع</Label>
+                <Label>{t("المستودع")}</Label>
                 <select className={`${selectCls} w-52`} value={gen.warehouseId} onChange={(e) => setGen((g) => ({ ...g, warehouseId: e.target.value }))}>
-                  {warehouses.map((w) => <option key={w.id} value={w.id}>{w.label}</option>)}
+                  {warehouses.map((w) => <option key={w.id} value={w.id}>{t(w.label)}</option>)}
                 </select>
               </div>
               <div className="space-y-2">
-                <Label>الاختيار</Label>
+                <Label>{t("الاختيار")}</Label>
                 <select className={`${selectCls} w-40`} value={gen.method} onChange={(e) => setGen((g) => ({ ...g, method: e.target.value }))}>
-                  <option value="VALUE">بالقيمة</option>
-                  <option value="MOVEMENT">بالحركة</option>
+                  <option value="VALUE">{t("بالقيمة")}</option>
+                  <option value="MOVEMENT">{t("بالحركة")}</option>
                 </select>
               </div>
-              <div className="space-y-2"><Label>عدد الأصناف</Label>
+              <div className="space-y-2"><Label>{t("عدد الأصناف")}</Label>
                 <Input type="number" min="1" max="500" className="w-28" value={gen.limit}
                   onChange={(e) => setGen((g) => ({ ...g, limit: e.target.value }))} /></div>
-              <Button onClick={generate} disabled={pending}><Icon name="Plus" className="size-4" />اطلع الورقة</Button>
+              <Button onClick={generate} disabled={pending}><Icon name="Plus" className="size-4" />{t("اطلع الورقة")}</Button>
             </div>
           </CardContent>
         </Card>
@@ -271,24 +273,24 @@ export function CycleCountManager({ warehouses, canManage, canPost: mayPost }: {
 
       <Card>
         <CardHeader>
-          <CardTitle>الجرد الدوري</CardTitle>
-          <CardDescription>{loading ? "جارٍ التحميل…" : `${rows.length} ورقة`}</CardDescription>
+          <CardTitle>{t("الجرد الدوري")}</CardTitle>
+          <CardDescription>{loading ? t("جارٍ التحميل…") : fill(t("{0} ورقة"), [rows.length])}</CardDescription>
         </CardHeader>
         <CardContent>
           {rows.length === 0 && !loading ? (
             <p className="text-sm text-muted-foreground">
-              مفيش أوراق جرد. الجرد الدوري بيعدّ شريحة كل أسبوع بدل ما تقفل المخزن يوم كامل مرة في السنة.
+              {t("مفيش أوراق جرد. الجرد الدوري بيعدّ شريحة كل أسبوع بدل ما تقفل المخزن يوم كامل مرة في السنة.")}
             </p>
           ) : (
             <div className="rounded-xl border overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="text-start">الرقم</TableHead>
-                    <TableHead className="text-start">التاريخ</TableHead>
-                    <TableHead className="text-start">المستودع</TableHead>
-                    <TableHead className="text-start">أصناف</TableHead>
-                    <TableHead className="text-start">الحالة</TableHead>
+                    <TableHead className="text-start">{t("الرقم")}</TableHead>
+                    <TableHead className="text-start">{t("التاريخ")}</TableHead>
+                    <TableHead className="text-start">{t("المستودع")}</TableHead>
+                    <TableHead className="text-start">{t("أصناف")}</TableHead>
+                    <TableHead className="text-start">{t("الحالة")}</TableHead>
                     <TableHead className="w-28" />
                   </TableRow>
                 </TableHeader>
@@ -297,13 +299,13 @@ export function CycleCountManager({ warehouses, canManage, canPost: mayPost }: {
                     <TableRow key={r.id}>
                       <TableCell className="font-mono text-xs">{r.number}</TableCell>
                       <TableCell className="text-xs" dir="ltr">{r.date}</TableCell>
-                      <TableCell>{r.warehouseName}</TableCell>
+                      <TableCell>{t(r.warehouseName)}</TableCell>
                       <TableCell className="tabular-nums">{r.lines}</TableCell>
-                      <TableCell><Badge variant={STATUS[r.status]?.tone ?? "outline"}>{STATUS[r.status]?.label ?? r.status}</Badge></TableCell>
+                      <TableCell><Badge variant={STATUS[r.status]?.tone ?? "outline"}>{t(STATUS[r.status]?.label ?? r.status)}</Badge></TableCell>
                       <TableCell className="flex gap-1">
-                        <Button size="sm" variant="outline" onClick={() => openSession(r.id)}>افتح</Button>
+                        <Button size="sm" variant="outline" onClick={() => openSession(r.id)}>{t("افتح")}</Button>
                         {canManage && r.status !== "POSTED" && r.status !== "CANCELLED" && (
-                          <Button size="icon" variant="ghost" aria-label="إلغاء" onClick={() => cancel(r)}>
+                          <Button size="icon" variant="ghost" aria-label={t("إلغاء")} onClick={() => cancel(r)}>
                             <Icon name="Ban" className="size-4 text-destructive" />
                           </Button>
                         )}

@@ -1,4 +1,5 @@
 import { and, asc, eq } from "drizzle-orm";
+import { getT } from "@/lib/i18n/server";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
 import { accounts, accountingConfigurations } from "@/db/schema";
@@ -15,6 +16,7 @@ const EMPTY_PROFILE: OrgProfile = {
 };
 
 export default async function AccountingSettingsPage() {
+  const t = await getT();
   return loadErpPage("settings.view", async ({ orgId, can }) => {
     const [accs, [config]] = await Promise.all([
       db.select({ id: accounts.id, code: accounts.code, nameAr: accounts.nameAr, type: accounts.type })
@@ -52,7 +54,7 @@ export default async function AccountingSettingsPage() {
 
     return (
       <div className="space-y-6">
-        <ErpPageHeader icon="Calculator" title="الضبط المحاسبي" subtitle="الحسابات الافتراضية التي تُرحَّل إليها المستندات تلقائياً" backHref="/settings" />
+        <ErpPageHeader icon="Calculator" title={t("الضبط المحاسبي")} subtitle={t("الحسابات الافتراضية التي تُرحَّل إليها المستندات تلقائياً")} backHref="/settings" />
         <SettingsForm section="accounting" profile={EMPTY_PROFILE} config={accountingConfig} accounts={accountOptions} canEdit={can("settings.edit")} />
       </div>
     );

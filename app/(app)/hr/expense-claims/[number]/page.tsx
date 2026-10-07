@@ -1,4 +1,6 @@
 import { notFound } from "next/navigation";
+import { fill } from "@/lib/i18n";
+import { getT } from "@/lib/i18n/server";
 import { and, eq } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
@@ -18,6 +20,7 @@ const dt = (d: unknown) => new Date(d as string).toLocaleDateString("en-GB", { y
 const fmt = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 export default async function ExpenseClaimDetailPage({ params }: { params: Promise<{ number: string }> }) {
+  const t = await getT();
   const raw = (await params).number;
   return loadErpPage("accounting.view", async ({ orgId, role, can }) => {
     const number = await docNumberParam(raw, orgId, expenseClaims,
@@ -35,7 +38,7 @@ export default async function ExpenseClaimDetailPage({ params }: { params: Promi
 
     return (
       <div className="space-y-6">
-        <ErpPageHeader icon="ReceiptText" title={`مطالبة ${claim.number}`} subtitle={`${claim.employee} · ${dt(claim.date)} · التعويض من ${claim.cashName ?? "—"}`} backHref="/hr/expense-claims"
+        <ErpPageHeader icon="ReceiptText" title={fill(t("مطالبة {0}"), [claim.number])} subtitle={fill(t("{0} · {1} · التعويض من {2}"), [claim.employee, dt(claim.date), claim.cashName ?? "—"])} backHref="/hr/expense-claims"
           action={
             <div className="flex gap-2">
               <PrintDocLink href={`/erp/hr/expense-claims/${encodeURIComponent(claim.number)}/print`} />
@@ -45,22 +48,22 @@ export default async function ExpenseClaimDetailPage({ params }: { params: Promi
         <ApprovalBanner approval={approval} canDecide={can("approvals.decide")} currentUserId={me.id}
           isAdmin={role === "admin" || role === "super_admin"} />
         <Card>
-          <CardHeader className="flex-row items-center justify-between"><CardTitle>بنود المصروف</CardTitle><Badge variant={claim.status === "APPROVED" ? "default" : "secondary"}>{claim.status === "APPROVED" ? "معتمد" : "مسودة"}</Badge></CardHeader>
+          <CardHeader className="flex-row items-center justify-between"><CardTitle>{t("بنود المصروف")}</CardTitle><Badge variant={claim.status === "APPROVED" ? "default" : "secondary"}>{claim.status === "APPROVED" ? t("معتمد") : t("مسودة")}</Badge></CardHeader>
           <CardContent>
             <Table>
-              <TableHeader><TableRow><TableHead className="text-start">البند</TableHead><TableHead className="text-start">وصف</TableHead><TableHead className="text-end">المبلغ</TableHead></TableRow></TableHeader>
+              <TableHeader><TableRow><TableHead className="text-start">{t("البند")}</TableHead><TableHead className="text-start">{t("وصف")}</TableHead><TableHead className="text-end">{t("المبلغ")}</TableHead></TableRow></TableHeader>
               <TableBody>
                 {lines.map((l, i) => (
                   <TableRow key={i}>
                     <TableCell><span className="font-mono text-xs text-muted-foreground">{l.code}</span> {l.acc}</TableCell>
-                    <TableCell className="max-w-[320px] truncate text-sm text-muted-foreground" title={l.description ?? undefined}>{l.description ?? "—"}</TableCell>
+                    <TableCell className="max-w-[320px] truncate text-sm text-muted-foreground" title={l.description ?? undefined}>{t(l.description ?? "—")}</TableCell>
                     <TableCell className="text-end tabular-nums font-medium">{fmt(Number(l.amount))}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>
             </Table>
-            <div className="mt-4 flex justify-end text-base font-bold text-primary">الإجمالي: {fmt(total)}</div>
-            {claim.notes && <p className="mt-3 text-sm text-muted-foreground">ملاحظات: {claim.notes}</p>}
+            <div className="mt-4 flex justify-end text-base font-bold text-primary">{t("الإجمالي:")} {fmt(total)}</div>
+            {claim.notes && <p className="mt-3 text-sm text-muted-foreground">{t("ملاحظات:")} {claim.notes}</p>}
           </CardContent>
         </Card>
       </div>

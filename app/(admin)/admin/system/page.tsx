@@ -1,4 +1,6 @@
 import { sql } from "drizzle-orm";
+import { fill, type Locale } from "@/lib/i18n";
+import { getLocale, getT } from "@/lib/i18n/server";
 import { db } from "@/lib/db";
 import { withPlatformScope } from "@/lib/db-scope";
 import { Icon } from "@/components/icon";
@@ -8,8 +10,11 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 
 export const dynamic = "force-dynamic";
 
-const fmtBytes = (b: number) => (b < 1024 * 1024 ? `${(b / 1024).toFixed(0)} ك.ب` : b < 1024 ** 3 ? `${(b / 1024 / 1024).toFixed(1)} م.ب` : `${(b / 1024 ** 3).toFixed(2)} ج.ب`);
-const int = (n: number) => n.toLocaleString("ar-EG");
+const fmtBytes = (b: number, locale: Locale) => {
+  const [kb, mb, gb] = locale === "en" ? ["KB", "MB", "GB"] : ["ك.ب", "م.ب", "ج.ب"];
+  return b < 1024 * 1024 ? `${(b / 1024).toFixed(0)} ${kb}` : b < 1024 ** 3 ? `${(b / 1024 / 1024).toFixed(1)} ${mb}` : `${(b / 1024 ** 3).toFixed(2)} ${gb}`;
+};
+const int = (n: number) => n.toLocaleString("ar-EG-u-nu-latn");
 
 export default async function SystemPage() {
   // Platform scope: document_attachments is RLS-policied, and with no scope open the
@@ -18,6 +23,8 @@ export default async function SystemPage() {
 }
 
 async function render() {
+  const t = await getT();
+  const locale = await getLocale();
   const [meta] = await db.execute<{ db_size: number; attach_bytes: number; attach_count: number; orgs: number; conns: number }>(sql`
     SELECT
       pg_database_size(current_database()) AS db_size,
@@ -35,14 +42,14 @@ async function render() {
   `).then((r) => r.rows);
 
   const cards = [
-    { label: "حجم قاعدة البيانات", value: fmtBytes(Number(meta?.db_size ?? 0)), icon: "Database" },
-    { label: "التخزين المستهلك", value: fmtBytes(Number(meta?.attach_bytes ?? 0)), icon: "HardDrive", hint: `${int(Number(meta?.attach_count ?? 0))} ملف` },
+    { label: "حجم قاعدة البيانات", value: fmtBytes(Number(meta?.db_size ?? 0), locale), icon: "Database" },
+    { label: "التخزين المستهلك", value: fmtBytes(Number(meta?.attach_bytes ?? 0), locale), icon: "HardDrive", hint: fill(t("{0} ملف"), [int(Number(meta?.attach_count ?? 0))]) },
     { label: "اتصالات قاعدة البيانات", value: int(Number(meta?.conns ?? 0)), icon: "Activity" },
     { label: "المؤسسات", value: int(Number(meta?.orgs ?? 0)), icon: "Building2" },
   ];
 
   const server = [
-    { k: "بيئة التشغيل", v: "خادم ذاتي / Docker" },
+    { k: "بيئة التشغيل", v: t("خادم ذاتي / Docker") },
     { k: "إصدار Node", v: process.version },
     { k: "المنصة", v: `${process.platform} / ${process.arch}` },
     { k: "البيئة", v: process.env.NODE_ENV ?? "—" },
@@ -50,38 +57,38 @@ async function render() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="أدوات النظام" description="حالة الخادم وقاعدة البيانات والتخزين المستهلك." />
+      <PageHeader title={t("أدوات النظام")} description={t("حالة الخادم وقاعدة البيانات والتخزين المستهلك.")} />
 
       <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
         {cards.map((c) => (
           <Card key={c.label}><CardContent className="pt-6">
-            <div className="flex items-center gap-2 text-sm text-muted-foreground"><Icon name={c.icon} className="size-4" />{c.label}</div>
+            <div className="flex items-center gap-2 text-sm text-muted-foreground"><Icon name={c.icon} className="size-4" />{t(c.label)}</div>
             <div className="mt-1 text-2xl font-bold tabular-nums">{c.value}</div>
-            {c.hint && <div className="text-xs text-muted-foreground">{c.hint}</div>}
+            {c.hint && <div className="text-xs text-muted-foreground">{t(c.hint)}</div>}
           </CardContent></Card>
         ))}
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
         <Card>
-          <CardHeader className="pb-2"><CardTitle className="text-base">الخادم</CardTitle></CardHeader>
+          <CardHeader className="pb-2"><CardTitle className="text-base">{t("الخادم")}</CardTitle></CardHeader>
           <CardContent className="p-0">
             <Table><TableBody>
               {server.map((s) => (
-                <TableRow key={s.k}><TableCell className="text-muted-foreground">{s.k}</TableCell><TableCell className="text-start font-medium" dir="ltr">{s.v}</TableCell></TableRow>
+                <TableRow key={s.k}><TableCell className="text-muted-foreground">{t(s.k)}</TableCell><TableCell className="text-start font-medium" dir="ltr">{s.v}</TableCell></TableRow>
               ))}
             </TableBody></Table>
           </CardContent>
         </Card>
 
         <Card>
-          <CardHeader className="pb-2"><CardTitle className="text-base">التخزين حسب المؤسسة</CardTitle></CardHeader>
+          <CardHeader className="pb-2"><CardTitle className="text-base">{t("التخزين حسب المؤسسة")}</CardTitle></CardHeader>
           <CardContent className="p-0">
             <Table>
-              <TableHeader><TableRow><TableHead className="text-start">المؤسسة</TableHead><TableHead className="text-start">الملفات</TableHead><TableHead className="text-start">الحجم</TableHead></TableRow></TableHeader>
+              <TableHeader><TableRow><TableHead className="text-start">{t("المؤسسة")}</TableHead><TableHead className="text-start">{t("الملفات")}</TableHead><TableHead className="text-start">{t("الحجم")}</TableHead></TableRow></TableHeader>
               <TableBody>
                 {perOrg.map((o) => (
-                  <TableRow key={o.name}><TableCell className="font-medium">{o.name}</TableCell><TableCell className="tabular-nums">{int(Number(o.files))}</TableCell><TableCell className="tabular-nums">{fmtBytes(Number(o.bytes))}</TableCell></TableRow>
+                  <TableRow key={o.name}><TableCell className="font-medium">{t(o.name)}</TableCell><TableCell className="tabular-nums">{int(Number(o.files))}</TableCell><TableCell className="tabular-nums">{fmtBytes(Number(o.bytes), locale)}</TableCell></TableRow>
                 ))}
               </TableBody>
             </Table>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useTransition } from "react";
+import { useT } from "@/lib/i18n/client";
 import { searchItemsAction, type ItemSearchResult } from "@/app/actions/erp/item-search";
 import { Input } from "@/components/ui/input";
 
@@ -18,6 +19,7 @@ export function ItemCombobox({
   onSelect: (item: ItemSearchResult) => void;
   placeholder?: string;
 }) {
+  const t = useT();
   const [q, setQ] = useState("");
   const [results, setResults] = useState<ItemSearchResult[]>([]);
   const [open, setOpen] = useState(false);
@@ -57,12 +59,12 @@ export function ItemCombobox({
         value={q}
         onChange={(e) => setQ(e.target.value)}
         onFocus={() => results.length && setOpen(true)}
-        placeholder={placeholder ?? "ابحث بالاسم أو الكود أو الباركود…"}
+        placeholder={placeholder ?? t("ابحث بالاسم أو الكود أو الباركود…")}
       />
       {open && (results.length > 0 || pending) && (
         <div className="absolute z-50 mt-1 max-h-72 w-full overflow-auto rounded-md border bg-popover shadow-lg">
           {results.length === 0 && pending ? (
-            <div className="px-3 py-2 text-sm text-muted-foreground">جارٍ البحث…</div>
+            <div className="px-3 py-2 text-sm text-muted-foreground">{t("جارٍ البحث…")}</div>
           ) : (
             results.map((it) => (
               <button
@@ -72,15 +74,15 @@ export function ItemCombobox({
                 className="flex w-full items-center gap-3 px-3 py-2 text-start hover:bg-accent"
               >
                 <div className="min-w-0 flex-1">
-                  <div className="truncate text-sm font-medium">{it.name}</div>
+                  <div className="truncate text-sm font-medium">{t(it.name)}</div>
                   <div className="truncate text-xs text-muted-foreground">
                     <span className="font-mono">{it.code}</span>
                     {it.codes.length ? " · " + it.codes.slice(0, 3).map((c) => c.code).join(" · ") : ""}
                   </div>
                 </div>
                 <div className="shrink-0 text-end text-xs">
-                  <div className={it.available <= 0 ? "text-destructive font-medium" : "text-muted-foreground"}>متاح: {fmt(it.available)}</div>
-                  {it.reserved > 0 && <div className="text-[10px] text-amber-600">محجوز: {fmt(it.reserved)}</div>}
+                  <div className={it.available <= 0 ? "text-destructive font-medium" : "text-muted-foreground"}>{t("متاح:")} {fmt(it.available)}</div>
+                  {it.reserved > 0 && <div className="text-[10px] text-amber-600">{t("محجوز:")} {fmt(it.reserved)}</div>}
                   <div className="font-medium">{fmt(it.sellPrice)}</div>
                 </div>
               </button>

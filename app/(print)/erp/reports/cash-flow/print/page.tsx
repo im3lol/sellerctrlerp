@@ -1,4 +1,6 @@
 import type { ReactNode } from "react";
+import { fill } from "@/lib/i18n";
+import { getLocale, getT } from "@/lib/i18n/server";
 import { loadErpPage } from "@/lib/erp/org";
 import { orgFiscalYearStartISO } from "@/lib/erp/fiscal";
 import { getCashFlow, type CashLine } from "@/lib/erp/cashflow";
@@ -21,6 +23,8 @@ export default async function PrintCashFlowPage({
 }: {
   searchParams: Promise<{ from?: string; to?: string }>;
 }) {
+  const t = await getT();
+  const locale = await getLocale();
   return loadErpPage("reports.view", async ({ orgId }) => {
     const sp = await searchParams;
     const now = new Date();
@@ -35,8 +39,8 @@ export default async function PrintCashFlowPage({
     return (
       <ReportSheet
         org={org}
-        title="قائمة التدفق النقدي"
-        period={`من ${dt(from)} إلى ${dt(to)} — الطريقة غير المباشرة`}
+        title={t("قائمة التدفق النقدي")}
+        period={fill(t("من {0} إلى {1} — الطريقة غير المباشرة"), [dt(from, locale), dt(to, locale)])}
         backHref={`/reports/cash-flow?${new URLSearchParams({ from, to }).toString()}`}
         kpis={[
           { label: "صافي التغير في النقدية", value: amt(cf.netCashChange), tone: cf.netCashChange >= 0 ? "success" : "danger" },
@@ -63,7 +67,7 @@ export default async function PrintCashFlowPage({
             footerRow: ["صافي الأنشطة التمويلية", amt(cf.finTotal)],
           },
         ]}
-        note="* النقدية تشمل حسابات الصندوق والبنوك فقط. الطريقة غير المباشرة — التغيرات مستخرجة من قيود الأستاذ العام."
+        note={t("* النقدية تشمل حسابات الصندوق والبنوك فقط. الطريقة غير المباشرة — التغيرات مستخرجة من قيود الأستاذ العام.")}
       />
     );
   });

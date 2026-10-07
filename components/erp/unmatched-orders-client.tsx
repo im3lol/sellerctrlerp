@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useT } from "@/lib/i18n/client";
 import Link from "next/link";
-import { toast } from "sonner";
+import { toast } from "@/lib/i18n/toast";
 import { Check, Loader2, PackagePlus } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -19,6 +20,7 @@ const dt = (s: string) => new Date(s).toLocaleString("ar-EG-u-nu-latn", { dateSt
  * "تمّت المعالجة" dismisses it now.
  */
 export function UnmatchedOrdersClient({ initial }: { initial: UnmatchedOrder[] }) {
+  const t = useT();
   const [rows, setRows] = useState(initial);
   const [pending, start] = useTransition();
   const [busy, setBusy] = useState<string | null>(null);
@@ -32,13 +34,13 @@ export function UnmatchedOrdersClient({ initial }: { initial: UnmatchedOrder[] }
   });
 
   if (rows.length === 0) {
-    return <Card><CardContent className="py-10 text-center text-muted-foreground">لا توجد طلبات بمنتجات غير معرَّفة — كله متطابق ✓</CardContent></Card>;
+    return <Card><CardContent className="py-10 text-center text-muted-foreground">{t("لا توجد طلبات بمنتجات غير معرَّفة — كله متطابق ✓")}</CardContent></Card>;
   }
 
   return (
     <div className="space-y-4">
       <p className="text-sm text-muted-foreground">
-        دي طلبات وصلت من المنصات بمنتج مش مربوط بأي صنف. النظام ما بيعملهاش تلقائيًا. لكل طلب: اعمل الصنف واربط بيه أكواد المنصة، بعدها الطلب هيتسجّل في المزامنة الجاية (أو «تمّت المعالجة» لتجاهله).
+        {t("دي طلبات وصلت من المنصات بمنتج مش مربوط بأي صنف. النظام ما بيعملهاش تلقائيًا. لكل طلب: اعمل الصنف واربط بيه أكواد المنصة، بعدها الطلب هيتسجّل في المزامنة الجاية (أو «تمّت المعالجة» لتجاهله).")}
       </p>
       {rows.map((o) => (
         <Card key={o.id}>
@@ -47,10 +49,10 @@ export function UnmatchedOrdersClient({ initial }: { initial: UnmatchedOrder[] }
               <CardTitle className="flex items-center gap-2 text-base">
                 <Badge variant="secondary">{o.channel}</Badge>
                 <span dir="ltr" className="font-mono">{o.externalId}</span>
-                <span className="text-sm font-normal text-muted-foreground">· {dt(o.createdAt)} · الإجمالي {fmt(o.total)}</span>
+                <span className="text-sm font-normal text-muted-foreground">· {dt(o.createdAt)} {t("· الإجمالي")} {fmt(o.total)}</span>
               </CardTitle>
               <Button size="sm" variant="outline" onClick={() => resolve(o.id)} disabled={pending && busy === o.id}>
-                {pending && busy === o.id ? <Loader2 className="size-4 animate-spin" /> : <Check className="size-4" />}تمّت المعالجة
+                {pending && busy === o.id ? <Loader2 className="size-4 animate-spin" /> : <Check className="size-4" />}{t("تمّت المعالجة")}
               </Button>
             </div>
           </CardHeader>
@@ -60,11 +62,11 @@ export function UnmatchedOrdersClient({ initial }: { initial: UnmatchedOrder[] }
                 <span className="font-medium">{l.name || l.code}</span>
                 <span className="text-muted-foreground" dir="ltr">SKU: {l.code}</span>
                 {l.altCode && <span className="text-muted-foreground" dir="ltr">ASIN: {l.altCode}</span>}
-                <span className="text-muted-foreground">الكمية {l.qty} × {fmt(l.unitPrice)}</span>
+                <span className="text-muted-foreground">{t("الكمية")} {l.qty} × {fmt(l.unitPrice)}</span>
                 {!l.matched && (
                   <Button asChild size="sm" variant="ghost" className="ms-auto h-7 text-primary">
                     <Link href={`/inventory/items/new?code=${encodeURIComponent(l.code)}${l.altCode ? `&asin=${encodeURIComponent(l.altCode)}` : ""}`}>
-                      <PackagePlus className="size-3.5" />أنشئ المنتج
+                      <PackagePlus className="size-3.5" />{t("أنشئ المنتج")}
                     </Link>
                   </Button>
                 )}

@@ -1,9 +1,10 @@
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { getT } from "@/lib/i18n/server";
 import { AGING_BUCKETS, BUCKET_LABELS, type AgingBucket, type AgingRow } from "@/lib/erp/aging";
 
 const fmt = (n: number) => (n ? n.toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "—");
 
-export function AgingTable({
+export async function AgingTable({
   rows,
   totals,
   grand,
@@ -16,6 +17,7 @@ export function AgingTable({
   partyLabel: string;
   empty: string;
 }) {
+  const t = await getT();
   if (rows.length === 0) {
     return <div className="rounded-xl border border-dashed py-12 text-center text-muted-foreground">{empty}</div>;
   }
@@ -25,9 +27,9 @@ export function AgingTable({
         <TableRow>
           <TableHead className="text-start">{partyLabel}</TableHead>
           {AGING_BUCKETS.map((b) => (
-            <TableHead key={b} className="text-start">{BUCKET_LABELS[b]}</TableHead>
+            <TableHead key={b} className="text-start">{t(BUCKET_LABELS[b])}</TableHead>
           ))}
-          <TableHead className="text-start">الإجمالي</TableHead>
+          <TableHead className="text-start">{t("الإجمالي")}</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -45,7 +47,7 @@ export function AgingTable({
       </TableBody>
       <TableFooter>
         <TableRow className="font-bold">
-          <TableCell>الإجمالي</TableCell>
+          <TableCell>{t("الإجمالي")}</TableCell>
           {AGING_BUCKETS.map((b) => (
             <TableCell key={b}>{fmt(totals[b])}</TableCell>
           ))}

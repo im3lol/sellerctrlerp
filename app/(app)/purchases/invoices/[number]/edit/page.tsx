@@ -1,4 +1,5 @@
 import { notFound, redirect } from "next/navigation";
+import { fill } from "@/lib/i18n";
 import { getT } from "@/lib/i18n/server";
 import { and, eq } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
@@ -63,7 +64,7 @@ export default async function EditPurchaseInvoicePage({ params }: { params: Prom
       <div className="space-y-6">
         <ErpPageHeader
           icon="ReceiptText"
-          title={`تعديل فاتورة ${inv.number}`}
+          title={fill(t("تعديل فاتورة {0}"), [inv.number])}
           subtitle={t("مسودة — طابِقها على فاتورة المورّد الفعلية قبل الترحيل")}
           backHref={`/purchases/invoices/${encodeURIComponent(inv.number)}`}
         />

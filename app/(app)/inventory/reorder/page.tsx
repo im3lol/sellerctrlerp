@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { fill } from "@/lib/i18n";
 import { getT } from "@/lib/i18n/server";
 import { loadErpPage } from "@/lib/erp/org";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -53,7 +54,7 @@ export default async function ReorderPage({ searchParams }: { searchParams: Prom
     for (const r of planned) {
       if (r.suggestedQty <= 0) continue;
       const key = r.supplierId ?? "none";
-      const g = bySupplier.get(key) ?? { name: r.supplierName ?? "بدون مورد سابق", count: 0 };
+      const g = bySupplier.get(key) ?? { name: r.supplierName ?? t("بدون مورد سابق"), count: 0 };
       g.count++;
       bySupplier.set(key, g);
     }
@@ -64,14 +65,14 @@ export default async function ReorderPage({ searchParams }: { searchParams: Prom
         <ErpPageHeader
           icon="TriangleAlert"
           title={t("تخطيط إعادة الطلب")}
-          subtitle={`${planned.length} صنف يحتاج طلب · ${criticalCount} حرج/نافد`}
+          subtitle={fill(t("{0} صنف يحتاج طلب · {1} حرج/نافد"), [planned.length, criticalCount])}
           backHref="/inventory"
           action={bySupplier.size > 0 && can("purchases.create") ? (
             <div className="flex flex-wrap gap-2">
               {[...bySupplier].map(([key, g], idx) => (
                 <Button key={key} asChild variant={idx === 0 ? "default" : "outline"}>
                   <Link href={`/purchases/orders/new?reorder=1&${qs}&supplier=${encodeURIComponent(key)}`}>
-                    <Icon name="ClipboardList" className="size-4" />أمر شراء — {g.name} ({q(g.count)})
+                    <Icon name="ClipboardList" className="size-4" />{t("أمر شراء —")} {t(g.name)} ({q(g.count)})
                   </Link>
                 </Button>
               ))}
@@ -83,19 +84,19 @@ export default async function ReorderPage({ searchParams }: { searchParams: Prom
           <div className="space-y-2">
             <Label htmlFor="window">{t("فترة قياس البيع")}</Label>
             <select id="window" name="window" defaultValue={String(windowDays)} className={`${filterFieldCls} min-w-32`}>
-              {WINDOWS.map((w) => <option key={w} value={w}>آخر {w} يوم</option>)}
+              {WINDOWS.map((w) => <option key={w} value={w}>{t("آخر")} {w} {t("يوم")}</option>)}
             </select>
           </div>
           <div className="space-y-2">
             <Label htmlFor="lead">{t("زمن التوريد (يوم)")}</Label>
             <select id="lead" name="lead" defaultValue={String(leadDays)} className={`${filterFieldCls} min-w-28`}>
-              {LEADS.map((w) => <option key={w} value={w}>{w} يوم</option>)}
+              {LEADS.map((w) => <option key={w} value={w}>{w} {t("يوم")}</option>)}
             </select>
           </div>
           <div className="space-y-2">
             <Label htmlFor="cover">{t("تغطية مستهدفة (يوم)")}</Label>
             <select id="cover" name="cover" defaultValue={String(coverDays)} className={`${filterFieldCls} min-w-28`}>
-              {COVERS.map((w) => <option key={w} value={w}>{w} يوم</option>)}
+              {COVERS.map((w) => <option key={w} value={w}>{w} {t("يوم")}</option>)}
             </select>
           </div>
         </FilterBar>
@@ -104,8 +105,7 @@ export default async function ReorderPage({ searchParams }: { searchParams: Prom
           <CardHeader>
             <CardTitle>{t("أصناف تحتاج طلبًا حسب معدّل البيع")}</CardTitle>
             <CardDescription>
-              «أيام التغطية» = المتاح ÷ معدّل البيع اليومي. أي صنف تغطيته أقل من زمن التوريد ({leadDays} يوم) هيخلص قبل وصول الشحنة.
-              الأصناف اللي ماتباعتش في الفترة ومالهاش حد طلب مش بتظهر هنا.
+              {fill(t("«أيام التغطية» = المتاح ÷ معدّل البيع اليومي. أي صنف تغطيته أقل من زمن التوريد ({0} يوم) هيخلص قبل وصول الشحنة. الأصناف اللي ماتباعتش في الفترة ومالهاش حد طلب مش بتظهر هنا."), [leadDays])}
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -134,7 +134,7 @@ export default async function ReorderPage({ searchParams }: { searchParams: Prom
                       return (
                         <TableRow key={r.itemId}>
                           <TableCell className="font-mono whitespace-nowrap">{r.code}</TableCell>
-                          <TableCell className="max-w-[300px] whitespace-normal"><div className="line-clamp-2 leading-snug" title={r.name ?? undefined}>{r.name}</div></TableCell>
+                          <TableCell className="max-w-[300px] whitespace-normal"><div className="line-clamp-2 leading-snug" title={r.name ?? undefined}>{t(r.name)}</div></TableCell>
                           <TableCell className="whitespace-nowrap text-muted-foreground">{r.supplierName ?? "—"}</TableCell>
                           <TableCell>{q(r.onHand)}</TableCell>
                           <TableCell className="tabular-nums text-muted-foreground">{r.inbound > 0 ? q(r.inbound) : "—"}</TableCell>
@@ -142,7 +142,7 @@ export default async function ReorderPage({ searchParams }: { searchParams: Prom
                           <TableCell className="tabular-nums">{d1(r.daysOfCover)}</TableCell>
                           <TableCell className="tabular-nums text-muted-foreground">{d1(r.reorderPoint)}</TableCell>
                           <TableCell className="font-semibold">{q(r.suggestedQty)}</TableCell>
-                          <TableCell><Badge variant={st.tone}>{st.label}</Badge></TableCell>
+                          <TableCell><Badge variant={st.tone}>{t(st.label)}</Badge></TableCell>
                         </TableRow>
                       );
                     })}

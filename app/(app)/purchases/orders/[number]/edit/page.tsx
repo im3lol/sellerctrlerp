@@ -1,4 +1,5 @@
 import { notFound, redirect } from "next/navigation";
+import { fill } from "@/lib/i18n";
 import { getT } from "@/lib/i18n/server";
 import { and, asc, desc, eq } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
@@ -53,11 +54,7 @@ export default async function EditPurchaseOrderPage({ params }: { params: Promis
       expectedDate: po.expectedDate ? new Date(po.expectedDate).toISOString().slice(0, 10) : "",
       notes: po.notes ?? "",
       currencyCode: po.currencyCode, exchangeRate: rate, applyVat: Number(po.taxAmount) > 0,
-      originCosts: po.originCostInput?.costs ?? [],
-      lines: po.originCostInput ? po.originCostInput.lines.map(l => ({
-        itemId: l.itemId, quantity: l.quantity, unitPrice: l.unitPrice, shippingPerUnit: l.shippingPerUnit,
-        discountPerUnit: l.discountAmount / l.quantity, uomId: l.uomId ?? "", uomFactor: l.uomFactor,
-      })) : poLines.map((l) => {
+      lines: poLines.map((l) => {
         const qty = Number(l.quantity) || 0;
         return {
           itemId: l.itemId, quantity: qty, unitPrice: toForeign(l.unitPrice), shippingPerUnit: toForeign(l.shippingPerUnit),
@@ -69,7 +66,7 @@ export default async function EditPurchaseOrderPage({ params }: { params: Promis
 
     return (
       <div className="space-y-6">
-        <ErpPageHeader icon="ClipboardList" title={`تعديل أمر شراء ${po.number}`} subtitle={t("مسودة — عدّل الأصناف والكميات والأسعار ثم احفظ")} backHref={`/purchases/orders/${encodeURIComponent(po.number)}`} />
+        <ErpPageHeader icon="ClipboardList" title={fill(t("تعديل أمر شراء {0}"), [po.number])} subtitle={t("مسودة — عدّل الأصناف والكميات والأسعار ثم احفظ")} backHref={`/purchases/orders/${encodeURIComponent(po.number)}`} />
         <PurchaseOrderForm suppliers={supList} warehouses={whList} items={itemList} unitsByItem={unitsByItem} orgName={org[0]?.nameAr ?? "—"} vatRate={Number(org[0]?.vatRate ?? 0)} currencies={currRows} latestRates={latestRates} rateHistory={rateHistory} initial={initial} />
       </div>
     );

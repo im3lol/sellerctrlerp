@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useT } from "@/lib/i18n/client";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { CheckCircle, RotateCcw, ExternalLink, Printer } from "lucide-react";
@@ -54,6 +55,7 @@ const statusLabel: Record<string, string> = {
 };
 
 function ReverseDialog({ runId, onClose }: { runId: string; onClose: () => void }) {
+  const t = useT();
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [reason, setReason] = useState("");
@@ -64,27 +66,27 @@ function ReverseDialog({ runId, onClose }: { runId: string; onClose: () => void 
     setError(undefined);
     startTransition(async () => {
       const res = await reversePayrollRunAction(runId, reason);
-      if (res.error) { setError(res.error); return; }
+      if (res.error) { setError(res.error ? t(res.error) : res.error); return; }
       onClose();
       router.refresh();
     });
   }
 
   return (
-    <DialogContent dir="rtl">
-      <DialogHeader><DialogTitle>عكس مسير الرواتب</DialogTitle></DialogHeader>
+    <DialogContent>
+      <DialogHeader><DialogTitle>{t("عكس مسير الرواتب")}</DialogTitle></DialogHeader>
       <div className="space-y-3">
-        <p className="text-sm text-muted-foreground">سيتم إنشاء قيد عكسي يلغي الأثر المحاسبي لهذا المسير.</p>
+        <p className="text-sm text-muted-foreground">{t("سيتم إنشاء قيد عكسي يلغي الأثر المحاسبي لهذا المسير.")}</p>
         <div className="space-y-1.5">
-          <Label>سبب العكس</Label>
-          <Input value={reason} onChange={(e) => setReason(e.target.value)} placeholder="خطأ في البيانات..." />
+          <Label>{t("سبب العكس")}</Label>
+          <Input value={reason} onChange={(e) => setReason(e.target.value)} placeholder={t("خطأ في البيانات...")} />
         </div>
         {error && <p className="text-sm text-destructive">{error}</p>}
       </div>
       <DialogFooter>
-        <Button variant="outline" onClick={onClose}>إلغاء</Button>
+        <Button variant="outline" onClick={onClose}>{t("إلغاء")}</Button>
         <Button variant="destructive" onClick={confirm} disabled={pending}>
-          {pending ? "جارٍ العكس…" : "تأكيد العكس"}
+          {pending ? t("جارٍ العكس…") : t("تأكيد العكس")}
         </Button>
       </DialogFooter>
     </DialogContent>
@@ -93,6 +95,7 @@ function ReverseDialog({ runId, onClose }: { runId: string; onClose: () => void 
 
 export function PayrollRunDetail({ run, lines }: { run: Run; lines: Line[] }) {
   const router = useRouter();
+  const t = useT();
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string>();
   const [showReverse, setShowReverse] = useState(false);
@@ -101,13 +104,13 @@ export function PayrollRunDetail({ run, lines }: { run: Run; lines: Line[] }) {
     setError(undefined);
     startTransition(async () => {
       const res = await confirmPayrollRunAction(run.id);
-      if (res.error) { setError(res.error); return; }
+      if (res.error) { setError(res.error ? t(res.error) : res.error); return; }
       router.refresh();
     });
   }
 
   return (
-    <div className="space-y-6" dir="rtl">
+    <div className="space-y-6">
       {/* Header card */}
       <div className="rounded-xl border bg-card p-5">
         <div className="flex flex-wrap items-start justify-between gap-4">
@@ -120,7 +123,7 @@ export function PayrollRunDetail({ run, lines }: { run: Run; lines: Line[] }) {
                 href={`/accounting/journal/${run.journalEntryId}`}
                 className="flex items-center gap-1 text-xs text-primary hover:underline"
               >
-                <ExternalLink className="h-3 w-3" /> عرض القيد
+                <ExternalLink className="h-3 w-3" /> {t("عرض القيد")}
               </Link>
             )}
           </div>
@@ -129,12 +132,12 @@ export function PayrollRunDetail({ run, lines }: { run: Run; lines: Line[] }) {
             {run.status === "DRAFT" && (
               <Button size="sm" onClick={confirmRun} disabled={pending}>
                 <CheckCircle className="me-1.5 h-4 w-4" />
-                {pending ? "جارٍ الترحيل…" : "ترحيل وتسجيل القيد"}
+                {pending ? t("جارٍ الترحيل…") : t("ترحيل وتسجيل القيد")}
               </Button>
             )}
             {run.status === "POSTED" && (
               <Button size="sm" variant="outline" onClick={() => setShowReverse(true)}>
-                <RotateCcw className="me-1.5 h-4 w-4" /> عكس
+                <RotateCcw className="me-1.5 h-4 w-4" /> {t("عكس")}
               </Button>
             )}
           </div>
@@ -151,7 +154,7 @@ export function PayrollRunDetail({ run, lines }: { run: Run; lines: Line[] }) {
             { label: "صافي المدفوعات",  value: money(run.totalNet), highlight: true },
           ].map((s) => (
             <div key={s.label} className="rounded-lg bg-muted/30 p-3">
-              <p className="text-xs text-muted-foreground">{s.label}</p>
+              <p className="text-xs text-muted-foreground">{t(s.label)}</p>
               <p className={`mt-0.5 text-lg font-semibold tabular-nums ${s.highlight ? "text-primary" : ""}`}>
                 {s.value}
               </p>
@@ -165,14 +168,14 @@ export function PayrollRunDetail({ run, lines }: { run: Run; lines: Line[] }) {
         <table className="w-full text-sm">
           <thead className="bg-muted/30 text-xs text-muted-foreground">
             <tr className="[&>th]:p-3 [&>th]:text-start">
-              <th>الموظف</th>
-              <th>الراتب الأساسي</th>
-              <th>البدلات</th>
-              <th>الإجمالي</th>
-              <th>الاستقطاعات</th>
-              <th>الضريبة</th>
-              <th>الصافي</th>
-              {lines.some((l) => l.hoursWorked) && <th>ساعات العمل</th>}
+              <th>{t("الموظف")}</th>
+              <th>{t("الراتب الأساسي")}</th>
+              <th>{t("البدلات")}</th>
+              <th>{t("الإجمالي")}</th>
+              <th>{t("الاستقطاعات")}</th>
+              <th>{t("الضريبة")}</th>
+              <th>{t("الصافي")}</th>
+              {lines.some((l) => l.hoursWorked) && <th>{t("ساعات العمل")}</th>}
               <th />
             </tr>
           </thead>
@@ -203,7 +206,7 @@ export function PayrollRunDetail({ run, lines }: { run: Run; lines: Line[] }) {
                     href={`/erp/hr/payroll/${encodeURIComponent(run.number)}/payslip/${l.employeeId}/print`}
                     target="_blank"
                     rel="noopener"
-                    title="طباعة قسيمة الراتب"
+                    title={t("طباعة قسيمة الراتب")}
                     className="text-muted-foreground hover:text-foreground"
                   >
                     <Printer className="h-4 w-4" />

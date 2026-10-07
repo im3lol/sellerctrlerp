@@ -1,4 +1,5 @@
 import { and, asc, desc, eq, inArray } from "drizzle-orm";
+import { getT } from "@/lib/i18n/server";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
 import { performanceReviews, reviewScores, employees } from "@/db/schema";
@@ -8,6 +9,7 @@ import { PerformanceManager } from "@/components/erp/hr-people-manager";
 export const dynamic = "force-dynamic";
 
 export default async function PerformancePage() {
+  const t = await getT();
   return loadErpPage("hr.view", async ({ orgId, can }) => {
     const [reviewRows, empRows] = await Promise.all([
       // The reviewer's name comes from the employee list below rather than a second join —
@@ -34,8 +36,8 @@ export default async function PerformancePage() {
       <div className="space-y-6">
         <ErpPageHeader
           icon="Target"
-          title="تقييم الأداء"
-          subtitle="درجة موزونة بأهمية كل بند — والتقييم الموقّع بيتقفل"
+          title={t("تقييم الأداء")}
+          subtitle={t("درجة موزونة بأهمية كل بند — والتقييم الموقّع بيتقفل")}
           backHref="/hr"
         />
         <PerformanceManager

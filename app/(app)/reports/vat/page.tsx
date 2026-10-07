@@ -1,4 +1,6 @@
 import { and, eq, gte, lte, ne, sql } from "drizzle-orm";
+import { fill } from "@/lib/i18n";
+import { getLocale, getT } from "@/lib/i18n/server";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
 import { salesInvoices, purchaseInvoices } from "@/db/schema";
@@ -20,7 +22,9 @@ const fmt = (n: number) =>
 /* ── VAT lines table ─────────────────────────────────────── */
 type VatLine = { number: string; date: Date; counterparty: string; netAmount: number; taxAmount: number; taxRate: number };
 
-function VatTable({ lines, emptyText }: { lines: VatLine[]; emptyText: string }) {
+async function VatTable({ lines, emptyText }: { lines: VatLine[]; emptyText: string }) {
+  const t = await getT();
+  const locale = await getLocale();
   if (lines.length === 0) {
     return <div className="rounded-xl border border-dashed py-10 text-center text-sm text-muted-foreground">{emptyText}</div>;
   }
@@ -30,19 +34,19 @@ function VatTable({ lines, emptyText }: { lines: VatLine[]; emptyText: string })
       <table className="w-full text-sm">
         <thead className="bg-muted/30 text-xs text-muted-foreground">
           <tr className="[&>th]:p-3 [&>th]:text-start">
-            <th>رقم الفاتورة</th>
-            <th>التاريخ</th>
-            <th>الطرف</th>
-            <th className="text-end">صافي المبلغ</th>
-            <th className="text-end">نسبة الضريبة</th>
-            <th className="text-end">مبلغ الضريبة</th>
+            <th>{t("رقم الفاتورة")}</th>
+            <th>{t("التاريخ")}</th>
+            <th>{t("الطرف")}</th>
+            <th className="text-end">{t("صافي المبلغ")}</th>
+            <th className="text-end">{t("نسبة الضريبة")}</th>
+            <th className="text-end">{t("مبلغ الضريبة")}</th>
           </tr>
         </thead>
         <tbody>
           {lines.map((l) => (
             <tr key={l.number} className="border-t [&>td]:p-3">
               <td className="font-mono text-xs">{l.number}</td>
-              <td className="text-xs text-muted-foreground">{new Date(l.date).toLocaleDateString("ar-EG")}</td>
+              <td className="text-xs text-muted-foreground">{new Date(l.date).toLocaleDateString(locale === "en" ? "en-GB" : "ar-EG")}</td>
               <td>{l.counterparty}</td>
               <td className="text-end tabular-nums">{fmt(l.netAmount)}</td>
               <td className="text-end tabular-nums text-muted-foreground">{l.taxRate > 0 ? `${l.taxRate}%` : "—"}</td>
@@ -52,7 +56,7 @@ function VatTable({ lines, emptyText }: { lines: VatLine[]; emptyText: string })
         </tbody>
         <tfoot className="border-t bg-muted/20 font-semibold">
           <tr className="[&>td]:p-3">
-            <td colSpan={3}>الإجمالي</td>
+            <td colSpan={3}>{t("الإجمالي")}</td>
             <td className="text-end tabular-nums">{fmt(total.net)}</td>
             <td />
             <td className="text-end tabular-nums">{fmt(total.tax)}</td>
@@ -65,6 +69,7 @@ function VatTable({ lines, emptyText }: { lines: VatLine[]; emptyText: string })
 
 /* ── Page ──────────────────────────────────────────────────── */
 export default async function VatReportPage({ searchParams }: Params) {
+  const t = await getT();
   return loadErpPage("reports.view", async ({ orgId, permissions }) => {
     const currency = await getBaseCurrencyCode(orgId);
     const sp = await searchParams;
@@ -163,30 +168,30 @@ export default async function VatReportPage({ searchParams }: Params) {
       <ReportShell
         reportKey="vat"
         icon="Percent"
-        title="تقرير ضريبة القيمة المضافة"
-        subtitle={`من ${fromISO} إلى ${toISO} — المحصّلة على المبيعات والمدفوعة على المشتريات`}
+        title={t("تقرير ضريبة القيمة المضافة")}
+        subtitle={fill(t("من {0} إلى {1} — المحصّلة على المبيعات والمدفوعة على المشتريات"), [fromISO, toISO])}
         query={query}
         permissions={permissions}
         filters={
           <>
-            <ReportField label="من تاريخ"><input name="from" type="date" defaultValue={fromISO} className={inp} /></ReportField>
-            <ReportField label="إلى تاريخ"><input name="to" type="date" defaultValue={toISO} className={inp} /></ReportField>
+            <ReportField label={t("من تاريخ")}><input name="from" type="date" defaultValue={fromISO} className={inp} /></ReportField>
+            <ReportField label={t("إلى تاريخ")}><input name="to" type="date" defaultValue={toISO} className={inp} /></ReportField>
           </>
         }
         kpis={[
-          { label: "المحصّلة (مخرجات)", value: money(outputVat, currency), hint: `على مبيعات ${money(outputBase, currency)}` },
+          { label: "المحصّلة (مخرجات)", value: money(outputVat, currency), hint: fill(t("على مبيعات {0}"), [money(outputBase, currency)]) },
           { op: "−" },
-          { label: "المدفوعة (مدخلات)", value: money(inputVat, currency), hint: `على مشتريات ${money(inputBase, currency)}` },
+          { label: "المدفوعة (مدخلات)", value: money(inputVat, currency), hint: fill(t("على مشتريات {0}"), [money(inputBase, currency)]) },
           { op: "=" },
-          { label: netVat >= 0 ? "المستحقة للهيئة" : "القابلة للاسترداد",
+          { label: netVat >= 0 ? t("المستحقة للهيئة") : t("القابلة للاسترداد"),
             value: money(Math.abs(netVat), currency),
             tone: netVat >= 0 ? "loss" : "profit",
-            hint: `${salesLines.length + purchaseLines.length} فاتورة خاضعة` },
+            hint: fill(t("{0} فاتورة خاضعة"), [salesLines.length + purchaseLines.length]) },
         ]}
       >
         {/* VAT return box */}
         <Card>
-          <CardHeader><CardTitle className="text-base">ملخّص الإقرار الضريبي</CardTitle></CardHeader>
+          <CardHeader><CardTitle className="text-base">{t("ملخّص الإقرار الضريبي")}</CardTitle></CardHeader>
           <CardContent>
             <div className="overflow-hidden rounded-xl border">
               <table className="w-full text-sm">
@@ -198,13 +203,13 @@ export default async function VatReportPage({ searchParams }: Params) {
                     { label: "ضريبة القيمة المضافة المدفوعة (مدخلات)", val: inputVat, cls: "font-medium text-blue-700 dark:text-blue-400" },
                   ].map((row, i) => (
                     <tr key={i} className="border-b last:border-b-0 [&>td]:p-3">
-                      <td className={row.cls}>{row.label}</td>
+                      <td className={row.cls}>{t(row.label)}</td>
                       <td className={`text-end tabular-nums ${row.cls}`}>{money(row.val, currency)}</td>
                     </tr>
                   ))}
                   <tr className="border-t-2 bg-muted/30 font-bold [&>td]:p-3">
                     <td className={netVat >= 0 ? "text-red-700 dark:text-red-400" : "text-emerald-700 dark:text-emerald-400"}>
-                      {netVat >= 0 ? "صافي الضريبة المستحقة للهيئة" : "ضريبة مستردّة من الهيئة"}
+                      {netVat >= 0 ? t("صافي الضريبة المستحقة للهيئة") : t("ضريبة مستردّة من الهيئة")}
                     </td>
                     <td className={`text-end tabular-nums ${netVat >= 0 ? "text-red-700 dark:text-red-400" : "text-emerald-700 dark:text-emerald-400"}`}>
                       {money(Math.abs(netVat), currency)}
@@ -218,13 +223,13 @@ export default async function VatReportPage({ searchParams }: Params) {
 
         {/* Detail tables */}
         <div className="space-y-2">
-          <h3 className="font-semibold">تفاصيل الضريبة المحصّلة (فواتير البيع)</h3>
-          <VatTable lines={salesLines} emptyText="لا توجد فواتير بيع خاضعة للضريبة في هذه الفترة" />
+          <h3 className="font-semibold">{t("تفاصيل الضريبة المحصّلة (فواتير البيع)")}</h3>
+          <VatTable lines={salesLines} emptyText={t("لا توجد فواتير بيع خاضعة للضريبة في هذه الفترة")} />
         </div>
 
         <div className="space-y-2">
-          <h3 className="font-semibold">تفاصيل الضريبة المدفوعة (فواتير الشراء)</h3>
-          <VatTable lines={purchaseLines} emptyText="لا توجد فواتير شراء خاضعة للضريبة في هذه الفترة" />
+          <h3 className="font-semibold">{t("تفاصيل الضريبة المدفوعة (فواتير الشراء)")}</h3>
+          <VatTable lines={purchaseLines} emptyText={t("لا توجد فواتير شراء خاضعة للضريبة في هذه الفترة")} />
         </div>
       </ReportShell>
     );

@@ -1,9 +1,10 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
+import { useT } from "@/lib/i18n/client";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "@/lib/i18n/toast";
 import { createSalesReturnAction, createDeliveryReturnAction } from "@/app/actions/erp/sales-returns";
 import { createPurchaseReturnAction, createReceiptReturnAction } from "@/app/actions/erp/purchase-returns";
 import { Button } from "@/components/ui/button";
@@ -27,8 +28,9 @@ export function InvoiceReturnForm({
   backHref: string;
   lines: ReturnLine[];
 }) {
-  const docLabel = type === "receipt" ? "إذن استلام" : type === "delivery" ? "إذن صرف" : "فاتورة";
-  const qtyLabel = type === "receipt" ? "المستلم" : type === "delivery" ? "المُسلّم" : "المفوتر";
+  const t = useT();
+  const docLabel = type === "receipt" ? t("إذن استلام") : type === "delivery" ? t("إذن صرف") : t("فاتورة");
+  const qtyLabel = type === "receipt" ? t("المستلم") : type === "delivery" ? t("المُسلّم") : t("المفوتر");
   const salesSide = type === "sales" || type === "delivery";
   const router = useRouter();
   const [pending, start] = useTransition();
@@ -56,7 +58,7 @@ export function InvoiceReturnForm({
         toast.success("تم حفظ المرتجع (مسودة) — أكّده");
         router.push(`/${salesSide ? "sales" : "purchases"}/returns/${r.id}`);
         router.refresh();
-      } else toast.error(r.error ?? "تعذّر حفظ المرتجع");
+      } else toast.error(r.error ?? t("تعذّر حفظ المرتجع"));
     });
   };
 
@@ -64,34 +66,34 @@ export function InvoiceReturnForm({
     <Card>
       <CardHeader>
         <div className="flex w-full items-center justify-between gap-3">
-          <CardTitle>مرتجع من {docLabel} {invoiceNumber}</CardTitle>
+          <CardTitle>{t("مرتجع من")} {docLabel} {invoiceNumber}</CardTitle>
           <div className="flex gap-2">
-            <Button size="sm" onClick={submit} disabled={pending}>{pending && <Loader2 className="size-4 animate-spin" />}حفظ المرتجع</Button>
-            <Button variant="outline" size="sm" onClick={() => router.push(backHref)}>إلغاء</Button>
+            <Button size="sm" onClick={submit} disabled={pending}>{pending && <Loader2 className="size-4 animate-spin" />}{t("حفظ المرتجع")}</Button>
+            <Button variant="outline" size="sm" onClick={() => router.push(backHref)}>{t("إلغاء")}</Button>
           </div>
         </div>
       </CardHeader>
       <CardContent className="space-y-5">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-          <div className="space-y-2"><Label>تاريخ المرتجع</Label><Input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></div>
+          <div className="space-y-2"><Label>{t("تاريخ المرتجع")}</Label><Input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></div>
         </div>
 
         <div className="rounded-xl border">
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="text-start">الصنف</TableHead>
+                <TableHead className="text-start">{t("الصنف")}</TableHead>
                 <TableHead className="w-24 text-start">{qtyLabel}</TableHead>
-                <TableHead className="w-24 text-start">المرتجع سابقاً</TableHead>
-                <TableHead className="w-24 text-start">المتبقّي</TableHead>
-                <TableHead className="w-28 text-start">السعر</TableHead>
-                <TableHead className="w-32 text-start">كمية المرتجع</TableHead>
+                <TableHead className="w-24 text-start">{t("المرتجع سابقاً")}</TableHead>
+                <TableHead className="w-24 text-start">{t("المتبقّي")}</TableHead>
+                <TableHead className="w-28 text-start">{t("السعر")}</TableHead>
+                <TableHead className="w-32 text-start">{t("كمية المرتجع")}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {lines.map((l) => (
                 <TableRow key={l.itemId}>
-                  <TableCell className="max-w-[22rem] whitespace-normal"><div dir="ltr" className="line-clamp-2 text-start leading-snug" title={l.name}>{l.name}</div><div className="mt-0.5 font-mono text-xs text-muted-foreground">{l.code}</div></TableCell>
+                  <TableCell className="max-w-[22rem] whitespace-normal"><div dir="ltr" className="line-clamp-2 text-start leading-snug" title={l.name}>{t(l.name)}</div><div className="mt-0.5 font-mono text-xs text-muted-foreground">{l.code}</div></TableCell>
                   <TableCell>{qtyf(l.invoiced)}</TableCell>
                   <TableCell className="text-muted-foreground">{qtyf(l.returned)}</TableCell>
                   <TableCell className={l.remaining > 0 ? "font-medium" : "text-muted-foreground"}>{qtyf(l.remaining)}</TableCell>
@@ -107,7 +109,7 @@ export function InvoiceReturnForm({
         </div>
 
         <div className="flex justify-end text-sm">
-          <div className="text-base font-bold text-primary">إجمالي المرتجع (قبل الضريبة): {fmt(total)}</div>
+          <div className="text-base font-bold text-primary">{t("إجمالي المرتجع (قبل الضريبة):")} {fmt(total)}</div>
         </div>
       </CardContent>
     </Card>

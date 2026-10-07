@@ -1,5 +1,7 @@
 package com.sellerctrl.app.ui
 
+import com.sellerctrl.app.tr
+
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -64,54 +66,54 @@ fun EmployeeFormScreen(nav: NavController, id: String) {
                 val e = ServiceLocator.repo.employeeEdit(id)
                 fullName = e.fullName; code = e.employeeCode; position = e.position; department = e.department; payType = e.payType
                 basicSalary = fmt(e.basicSalary); allowances = fmt(e.allowances); deductions = fmt(e.deductions); taxRate = fmt(e.taxRate)
-            } catch (e: Exception) { error = e.message ?: "تعذّر التحميل" }
+            } catch (e: Exception) { error = e.message ?: tr("تعذّر التحميل") }
             loaded = true
         }
     }
 
     fun save() {
-        if (fullName.trim().isBlank()) { error = "أدخل اسم الموظف"; return }
+        if (fullName.trim().isBlank()) { error = tr("أدخل اسم الموظف"); return }
         busy = true; error = null
         scope.launch {
             try {
                 ServiceLocator.repo.employeeSave(EmployeeSaveReq(if (isNew) null else id, fullName.trim(), code.ifBlank { null }, position.ifBlank { null }, department.ifBlank { null },
                     payType, basicSalary.toDoubleOrNull() ?: 0.0, allowances.toDoubleOrNull() ?: 0.0, deductions.toDoubleOrNull() ?: 0.0, taxRate.toDoubleOrNull() ?: 0.0))
                 nav.popBackStack()
-            } catch (e: Exception) { error = e.message ?: "خطأ"; busy = false }
+            } catch (e: Exception) { error = e.message ?: tr("خطأ"); busy = false }
         }
     }
 
     Scaffold(topBar = {
-        TopAppBar(title = { Text(if (isNew) "موظف جديد" else "تعديل موظف") },
+        TopAppBar(title = { Text(if (isNew) tr("موظف جديد") else tr("تعديل موظف")) },
             navigationIcon = { IconButton(onClick = { nav.popBackStack() }) { Icon(Icons.AutoMirrored.Filled.ArrowBack, null) } })
     }) { pad ->
         Column(Modifier.fillMaxSize().padding(pad).verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            OutlinedTextField(fullName, { fullName = it }, label = { Text("الاسم الكامل *") }, singleLine = true, modifier = Modifier.fillMaxWidth())
-            OutlinedTextField(code, { code = it }, label = { Text("الكود الوظيفي") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+            OutlinedTextField(fullName, { fullName = it }, label = { Text(tr("الاسم الكامل *")) }, singleLine = true, modifier = Modifier.fillMaxWidth())
+            OutlinedTextField(code, { code = it }, label = { Text(tr("الكود الوظيفي")) }, singleLine = true, modifier = Modifier.fillMaxWidth())
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedTextField(position, { position = it }, label = { Text("المسمى") }, singleLine = true, modifier = Modifier.weight(1f))
-                OutlinedTextField(department, { department = it }, label = { Text("القسم") }, singleLine = true, modifier = Modifier.weight(1f))
+                OutlinedTextField(position, { position = it }, label = { Text(tr("المسمى")) }, singleLine = true, modifier = Modifier.weight(1f))
+                OutlinedTextField(department, { department = it }, label = { Text(tr("القسم")) }, singleLine = true, modifier = Modifier.weight(1f))
             }
-            OutlinedButton(onClick = { payPicker = true }, modifier = Modifier.fillMaxWidth()) { Text("نوع الأجر: ${if (payType == "HOURLY") "بالساعة" else "شهري"}") }
-            OutlinedTextField(basicSalary, { basicSalary = it.filter { c -> c.isDigit() || c == '.' } }, label = { Text(if (payType == "HOURLY") "أجر الساعة" else "الراتب الأساسي") }, singleLine = true,
+            OutlinedButton(onClick = { payPicker = true }, modifier = Modifier.fillMaxWidth()) { Text(tr("نوع الأجر: ${if (payType == "HOURLY") tr("بالساعة") else tr("شهري")}")) }
+            OutlinedTextField(basicSalary, { basicSalary = it.filter { c -> c.isDigit() || c == '.' } }, label = { Text(if (payType == "HOURLY") tr("أجر الساعة") else tr("الراتب الأساسي")) }, singleLine = true,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal), modifier = Modifier.fillMaxWidth())
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedTextField(allowances, { allowances = it.filter { c -> c.isDigit() || c == '.' } }, label = { Text("بدلات") }, singleLine = true,
+                OutlinedTextField(allowances, { allowances = it.filter { c -> c.isDigit() || c == '.' } }, label = { Text(tr("بدلات")) }, singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal), modifier = Modifier.weight(1f))
-                OutlinedTextField(deductions, { deductions = it.filter { c -> c.isDigit() || c == '.' } }, label = { Text("خصومات") }, singleLine = true,
+                OutlinedTextField(deductions, { deductions = it.filter { c -> c.isDigit() || c == '.' } }, label = { Text(tr("خصومات")) }, singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal), modifier = Modifier.weight(1f))
             }
-            OutlinedTextField(taxRate, { taxRate = it.filter { c -> c.isDigit() || c == '.' } }, label = { Text("نسبة الضريبة %") }, singleLine = true,
+            OutlinedTextField(taxRate, { taxRate = it.filter { c -> c.isDigit() || c == '.' } }, label = { Text(tr("نسبة الضريبة %")) }, singleLine = true,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal), modifier = Modifier.fillMaxWidth())
             error?.let { Text(it, color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.SemiBold) }
-            Button(onClick = { save() }, enabled = !busy && loaded, modifier = Modifier.fillMaxWidth()) { Text(if (busy) "جارٍ الحفظ…" else "حفظ") }
+            Button(onClick = { save() }, enabled = !busy && loaded, modifier = Modifier.fillMaxWidth()) { Text(if (busy) tr("جارٍ الحفظ…") else tr("حفظ")) }
         }
     }
 
-    if (payPicker) OptionPickerDialog("نوع الأجر", listOf("MONTHLY" to "شهري", "HOURLY" to "بالساعة"), onDismiss = { payPicker = false }) { id2, _ -> payType = id2; payPicker = false }
+    if (payPicker) OptionPickerDialog(tr("نوع الأجر"), listOf("MONTHLY" to tr("شهري"), "HOURLY" to tr("بالساعة")), onDismiss = { payPicker = false }) { id2, _ -> payType = id2; payPicker = false }
 }
 
-private val LEAVE_TYPES = listOf("ANNUAL" to "إجازة سنوية", "SICK" to "إجازة مرضية", "UNPAID" to "بدون أجر", "OTHER" to "أخرى")
+private val LEAVE_TYPES = listOf("ANNUAL" to tr("إجازة سنوية"), "SICK" to tr("إجازة مرضية"), "UNPAID" to tr("بدون أجر"), "OTHER" to tr("أخرى"))
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -134,29 +136,29 @@ fun LeaveFormScreen(nav: NavController) {
     }
 
     fun save() {
-        if (empId.isBlank()) { error = "اختر الموظف"; return }
+        if (empId.isBlank()) { error = tr("اختر الموظف"); return }
         busy = true; error = null
         scope.launch {
             try { ServiceLocator.repo.leaveCreate(LeaveCreateReq(empId, leaveType, startDate, endDate, reason.ifBlank { null })); nav.popBackStack() }
-            catch (e: Exception) { error = e.message ?: "خطأ"; busy = false }
+            catch (e: Exception) { error = e.message ?: tr("خطأ"); busy = false }
         }
     }
 
     Scaffold(topBar = {
-        TopAppBar(title = { Text("طلب إجازة جديد") },
+        TopAppBar(title = { Text(tr("طلب إجازة جديد")) },
             navigationIcon = { IconButton(onClick = { nav.popBackStack() }) { Icon(Icons.AutoMirrored.Filled.ArrowBack, null) } })
     }) { pad ->
         Column(Modifier.fillMaxSize().padding(pad).verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            OutlinedButton(onClick = { empPicker = true }, modifier = Modifier.fillMaxWidth()) { Text(if (empName.isBlank()) "اختر الموظف *" else "الموظف: $empName") }
-            OutlinedButton(onClick = { typePicker = true }, modifier = Modifier.fillMaxWidth()) { Text("النوع: ${LEAVE_TYPES.firstOrNull { it.first == leaveType }?.second ?: leaveType}") }
-            OutlinedTextField(startDate, { startDate = it }, label = { Text("من تاريخ") }, singleLine = true, modifier = Modifier.fillMaxWidth())
-            OutlinedTextField(endDate, { endDate = it }, label = { Text("إلى تاريخ") }, singleLine = true, modifier = Modifier.fillMaxWidth())
-            OutlinedTextField(reason, { reason = it }, label = { Text("السبب") }, modifier = Modifier.fillMaxWidth())
+            OutlinedButton(onClick = { empPicker = true }, modifier = Modifier.fillMaxWidth()) { Text(if (empName.isBlank()) tr("اختر الموظف *") else tr("الموظف: $empName")) }
+            OutlinedButton(onClick = { typePicker = true }, modifier = Modifier.fillMaxWidth()) { Text(tr("النوع: ${LEAVE_TYPES.firstOrNull { it.first == leaveType }?.second ?: leaveType}")) }
+            OutlinedTextField(startDate, { startDate = it }, label = { Text(tr("من تاريخ")) }, singleLine = true, modifier = Modifier.fillMaxWidth())
+            OutlinedTextField(endDate, { endDate = it }, label = { Text(tr("إلى تاريخ")) }, singleLine = true, modifier = Modifier.fillMaxWidth())
+            OutlinedTextField(reason, { reason = it }, label = { Text(tr("السبب")) }, modifier = Modifier.fillMaxWidth())
             error?.let { Text(it, color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.SemiBold) }
-            Button(onClick = { save() }, enabled = !busy, modifier = Modifier.fillMaxWidth()) { Text(if (busy) "جارٍ الحفظ…" else "حفظ") }
+            Button(onClick = { save() }, enabled = !busy, modifier = Modifier.fillMaxWidth()) { Text(if (busy) tr("جارٍ الحفظ…") else tr("حفظ")) }
         }
     }
 
-    if (empPicker) OptionPickerDialog("اختر الموظف", employees, onDismiss = { empPicker = false }) { id, label -> empId = id; empName = label; empPicker = false }
-    if (typePicker) OptionPickerDialog("نوع الإجازة", LEAVE_TYPES, onDismiss = { typePicker = false }) { id, _ -> leaveType = id; typePicker = false }
+    if (empPicker) OptionPickerDialog(tr("اختر الموظف"), employees, onDismiss = { empPicker = false }) { id, label -> empId = id; empName = label; empPicker = false }
+    if (typePicker) OptionPickerDialog(tr("نوع الإجازة"), LEAVE_TYPES, onDismiss = { typePicker = false }) { id, _ -> leaveType = id; typePicker = false }
 }

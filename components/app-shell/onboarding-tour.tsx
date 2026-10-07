@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { TRIAL_DAYS } from "@/lib/erp/trial";
 import { dismissTourAction } from "@/app/actions/erp/onboarding";
+import { useT } from "@/lib/i18n/client";
 
 /**
  * Guided SPOTLIGHT tour: each step can anchor to a real element (`target` =
@@ -104,6 +105,7 @@ const POP_H = 300;      // popover height estimate for flipping/clamping
 const RESUME_KEY = "sc_tour_resume";
 
 export function OnboardingTour({ dismissed = false }: { dismissed?: boolean }) {
+  const t = useT();
   const pathname = usePathname();
   const router = useRouter();
   const key = routeKey(pathname);
@@ -132,8 +134,8 @@ export function OnboardingTour({ dismissed = false }: { dismissed?: boolean }) {
     if (!key || killed || typeof window === "undefined") return;
     if (localStorage.getItem(`sc_tour_${key}`)) return;
     if (sessionStorage.getItem(RESUME_KEY)) return; // a resume is about to take over
-    const t = setTimeout(() => { setStep(0); setOpen(true); }, 700);
-    return () => clearTimeout(t);
+    const timer = setTimeout(() => { setStep(0); setOpen(true); }, 700);
+    return () => clearTimeout(timer);
   }, [key, killed]);
 
   // Anchor: find the step's [data-tour] element, scroll it into view, track its rect.
@@ -149,10 +151,10 @@ export function OnboardingTour({ dismissed = false }: { dismissed?: boolean }) {
       setRect({ top: r.top, left: r.left, width: r.width, height: r.height });
     };
     measure();
-    const t = setTimeout(measure, 400); // re-measure after the smooth scroll settles
+    const timer = setTimeout(measure, 400); // re-measure after the smooth scroll settles
     window.addEventListener("resize", measure);
     window.addEventListener("scroll", measure, true);
-    return () => { clearTimeout(t); window.removeEventListener("resize", measure); window.removeEventListener("scroll", measure, true); };
+    return () => { clearTimeout(timer); window.removeEventListener("resize", measure); window.removeEventListener("scroll", measure, true); };
   }, [open, step, S?.target, pathname]);
 
   if (!steps || killed) return null;
@@ -198,16 +200,16 @@ export function OnboardingTour({ dismissed = false }: { dismissed?: boolean }) {
     : {};
 
   const card = S && (
-    <div dir="rtl" className={cn("overflow-hidden rounded-2xl bg-card shadow-2xl", anchored ? "z-[51]" : "w-full max-w-md")} style={anchored ? { ...popStyle, zIndex: 51 } : undefined} onClick={(e) => e.stopPropagation()}>
+    <div className={cn("overflow-hidden rounded-2xl bg-card shadow-2xl", anchored ? "z-[51]" : "w-full max-w-md")} style={anchored ? { ...popStyle, zIndex: 51 } : undefined} onClick={(e) => e.stopPropagation()}>
       <div className="flex items-center justify-between bg-primary px-5 py-3 text-primary-foreground">
-        <span className="flex items-center gap-2 text-sm font-semibold"><Sparkles className="size-4" /> جولة تعريفية</span>
-        <button type="button" onClick={close} aria-label="إغلاق" className="rounded-lg p-1 hover:bg-white/10"><X className="size-4" /></button>
+        <span className="flex items-center gap-2 text-sm font-semibold"><Sparkles className="size-4" /> {t("جولة تعريفية")}</span>
+        <button type="button" onClick={close} aria-label={t("إغلاق")} className="rounded-lg p-1 hover:bg-white/10"><X className="size-4" /></button>
       </div>
 
       <div className={cn("p-5", anchored ? "text-start" : "text-center")}>
         <div className={cn("grid size-12 place-items-center rounded-2xl bg-primary/10 text-primary", anchored ? "" : "mx-auto")}><Icon name={S.icon} className="size-6" /></div>
-        <h2 className="mt-3 text-base font-bold">{S.title}</h2>
-        <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">{S.body}</p>
+        <h2 className="mt-3 text-base font-bold">{t(S.title)}</h2>
+        <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">{t(S.body)}</p>
 
         <div className={cn("mt-4 flex gap-1.5", anchored ? "" : "justify-center")}>
           {steps.map((_, i) => (
@@ -217,13 +219,13 @@ export function OnboardingTour({ dismissed = false }: { dismissed?: boolean }) {
       </div>
 
       <div className="flex items-center justify-between gap-3 border-t px-5 py-3">
-        <button type="button" onClick={close} className="text-sm text-muted-foreground hover:text-foreground">تخطّي</button>
+        <button type="button" onClick={close} className="text-sm text-muted-foreground hover:text-foreground">{t("تخطّي")}</button>
         <div className="flex items-center gap-2">
-          {step > 0 && <Button variant="ghost" size="sm" onClick={goPrev}><ArrowRight className="size-4" /> السابق</Button>}
+          {step > 0 && <Button variant="ghost" size="sm" onClick={goPrev}><ArrowRight className="size-4" /> {t("السابق")}</Button>}
           {!isLast ? (
-            <Button size="sm" onClick={goNext}>التالي <ArrowLeft className="size-4" /></Button>
+            <Button size="sm" onClick={goNext}>{t("التالي")} <ArrowLeft className="size-4" /></Button>
           ) : (
-            <Button size="sm" onClick={close} className="bg-brand-yellow text-foreground hover:bg-brand-yellow/90">تمام، فهمت</Button>
+            <Button size="sm" onClick={close} className="bg-brand-yellow text-foreground hover:bg-brand-yellow/90">{t("تمام، فهمت")}</Button>
           )}
         </div>
       </div>
@@ -234,7 +236,7 @@ export function OnboardingTour({ dismissed = false }: { dismissed?: boolean }) {
         onClick={killForever}
         className="flex w-full items-center justify-center gap-2 border-t bg-muted/40 px-5 py-3 text-sm font-semibold text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
       >
-        <EyeOff className="size-4" /> عدم عرض الجولة التعريفية نهائياً
+        <EyeOff className="size-4" /> {t("عدم عرض الجولة التعريفية نهائياً")}
       </button>
     </div>
   );
@@ -245,11 +247,11 @@ export function OnboardingTour({ dismissed = false }: { dismissed?: boolean }) {
       <button
         type="button"
         onClick={reopen}
-        aria-label="جولة تعريفية"
+        aria-label={t("جولة تعريفية")}
         className="fixed bottom-6 left-6 z-40 flex items-center gap-2 rounded-full bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground shadow-lg shadow-primary/30 transition-transform hover:scale-105"
       >
         <Sparkles className="size-4" />
-        <span className="hidden sm:inline">جولة القسم</span>
+        <span className="hidden sm:inline">{t("جولة القسم")}</span>
       </button>
 
       {open && S && (

@@ -91,15 +91,15 @@ export function ItemPicker({
                 <button type="button" key={it.id} onClick={() => pick(it)} className="flex w-full items-center gap-3 px-3 py-2 text-start hover:bg-accent">
                   <ItemThumb src={it.image} />
                   <div className="min-w-0 flex-1">
-                    <div className="truncate text-sm font-medium">{it.name}</div>
+                    <div className="truncate text-sm font-medium">{t(it.name)}</div>
                     <div className="truncate text-xs text-muted-foreground">
                       <span className="font-mono">{it.code}</span>
                       {it.codes.length ? " · " + it.codes.slice(0, 2).map((c) => c.code).join(" · ") : ""}
                     </div>
                   </div>
                   <div className="shrink-0 text-end text-xs">
-                    <div className={it.available <= 0 ? "text-destructive font-medium" : "text-muted-foreground"}>متاح: {fmt(it.available)}</div>
-                    {it.reserved > 0 && <div className="text-[10px] text-amber-600">محجوز: {fmt(it.reserved)} · رصيد: {fmt(it.stock)}</div>}
+                    <div className={it.available <= 0 ? "text-destructive font-medium" : "text-muted-foreground"}>{t("متاح:")} {fmt(it.available)}</div>
+                    {it.reserved > 0 && <div className="text-[10px] text-amber-600">{t("محجوز:")} {fmt(it.reserved)} {t("· رصيد:")} {fmt(it.stock)}</div>}
                   </div>
                 </button>
               ))
@@ -130,7 +130,7 @@ export function ItemPicker({
           <span className="min-w-0 flex-1">
             {/* dir="auto" per line: an English name reads from its start (left), an Arabic
                 one from its start (right) — never truncated from the middle. */}
-            <span className="block truncate text-sm font-medium" dir="auto">{resting.name}</span>
+            <span className="block truncate text-sm font-medium" dir="auto">{t(resting.name)}</span>
             {resting.code && <span className="block truncate font-mono text-xs text-muted-foreground" dir="ltr">{resting.code}</span>}
           </span>
         </button>
@@ -142,7 +142,7 @@ export function ItemPicker({
           // from its START (left) and an Arabic one from its start (right), never the middle.
           dir="auto"
           className="text-start"
-          placeholder={placeholder ?? "ابحث بالاسم أو الكود…"}
+          placeholder={placeholder ?? t("ابحث بالاسم أو الكود…")}
           onFocus={() => { setEditing(true); setQ(""); }}
           onChange={(e) => setQ(e.target.value)}
         />

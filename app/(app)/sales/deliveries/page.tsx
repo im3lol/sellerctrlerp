@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { fill } from "@/lib/i18n";
 import { getT } from "@/lib/i18n/server";
 import { and, asc, count, desc, eq, gte, ilike, inArray, lte, ne, sql } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
@@ -118,7 +119,7 @@ export default async function DeliveriesPage({ searchParams }: { searchParams: P
         <ErpPageHeader
           icon="Truck"
           title={t("إذون الصرف")}
-          subtitle={`${total} إذن`}
+          subtitle={fill(t("{0} إذن"), [total])}
           action={canManage ? (
             <div className="flex flex-wrap gap-2">
               {canAdjust && shortages.shortages.length > 0 && <ShortageAdjustmentButton items={shortages.shortages.length} />}
@@ -129,14 +130,14 @@ export default async function DeliveriesPage({ searchParams }: { searchParams: P
 
         <div className={`grid gap-4 ${shortages.shortDeliveryIds.length > 0 ? "sm:grid-cols-2 lg:grid-cols-4" : "sm:grid-cols-3"}`}>
           {statCards.map((s) => (
-            <Card key={s.label}><CardContent className="pt-6"><div className="text-sm text-muted-foreground">{s.label}</div><p className={`mt-1 text-2xl font-bold tabular-nums ${s.tone}`}>{s.count.toLocaleString("ar-EG-u-nu-latn")}</p></CardContent></Card>
+            <Card key={s.label}><CardContent className="pt-6"><div className="text-sm text-muted-foreground">{t(s.label)}</div><p className={`mt-1 text-2xl font-bold tabular-nums ${s.tone}`}>{s.count.toLocaleString("ar-EG-u-nu-latn")}</p></CardContent></Card>
           ))}
           {shortages.shortDeliveryIds.length > 0 && (
             <Card className="border-destructive/40">
               <CardContent className="pt-6">
                 <div className="text-sm text-muted-foreground">{t("ناقصة مخزون")}</div>
                 <p className="mt-1 text-2xl font-bold tabular-nums text-destructive">{shortages.shortDeliveryIds.length.toLocaleString("ar-EG-u-nu-latn")}</p>
-                <p className="mt-0.5 text-xs text-muted-foreground">إذن مسودة كمياته غير مغطاة ({shortages.shortages.length.toLocaleString("ar-EG-u-nu-latn")} صنف ناقص)</p>
+                <p className="mt-0.5 text-xs text-muted-foreground">{t("إذن مسودة كمياته غير مغطاة (")}{shortages.shortages.length.toLocaleString("ar-EG-u-nu-latn")} {t("صنف ناقص)")}</p>
               </CardContent>
             </Card>
           )}
@@ -150,7 +151,7 @@ export default async function DeliveriesPage({ searchParams }: { searchParams: P
           <CardContent className="space-y-4">
             <details open={hasFilters} className="rounded-lg border">
               <summary className="flex cursor-pointer select-none items-center gap-2 px-4 py-2 text-sm font-medium">
-                <Icon name="ListFilter" className="size-4" /> بحث وتصفية
+                <Icon name="ListFilter" className="size-4" /> {t("بحث وتصفية")}
               </summary>
               <form className="grid gap-3 p-4 pt-0 sm:grid-cols-5 items-end">
                 <div className="space-y-1"><Label htmlFor="q">{t("رقم الإذن")}</Label><Input id="q" name="q" defaultValue={q} placeholder="DLV-2026-..." /></div>
@@ -158,14 +159,14 @@ export default async function DeliveriesPage({ searchParams }: { searchParams: P
                   <Label htmlFor="status">{t("الحالة")}</Label>
                   <select id="status" name="status" defaultValue={fStatus} className={selectCls}>
                     <option value="">{t("الكل")}</option>
-                    {STATUS_OPTIONS.map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                    {STATUS_OPTIONS.map(([k, v]) => <option key={k} value={k}>{t(v)}</option>)}
                   </select>
                 </div>
                 <div className="space-y-1">
                   <Label htmlFor="customer">{t("العميل")}</Label>
                   <select id="customer" name="customer" defaultValue={fCustomer} className={selectCls}>
                     <option value="">{t("الكل")}</option>
-                    {custList.map((c) => <option key={c.id} value={c.id}>{c.nameAr}</option>)}
+                    {custList.map((c) => <option key={c.id} value={c.id}>{t(c.nameAr)}</option>)}
                   </select>
                 </div>
                 <div className="space-y-1"><Label htmlFor="from">{t("من تاريخ")}</Label><Input id="from" name="from" type="date" defaultValue={from} /></div>
@@ -178,12 +179,12 @@ export default async function DeliveriesPage({ searchParams }: { searchParams: P
             </details>
 
             {tableRows.length === 0 ? (
-              <div className="rounded-xl border border-dashed py-12 text-center text-muted-foreground">{hasFilters ? "لا توجد نتائج مطابقة." : "لا توجد إذون صرف بعد — أنشئها من أمر بيع مؤكّد."}</div>
+              <div className="rounded-xl border border-dashed py-12 text-center text-muted-foreground">{hasFilters ? t("لا توجد نتائج مطابقة.") : t("لا توجد إذون صرف بعد — أنشئها من أمر بيع مؤكّد.")}</div>
             ) : (
               <>
                 <DeliveriesTable rows={rows} canConfirm={canConfirm} canCreate={canManage} total={Number(total)} filter={{ q, status: fStatus, customer: fCustomer, from, to }} shortIds={shortages.shortDeliveryIds} />
                 <div className="flex items-center justify-between text-sm text-muted-foreground">
-                  <span>صفحة {safePage} من {pages}</span>
+                  <span>{t("صفحة")} {safePage} {t("من")} {pages}</span>
                   <div className="flex gap-2">
                     <Button variant="outline" size="sm" disabled={safePage <= 1} asChild={safePage > 1}>
                       {safePage > 1 ? <a href={qs(safePage - 1)}>{t("السابق")}</a> : <span>{t("السابق")}</span>}

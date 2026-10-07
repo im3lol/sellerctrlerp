@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { getLocale, getT } from "@/lib/i18n/server";
 import { and, asc, desc, eq } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
@@ -10,6 +11,8 @@ import { DocumentSheet } from "@/components/erp/print/document-sheet";
 type Params = { params: Promise<{ id: string }> };
 
 export default async function PrintBankAccountPage({ params }: Params) {
+  const t = await getT();
+  const locale = await getLocale();
   const { id } = await params;
   return loadErpPage("accounting.view", async ({ orgId }) => {
     const [ba] = await db
@@ -48,7 +51,7 @@ export default async function PrintBankAccountPage({ params }: Params) {
     const rows = lines.map((l) => {
       run += Number(l.debit) - Number(l.credit);
       return [
-        dt(l.date),
+        dt(l.date, locale),
         l.description || "—",
         Number(l.debit) ? fmt(l.debit) : "—",
         Number(l.credit) ? fmt(l.credit) : "—",
@@ -60,7 +63,7 @@ export default async function PrintBankAccountPage({ params }: Params) {
       <DocumentSheet
         org={org}
         footerText={footerText}
-        title="بيان حساب بنكي"
+        title={t("بيان حساب بنكي")}
         number={ba.accountNumber || ba.iban || ba.nameAr}
         backHref={`/accounting/banks/${id}`}
         meta={[
@@ -78,10 +81,10 @@ export default async function PrintBankAccountPage({ params }: Params) {
         ] : []}
         rows={rows}
         totals={[
-          { label: "إجمالي الوارد", value: money(totalIn, currency) },
-          { label: "إجمالي الصادر", value: money(totalOut, currency) },
+          { label: "إجمالي الوارد", value: money(totalIn, currency, locale) },
+          { label: "إجمالي الصادر", value: money(totalOut, currency, locale) },
         ]}
-        balance={{ label: "الرصيد الحالي", value: money(totalIn - totalOut, currency) }}
+        balance={{ label: "الرصيد الحالي", value: money(totalIn - totalOut, currency, locale) }}
       />
     );
   });

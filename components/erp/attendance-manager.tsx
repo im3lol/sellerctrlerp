@@ -1,8 +1,10 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
+import { fill } from "@/lib/i18n";
+import { useT } from "@/lib/i18n/client";
 import { useRouter } from "next/navigation";
-import { toast } from "sonner";
+import { toast } from "@/lib/i18n/toast";
 import {
   getAttendanceMonthAction, saveAttendanceAction, deleteAttendanceAction, importAttendanceCsvAction,
 } from "@/app/actions/erp/attendance";
@@ -38,6 +40,7 @@ const hhmm = (iso: string | null) => (iso ? new Date(iso).toISOString().slice(11
  * landing in the same row per person per day.
  */
 export function AttendanceManager({ staff, canEdit }: { staff: StaffOption[]; canEdit: boolean }) {
+  const t = useT();
   const router = useRouter();
   const [month, setMonth] = useState(() => new Date().toISOString().slice(0, 7));
   const [rows, setRows] = useState<Row[]>([]);
@@ -53,7 +56,7 @@ export function AttendanceManager({ staff, canEdit }: { staff: StaffOption[]; ca
     setLoading(true);
     void getAttendanceMonthAction(from, to).then((r) => {
       setLoading(false);
-      if (!r.ok) { toast.error(r.error ?? "تعذّر التحميل"); return; }
+      if (!r.ok) { toast.error(r.error ?? t("تعذّر التحميل")); return; }
       setRows(r.days ?? []);
     });
   };
@@ -67,22 +70,22 @@ export function AttendanceManager({ staff, canEdit }: { staff: StaffOption[]; ca
     start(async () => {
       const r = await saveAttendanceAction({ userId: form.userId, workDate: form.workDate, clockIn, clockOut, notes: form.notes || null });
       if (r.ok) { toast.success("تم حفظ اليوم"); load(month); router.refresh(); }
-      else toast.error(r.error ?? "تعذّر الحفظ");
+      else toast.error(r.error ?? t("تعذّر الحفظ"));
     });
   };
 
   const remove = (row: Row) =>
     void (async () => {
       const go = await confirm({
-        danger: true, title: `حذف يوم ${row.workDate}؟`,
-        description: `هيتشال من حساب ساعات ${row.name}. لو الراتب اتحسب بالفعل، أعِد احتسابه.`,
+        danger: true, title: fill(t("حذف يوم {0}؟"), [row.workDate]),
+        description: fill(t("هيتشال من حساب ساعات {0}. لو الراتب اتحسب بالفعل، أعِد احتسابه."), [row.name]),
         confirmText: "احذف", cancelText: "رجوع",
       });
       if (!go) return;
       start(async () => {
         const r = await deleteAttendanceAction(row.userId, row.workDate);
         if (r.ok) { toast.success("تم الحذف"); load(month); }
-        else toast.error(r.error ?? "تعذّر الحذف");
+        else toast.error(r.error ?? t("تعذّر الحذف"));
       });
     })();
 
@@ -90,9 +93,9 @@ export function AttendanceManager({ staff, canEdit }: { staff: StaffOption[]; ca
     if (!csv.trim()) return toast.error("الصق محتوى الملف أولاً");
     start(async () => {
       const r = await importAttendanceCsvAction(csv);
-      if (!r.ok) { toast.error(r.error ?? "تعذّر الاستيراد"); return; }
+      if (!r.ok) { toast.error(r.error ?? t("تعذّر الاستيراد")); return; }
       setSkipped(r.skipped ?? []);
-      toast.success(`تم استيراد ${r.imported} يوم${r.skipped?.length ? ` — ${r.skipped.length} سطر متخطّى` : ""}`);
+      toast.success(fill(t("تم استيراد {0} يوم"), [r.imported]) + (r.skipped?.length ? fill(t(" — {0} سطر متخطّى"), [r.skipped.length]) : ""));
       setCsv("");
       load(month);
     });
@@ -105,31 +108,31 @@ export function AttendanceManager({ staff, canEdit }: { staff: StaffOption[]; ca
       {canEdit && (
         <Card>
           <CardHeader>
-            <CardTitle>تسجيل يوم</CardTitle>
-            <CardDescription>اترك وقت الانصراف فاضي لو اليوم لسه مفتوح — الساعات بتتحسب بعد الانصراف.</CardDescription>
+            <CardTitle>{t("تسجيل يوم")}</CardTitle>
+            <CardDescription>{t("اترك وقت الانصراف فاضي لو اليوم لسه مفتوح — الساعات بتتحسب بعد الانصراف.")}</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-5">
               <div className="space-y-2 sm:col-span-2">
-                <Label>الموظف</Label>
+                <Label>{t("الموظف")}</Label>
                 <CellCombobox
                   selectedLabel={staff.find((s) => s.userId === form.userId)?.label ?? ""}
                   options={staff.map((s) => ({ id: s.userId, label: s.label }))}
                   onSelect={(id) => setForm((f) => ({ ...f, userId: id }))}
-                  placeholder="ابحث بالاسم…"
+                  placeholder={t("ابحث بالاسم…")}
                 />
               </div>
-              <div className="space-y-2"><Label>التاريخ</Label>
+              <div className="space-y-2"><Label>{t("التاريخ")}</Label>
                 <Input type="date" value={form.workDate} onChange={(e) => setForm((f) => ({ ...f, workDate: e.target.value }))} /></div>
-              <div className="space-y-2"><Label>حضور</Label>
+              <div className="space-y-2"><Label>{t("حضور")}</Label>
                 <Input type="time" value={form.inTime} onChange={(e) => setForm((f) => ({ ...f, inTime: e.target.value }))} /></div>
-              <div className="space-y-2"><Label>انصراف</Label>
+              <div className="space-y-2"><Label>{t("انصراف")}</Label>
                 <Input type="time" value={form.outTime} onChange={(e) => setForm((f) => ({ ...f, outTime: e.target.value }))} /></div>
             </div>
             <div className="mt-4 flex flex-wrap items-end gap-3">
-              <div className="min-w-60 flex-1 space-y-2"><Label>ملاحظات</Label>
-                <Input value={form.notes} onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))} placeholder="اختياري" /></div>
-              <Button onClick={save} disabled={pending}><Icon name="Check" className="size-4" />حفظ</Button>
+              <div className="min-w-60 flex-1 space-y-2"><Label>{t("ملاحظات")}</Label>
+                <Input value={form.notes} onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))} placeholder={t("اختياري")} /></div>
+              <Button onClick={save} disabled={pending}><Icon name="Check" className="size-4" />{t("حفظ")}</Button>
             </div>
           </CardContent>
         </Card>
@@ -138,10 +141,9 @@ export function AttendanceManager({ staff, canEdit }: { staff: StaffOption[]; ca
       {canEdit && (
         <Card>
           <CardHeader>
-            <CardTitle>استيراد من جهاز البصمة</CardTitle>
+            <CardTitle>{t("استيراد من جهاز البصمة")}</CardTitle>
             <CardDescription>
-              الأعمدة بالترتيب: كود الموظف · التاريخ · حضور · انصراف. الصف الأول ممكن يكون عناوين.
-              أي سطر مش مقروء هيتقال ليك بدل ما يتشال بالصمت.
+              {t("الأعمدة بالترتيب: كود الموظف · التاريخ · حضور · انصراف. الصف الأول ممكن يكون عناوين. أي سطر مش مقروء هيتقال ليك بدل ما يتشال بالصمت.")}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
@@ -154,9 +156,9 @@ export function AttendanceManager({ staff, canEdit }: { staff: StaffOption[]; ca
             />
             <div className="flex flex-wrap items-center gap-3">
               <Button variant="outline" onClick={runImport} disabled={pending}>
-                <Icon name="Upload" className="size-4" />استورد
+                <Icon name="Upload" className="size-4" />{t("استورد")}
               </Button>
-              {skipped.length > 0 && <span className="text-sm text-amber-600">{skipped.length} سطر متخطّى</span>}
+              {skipped.length > 0 && <span className="text-sm text-amber-600">{skipped.length} {t("سطر متخطّى")}</span>}
             </div>
             {skipped.length > 0 && (
               <ul className="max-h-40 overflow-y-auto rounded-lg border bg-muted/30 p-3 text-xs text-muted-foreground">
@@ -171,26 +173,26 @@ export function AttendanceManager({ staff, canEdit }: { staff: StaffOption[]; ca
         <CardHeader>
           <div className="flex w-full flex-wrap items-center justify-between gap-3">
             <div>
-              <CardTitle>سجل الحضور</CardTitle>
-              <CardDescription>{loading ? "جارٍ التحميل…" : `${rows.length} يوم · ${toHours(totalSeconds)} ساعة`}</CardDescription>
+              <CardTitle>{t("سجل الحضور")}</CardTitle>
+              <CardDescription>{loading ? t("جارٍ التحميل…") : fill(t("{0} يوم · {1} ساعة"), [rows.length, toHours(totalSeconds)])}</CardDescription>
             </div>
             <Input type="month" className="w-44" value={month} onChange={(e) => setMonth(e.target.value)} />
           </div>
         </CardHeader>
         <CardContent>
           {rows.length === 0 && !loading ? (
-            <p className="text-sm text-muted-foreground">مفيش أيام مسجّلة في الشهر ده.</p>
+            <p className="text-sm text-muted-foreground">{t("مفيش أيام مسجّلة في الشهر ده.")}</p>
           ) : (
             <div className="rounded-xl border overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="text-start">الموظف</TableHead>
-                    <TableHead className="text-start">التاريخ</TableHead>
-                    <TableHead className="text-start">حضور</TableHead>
-                    <TableHead className="text-start">انصراف</TableHead>
-                    <TableHead className="text-start">الساعات</TableHead>
-                    <TableHead className="text-start">المصدر</TableHead>
+                    <TableHead className="text-start">{t("الموظف")}</TableHead>
+                    <TableHead className="text-start">{t("التاريخ")}</TableHead>
+                    <TableHead className="text-start">{t("حضور")}</TableHead>
+                    <TableHead className="text-start">{t("انصراف")}</TableHead>
+                    <TableHead className="text-start">{t("الساعات")}</TableHead>
+                    <TableHead className="text-start">{t("المصدر")}</TableHead>
                     {canEdit && <TableHead className="w-10" />}
                   </TableRow>
                 </TableHeader>
@@ -198,19 +200,19 @@ export function AttendanceManager({ staff, canEdit }: { staff: StaffOption[]; ca
                   {rows.map((r) => (
                     <TableRow key={`${r.userId}-${r.workDate}`}>
                       <TableCell className="font-medium">
-                        {r.name}
+                        {t(r.name)}
                         {r.employeeCode && <span className="block font-mono text-xs text-muted-foreground">{r.employeeCode}</span>}
                       </TableCell>
                       <TableCell className="text-xs" dir="ltr">{r.workDate}</TableCell>
                       <TableCell className="tabular-nums" dir="ltr">{hhmm(r.clockIn)}</TableCell>
                       <TableCell className="tabular-nums" dir="ltr">
-                        {r.clockOut ? hhmm(r.clockOut) : <Badge variant="outline">مفتوح</Badge>}
+                        {r.clockOut ? hhmm(r.clockOut) : <Badge variant="outline">{t("مفتوح")}</Badge>}
                       </TableCell>
                       <TableCell className="font-medium tabular-nums" dir="ltr">{formatDuration(r.seconds)}</TableCell>
-                      <TableCell><span className="text-xs text-muted-foreground">{SOURCE_LABEL[r.source] ?? r.source}</span></TableCell>
+                      <TableCell><span className="text-xs text-muted-foreground">{t(SOURCE_LABEL[r.source] ?? r.source)}</span></TableCell>
                       {canEdit && (
                         <TableCell>
-                          <Button size="icon" variant="ghost" aria-label="حذف" onClick={() => remove(r)}>
+                          <Button size="icon" variant="ghost" aria-label={t("حذف")} onClick={() => remove(r)}>
                             <Icon name="Trash2" className="size-4 text-destructive" />
                           </Button>
                         </TableCell>
@@ -220,7 +222,7 @@ export function AttendanceManager({ staff, canEdit }: { staff: StaffOption[]; ca
                 </TableBody>
                 <TableFooter>
                   <TableRow className="font-bold">
-                    <TableCell colSpan={4}>الإجمالي</TableCell>
+                    <TableCell colSpan={4}>{t("الإجمالي")}</TableCell>
                     <TableCell dir="ltr">{formatDuration(totalSeconds)}</TableCell>
                     <TableCell colSpan={canEdit ? 2 : 1} />
                   </TableRow>

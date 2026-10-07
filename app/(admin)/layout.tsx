@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { getT } from "@/lib/i18n/server";
 import Link from "next/link";
 import { getCurrentUser } from "@/lib/session";
 import { Logo } from "@/components/brand/logo";
@@ -11,6 +12,7 @@ import { AdminSidebar } from "@/components/admin/admin-sidebar";
 // the panel stays fully separated. Middleware enforces the same; this is defence
 // in depth in case the panel is reached without passing through it.
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
+  const t = await getT();
   const user = await getCurrentUser();
   if (user?.role !== "system_admin") redirect("/login/admin");
 
@@ -19,16 +21,16 @@ export default async function AdminLayout({ children }: { children: React.ReactN
       <aside className="sticky top-0 hidden h-screen w-64 shrink-0 flex-col bg-sidebar text-sidebar-foreground lg:flex">
         <div className="flex h-16 items-center gap-2 px-6">
           <Logo className="text-2xl" variant="white" />
-          <span className="rounded-md bg-white/10 px-2 py-0.5 text-xs font-semibold">إدارة</span>
+          <span className="rounded-md bg-white/10 px-2 py-0.5 text-xs font-semibold">{t("إدارة")}</span>
         </div>
         <AdminSidebar />
         <div className="mt-auto border-t border-sidebar-border/40 p-4">
-          <Link href="/apps" className="text-sm text-sidebar-foreground/80 transition-colors hover:text-sidebar-foreground">← الرجوع للنظام</Link>
+          <Link href="/apps" className="text-sm text-sidebar-foreground/80 transition-colors hover:text-sidebar-foreground">{t("← الرجوع للنظام")}</Link>
         </div>
       </aside>
       <div className="flex min-w-0 flex-1 flex-col overflow-x-clip">
         <header className="sticky top-0 z-30 flex h-16 items-center gap-3 border-b bg-background/95 px-4 backdrop-blur md:px-6">
-          <span className="font-semibold">لوحة الإدارة</span>
+          <span className="font-semibold">{t("لوحة الإدارة")}</span>
           <div className="ms-auto flex items-center gap-2">
             <ThemeToggle />
             <UserMenu name={user.name} email={user.email} role={user.role} title={user.title} avatarUrl={user.avatarUrl} />

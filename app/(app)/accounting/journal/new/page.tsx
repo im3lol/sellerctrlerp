@@ -1,4 +1,5 @@
 import { and, asc, eq } from "drizzle-orm";
+import { getT } from "@/lib/i18n/server";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
 import { accounts, costCenters } from "@/db/schema";
@@ -6,6 +7,7 @@ import { ErpPageHeader } from "@/components/erp/page-header";
 import { JournalEntryForm } from "@/components/erp/journal-entry-form";
 
 export default async function NewJournalEntryPage() {
+  const t = await getT();
   return loadErpPage("accounting.create", async ({ orgId }) => {
     const [accountList, centerList] = await Promise.all([
       db
@@ -29,7 +31,7 @@ export default async function NewJournalEntryPage() {
 
     return (
       <div className="space-y-6">
-        <ErpPageHeader icon="BookText" title="قيد يومية جديد" subtitle="قيد محاسبي يدوي متوازن" backHref="/accounting/journal" />
+        <ErpPageHeader icon="BookText" title={t("قيد يومية جديد")} subtitle={t("قيد محاسبي يدوي متوازن")} backHref="/accounting/journal" />
         <JournalEntryForm accounts={accountList} costCenters={centerList} />
       </div>
     );

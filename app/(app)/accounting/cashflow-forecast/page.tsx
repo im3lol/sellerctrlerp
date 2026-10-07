@@ -1,4 +1,6 @@
 import { and, eq, gt, inArray, sql } from "drizzle-orm";
+import { fill } from "@/lib/i18n";
+import { getT } from "@/lib/i18n/server";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
 import { salesInvoices, purchaseInvoices, journalEntryLines, journalEntries, accounts } from "@/db/schema";
@@ -15,6 +17,7 @@ const DAY = 86_400_000;
 type Due = { due: Date | null; bal: string };
 
 export default async function CashflowForecastPage() {
+  const t = await getT();
   return loadErpPage("reports.view", async ({ orgId }) => {
     const [arRows, apRows, cashRow] = await Promise.all([
       db.select({ due: salesInvoices.dueDate, bal: salesInvoices.balanceDue }).from(salesInvoices)
@@ -42,7 +45,7 @@ export default async function CashflowForecastPage() {
       return wk > WEEKS ? WEEKS + 1 : wk;
     };
 
-    const labels = ["متأخر", ...Array.from({ length: WEEKS }, (_, i) => `أسبوع ${i + 1}`), "لاحقاً"];
+    const labels = ["متأخر", ...Array.from({ length: WEEKS }, (_, i) => fill(t("أسبوع {0}"), [i + 1])), "لاحقاً"];
     const inflow = new Array(WEEKS + 2).fill(0);
     const outflow = new Array(WEEKS + 2).fill(0);
     for (const r of arRows as Due[]) inflow[bucketOf(r.due)] += Number(r.bal);
@@ -62,59 +65,59 @@ export default async function CashflowForecastPage() {
 
     return (
       <div className="space-y-6">
-        <ErpPageHeader icon="TrendingUp" title="توقّع التدفق النقدي" subtitle="الرصيد النقدي المتوقّع من المستحقات الداخلة والخارجة" />
+        <ErpPageHeader icon="TrendingUp" title={t("توقّع التدفق النقدي")} subtitle={t("الرصيد النقدي المتوقّع من المستحقات الداخلة والخارجة")} />
 
         <div className="grid gap-4 sm:grid-cols-4">
-          <Card><CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">الرصيد النقدي الحالي</CardTitle></CardHeader><CardContent><p className="text-2xl font-bold tabular-nums">{fmt(startCash)}</p></CardContent></Card>
-          <Card><CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">مستحقات داخلة (عملاء)</CardTitle></CardHeader><CardContent><p className="text-2xl font-bold tabular-nums text-emerald-600">{fmt(totalIn)}</p></CardContent></Card>
-          <Card><CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">مستحقات خارجة (موردون)</CardTitle></CardHeader><CardContent><p className="text-2xl font-bold tabular-nums text-destructive">{fmt(totalOut)}</p></CardContent></Card>
-          <Card><CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">الرصيد المتوقّع</CardTitle></CardHeader><CardContent><p className={`text-2xl font-bold tabular-nums ${projected >= 0 ? "text-emerald-600" : "text-destructive"}`}>{fmt(projected)}</p></CardContent></Card>
+          <Card><CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">{t("الرصيد النقدي الحالي")}</CardTitle></CardHeader><CardContent><p className="text-2xl font-bold tabular-nums">{fmt(startCash)}</p></CardContent></Card>
+          <Card><CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">{t("مستحقات داخلة (عملاء)")}</CardTitle></CardHeader><CardContent><p className="text-2xl font-bold tabular-nums text-emerald-600">{fmt(totalIn)}</p></CardContent></Card>
+          <Card><CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">{t("مستحقات خارجة (موردون)")}</CardTitle></CardHeader><CardContent><p className="text-2xl font-bold tabular-nums text-destructive">{fmt(totalOut)}</p></CardContent></Card>
+          <Card><CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">{t("الرصيد المتوقّع")}</CardTitle></CardHeader><CardContent><p className={`text-2xl font-bold tabular-nums ${projected >= 0 ? "text-emerald-600" : "text-destructive"}`}>{fmt(projected)}</p></CardContent></Card>
         </div>
 
         {lowest < 0 && (
           <div className="rounded-2xl border border-destructive/40 bg-destructive/5 p-4 text-sm text-destructive">
-            ⚠️ الرصيد المتوقّع يهبط إلى <span className="font-bold tabular-nums">{fmt(lowest)}</span> — قد تحتاج لتسريع التحصيل أو تأجيل مدفوعات.
+            ⚠️ {t("الرصيد المتوقّع يهبط إلى")} <span className="font-bold tabular-nums">{fmt(lowest)}</span> {t("— قد تحتاج لتسريع التحصيل أو تأجيل مدفوعات.")}
           </div>
         )}
 
         <Card>
           <CardHeader>
-            <CardTitle>الرصيد النقدي المتوقّع</CardTitle>
-            <CardDescription>مسار الرصيد عبر الأسابيع القادمة بناءً على تواريخ الاستحقاق.</CardDescription>
+            <CardTitle>{t("الرصيد النقدي المتوقّع")}</CardTitle>
+            <CardDescription>{t("مسار الرصيد عبر الأسابيع القادمة بناءً على تواريخ الاستحقاق.")}</CardDescription>
           </CardHeader>
           <CardContent>
             <TrendChart
               data={[{ label: "افتتاحي", value: startCash }, ...rows.map((r) => ({ label: r.label, value: r.balance }))]}
-              valueLabel="الرصيد المتوقّع" money id="cashflow-forecast" height={220}
+              valueLabel={t("الرصيد المتوقّع")} money id="cashflow-forecast" height={220}
             />
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader>
-            <CardTitle>الجدول الزمني (٨ أسابيع)</CardTitle>
-            <CardDescription>الداخل من فواتير البيع المستحقّة، الخارج من فواتير الشراء المستحقّة — حسب تاريخ الاستحقاق.</CardDescription>
+            <CardTitle>{t("الجدول الزمني (٨ أسابيع)")}</CardTitle>
+            <CardDescription>{t("الداخل من فواتير البيع المستحقّة، الخارج من فواتير الشراء المستحقّة — حسب تاريخ الاستحقاق.")}</CardDescription>
           </CardHeader>
           <CardContent>
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="text-start">الفترة</TableHead>
-                  <TableHead className="text-end">داخل</TableHead>
-                  <TableHead className="text-end">خارج</TableHead>
-                  <TableHead className="text-end">صافي</TableHead>
-                  <TableHead className="text-end">الرصيد المتوقّع</TableHead>
+                  <TableHead className="text-start">{t("الفترة")}</TableHead>
+                  <TableHead className="text-end">{t("داخل")}</TableHead>
+                  <TableHead className="text-end">{t("خارج")}</TableHead>
+                  <TableHead className="text-end">{t("صافي")}</TableHead>
+                  <TableHead className="text-end">{t("الرصيد المتوقّع")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 <TableRow className="bg-muted/40">
-                  <TableCell className="font-medium">الرصيد الافتتاحي</TableCell>
+                  <TableCell className="font-medium">{t("الرصيد الافتتاحي")}</TableCell>
                   <TableCell colSpan={3} />
                   <TableCell className="text-end tabular-nums font-medium">{fmt(startCash)}</TableCell>
                 </TableRow>
                 {rows.map((r) => (
                   <TableRow key={r.label}>
-                    <TableCell>{r.label}</TableCell>
+                    <TableCell>{t(r.label)}</TableCell>
                     <TableCell className="text-end tabular-nums text-emerald-600">{r.inflow ? fmt(r.inflow) : "—"}</TableCell>
                     <TableCell className="text-end tabular-nums text-destructive">{r.outflow ? fmt(r.outflow) : "—"}</TableCell>
                     <TableCell className={`text-end tabular-nums ${r.net >= 0 ? "" : "text-destructive"}`}>{r.net ? fmt(r.net) : "—"}</TableCell>
@@ -123,7 +126,7 @@ export default async function CashflowForecastPage() {
                 ))}
               </TableBody>
             </Table>
-            <p className="mt-3 text-xs text-muted-foreground">التوقّع يفترض تحصيل/سداد كل فاتورة في تاريخ استحقاقها. لا يشمل مبيعات/مشتريات مستقبلية غير مفوترة.</p>
+            <p className="mt-3 text-xs text-muted-foreground">{t("التوقّع يفترض تحصيل/سداد كل فاتورة في تاريخ استحقاقها. لا يشمل مبيعات/مشتريات مستقبلية غير مفوترة.")}</p>
           </CardContent>
         </Card>
       </div>

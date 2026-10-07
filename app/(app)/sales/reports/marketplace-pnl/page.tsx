@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { fill } from "@/lib/i18n";
+import { getT } from "@/lib/i18n/server";
 import { and, asc, eq } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
 import { orgFiscalYearStartISO } from "@/lib/erp/fiscal";
@@ -30,6 +32,7 @@ const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) 
  * the Transaction details page reads.
  */
 export default async function MarketplacePnlPage({ searchParams }: { searchParams: Promise<SP> }) {
+  const t = await getT();
   return loadErpPage("reports.view", async ({ orgId }) => {
     const sp = await searchParams;
     const from = one(sp.from) || (await orgFiscalYearStartISO(orgId));
@@ -64,8 +67,8 @@ export default async function MarketplacePnlPage({ searchParams }: { searchParam
       <div className="space-y-6">
         <ErpPageHeader
           icon="Wallet"
-          title="ربحية المنصة — بالطلب وبالمنتج"
-          subtitle="من حركات أمازون الفعلية، شاملة المؤجّلة"
+          title={t("ربحية المنصة — بالطلب وبالمنتج")}
+          subtitle={t("من حركات أمازون الفعلية، شاملة المؤجّلة")}
           backHref="/sales/reports/profitability"
         />
 
@@ -74,7 +77,7 @@ export default async function MarketplacePnlPage({ searchParams }: { searchParam
             {platforms.map((p) => (
               <a key={p.id} href={`?channel=${p.code}&from=${from}&to=${to}`}
                 className={`rounded-lg border px-3 py-1.5 text-sm ${p.code === chosen?.code ? "bg-primary text-primary-foreground" : "hover:bg-muted"}`}>
-                {p.name}
+                {t(p.name)}
               </a>
             ))}
           </div>
@@ -82,38 +85,37 @@ export default async function MarketplacePnlPage({ searchParams }: { searchParam
         <ItemSalesFilters from={from} to={to} q={search} />
 
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <Card><CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">المبيعات</CardTitle></CardHeader><CardContent><p className="text-2xl font-bold tabular-nums">{fmt(tSales)}</p></CardContent></Card>
-          <Card><CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">رسوم أمازون</CardTitle></CardHeader><CardContent><p className="text-2xl font-bold tabular-nums text-amber-600">{fmt(tFees)}</p></CardContent></Card>
-          <Card><CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">تكلفة البضاعة</CardTitle></CardHeader><CardContent><p className="text-2xl font-bold tabular-nums text-muted-foreground">{fmt(tCogs)}</p></CardContent></Card>
-          <Card><CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">صافي الربح</CardTitle></CardHeader><CardContent><p className={`text-2xl font-bold tabular-nums ${tNet >= 0 ? "text-emerald-600" : "text-destructive"}`}>{fmt(tNet)}</p></CardContent></Card>
+          <Card><CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">{t("المبيعات")}</CardTitle></CardHeader><CardContent><p className="text-2xl font-bold tabular-nums">{fmt(tSales)}</p></CardContent></Card>
+          <Card><CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">{t("رسوم أمازون")}</CardTitle></CardHeader><CardContent><p className="text-2xl font-bold tabular-nums text-amber-600">{fmt(tFees)}</p></CardContent></Card>
+          <Card><CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">{t("تكلفة البضاعة")}</CardTitle></CardHeader><CardContent><p className="text-2xl font-bold tabular-nums text-muted-foreground">{fmt(tCogs)}</p></CardContent></Card>
+          <Card><CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">{t("صافي الربح")}</CardTitle></CardHeader><CardContent><p className={`text-2xl font-bold tabular-nums ${tNet >= 0 ? "text-emerald-600" : "text-destructive"}`}>{fmt(tNet)}</p></CardContent></Card>
         </div>
 
         <Card>
           <CardHeader>
-            <CardTitle>على مستوى الطلب</CardTitle>
+            <CardTitle>{t("على مستوى الطلب")}</CardTitle>
             <CardDescription>
-              كل طلب وإيراده ورسومه وتكلفته — الأرقام دي هي نفسها اللي في صفحة «Transaction details» على أمازون.
-              «العمولة» هي كل اللي أمازون خصمه — قف على الرقم علشان تشوف عمولة البيع ورسوم FBA وكل واحدة بأساسيها وضريبتها.
-              {deferred > 0 && <span className="text-amber-600"> · {qtyf(deferred)} طلب لسه مؤجّل (أمازون ماحرّرش فلوسه بعد، بس الرسوم متحسبة).</span>}
-              {noCogs > 0 && <span className="text-amber-600"> · {qtyf(noCogs)} طلب من غير تكلفة بضاعة — يعني لسه ماخرجش من المخزون.</span>}
+              {t("كل طلب وإيراده ورسومه وتكلفته — الأرقام دي هي نفسها اللي في صفحة «Transaction details» على أمازون. «العمولة» هي كل اللي أمازون خصمه — قف على الرقم علشان تشوف عمولة البيع ورسوم FBA وكل واحدة بأساسيها وضريبتها.")}
+              {deferred > 0 && <span className="text-amber-600"> · {qtyf(deferred)} {t("طلب لسه مؤجّل (أمازون ماحرّرش فلوسه بعد، بس الرسوم متحسبة).")}</span>}
+              {noCogs > 0 && <span className="text-amber-600"> · {qtyf(noCogs)} {t("طلب من غير تكلفة بضاعة — يعني لسه ماخرجش من المخزون.")}</span>}
             </CardDescription>
           </CardHeader>
           <CardContent>
             {orderRows.length === 0 ? (
-              <div className="rounded-xl border border-dashed py-12 text-center text-muted-foreground">لا توجد حركات في هذه الفترة.</div>
+              <div className="rounded-xl border border-dashed py-12 text-center text-muted-foreground">{t("لا توجد حركات في هذه الفترة.")}</div>
             ) : (
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="text-start">التاريخ</TableHead>
-                    <TableHead className="text-start">طلب أمازون</TableHead>
-                    <TableHead className="text-start">أمر البيع</TableHead>
-                    <TableHead className="text-end">المبيعات</TableHead>
-                    <TableHead className="text-end">مرتجع</TableHead>
-                    <TableHead className="text-end">العمولة</TableHead>
-                    <TableHead className="text-end">التكلفة</TableHead>
-                    <TableHead className="text-end">الصافي</TableHead>
-                    <TableHead className="text-end">الهامش</TableHead>
+                    <TableHead className="text-start">{t("التاريخ")}</TableHead>
+                    <TableHead className="text-start">{t("طلب أمازون")}</TableHead>
+                    <TableHead className="text-start">{t("أمر البيع")}</TableHead>
+                    <TableHead className="text-end">{t("المبيعات")}</TableHead>
+                    <TableHead className="text-end">{t("مرتجع")}</TableHead>
+                    <TableHead className="text-end">{t("العمولة")}</TableHead>
+                    <TableHead className="text-end">{t("التكلفة")}</TableHead>
+                    <TableHead className="text-end">{t("الصافي")}</TableHead>
+                    <TableHead className="text-end">{t("الهامش")}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -130,7 +132,7 @@ export default async function MarketplacePnlPage({ searchParams }: { searchParam
                         ) : (
                           <span className="font-mono text-xs" dir="ltr">{r.externalOrderId}</span>
                         )}
-                        {r.deferred && <Badge variant="secondary" className="ms-2">مؤجّل</Badge>}
+                        {r.deferred && <Badge variant="secondary" className="ms-2">{t("مؤجّل")}</Badge>}
                       </TableCell>
                       <TableCell className="font-mono text-xs">
                         {r.orderNumber ? (
@@ -157,30 +159,28 @@ export default async function MarketplacePnlPage({ searchParams }: { searchParam
 
         <Card>
           <CardHeader>
-            <CardTitle>على مستوى المنتج</CardTitle>
+            <CardTitle>{t("على مستوى المنتج")}</CardTitle>
             <CardDescription>
-              الرسوم موزّعة على كل SKU — ده اللي تقرير التسويات القديم ماكانش يقدر يعمله.
-              الكمية **صافية**: المباع ناقص المرتجع، فالمنتج اللي اترجع كله بيبان بصفر.
-              «سعر التعادل» = تكلفة القطعة + رسوم أمازون للقطعة؛ تحته المنتج بيخسر.
+              {t("الرسوم موزّعة على كل SKU — ده اللي تقرير التسويات القديم ماكانش يقدر يعمله. الكمية **صافية**: المباع ناقص المرتجع، فالمنتج اللي اترجع كله بيبان بصفر. «سعر التعادل» = تكلفة القطعة + رسوم أمازون للقطعة؛ تحته المنتج بيخسر.")}
             </CardDescription>
           </CardHeader>
           <CardContent>
             {productRows.length === 0 ? (
-              <div className="rounded-xl border border-dashed py-12 text-center text-muted-foreground">لا توجد حركات في هذه الفترة.</div>
+              <div className="rounded-xl border border-dashed py-12 text-center text-muted-foreground">{t("لا توجد حركات في هذه الفترة.")}</div>
             ) : (
               <Table>
                 <TableHeader>
                   <TableRow>
                     <TableHead className="text-start">SKU</TableHead>
-                    <TableHead className="text-start">الصنف</TableHead>
-                    <TableHead className="text-end">الكمية</TableHead>
-                    <TableHead className="text-end">المبيعات</TableHead>
-                    <TableHead className="text-end">العمولة</TableHead>
-                    <TableHead className="text-end">التكلفة</TableHead>
-                    <TableHead className="text-end">الصافي</TableHead>
-                    <TableHead className="text-end">متوسط البيع</TableHead>
-                    <TableHead className="text-end">سعر التعادل</TableHead>
-                    <TableHead className="text-end">الفرق</TableHead>
+                    <TableHead className="text-start">{t("الصنف")}</TableHead>
+                    <TableHead className="text-end">{t("الكمية")}</TableHead>
+                    <TableHead className="text-end">{t("المبيعات")}</TableHead>
+                    <TableHead className="text-end">{t("العمولة")}</TableHead>
+                    <TableHead className="text-end">{t("التكلفة")}</TableHead>
+                    <TableHead className="text-end">{t("الصافي")}</TableHead>
+                    <TableHead className="text-end">{t("متوسط البيع")}</TableHead>
+                    <TableHead className="text-end">{t("سعر التعادل")}</TableHead>
+                    <TableHead className="text-end">{t("الفرق")}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -192,13 +192,13 @@ export default async function MarketplacePnlPage({ searchParams }: { searchParam
                         <TableCell className="max-w-[280px] whitespace-normal">
                           {r.itemId ? (
                             <Link href={`/inventory/items/${r.itemId}`} className="line-clamp-2 leading-snug text-primary hover:underline" title={r.name ?? undefined}>
-                              <span className="font-mono text-xs text-muted-foreground">{r.code}</span> {r.name}
+                              <span className="font-mono text-xs text-muted-foreground">{r.code}</span> {t(r.name ?? "")}
                             </Link>
                           ) : (
                             // The SKU is right there in the previous column — say what to do
                             // about it instead of just calling it unlinked.
-                            <span className="text-amber-600" title="اربط الكود ده بصنف من صفحة الصنف ← الأكواد">
-                              صنف غير مربوط — اربط الكود بصنف
+                            <span className="text-amber-600" title={t("اربط الكود ده بصنف من صفحة الصنف ← الأكواد")}>
+                              {t("صنف غير مربوط — اربط الكود بصنف")}
                             </span>
                           )}
                         </TableCell>
@@ -206,7 +206,7 @@ export default async function MarketplacePnlPage({ searchParams }: { searchParam
                           {qtyf(r.units)}
                           {r.unitsRefunded > 0 && (
                             <span className="block text-[11px] leading-tight text-destructive">
-                              {qtyf(r.unitsSold)} مباع · {qtyf(r.unitsRefunded)} مرتجع
+                              {fill(t("{0} مباع · {1} مرتجع"), [qtyf(r.unitsSold), qtyf(r.unitsRefunded)])}
                             </span>
                           )}
                         </TableCell>

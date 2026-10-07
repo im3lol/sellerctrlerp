@@ -1,9 +1,11 @@
 import { notFound } from "next/navigation";
+import { fill } from "@/lib/i18n";
+import { getLocale, getT } from "@/lib/i18n/server";
 import { and, eq } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
 import { paymentVouchers, paymentLines, suppliers, purchaseInvoices, accounts } from "@/db/schema";
-import { fmt, dt, money, toArabicWords } from "@/lib/erp/print-format";
+import { fmt, dt, money, amountInWords } from "@/lib/erp/print-format";
 import { loadPrintHeader } from "@/lib/erp/print-org";
 import { DocumentSheet } from "@/components/erp/print/document-sheet";
 
@@ -14,6 +16,8 @@ const METHOD: Record<string, string> = {
 type Params = { params: Promise<{ number: string }> };
 
 export default async function PrintPaymentVoucherPage({ params }: Params) {
+  const t = await getT();
+  const locale = await getLocale();
   const raw = decodeURIComponent((await params).number);
   return loadErpPage("purchases.view", async ({ orgId }) => {
     const [pv] = await db
@@ -49,10 +53,10 @@ export default async function PrintPaymentVoucherPage({ params }: Params) {
       <DocumentSheet
         org={org}
         footerText={footerText}
-        title="سند صرف"
+        title={t("سند صرف")}
         number={pv.number}
         backHref={`/purchases/payments/${encodeURIComponent(raw)}`}
-        meta={[{ label: "التاريخ", value: dt(pv.date) }]}
+        meta={[{ label: "التاريخ", value: dt(pv.date, locale) }]}
         parties={[
           {
             label: "صُرف إلى",
@@ -61,8 +65,8 @@ export default async function PrintPaymentVoucherPage({ params }: Params) {
           },
           {
             label: "طريقة الصرف",
-            name: METHOD[pv.paymentMethod] ?? pv.paymentMethod,
-            lines: [cashAcc?.nameAr, pv.reference ? `المرجع: ${pv.reference}` : null],
+            name: t(METHOD[pv.paymentMethod] ?? pv.paymentMethod),
+            lines: [cashAcc?.nameAr, pv.reference ? fill(t("المرجع: {0}"), [pv.reference]) : null],
           },
         ]}
         columns={lines.length > 0 ? [
@@ -72,14 +76,14 @@ export default async function PrintPaymentVoucherPage({ params }: Params) {
           { label: "المسدَّد", align: "end", width: "18%" },
         ] : []}
         rows={lines.map((l) => [
-          <span key="n" dir="ltr" style={{ textAlign: "start", display: "block" }}>{l.invNumber ?? "تحت الحساب"}</span>,
-          l.invDate ? dt(l.invDate) : "—",
+          <span key="n" dir="ltr" style={{ textAlign: "start", display: "block" }}>{l.invNumber ?? t("تحت الحساب")}</span>,
+          l.invDate ? dt(l.invDate, locale) : "—",
           l.invTotal ? fmt(l.invTotal) : "—",
           <b key="a">{fmt(l.amount)}</b>,
         ])}
-        balance={{ label: "المبلغ المصروف", value: money(pv.amount, currency) }}
+        balance={{ label: "المبلغ المصروف", value: money(pv.amount, currency, locale) }}
         // The wording that makes a signed voucher hard to alter afterwards.
-        note={`فقط وقدره ${toArabicWords(Number(pv.amount))} لا غير.${pv.notes ? `\n${pv.notes}` : ""}`}
+        note={`${amountInWords(Number(pv.amount), locale)}.${pv.notes ? `\n${pv.notes}` : ""}`}
         signatures={["إعداد", "اعتماد", "المورّد / المستلم"]}
       />
     );

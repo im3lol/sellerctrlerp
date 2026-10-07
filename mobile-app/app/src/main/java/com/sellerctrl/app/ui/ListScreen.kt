@@ -1,5 +1,7 @@
 package com.sellerctrl.app.ui
 
+import com.sellerctrl.app.tr
+
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -50,7 +52,7 @@ fun ListScreen(nav: NavController, title: String, path: String, detailPrefix: St
         try {
             rows = ServiceLocator.repo.docList(path)
         } catch (e: Exception) {
-            error = "تعذّر التحميل — تأكد من الصلاحية"
+            error = tr("تعذّر التحميل — تأكد من الصلاحية")
             rows = emptyList()
         }
     }
@@ -59,15 +61,15 @@ fun ListScreen(nav: NavController, title: String, path: String, detailPrefix: St
         TopAppBar(
             title = { Text(title) },
             navigationIcon = { IconButton(onClick = { nav.popBackStack() }) { Icon(Icons.AutoMirrored.Filled.ArrowBack, null) } },
-            actions = { val open = LocalOpenDrawer.current; IconButton(onClick = open) { Icon(Icons.Filled.Menu, "القائمة") } },
+            actions = { val open = LocalOpenDrawer.current; IconButton(onClick = open) { Icon(Icons.Filled.Menu, tr("القائمة")) } },
         )
     }, floatingActionButton = {
-        if (addRoute != null) FloatingActionButton(onClick = { nav.navigate(addRoute) }) { Icon(Icons.Filled.Add, "إضافة") }
+        if (addRoute != null) FloatingActionButton(onClick = { nav.navigate(addRoute) }) { Icon(Icons.Filled.Add, tr("إضافة")) }
     }) { pad ->
         Box(Modifier.fillMaxSize().padding(pad)) {
             when {
                 rows == null -> CircularProgressIndicator(Modifier.align(Alignment.Center))
-                rows!!.isEmpty() -> Text(error ?: "لا توجد بيانات", Modifier.align(Alignment.Center), color = MaterialTheme.colorScheme.outline)
+                rows!!.isEmpty() -> Text(error ?: tr("لا توجد بيانات"), Modifier.align(Alignment.Center), color = MaterialTheme.colorScheme.outline)
                 else -> LazyColumn(Modifier.fillMaxSize().padding(12.dp)) {
                     items(rows!!) { r ->
                         DocCard(r, onClick = detailPrefix?.let { p -> { nav.navigate("$p/${r.id}") } })

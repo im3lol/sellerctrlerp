@@ -1,8 +1,10 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { fill } from "@/lib/i18n";
+import { useT } from "@/lib/i18n/client";
 import { useRouter } from "next/navigation";
-import { toast } from "sonner";
+import { toast } from "@/lib/i18n/toast";
 import { Loader2 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -14,6 +16,7 @@ const n = (v: number) => v.toLocaleString("ar-EG-u-nu-latn");
 
 /** Upload the bank's own statement file — see what was read, then save it. */
 export function BankImport({ bankAccountId }: { bankAccountId: string }) {
+  const t = useT();
   const router = useRouter();
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<ImportPreview | null>(null);
@@ -26,7 +29,7 @@ export function BankImport({ bankAccountId }: { bankAccountId: string }) {
     const r = await importStatementAction(bankAccountId, fd, commit);
     if (r.error) { toast.error(r.error); return; }
     if (!commit) { setPreview(r); return; }
-    toast.success(`اتضاف ${n(r.added ?? 0)} حركة${r.duplicates ? ` · ${n(r.duplicates)} كانت متسجلة قبل كده` : ""}`);
+    toast.success(fill(t("اتضاف {0} حركة"), [n(r.added ?? 0)]) + (r.duplicates ? fill(t(" · {0} كانت متسجلة قبل كده"), [n(r.duplicates)]) : ""));
     setPreview(null);
     setFile(null);
     router.refresh();
@@ -35,10 +38,9 @@ export function BankImport({ bankAccountId }: { bankAccountId: string }) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>استيراد كشف الحساب</CardTitle>
+        <CardTitle>{t("استيراد كشف الحساب")}</CardTitle>
         <CardDescription>
-          ارفع ملف الكشف زي ما البنك بيطلّعه (Excel أو CSV). بنعرف الأعمدة من عناوينها، وبتشوف اللي اتقرا قبل ما يتحفظ،
-          والحركة اللي اتسجلت قبل كده مابتتكررش.
+          {t("ارفع ملف الكشف زي ما البنك بيطلّعه (Excel أو CSV). بنعرف الأعمدة من عناوينها، وبتشوف اللي اتقرا قبل ما يتحفظ، والحركة اللي اتسجلت قبل كده مابتتكررش.")}
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -46,7 +48,7 @@ export function BankImport({ bankAccountId }: { bankAccountId: string }) {
           <Input type="file" accept=".csv,.xlsx,.xls" className="max-w-sm"
             onChange={(e) => { setFile(e.target.files?.[0] ?? null); setPreview(null); }} />
           <Button variant="outline" disabled={!file || pending} onClick={() => run(false)}>
-            {pending && !preview && <Loader2 className="size-4 animate-spin" />}معاينة
+            {pending && !preview && <Loader2 className="size-4 animate-spin" />}{t("معاينة")}
           </Button>
         </div>
 
@@ -58,10 +60,10 @@ export function BankImport({ bankAccountId }: { bankAccountId: string }) {
                 <table className="w-full text-sm">
                   <thead className="bg-muted/50 text-muted-foreground">
                     <tr>
-                      <th className="px-3 py-2 text-start font-medium">التاريخ</th>
-                      <th className="px-3 py-2 text-start font-medium">البيان</th>
-                      <th className="px-3 py-2 text-start font-medium">وارد</th>
-                      <th className="px-3 py-2 text-start font-medium">صادر</th>
+                      <th className="px-3 py-2 text-start font-medium">{t("التاريخ")}</th>
+                      <th className="px-3 py-2 text-start font-medium">{t("البيان")}</th>
+                      <th className="px-3 py-2 text-start font-medium">{t("وارد")}</th>
+                      <th className="px-3 py-2 text-start font-medium">{t("صادر")}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y">
@@ -78,11 +80,11 @@ export function BankImport({ bankAccountId }: { bankAccountId: string }) {
               </div>
             )}
             <div className="flex flex-wrap items-center gap-3 text-sm">
-              <span className="font-medium">{n(preview.total ?? 0)} حركة جديدة</span>
-              {!!preview.duplicates && <span className="text-muted-foreground">· {n(preview.duplicates)} متسجلة قبل كده</span>}
-              {!!preview.skipped && <span className="text-muted-foreground">· {n(preview.skipped)} سطر مش حركة (رصيد أو إجمالي)</span>}
+              <span className="font-medium">{n(preview.total ?? 0)} {t("حركة جديدة")}</span>
+              {!!preview.duplicates && <span className="text-muted-foreground">· {n(preview.duplicates)} {t("متسجلة قبل كده")}</span>}
+              {!!preview.skipped && <span className="text-muted-foreground">· {n(preview.skipped)} {t("سطر مش حركة (رصيد أو إجمالي)")}</span>}
               <Button className="ms-auto" disabled={pending || !preview.total} onClick={() => run(true)}>
-                {pending && <Loader2 className="size-4 animate-spin" />}استورد {n(preview.total ?? 0)} حركة
+                {pending && <Loader2 className="size-4 animate-spin" />}{fill(t("استورد {0} حركة"), [n(preview.total ?? 0)])}
               </Button>
             </div>
           </div>
@@ -94,6 +96,7 @@ export function BankImport({ bankAccountId }: { bankAccountId: string }) {
 
 /** Confirm the suggested deposit as the one that carried this payout. */
 export function MatchButton({ lineId }: { lineId: string }) {
+  const t = useT();
   const router = useRouter();
   const [pending, start] = useTransition();
   return (
@@ -102,7 +105,7 @@ export function MatchButton({ lineId }: { lineId: string }) {
         const r = await toggleStatementLineReconciledAction(lineId);
         if (r.error) toast.error(r.error); else router.refresh();
       })}>
-      {pending && <Loader2 className="size-4 animate-spin" />}طابق
+      {pending && <Loader2 className="size-4 animate-spin" />}{t("طابق")}
     </Button>
   );
 }

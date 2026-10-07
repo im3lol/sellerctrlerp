@@ -1,5 +1,7 @@
 package com.sellerctrl.app.ui
 
+import com.sellerctrl.app.tr
+
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -73,14 +75,14 @@ fun ItemFormScreen(nav: NavController, id: String) {
                 val it = ServiceLocator.repo.itemEdit(id)
                 code = it.code; nameAr = it.nameAr; nameEn = it.nameEn; sellPrice = fmt(it.sellPrice); minStock = fmt(it.minStock); isPerishable = it.isPerishable
                 it.codes.forEach { c -> codes.add(CodeRow(c.codeType, c.code)) }
-            } catch (e: Exception) { error = e.message ?: "تعذّر التحميل" }
+            } catch (e: Exception) { error = e.message ?: tr("تعذّر التحميل") }
             loaded = true
         }
     }
 
     fun save() {
-        if (code.isBlank()) { error = "الكود الداخلي مطلوب"; return }
-        if (nameAr.trim().length < 2) { error = "الاسم قصير جداً"; return }
+        if (code.isBlank()) { error = tr("الكود الداخلي مطلوب"); return }
+        if (nameAr.trim().length < 2) { error = tr("الاسم قصير جداً"); return }
         val payloadCodes = codes.filter { it.type.isNotBlank() && it.code.isNotBlank() }.map { ItemCodeIn(it.type.trim(), it.code.trim()) }
         busy = true; error = null
         scope.launch {
@@ -88,54 +90,54 @@ fun ItemFormScreen(nav: NavController, id: String) {
                 ServiceLocator.repo.itemSave(ItemSaveReq(if (isNew) null else id, code.trim(), nameAr.trim(), nameEn.ifBlank { null },
                     sellPrice.toDoubleOrNull() ?: 0.0, minStock.toDoubleOrNull() ?: 0.0, isPerishable, payloadCodes))
                 nav.popBackStack()
-            } catch (e: Exception) { error = e.message ?: "خطأ"; busy = false }
+            } catch (e: Exception) { error = e.message ?: tr("خطأ"); busy = false }
         }
     }
 
     Scaffold(topBar = {
-        TopAppBar(title = { Text(if (isNew) "صنف جديد" else "تعديل صنف") },
+        TopAppBar(title = { Text(if (isNew) tr("صنف جديد") else tr("تعديل صنف")) },
             navigationIcon = { IconButton(onClick = { nav.popBackStack() }) { Icon(Icons.AutoMirrored.Filled.ArrowBack, null) } })
     }) { pad ->
         Column(Modifier.fillMaxSize().padding(pad).verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            OutlinedTextField(code, { code = it }, label = { Text("الكود الداخلي *") }, singleLine = true, modifier = Modifier.fillMaxWidth(), enabled = isNew)
-            OutlinedTextField(nameAr, { nameAr = it }, label = { Text("الاسم بالعربية *") }, singleLine = true, modifier = Modifier.fillMaxWidth())
-            OutlinedTextField(nameEn, { nameEn = it }, label = { Text("الاسم بالإنجليزية") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+            OutlinedTextField(code, { code = it }, label = { Text(tr("الكود الداخلي *")) }, singleLine = true, modifier = Modifier.fillMaxWidth(), enabled = isNew)
+            OutlinedTextField(nameAr, { nameAr = it }, label = { Text(tr("الاسم بالعربية *")) }, singleLine = true, modifier = Modifier.fillMaxWidth())
+            OutlinedTextField(nameEn, { nameEn = it }, label = { Text(tr("الاسم بالإنجليزية")) }, singleLine = true, modifier = Modifier.fillMaxWidth())
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedTextField(sellPrice, { sellPrice = it.filter { c -> c.isDigit() || c == '.' } }, label = { Text("سعر البيع") }, singleLine = true,
+                OutlinedTextField(sellPrice, { sellPrice = it.filter { c -> c.isDigit() || c == '.' } }, label = { Text(tr("سعر البيع")) }, singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal), modifier = Modifier.weight(1f))
-                OutlinedTextField(minStock, { minStock = it.filter { c -> c.isDigit() || c == '.' } }, label = { Text("حد أدنى") }, singleLine = true,
+                OutlinedTextField(minStock, { minStock = it.filter { c -> c.isDigit() || c == '.' } }, label = { Text(tr("حد أدنى")) }, singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal), modifier = Modifier.weight(1f))
             }
-            Row(verticalAlignment = Alignment.CenterVertically) { Checkbox(isPerishable, { isPerishable = it }); Text("قابل للتلف (صلاحية)") }
+            Row(verticalAlignment = Alignment.CenterVertically) { Checkbox(isPerishable, { isPerishable = it }); Text(tr("قابل للتلف (صلاحية)")) }
 
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                Text("الأكواد/الباركود (${codes.size})", style = MaterialTheme.typography.titleMedium)
-                TextButton(onClick = { codes.add(CodeRow("BARCODE", "")) }) { Icon(Icons.Filled.Add, null); Text(" كود") }
+                Text(tr("الأكواد/الباركود (${codes.size})"), style = MaterialTheme.typography.titleMedium)
+                TextButton(onClick = { codes.add(CodeRow("BARCODE", "")) }) { Icon(Icons.Filled.Add, null); Text(tr(" كود")) }
             }
             codes.forEachIndexed { i, c ->
                 AppCard(Modifier.fillMaxWidth()) {
                     Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        OutlinedTextField(c.type, { v -> codes[i] = c.copy(type = v) }, label = { Text("النوع") }, singleLine = true, modifier = Modifier.width(120.dp))
-                        OutlinedTextField(c.code, { v -> codes[i] = c.copy(code = v) }, label = { Text("الكود") }, singleLine = true, modifier = Modifier.weight(1f))
-                        IconButton(onClick = { codes.removeAt(i) }) { Icon(Icons.Filled.Close, "حذف") }
+                        OutlinedTextField(c.type, { v -> codes[i] = c.copy(type = v) }, label = { Text(tr("النوع")) }, singleLine = true, modifier = Modifier.width(120.dp))
+                        OutlinedTextField(c.code, { v -> codes[i] = c.copy(code = v) }, label = { Text(tr("الكود")) }, singleLine = true, modifier = Modifier.weight(1f))
+                        IconButton(onClick = { codes.removeAt(i) }) { Icon(Icons.Filled.Close, tr("حذف")) }
                     }
                 }
             }
             error?.let { Text(it, color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.SemiBold) }
-            Button(onClick = { save() }, enabled = !busy && loaded, modifier = Modifier.fillMaxWidth()) { Text(if (busy) "جارٍ الحفظ…" else "حفظ") }
+            Button(onClick = { save() }, enabled = !busy && loaded, modifier = Modifier.fillMaxWidth()) { Text(if (busy) tr("جارٍ الحفظ…") else tr("حفظ")) }
             if (!isNew) OutlinedButton(onClick = { confirmDelete = true }, enabled = !busy, modifier = Modifier.fillMaxWidth(),
-                colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)) { Text("حذف الصنف") }
+                colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)) { Text(tr("حذف الصنف")) }
         }
     }
 
     if (confirmDelete) AlertDialog(
-        onDismissRequest = { confirmDelete = false }, title = { Text("حذف") }, text = { Text("متأكد من حذف الصنف؟ (يُرفض لو له حركة مخزون)") },
+        onDismissRequest = { confirmDelete = false }, title = { Text(tr("حذف")) }, text = { Text(tr("متأكد من حذف الصنف؟ (يُرفض لو له حركة مخزون)")) },
         confirmButton = {
             TextButton(onClick = {
                 confirmDelete = false; busy = true; error = null
-                scope.launch { try { ServiceLocator.repo.itemDelete(id); nav.popBackStack() } catch (e: Exception) { error = e.message ?: "خطأ" } finally { busy = false } }
-            }) { Text("حذف", color = MaterialTheme.colorScheme.error) }
+                scope.launch { try { ServiceLocator.repo.itemDelete(id); nav.popBackStack() } catch (e: Exception) { error = e.message ?: tr("خطأ") } finally { busy = false } }
+            }) { Text(tr("حذف"), color = MaterialTheme.colorScheme.error) }
         },
-        dismissButton = { OutlinedButton(onClick = { confirmDelete = false }) { Text("إلغاء") } },
+        dismissButton = { OutlinedButton(onClick = { confirmDelete = false }) { Text(tr("إلغاء")) } },
     )
 }

@@ -1,4 +1,5 @@
 import { and, desc, eq, gte, sql } from "drizzle-orm";
+import { getT } from "@/lib/i18n/server";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
 import { employees, leaveRequests, payrollRuns, expenseClaims } from "@/db/schema";
@@ -23,6 +24,7 @@ const cnt = (v: { n: number }[]) => Number(v[0]?.n ?? 0);
  * the same shape as المشتريات/المبيعات before the split.
  */
 export default async function ErpHrPage() {
+  const t = await getT();
   return loadErpPage("hr.view", async ({ orgId, permissions }) => {
     const now = new Date();
     const monthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
@@ -47,7 +49,7 @@ export default async function ErpHrPage() {
     ]);
 
     const monthlyCost = Number(payroll[0]?.v ?? 0);
-    const depts = byDept.map((d) => ({ name: d.dept?.trim() || "بدون قسم", n: Number(d.n) }));
+    const depts = byDept.map((d) => ({ name: d.dept?.trim() || t("بدون قسم"), n: Number(d.n) }));
     const maxDept = Math.max(...depts.map((d) => d.n), 1);
 
     const todos = [
@@ -68,8 +70,8 @@ export default async function ErpHrPage() {
     ];
 
     return (
-      <div className="space-y-6" dir="rtl">
-        <ErpPageHeader icon="UsersRound" title="الموارد البشرية" subtitle="نظرة عامة على الموظفين والإجازات والرواتب"
+      <div className="space-y-6">
+        <ErpPageHeader icon="UsersRound" title={t("الموارد البشرية")} subtitle={t("نظرة عامة على الموظفين والإجازات والرواتب")}
           action={<AcademyLink module="hr" />} />
 
         <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
@@ -77,7 +79,7 @@ export default async function ErpHrPage() {
             <Card key={k.label}>
               <CardContent className="pt-6">
                 <div className="flex items-center justify-between">
-                  <div className="text-sm text-muted-foreground">{k.label}</div>
+                  <div className="text-sm text-muted-foreground">{t(k.label)}</div>
                   <Icon name={k.icon} className="size-4 text-muted-foreground" />
                 </div>
                 <div className={cn("mt-1 text-2xl font-bold tabular-nums", k.tone)}>
@@ -93,18 +95,18 @@ export default async function ErpHrPage() {
         <div className="grid gap-6 lg:grid-cols-3">
           <Card className="lg:col-span-2">
             <CardHeader>
-              <CardTitle>الموظفون حسب القسم</CardTitle>
-              <CardDescription>الموظفون النشطون فقط.</CardDescription>
+              <CardTitle>{t("الموظفون حسب القسم")}</CardTitle>
+              <CardDescription>{t("الموظفون النشطون فقط.")}</CardDescription>
             </CardHeader>
             <CardContent>
               {depts.length === 0 ? (
-                <p className="py-8 text-center text-sm text-muted-foreground">لا يوجد موظفون نشطون.</p>
+                <p className="py-8 text-center text-sm text-muted-foreground">{t("لا يوجد موظفون نشطون.")}</p>
               ) : (
                 <div className="space-y-3">
                   {depts.map((d) => (
                     <div key={d.name} className="space-y-1">
                       <div className="flex justify-between text-sm">
-                        <span>{d.name}</span>
+                        <span>{t(d.name)}</span>
                         <span className="tabular-nums text-muted-foreground">{intf(d.n)}</span>
                       </div>
                       <div className="h-2 w-full rounded-full bg-muted">
@@ -119,16 +121,16 @@ export default async function ErpHrPage() {
 
           <Card className="flex flex-col justify-center">
             <CardContent className="space-y-4 py-8 text-center">
-              <div className="text-sm text-muted-foreground">تكلفة الرواتب الشهرية</div>
+              <div className="text-sm text-muted-foreground">{t("تكلفة الرواتب الشهرية")}</div>
               <div className="text-4xl font-bold tabular-nums">{money(monthlyCost)}</div>
-              <p className="text-xs text-muted-foreground">أساسي + بدلات − خصومات، للموظفين النشطين بأجر شهري (قبل الضريبة).</p>
+              <p className="text-xs text-muted-foreground">{t("أساسي + بدلات − خصومات، للموظفين النشطين بأجر شهري (قبل الضريبة).")}</p>
             </CardContent>
           </Card>
         </div>
 
         {/* Every page in this module, straight from the sidebar config — see
             ModuleWorkspace for why this is derived and not another hand-kept list. */}
-        <ModuleWorkspace heading="الموارد البشرية" permissions={permissions} counts={counts}
+        <ModuleWorkspace heading={t("الموارد البشرية")} permissions={permissions} counts={counts}
           actions={[{ label: "مسير رواتب جديد", href: "/hr/payroll/new", icon: "Plus" }]} />
       </div>
     );

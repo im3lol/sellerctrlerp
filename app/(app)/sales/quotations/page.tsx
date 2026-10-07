@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { fill } from "@/lib/i18n";
 import { getT } from "@/lib/i18n/server";
 import { desc, eq, sql } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
@@ -35,7 +36,7 @@ export default async function QuotationsPage() {
 
     return (
       <div className="space-y-6">
-        <ErpPageHeader icon="FileText" title={t("عروض الأسعار")} subtitle={`${rows.length} عرض`} backHref="/sales"
+        <ErpPageHeader icon="FileText" title={t("عروض الأسعار")} subtitle={fill(t("{0} عرض"), [rows.length])} backHref="/sales"
           action={canManage ? <Button asChild><Link href="/sales/quotations/new"><Icon name="Plus" className="size-4" />{t("عرض جديد")}</Link></Button> : undefined} />
 
         {rows.length > 0 && (

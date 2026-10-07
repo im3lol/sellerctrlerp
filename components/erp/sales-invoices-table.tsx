@@ -1,9 +1,11 @@
 "use client";
 
 import Link from "next/link";
+import { fill } from "@/lib/i18n";
+import { useT } from "@/lib/i18n/client";
 import { Fragment, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { toast } from "sonner";
+import { toast } from "@/lib/i18n/toast";
 import { bulkSalesInvoicesAction, type SalesInvoicesFilter } from "@/app/actions/erp/sales-invoices";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -28,6 +30,7 @@ type ReturnRow = { id: string; number: string; date: Date; total: string | null;
 type Row = { id: string; number: string; date: Date; customer: string | null; order?: string | null; total: string | null; balanceDue: string | null; status: string; returned?: boolean; returns?: ReturnRow[] };
 
 export function SalesInvoicesTable({ rows, canCreate, canPost, canCollect, total, filter }: { rows: Row[]; canCreate: boolean; canPost: boolean; canCollect: boolean; total: number; filter: SalesInvoicesFilter }) {
+  const t = useT();
   const canAct = canPost || canCreate || canCollect;
   const router = useRouter();
   const [pending, start] = useTransition();
@@ -45,11 +48,11 @@ export function SalesInvoicesTable({ rows, canCreate, canPost, canCollect, total
 
   const run = (op: "post" | "delete" | "collect", verb: string) => {
     void (async () => {
-      if (!(await confirm({ title: `${verb} ${int(count)} فاتورة`, danger: op === "delete" }))) return;
+      if (!(await confirm({ title: fill(t("{0} {1} فاتورة"), [verb, int(count)]), danger: op === "delete" }))) return;
       start(async () => {
         const r = await bulkSalesInvoicesAction(op, allPages ? [] : [...sel], allPages ? filter : undefined);
-        if (r.ok) { toast.success(`تم ${verb} ${int(r.count ?? 0)} فاتورة`); setSel(new Set()); setAllPages(false); router.refresh(); }
-        else toast.error(r.error ?? "تعذّر التنفيذ");
+        if (r.ok) { toast.success(fill(t("تم {0} {1} فاتورة"), [verb, int(r.count ?? 0)])); setSel(new Set()); setAllPages(false); router.refresh(); }
+        else toast.error(r.error ?? t("تعذّر التنفيذ"));
       });
     })();
   };
@@ -58,29 +61,29 @@ export function SalesInvoicesTable({ rows, canCreate, canPost, canCollect, total
     <div className="space-y-3">
       {actionable && count > 0 && (
         <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-muted/40 px-3 py-2 text-sm">
-          <span className="font-medium">{allPages ? `كل الـ${int(total)} محدّد` : `${int(sel.size)} محدّد`}</span>
+          <span className="font-medium">{allPages ? fill(t("كل الـ{0} محدّد"), [int(total)]) : fill(t("{0} محدّد"), [int(sel.size)])}</span>
           {!allPages && allSelected && total > pageIds.length && (
-            <button type="button" className="text-primary underline" onClick={() => setAllPages(true)}>حدّد الكل ({int(total)}) في كل الصفحات</button>
+            <button type="button" className="text-primary underline" onClick={() => setAllPages(true)}>{t("حدّد الكل (")}{int(total)}{t(") في كل الصفحات")}</button>
           )}
-          {count > 0 && <button type="button" className="text-muted-foreground hover:text-foreground" onClick={() => { setSel(new Set()); setAllPages(false); }}>إلغاء التحديد</button>}
+          {count > 0 && <button type="button" className="text-muted-foreground hover:text-foreground" onClick={() => { setSel(new Set()); setAllPages(false); }}>{t("إلغاء التحديد")}</button>}
           <div className="ms-auto flex gap-2">
-            {canPost && <Button size="sm" disabled={pending} onClick={() => run("post", "تأكيد")}><Icon name="Check" className="size-4" />تأكيد</Button>}
-            {canCollect && <Button size="sm" variant="outline" disabled={pending} onClick={() => run("collect", "تحصيل")} title="ينشئ سند قبض مسودة بقيمة المتبقّي لكل فاتورة مرحّلة عليها رصيد"><Icon name="HandCoins" className="size-4" />تحصيل</Button>}
-            {canCreate && <Button size="sm" variant="ghost" disabled={pending} onClick={() => run("delete", "حذف")}><Icon name="Trash2" className="size-4 text-destructive" />حذف</Button>}
+            {canPost && <Button size="sm" disabled={pending} onClick={() => run("post", "تأكيد")}><Icon name="Check" className="size-4" />{t("تأكيد")}</Button>}
+            {canCollect && <Button size="sm" variant="outline" disabled={pending} onClick={() => run("collect", "تحصيل")} title={t("ينشئ سند قبض مسودة بقيمة المتبقّي لكل فاتورة مرحّلة عليها رصيد")}><Icon name="HandCoins" className="size-4" />{t("تحصيل")}</Button>}
+            {canCreate && <Button size="sm" variant="ghost" disabled={pending} onClick={() => run("delete", "حذف")}><Icon name="Trash2" className="size-4 text-destructive" />{t("حذف")}</Button>}
           </div>
         </div>
       )}
       <Table>
         <TableHeader>
           <TableRow>
-            {actionable && <TableHead className="w-10"><Checkbox checked={allSelected} onCheckedChange={toggleAll} aria-label="تحديد الكل" /></TableHead>}
-            <TableHead className="text-start">الرقم</TableHead>
-            <TableHead className="text-start">التاريخ</TableHead>
-            <TableHead className="text-start">العميل</TableHead>
-            <TableHead className="text-start">أمر البيع</TableHead>
-            <TableHead className="text-start">الإجمالي</TableHead>
-            <TableHead className="text-start">المتبقّي</TableHead>
-            <TableHead className="text-start">الحالة</TableHead>
+            {actionable && <TableHead className="w-10"><Checkbox checked={allSelected} onCheckedChange={toggleAll} aria-label={t("تحديد الكل")} /></TableHead>}
+            <TableHead className="text-start">{t("الرقم")}</TableHead>
+            <TableHead className="text-start">{t("التاريخ")}</TableHead>
+            <TableHead className="text-start">{t("العميل")}</TableHead>
+            <TableHead className="text-start">{t("أمر البيع")}</TableHead>
+            <TableHead className="text-start">{t("الإجمالي")}</TableHead>
+            <TableHead className="text-start">{t("المتبقّي")}</TableHead>
+            <TableHead className="text-start">{t("الحالة")}</TableHead>
             <TableHead className="w-10" />
           </TableRow>
         </TableHeader>
@@ -90,7 +93,7 @@ export function SalesInvoicesTable({ rows, canCreate, canPost, canCollect, total
             return (
               <Fragment key={r.id}>
                 <TableRow data-state={allPages || sel.has(r.id) ? "selected" : undefined}>
-                  {actionable && <TableCell><Checkbox checked={allPages || sel.has(r.id)} onCheckedChange={() => toggle(r.id)} aria-label="تحديد" /></TableCell>}
+                  {actionable && <TableCell><Checkbox checked={allPages || sel.has(r.id)} onCheckedChange={() => toggle(r.id)} aria-label={t("تحديد")} /></TableCell>}
                   <TableCell>
                     <Link href={`/sales/invoices/${encodeURIComponent(r.number)}`} className="hover:text-primary">{r.number}</Link>
                   </TableCell>
@@ -99,7 +102,7 @@ export function SalesInvoicesTable({ rows, canCreate, canPost, canCollect, total
                   <TableCell>{r.order ? <Link href={`/sales/orders/${encodeURIComponent(r.order)}`} className="font-mono text-sm hover:text-primary">{r.order}</Link> : "—"}</TableCell>
                   <TableCell>{fmt(r.total)}</TableCell>
                   <TableCell>{fmt(r.balanceDue)}</TableCell>
-                  <TableCell><div className="flex items-center gap-1"><Badge variant={st.variant}>{st.label}</Badge>{r.returned && <Badge variant="destructive">مرتجع</Badge>}</div></TableCell>
+                  <TableCell><div className="flex items-center gap-1"><Badge variant={st.variant}>{t(st.label)}</Badge>{r.returned && <Badge variant="destructive">{t("مرتجع")}</Badge>}</div></TableCell>
                   <TableCell>
                     <SalesInvoiceRowMenu id={r.id} number={r.number} status={r.status} canPost={canPost} canManage={canCreate} />
                   </TableCell>
@@ -115,7 +118,7 @@ export function SalesInvoicesTable({ rows, canCreate, canPost, canCollect, total
                     <TableCell className="text-muted-foreground">—</TableCell>
                     <TableCell className="text-destructive">−{fmt(rt.total)}</TableCell>
                     <TableCell>—</TableCell>
-                    <TableCell><Badge variant="destructive">{rt.status === "POSTED" ? "مرتجع" : "مرتجع (مسودة)"}</Badge></TableCell>
+                    <TableCell><Badge variant="destructive">{rt.status === "POSTED" ? t("مرتجع") : t("مرتجع (مسودة)")}</Badge></TableCell>
                     <TableCell />
                   </TableRow>
                 ))}

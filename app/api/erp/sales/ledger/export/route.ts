@@ -1,4 +1,4 @@
-import * as XLSX from "xlsx";
+import { xlsxBuild } from "@/lib/erp/xlsx";
 import { requireErpModule } from "@/lib/erp/org";
 import { withOrgScope } from "@/lib/db-scope";
 import { getSalesLedger, type SalesLedgerDocType } from "@/lib/erp/sales-ledger";
@@ -63,22 +63,5 @@ export async function GET(req: Request) {
     totals.subtotal, totals.discount, totals.tax, totals.total,
   ];
 
-  const ws = XLSX.utils.aoa_to_sheet([headers, ...body, totalRow]);
-  ws["!cols"] = [
-    { wch: 16 }, { wch: 12 }, { wch: 24 }, { wch: 12 }, { wch: 14 },
-    { wch: 10 }, { wch: 10 },
-    { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 14 },
-  ];
-
-  const wb = XLSX.utils.book_new();
-  wb.Workbook = { Views: [{ RTL: true }] };
-  XLSX.utils.book_append_sheet(wb, ws, "دفتر المبيعات");
-  const buffer = XLSX.write(wb, { type: "buffer", bookType: "xlsx" }) as Buffer;
-
-  return new Response(new Uint8Array(buffer), {
-    headers: {
-      "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-      "Content-Disposition": `attachment; filename="sales-ledger-${fmtDate(new Date())}.xlsx"`,
-    },
-  });
+  return xlsxBuild([headers, ...body, totalRow], "دفتر المبيعات", "sales-ledger", [16, 12, 24, 12, 14, 10, 10, 12, 12, 12, 14]);
 }

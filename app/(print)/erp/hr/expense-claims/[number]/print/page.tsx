@@ -1,9 +1,10 @@
 import { notFound } from "next/navigation";
+import { getLocale, getT } from "@/lib/i18n/server";
 import { and, eq } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
 import { expenseClaims, expenseClaimLines, accounts } from "@/db/schema";
-import { fmt, dt, money, toArabicWords } from "@/lib/erp/print-format";
+import { fmt, dt, money, amountInWords } from "@/lib/erp/print-format";
 import { loadPrintHeader } from "@/lib/erp/print-org";
 import { DocumentSheet } from "@/components/erp/print/document-sheet";
 import { docNumberParam } from "@/lib/erp/doc-route";
@@ -11,6 +12,8 @@ import { docNumberParam } from "@/lib/erp/doc-route";
 type Params = { params: Promise<{ number: string }> };
 
 export default async function PrintExpenseClaimPage({ params }: Params) {
+  const t = await getT();
+  const locale = await getLocale();
   const raw = (await params).number;
   return loadErpPage("accounting.view", async ({ orgId }) => {
     const number = await docNumberParam(raw, orgId, expenseClaims,
@@ -46,13 +49,13 @@ export default async function PrintExpenseClaimPage({ params }: Params) {
         org={org}
         hiddenColumns={hiddenFor("expense-claim")}
         footerText={footerText}
-        title="مطالبة مصروفات"
+        title={t("مطالبة مصروفات")}
         number={claim.number}
         backHref={`/hr/expense-claims/${encodeURIComponent(claim.number)}`}
-        watermark={claim.status !== "APPROVED" ? "مسودة" : undefined}
+        watermark={claim.status !== "APPROVED" ? t("مسودة") : undefined}
         meta={[
-          { label: "التاريخ", value: dt(claim.date) },
-          { label: "الحالة", value: claim.status === "APPROVED" ? "معتمد" : "مسودة" },
+          { label: "التاريخ", value: dt(claim.date, locale) },
+          { label: "الحالة", value: claim.status === "APPROVED" ? t("معتمد") : t("مسودة") },
         ]}
         parties={[
           { label: "الموظف", name: claim.employee, lines: [] },
@@ -71,8 +74,8 @@ export default async function PrintExpenseClaimPage({ params }: Params) {
           l.description ?? "—",
           <b key="t">{fmt(l.amount)}</b>,
         ])}
-        totals={[{ label: "الإجمالي", value: money(total, currency), tone: "strong" as const }]}
-        note={`فقط وقدره: ${toArabicWords(total)} جنيهاً مصرياً لا غير${claim.notes ? `\n${claim.notes}` : ""}`}
+        totals={[{ label: "الإجمالي", value: money(total, currency, locale), tone: "strong" as const }]}
+        note={`${amountInWords(total, locale, locale === "en" ? "Egyptian pounds" : t("جنيهاً مصرياً"))}${claim.notes ? `\n${claim.notes}` : ""}`}
         signatures={["الموظف", "المحاسب", "المعتمد"]}
       />
     );

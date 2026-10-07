@@ -1,5 +1,7 @@
 package com.sellerctrl.app.ui
 
+import com.sellerctrl.app.tr
+
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -71,32 +73,32 @@ fun AppCard(
 }
 
 /** Money with thousands separators + ج.م. */
-fun money(n: Double): String = String.format("%,.0f ج.م", n)
+fun money(n: Double): String = String.format(tr("%,.0f ج.م"), n)
 
 /** Arabic label for a document status enum. */
 fun statusAr(s: String): String = when (s) {
-    "DRAFT" -> "مسودة"
-    "CONFIRMED" -> "مؤكد"
-    "POSTED" -> "مُرحّل"
-    "DELIVERED" -> "مُسلّم"
-    "INVOICED" -> "مفوتر"
-    "CANCELLED" -> "ملغي"
-    "PARTIALLY_DELIVERED" -> "تسليم جزئي"
-    "PARTIALLY_RECEIVED" -> "استلام جزئي"
-    "RECEIVED" -> "مستلم"
-    "PAID" -> "مدفوع"
-    "PARTIAL_PAID", "PARTIALLY_PAID" -> "مدفوع جزئياً"
-    "UNPAID" -> "غير مدفوع"
-    "OVERDUE" -> "متأخر"
-    "APPROVED" -> "معتمد"
-    "REJECTED" -> "مرفوض"
-    "SENT" -> "مُرسل"
-    "ACCEPTED" -> "مقبول"
-    "ACTIVE" -> "نشط"
-    "OPEN" -> "مفتوح"
-    "DONE" -> "مكتمل"
-    "DISPOSED" -> "مستبعد"
-    "FULLY_DEPRECIATED" -> "مُستهلك بالكامل"
+    "DRAFT" -> tr("مسودة")
+    "CONFIRMED" -> tr("مؤكد")
+    "POSTED" -> tr("مُرحّل")
+    "DELIVERED" -> tr("مُسلّم")
+    "INVOICED" -> tr("مفوتر")
+    "CANCELLED" -> tr("ملغي")
+    "PARTIALLY_DELIVERED" -> tr("تسليم جزئي")
+    "PARTIALLY_RECEIVED" -> tr("استلام جزئي")
+    "RECEIVED" -> tr("مستلم")
+    "PAID" -> tr("مدفوع")
+    "PARTIAL_PAID", "PARTIALLY_PAID" -> tr("مدفوع جزئياً")
+    "UNPAID" -> tr("غير مدفوع")
+    "OVERDUE" -> tr("متأخر")
+    "APPROVED" -> tr("معتمد")
+    "REJECTED" -> tr("مرفوض")
+    "SENT" -> tr("مُرسل")
+    "ACCEPTED" -> tr("مقبول")
+    "ACTIVE" -> tr("نشط")
+    "OPEN" -> tr("مفتوح")
+    "DONE" -> tr("مكتمل")
+    "DISPOSED" -> tr("مستبعد")
+    "FULLY_DEPRECIATED" -> tr("مُستهلك بالكامل")
     else -> s
 }
 
@@ -105,15 +107,15 @@ fun ItemCard(item: ItemDto, modifier: Modifier = Modifier) {
     Card(modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp)) {
             Text(item.name, style = MaterialTheme.typography.titleMedium)
-            Text("كود: ${item.code}", style = MaterialTheme.typography.bodySmall)
+            Text(tr("كود: ${item.code}"), style = MaterialTheme.typography.bodySmall)
             Spacer(Modifier.height(10.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(20.dp)) {
-                Stat("المتاح", fmt(item.available))
-                Stat("الرصيد", fmt(item.stock))
-                Stat("محجوز", fmt(item.reserved))
+                Stat(tr("المتاح"), fmt(item.available))
+                Stat(tr("الرصيد"), fmt(item.stock))
+                Stat(tr("محجوز"), fmt(item.reserved))
             }
             Spacer(Modifier.height(8.dp))
-            Text("سعر البيع: ${fmt(item.sellPrice)} ج.م", style = MaterialTheme.typography.bodyMedium)
+            Text(tr("سعر البيع: ${fmt(item.sellPrice)} ج.م"), style = MaterialTheme.typography.bodyMedium)
         }
     }
 }

@@ -2,6 +2,8 @@ import { withOrgScope } from "@/lib/db-scope";
 import { requireErpModule } from "@/lib/erp/org";
 import { getPartyStatement, statementPeriod, STATEMENT_TYPE_AR } from "@/lib/erp/party-statement";
 import { xlsxResponse, xlsxDate } from "@/lib/erp/xlsx";
+import { getT } from "@/lib/i18n/server";
+import { fill } from "@/lib/i18n";
 
 export const runtime = "nodejs";
 
@@ -11,20 +13,21 @@ export async function GET(req: Request) {
   const p = new URL(req.url).searchParams;
   const customerId = p.get("customerId");
   const partyId = customerId ?? p.get("supplierId");
-  if (!partyId) return new Response("اختر عميلاً أو مورّدًا", { status: 400 });
+  if (!partyId) return new Response((await getT())("اختر عميلاً أو مورّدًا"), { status: 400 });
   const kind = customerId ? "customer" : "supplier";
   const { from, to } = statementPeriod({ from: p.get("from") ?? undefined, to: p.get("to") ?? undefined });
 
   return withOrgScope(orgId, false, async () => {
     const st = await getPartyStatement(orgId, kind, partyId, from, to);
-    if (!st.name) return new Response("غير موجود", { status: 404 });
+    const t = await getT();
+    if (!st.name) return new Response(t("غير موجود"), { status: 404 });
     const title = kind === "customer" ? "كشف حساب عميل" : "كشف حساب مورّد";
     return xlsxResponse({
       sheet: title,
       filename: `${kind}-statement`,
       headers: ["التاريخ", "المستند", "البيان", "النوع", "مدين", "دائن", "الرصيد"],
       rows: [
-        [`${title}: ${st.name}`, "", `من ${xlsxDate(from)} إلى ${xlsxDate(to)}`, "", "", "", ""],
+        [`${t(title)}: ${st.name}`, "", fill(t("من {0} إلى {1}"), [xlsxDate(from), xlsxDate(to)]), "", "", "", ""],
         // A positive opening is a debit for a customer (owes us) and a credit for a supplier (we owe).
         [xlsxDate(from), "—", "رصيد افتتاحي", "", (kind === "customer" ? st.opening : -st.opening) > 0 ? Math.abs(st.opening) : "",
           (kind === "customer" ? st.opening : -st.opening) < 0 ? Math.abs(st.opening) : "", st.opening],

@@ -13,10 +13,12 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { setActiveOrgAction } from "@/app/actions/org";
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/i18n/client";
 
 type Org = { id: string; nameAr: string };
 
 export function OrgSwitcher({ orgs = [], activeId }: { orgs?: Org[]; activeId: string | null }) {
+  const t = useT();
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [current, setCurrent] = useState(activeId);
@@ -59,7 +61,7 @@ export function OrgSwitcher({ orgs = [], activeId }: { orgs?: Org[]; activeId: s
         <ChevronsUpDown className="size-3.5 shrink-0 text-muted-foreground" />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-60">
-        <DropdownMenuLabel>المؤسسة النشطة</DropdownMenuLabel>
+        <DropdownMenuLabel>{t("المؤسسة النشطة")}</DropdownMenuLabel>
         <DropdownMenuSeparator />
         {orgs.map((o) => (
           <DropdownMenuItem key={o.id} onClick={() => select(o.id)} className="gap-2">

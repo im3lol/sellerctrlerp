@@ -12,6 +12,7 @@ import { connectorConfigured } from "@/lib/saas/connector-configured";
 import { sendEmail } from "@/lib/erp/email";
 import { bustTelegramConfig, getTelegramConfig } from "@/lib/saas/telegram";
 import { tg, webhookSecretForToken } from "@/lib/erp/telegram";
+import { getT } from "@/lib/i18n/server";
 
 const SINGLETON = "singleton";
 type Res = { ok: true } | { error: string };
@@ -162,11 +163,12 @@ export async function testEmailSettingsAction(): Promise<Res> {
   const user = await requireCapability("employee.manage");
   if (!user.email) return { error: "ليس لحسابك بريد إلكتروني لاستقبال رسالة الاختبار" };
   try {
+    const t = await getT();
     const sent = await sendEmail({
       to: user.email,
-      subject: "SellerCtrl — اختبار البريد الإلكتروني",
-      text: "تم الاتصال بخادم البريد بنجاح. هذه رسالة اختبار من SellerCtrl.",
-      html: "<p>تم الاتصال بخادم البريد بنجاح.</p><p>هذه رسالة اختبار من <strong>SellerCtrl</strong>.</p>",
+      subject: `SellerCtrl — ${t("اختبار البريد الإلكتروني")}`,
+      text: `${t("تم الاتصال بخادم البريد بنجاح.")} ${t("هذه رسالة اختبار من SellerCtrl.")}`,
+      html: `<p>${t("تم الاتصال بخادم البريد بنجاح.")}</p><p>${t("هذه رسالة اختبار من SellerCtrl.")}</p>`,
     });
     return sent ? { ok: true } : { error: "تعذّر الإرسال. راجع بيانات SMTP أو كلمة مرور التطبيق." };
   } catch {

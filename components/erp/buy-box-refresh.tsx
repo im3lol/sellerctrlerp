@@ -1,23 +1,25 @@
 "use client";
 
 import { useTransition } from "react";
+import { useT } from "@/lib/i18n/client";
 import { useRouter } from "next/navigation";
-import { toast } from "sonner";
+import { toast } from "@/lib/i18n/toast";
 import { startOffersRefreshAction } from "@/app/actions/erp/buy-box";
 import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/icon";
 
 export function BuyBoxRefresh({ code }: { code: string }) {
+  const t = useT();
   const router = useRouter();
   const [pending, start] = useTransition();
   return (
     <Button variant="outline" disabled={pending} onClick={() => start(async () => {
       const r = await startOffersRefreshAction(code);
-      if (!r.ok) { toast.error(r.error ?? "تعذّر التحديث"); return; }
-      toast.success(r.started ? "بدأ التحديث — الأرقام هتتحدّث خلال دقيقة أو اتنين" : "اتحدّث");
+      if (!r.ok) { toast.error(r.error ?? t("تعذّر التحديث")); return; }
+      toast.success(r.started ? t("بدأ التحديث — الأرقام هتتحدّث خلال دقيقة أو اتنين") : t("اتحدّث"));
       router.refresh();
     })}>
-      {pending ? <Icon name="Loader2" className="size-4 animate-spin" /> : <Icon name="RefreshCw" className="size-4" />}حدّث دلوقتي
+      {pending ? <Icon name="Loader2" className="size-4 animate-spin" /> : <Icon name="RefreshCw" className="size-4" />}{t("حدّث دلوقتي")}
     </Button>
   );
 }

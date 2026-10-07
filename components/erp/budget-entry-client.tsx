@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { toast } from "sonner";
+import { useT } from "@/lib/i18n/client";
+import { toast } from "@/lib/i18n/toast";
 import { saveBudgetAction } from "@/app/actions/erp/budget";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -17,6 +18,7 @@ export function BudgetEntryClient({
   rows,
   canEdit,
 }: { year: number; rows: Row[]; canEdit: boolean }) {
+  const t = useT();
   const [budgets, setBudgets] = useState<Record<string, string>>(
     () => Object.fromEntries(rows.map((r) => [r.id, r.budget > 0 ? String(r.budget) : ""])),
   );
@@ -38,7 +40,7 @@ export function BudgetEntryClient({
       if (res.ok) {
         toast.success("تم حفظ الميزانية");
       } else {
-        toast.error(res.error ?? "تعذّر الحفظ");
+        toast.error(res.error ?? t("تعذّر الحفظ"));
       }
     });
   }
@@ -48,15 +50,15 @@ export function BudgetEntryClient({
       {/* Summary tiles */}
       <div className="grid grid-cols-3 gap-4">
         <div className="rounded-xl border bg-muted/30 p-4 text-center">
-          <p className="text-xs text-muted-foreground">ميزانية الإيرادات</p>
+          <p className="text-xs text-muted-foreground">{t("ميزانية الإيرادات")}</p>
           <p className="text-xl font-bold tabular-nums text-success">{fmt(totalRevBudget)}</p>
         </div>
         <div className="rounded-xl border bg-muted/30 p-4 text-center">
-          <p className="text-xs text-muted-foreground">ميزانية المصروفات</p>
+          <p className="text-xs text-muted-foreground">{t("ميزانية المصروفات")}</p>
           <p className="text-xl font-bold tabular-nums text-destructive">{fmt(totalExpBudget)}</p>
         </div>
         <div className="rounded-xl border bg-muted/30 p-4 text-center">
-          <p className="text-xs text-muted-foreground">صافي الميزانية</p>
+          <p className="text-xs text-muted-foreground">{t("صافي الميزانية")}</p>
           <p className={`text-xl font-bold tabular-nums ${totalRevBudget - totalExpBudget >= 0 ? "text-success" : "text-destructive"}`}>
             {fmt(totalRevBudget - totalExpBudget)}
           </p>
@@ -66,7 +68,7 @@ export function BudgetEntryClient({
       {/* Revenue accounts */}
       {revenues.length > 0 && (
         <AccountSection
-          title="الإيرادات"
+          title={t("الإيرادات")}
           rows={revenues}
           budgets={budgets}
           canEdit={canEdit}
@@ -79,7 +81,7 @@ export function BudgetEntryClient({
       {/* Expense accounts */}
       {expenses.length > 0 && (
         <AccountSection
-          title="المصروفات"
+          title={t("المصروفات")}
           rows={expenses}
           budgets={budgets}
           canEdit={canEdit}
@@ -93,11 +95,11 @@ export function BudgetEntryClient({
         <div className="flex gap-3">
           <Button onClick={handleSave} disabled={pending}>
             {pending ? <Icon name="Loader2" className="size-4 animate-spin" /> : <Icon name="Save" className="size-4" />}
-            حفظ الميزانية
+            {t("حفظ الميزانية")}
           </Button>
           <Button variant="outline" asChild>
             <Link href={`/accounting/budget/${year}/report`}>
-              <Icon name="BarChart2" className="size-4" />عرض التقرير
+              <Icon name="BarChart2" className="size-4" />{t("عرض التقرير")}
             </Link>
           </Button>
         </div>
@@ -117,6 +119,7 @@ function AccountSection({
   total: number;
   color: string;
 }) {
+  const t = useT();
   return (
     <Card>
       <CardHeader className="pb-3">
@@ -129,15 +132,15 @@ function AccountSection({
         <table className="w-full text-sm">
           <thead className="border-b bg-muted/30 text-xs text-muted-foreground">
             <tr>
-              <th className="px-4 py-2 text-start">الحساب</th>
-              <th className="px-4 py-2 text-start w-24">الكود</th>
-              <th className="px-4 py-2 text-end w-44">الميزانية</th>
+              <th className="px-4 py-2 text-start">{t("الحساب")}</th>
+              <th className="px-4 py-2 text-start w-24">{t("الكود")}</th>
+              <th className="px-4 py-2 text-end w-44">{t("الميزانية")}</th>
             </tr>
           </thead>
           <tbody>
             {rows.map((r) => (
               <tr key={r.id} className="border-b last:border-0 hover:bg-muted/20">
-                <td className="px-4 py-2">{r.nameAr}</td>
+                <td className="px-4 py-2">{t(r.nameAr)}</td>
                 <td className="px-4 py-2 font-mono text-muted-foreground">{r.code}</td>
                 <td className="px-4 py-2 text-end">
                   {canEdit ? (

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useT } from "@/lib/i18n/client";
 import { bulkStockAdjustmentsAction, type AdjustmentsFilter } from "@/app/actions/erp/stock-adjustments";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -23,6 +24,7 @@ const intl = (n: number) => n.toLocaleString("ar-EG-u-nu-latn");
 const dt = (d: Date) => new Date(d).toLocaleDateString("ar-EG-u-nu-latn", { year: "numeric", month: "2-digit", day: "2-digit" });
 
 export function AdjustmentsTable({ rows, canConfirm, canCreate, total, filter }: { rows: Row[]; canConfirm: boolean; canCreate: boolean; total: number; filter: AdjustmentsFilter }) {
+  const t = useT();
   const sel = useSelection(total);
   const pageIds = rows.map((r) => r.id);
   const showSelect = canConfirm || canCreate;
@@ -39,7 +41,7 @@ export function AdjustmentsTable({ rows, canConfirm, canCreate, total, filter }:
           ops={ops}
           action={(op, ids, allPages) => bulkStockAdjustmentsAction(op, allPages ? [] : ids, allPages ? filter : undefined)}
           onDone={sel.clear}
-          entity="تسوية"
+          entity={t("تسوية")}
           all={{ total, active: sel.allPages, canOffer: sel.allOf(pageIds) && total > pageIds.length, onSelectAll: sel.selectAllPages }}
         />
       )}
@@ -48,16 +50,16 @@ export function AdjustmentsTable({ rows, canConfirm, canCreate, total, filter }:
           <TableRow>
             {showSelect && (
               <TableHead className="w-10">
-                <SelectBox checked={sel.allOf(pageIds)} indeterminate={sel.someOf(pageIds)} onChange={() => sel.togglePage(pageIds)} label="تحديد الكل" />
+                <SelectBox checked={sel.allOf(pageIds)} indeterminate={sel.someOf(pageIds)} onChange={() => sel.togglePage(pageIds)} label={t("تحديد الكل")} />
               </TableHead>
             )}
-            <TableHead className="text-start">الرقم</TableHead>
-            <TableHead className="text-start">التاريخ</TableHead>
-            <TableHead className="text-start">الوصف</TableHead>
-            <TableHead className="text-start">عدد الأصناف</TableHead>
-            <TableHead className="text-start">صافي الفرق</TableHead>
-            <TableHead className="text-start">القيمة</TableHead>
-            <TableHead className="text-start">الحالة</TableHead>
+            <TableHead className="text-start">{t("الرقم")}</TableHead>
+            <TableHead className="text-start">{t("التاريخ")}</TableHead>
+            <TableHead className="text-start">{t("الوصف")}</TableHead>
+            <TableHead className="text-start">{t("عدد الأصناف")}</TableHead>
+            <TableHead className="text-start">{t("صافي الفرق")}</TableHead>
+            <TableHead className="text-start">{t("القيمة")}</TableHead>
+            <TableHead className="text-start">{t("الحالة")}</TableHead>
             <TableHead className="text-start"></TableHead>
           </TableRow>
         </TableHeader>
@@ -68,21 +70,21 @@ export function AdjustmentsTable({ rows, canConfirm, canCreate, total, filter }:
               <TableRow key={r.id} data-state={selectable && sel.has(r.id) ? "selected" : undefined}>
                 {showSelect && (
                   <TableCell>
-                    {selectable && <SelectBox checked={sel.has(r.id)} onChange={() => sel.toggle(r.id)} label="تحديد" />}
+                    {selectable && <SelectBox checked={sel.has(r.id)} onChange={() => sel.toggle(r.id)} label={t("تحديد")} />}
                   </TableCell>
                 )}
                 <TableCell>
                   <Link href={`/inventory/adjustments/${encodeURIComponent(r.number)}`} className="font-mono hover:text-primary">{r.number}</Link>
                 </TableCell>
                 <TableCell className="whitespace-nowrap">{dt(r.date)}</TableCell>
-                <TableCell><Badge variant="secondary">{r.reason ?? "—"}</Badge></TableCell>
+                <TableCell><Badge variant="secondary">{t(r.reason ?? "—")}</Badge></TableCell>
                 <TableCell>{intl(r.count)}</TableCell>
                 <TableCell className={r.delta < 0 ? "text-destructive" : r.delta > 0 ? "text-emerald-600" : ""}>{r.delta > 0 ? "+" : ""}{intl(r.delta)}</TableCell>
                 <TableCell>{fmt(r.totalValue)}</TableCell>
-                <TableCell><Badge variant={r.status === "POSTED" ? "default" : "secondary"}>{r.status === "POSTED" ? "مرحّل" : "مسودة"}</Badge></TableCell>
+                <TableCell><Badge variant={r.status === "POSTED" ? "default" : "secondary"}>{r.status === "POSTED" ? t("مرحّل") : t("مسودة")}</Badge></TableCell>
                 <TableCell>
                   <Link href={`/inventory/adjustments/${encodeURIComponent(r.number)}`} className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-primary">
-                    {r.status === "DRAFT" ? "مراجعة وتأكيد" : "عرض"}<Icon name="ChevronLeft" className="size-4" />
+                    {r.status === "DRAFT" ? t("مراجعة وتأكيد") : t("عرض")}<Icon name="ChevronLeft" className="size-4" />
                   </Link>
                 </TableCell>
               </TableRow>

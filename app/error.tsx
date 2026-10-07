@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useT } from "@/lib/i18n/client";
 
 export default function Error({
   error,
@@ -11,6 +12,7 @@ export default function Error({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  const t = useT();
   useEffect(() => {
     console.error(error);
   }, [error]);
@@ -21,10 +23,10 @@ export default function Error({
         <AlertTriangle className="size-8" />
       </div>
       <div className="space-y-2">
-        <h1 className="text-xl font-bold">حدث خطأ غير متوقع</h1>
-        <p className="text-muted-foreground">نعتذر عن الإزعاج. يمكنك المحاولة مرة أخرى.</p>
+        <h1 className="text-xl font-bold">{t("حدث خطأ غير متوقع")}</h1>
+        <p className="text-muted-foreground">{t("نعتذر عن الإزعاج. يمكنك المحاولة مرة أخرى.")}</p>
       </div>
-      <Button onClick={reset}>إعادة المحاولة</Button>
+      <Button onClick={reset}>{t("إعادة المحاولة")}</Button>
     </main>
   );
 }

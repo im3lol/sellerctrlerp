@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { getLocale, getT } from "@/lib/i18n/server";
 import { and, eq } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
@@ -12,6 +13,8 @@ type Params = { params: Promise<{ number: string }> };
 const STATUS: Record<string, string> = { DRAFT: "مسودة", POSTED: "مرتجع مُرحّل", CANCELLED: "ملغى" };
 
 export default async function PrintSalesReturnPage({ params }: Params) {
+  const t = await getT();
+  const locale = await getLocale();
   const raw = decodeURIComponent((await params).number);
   return loadErpPage("sales.view", async ({ orgId }) => {
     const [ret] = await db
@@ -51,12 +54,12 @@ export default async function PrintSalesReturnPage({ params }: Params) {
         org={org}
         hiddenColumns={hiddenFor("sales-return")}
         footerText={footerText}
-        title="مرتجع بيع"
+        title={t("مرتجع بيع")}
         number={ret.number}
         backHref={`/sales/returns/${encodeURIComponent(raw)}`}
-        watermark={ret.status === "DRAFT" ? "مسودة" : undefined}
+        watermark={ret.status === "DRAFT" ? t("مسودة") : undefined}
         meta={[
-          { label: "التاريخ", value: dt(ret.date) },
+          { label: "التاريخ", value: dt(ret.date, locale) },
           { label: "الحالة", value: STATUS[ret.status] ?? ret.status },
           ...(si ? [{ label: "مرجع الفاتورة", value: si.number }] : []),
           ...(dn ? [{ label: "إذن الصرف", value: dn.number }] : []),
@@ -76,7 +79,7 @@ export default async function PrintSalesReturnPage({ params }: Params) {
         rows={lines.map((l, i) => [
           <span key="i" style={{ color: "#8a93a6" }}>{i + 1}</span>,
           <span key="n">
-            <b>{l.name}</b>
+            <b>{t(l.name ?? "")}</b>
             {l.code && <span dir="ltr" style={{ color: "#8a93a6", fontSize: 10.5, marginInlineStart: 6 }}>{l.code}</span>}
           </span>,
           qty(l.qty),
@@ -84,7 +87,7 @@ export default async function PrintSalesReturnPage({ params }: Params) {
           <b key="t">{fmt(l.total)}</b>,
         ])}
         totals={[
-          { label: "الإجمالي", value: money(ret.totalAmount, currency), tone: "strong" as const },
+          { label: "الإجمالي", value: money(ret.totalAmount, currency, locale), tone: "strong" as const },
         ]}
         note={ret.notes}
       />

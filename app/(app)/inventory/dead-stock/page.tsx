@@ -82,7 +82,7 @@ export default async function DeadStockPage({ searchParams }: { searchParams: Pr
           <>
             <ReportField label={t("فترة القياس")}>
               <select name="days" defaultValue={String(days)} className={filterFieldCls}>
-                {DAYS.map((d) => <option key={d} value={d}>آخر {d} يوم</option>)}
+                {DAYS.map((d) => <option key={d} value={d}>{t("آخر")} {d} {t("يوم")}</option>)}
               </select>
             </ReportField>
             <ReportField label={t("بحث")}>
@@ -120,13 +120,13 @@ export default async function DeadStockPage({ searchParams }: { searchParams: Pr
                 <TableBody>
                   {list.map((r, i) => (
                     <TableRow key={r.code ?? i}>
-                      <TableCell className="max-w-[320px] whitespace-normal"><div className="line-clamp-2 leading-snug" title={r.name ?? undefined}><span className="font-mono text-xs text-muted-foreground">{r.code}</span> {r.name}</div></TableCell>
+                      <TableCell className="max-w-[320px] whitespace-normal"><div className="line-clamp-2 leading-snug" title={r.name ?? undefined}><span className="font-mono text-xs text-muted-foreground">{r.code}</span> {t(r.name ?? "")}</div></TableCell>
                       <TableCell className="text-end tabular-nums">{qtyf(r.qty)}</TableCell>
                       <TableCell className="text-end tabular-nums font-medium">{fmt(r.val)}</TableCell>
                       <TableCell className="text-end tabular-nums">{qtyf(r.sold)}</TableCell>
                       <TableCell className="text-end tabular-nums text-muted-foreground">{dt(r.last)}</TableCell>
                       <TableCell className="text-end tabular-nums">{Number.isFinite(r.cover) ? Math.round(r.cover) : "∞"}</TableCell>
-                      <TableCell><Badge variant={r.tone}>{r.status}</Badge></TableCell>
+                      <TableCell><Badge variant={r.tone}>{t(r.status)}</Badge></TableCell>
                     </TableRow>
                   ))}
                 </TableBody>

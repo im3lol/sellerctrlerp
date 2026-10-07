@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { fill } from "@/lib/i18n";
 import { getT } from "@/lib/i18n/server";
 import { loadErpPage } from "@/lib/erp/org";
 import { getStockBalances } from "@/lib/erp/stock-balances";
@@ -52,7 +53,7 @@ export default async function StockBalancePage({ searchParams }: { searchParams:
         reportKey="inv-stock"
         icon="Boxes"
         title={t("أرصدة المخزون")}
-        subtitle={`${lines.length} صنف`}
+        subtitle={fill(t("{0} صنف"), [lines.length])}
         query={filterQs().toString()}
         permissions={permissions}
       >
@@ -64,7 +65,7 @@ export default async function StockBalancePage({ searchParams }: { searchParams:
           <CardContent className="space-y-4">
             <details open={hasFilters} className="rounded-lg border">
               <summary className="flex cursor-pointer select-none items-center gap-2 px-4 py-2 text-sm font-medium">
-                <Icon name="ListFilter" className="size-4" /> بحث وتصفية
+                <Icon name="ListFilter" className="size-4" /> {t("بحث وتصفية")}
               </summary>
               <form className="grid gap-3 p-4 pt-0 sm:grid-cols-4 items-end">
                 <div className="space-y-1 sm:col-span-2">
@@ -75,14 +76,14 @@ export default async function StockBalancePage({ searchParams }: { searchParams:
                   <Label htmlFor="warehouse">{t("المستودع")}</Label>
                   <select id="warehouse" name="warehouse" defaultValue={fWarehouse} className={selectCls}>
                     <option value="">{t("كل المستودعات")}</option>
-                    {whList.map((w) => <option key={w.id} value={w.id}>{w.nameAr}</option>)}
+                    {whList.map((w) => <option key={w.id} value={w.id}>{t(w.nameAr)}</option>)}
                   </select>
                 </div>
                 <div className="space-y-1">
                   <Label htmlFor="status">{t("الحالة")}</Label>
                   <select id="status" name="status" defaultValue={fStatus} className={selectCls}>
                     <option value="">{t("كل الحالات")}</option>
-                    {STATUS_OPTIONS.map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                    {STATUS_OPTIONS.map(([k, v]) => <option key={k} value={k}>{t(v)}</option>)}
                   </select>
                 </div>
                 <div className="flex gap-2 sm:col-span-4">
@@ -93,7 +94,7 @@ export default async function StockBalancePage({ searchParams }: { searchParams:
             </details>
 
             {allLines.length === 0 ? (
-              <div className="rounded-xl border border-dashed py-12 text-center text-muted-foreground">{hasFilters ? "لا توجد أرصدة مطابقة." : "لا توجد حركات مخزون بعد."}</div>
+              <div className="rounded-xl border border-dashed py-12 text-center text-muted-foreground">{hasFilters ? t("لا توجد أرصدة مطابقة.") : t("لا توجد حركات مخزون بعد.")}</div>
             ) : (
               <>
               <Table>
@@ -113,7 +114,7 @@ export default async function StockBalancePage({ searchParams }: { searchParams:
                   {lines.map((l, i) => (
                     <TableRow key={i}>
                       <TableCell className="font-mono whitespace-nowrap"><Link href={`/inventory/items/${l.itemId}`} className="text-primary hover:underline">{l.code}</Link></TableCell>
-                      <TableCell className="max-w-[300px] whitespace-normal"><div dir="ltr" className="line-clamp-2 text-start leading-snug" title={l.name ?? undefined}>{l.name}</div></TableCell>
+                      <TableCell className="max-w-[300px] whitespace-normal"><div dir="ltr" className="line-clamp-2 text-start leading-snug" title={l.name ?? undefined}>{t(l.name)}</div></TableCell>
                       <TableCell className="whitespace-nowrap">{l.warehouse}</TableCell>
                       <TableCell>{qty(l.quantity)}</TableCell>
                       <TableCell>{fmt(l.avgCost)}</TableCell>
@@ -138,7 +139,7 @@ export default async function StockBalancePage({ searchParams }: { searchParams:
                   </TableRow>
                 </TableFooter>
               </Table>
-              <Pagination page={page} pages={pages} total={allLines.length} unit="صنف/مستودع" basePath="/inventory/stock" params={{ product: fProduct, warehouse: fWarehouse, status: fStatus }} />
+              <Pagination page={page} pages={pages} total={allLines.length} unit={t("صنف/مستودع")} basePath="/inventory/stock" params={{ product: fProduct, warehouse: fWarehouse, status: fStatus }} />
               </>
             )}
           </CardContent>

@@ -1,4 +1,6 @@
 import { withPlatformScope } from "@/lib/db-scope";
+import { fill } from "@/lib/i18n";
+import { getLocale, getT } from "@/lib/i18n/server";
 import { desc, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { feedback, organizations, users } from "@/db/schema";
@@ -13,6 +15,8 @@ import { FeedbackInbox } from "@/components/admin/feedback-inbox";
  * only); the reply action re-checks employee.manage.
  */
 export default async function AdminFeedbackPage() {
+  const t = await getT();
+  const locale = await getLocale();
   return withPlatformScope(async () => {
     const rows = await db.select({
       id: feedback.id,
@@ -35,15 +39,15 @@ export default async function AdminFeedbackPage() {
 
     const items = rows.map((r) => ({
       ...r,
-      createdAt: r.createdAt.toLocaleDateString("ar-EG", { year: "numeric", month: "long", day: "numeric" }),
+      createdAt: r.createdAt.toLocaleDateString(locale === "en" ? "en-GB" : "ar-EG", { year: "numeric", month: "long", day: "numeric" }),
     }));
 
     const open = items.filter((i) => i.status === "open").length;
 
     return (
       <div className="space-y-6">
-        <PageHeader title="الاقتراحات والشكاوى"
-          description={open > 0 ? `${open} رسالة جديدة محتاجة رد.` : "كل اللي وصل من العملاء."} />
+        <PageHeader title={t("الاقتراحات والشكاوى")}
+          description={open > 0 ? fill(t("{0} رسالة جديدة محتاجة رد."), [open]) : t("كل اللي وصل من العملاء.")} />
         <FeedbackInbox items={items} />
       </div>
     );

@@ -1,9 +1,11 @@
 "use client";
 
 import { useActionState, useEffect, useState, useTransition } from "react";
+import { fill } from "@/lib/i18n";
+import { useT } from "@/lib/i18n/client";
 import { useFormStatus } from "react-dom";
 import { Plus, Pencil, Trash2, Loader2 } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "@/lib/i18n/toast";
 import { saveCustomerAction, deleteCustomerAction, bulkDeleteCustomersAction, linkCustomerPortalUserAction, type ActionState } from "@/app/actions/erp/customers";
 import { exportCustomersCsvAction } from "@/app/actions/erp/exports";
 import { ExportCsvButton } from "@/components/erp/export-csv-button";
@@ -33,11 +35,12 @@ export type PriceListOption = { id: string; nameAr: string };
 const fmt = (v: string | null) => Number(v ?? 0).toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 function SubmitBtn() {
+  const t = useT();
   const { pending } = useFormStatus();
   return (
     <Button type="submit" disabled={pending}>
       {pending && <Loader2 className="size-4 animate-spin" />}
-      حفظ
+      {t("حفظ")}
     </Button>
   );
 }
@@ -46,6 +49,7 @@ function CustomerDialog({
   priceLists,
   open, onOpenChange, editing,
 }: { open: boolean; onOpenChange: (o: boolean) => void; editing: Customer | null; priceLists: PriceListOption[] }) {
+  const t = useT();
   const [state, formAction] = useActionState<ActionState, FormData>(saveCustomerAction, {});
   useEffect(() => {
     if (state.ok) { toast.success("تم الحفظ"); onOpenChange(false); }
@@ -57,41 +61,41 @@ function CustomerDialog({
       <DialogContent>
         <form action={formAction} className="space-y-4">
           <DialogHeader>
-            <DialogTitle>{editing ? "تعديل عميل" : "عميل جديد"}</DialogTitle>
-            <DialogDescription>بيانات العميل للمؤسسة النشطة.</DialogDescription>
+            <DialogTitle>{editing ? t("تعديل عميل") : t("عميل جديد")}</DialogTitle>
+            <DialogDescription>{t("بيانات العميل للمؤسسة النشطة.")}</DialogDescription>
           </DialogHeader>
           {editing && <input type="hidden" name="id" value={editing.id} />}
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">
-              <Label htmlFor="c-code">الكود</Label>
-              <Input id="c-code" name="code" defaultValue={editing?.code} placeholder="تلقائي إن تُرك فارغاً" />
+              <Label htmlFor="c-code">{t("الكود")}</Label>
+              <Input id="c-code" name="code" defaultValue={editing?.code} placeholder={t("تلقائي إن تُرك فارغاً")} />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="c-name">الاسم</Label>
+              <Label htmlFor="c-name">{t("الاسم")}</Label>
               <Input id="c-name" name="nameAr" defaultValue={editing?.nameAr} required />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="c-phone">الهاتف</Label>
+              <Label htmlFor="c-phone">{t("الهاتف")}</Label>
               <Input id="c-phone" name="phone" defaultValue={editing?.phone ?? ""} dir="ltr" />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="c-email">البريد</Label>
+              <Label htmlFor="c-email">{t("البريد")}</Label>
               <Input id="c-email" name="email" type="email" defaultValue={editing?.email ?? ""} dir="ltr" />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="c-credit">حد الائتمان</Label>
+              <Label htmlFor="c-credit">{t("حد الائتمان")}</Label>
               <Input id="c-credit" name="creditLimit" type="number" step="0.01" defaultValue={editing?.creditLimit ?? "0"} />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="c-terms">مدة السداد (يوم)</Label>
+              <Label htmlFor="c-terms">{t("مدة السداد (يوم)")}</Label>
               <Input id="c-terms" name="paymentTerms" type="number" defaultValue={editing?.paymentTerms ?? 30} />
             </div>
             {priceLists.length > 0 && (
               <div className="space-y-2">
-                <Label htmlFor="c-pricelist">قائمة الأسعار</Label>
+                <Label htmlFor="c-pricelist">{t("قائمة الأسعار")}</Label>
                 <select id="c-pricelist" name="priceListId" className={selectCls} defaultValue={editing?.priceListId ?? ""}>
-                  <option value="">الافتراضية للشركة</option>
-                  {priceLists.map((p) => <option key={p.id} value={p.id}>{p.nameAr}</option>)}
+                  <option value="">{t("الافتراضية للشركة")}</option>
+                  {priceLists.map((p) => <option key={p.id} value={p.id}>{t(p.nameAr)}</option>)}
                 </select>
               </div>
             )}
@@ -108,6 +112,7 @@ function CustomerDialog({
 function PortalLinkDialog({
   open, onOpenChange, customer,
 }: { open: boolean; onOpenChange: (o: boolean) => void; customer: Customer | null }) {
+  const t = useT();
   const [email, setEmail] = useState(customer?.email ?? "");
   const [pending, start] = useTransition();
 
@@ -116,8 +121,8 @@ function PortalLinkDialog({
   const handle = () => {
     start(async () => {
       const r = await linkCustomerPortalUserAction({ customerId: customer.id, email });
-      if (r.ok) { toast.success(email ? "تم الربط بالبوابة" : "تم إلغاء الربط"); onOpenChange(false); }
-      else toast.error(r.error ?? "تعذّر الربط");
+      if (r.ok) { toast.success(email ? t("تم الربط بالبوابة") : t("تم إلغاء الربط")); onOpenChange(false); }
+      else toast.error(r.error ?? t("تعذّر الربط"));
     });
   };
 
@@ -125,11 +130,11 @@ function PortalLinkDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>ربط ببوابة العميل — {customer.nameAr}</DialogTitle>
-          <DialogDescription>ادخل بريد المستخدم (دور: client) لربطه بهذا العميل. اتركه فارغاً لإلغاء الربط.</DialogDescription>
+          <DialogTitle>{t("ربط ببوابة العميل —")} {t(customer.nameAr)}</DialogTitle>
+          <DialogDescription>{t("ادخل بريد المستخدم (دور: client) لربطه بهذا العميل. اتركه فارغاً لإلغاء الربط.")}</DialogDescription>
         </DialogHeader>
         <div className="space-y-2">
-          <Label>البريد الإلكتروني للمستخدم</Label>
+          <Label>{t("البريد الإلكتروني للمستخدم")}</Label>
           <input
             type="email"
             value={email}
@@ -139,13 +144,13 @@ function PortalLinkDialog({
             className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-ring"
           />
           {customer.portalUserId && (
-            <p className="text-xs text-success">مرتبط حالياً ببوابة عميل.</p>
+            <p className="text-xs text-success">{t("مرتبط حالياً ببوابة عميل.")}</p>
           )}
         </div>
         <DialogFooter>
           <Button onClick={handle} disabled={pending}>
             {pending ? <Loader2 className="size-4 animate-spin" /> : null}
-            {email ? "ربط" : "إلغاء الربط"}
+            {email ? t("ربط") : t("إلغاء الربط")}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -154,6 +159,7 @@ function PortalLinkDialog({
 }
 
 export function CustomersManager({ customers, canManage, title, kpis, priceLists = [] }: { customers: Customer[]; canManage: boolean; title?: string; kpis?: React.ReactNode; priceLists?: PriceListOption[] }) {
+  const t = useT();
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Customer | null>(null);
   const [portalOpen, setPortalOpen] = useState(false);
@@ -169,83 +175,83 @@ export function CustomersManager({ customers, canManage, title, kpis, priceLists
     startTransition(async () => {
       const r = await deleteCustomerAction(c.id);
       if (r.ok) toast.success("تم الحذف");
-      else toast.error(r.error ?? "تعذّر الحذف");
+      else toast.error(r.error ?? t("تعذّر الحذف"));
     });
 
   const addBtn = (
     <div className="flex items-center gap-2">
       <ExportCsvButton action={exportCustomersCsvAction} />
-      {canManage && <Button onClick={openCreate}><Plus className="size-4" />عميل جديد</Button>}
+      {canManage && <Button onClick={openCreate}><Plus className="size-4" />{t("عميل جديد")}</Button>}
     </div>
   );
 
   return (
     <div className="space-y-6">
-      {title && <ErpPageHeader icon="ShoppingCart" title={title} subtitle={`${customers.length.toLocaleString("ar-EG-u-nu-latn")} عميل`} action={addBtn} />}
+      {title && <ErpPageHeader icon="ShoppingCart" title={title} subtitle={fill(t("{0} عميل"), [customers.length.toLocaleString("ar-EG-u-nu-latn")])} action={addBtn} />}
       {kpis}
       <Card>
       <CardHeader className="flex-row items-center justify-between">
         <div>
-          <CardTitle>العملاء</CardTitle>
-          <CardDescription>عملاء المؤسسة النشطة وأرصدتهم.</CardDescription>
+          <CardTitle>{t("العملاء")}</CardTitle>
+          <CardDescription>{t("عملاء المؤسسة النشطة وأرصدتهم.")}</CardDescription>
         </div>
         {!title && addBtn}
       </CardHeader>
       <CardContent>
         {customers.length === 0 ? (
-          <div className="rounded-xl border border-dashed py-12 text-center text-muted-foreground">لا يوجد عملاء بعد.</div>
+          <div className="rounded-xl border border-dashed py-12 text-center text-muted-foreground">{t("لا يوجد عملاء بعد.")}</div>
         ) : (
           <>
-          {canManage && <BulkDeleteBar ids={sel.ids} action={bulkDeleteCustomersAction} onDone={sel.clear} entity="عميل" />}
+          {canManage && <BulkDeleteBar ids={sel.ids} action={bulkDeleteCustomersAction} onDone={sel.clear} entity={t("عميل")} />}
           <Table>
             <TableHeader>
               <TableRow>
-                {canManage && <TableHead className="w-10"><SelectBox label="تحديد الكل" checked={sel.allOf(allIds)} indeterminate={sel.someOf(allIds)} onChange={() => sel.togglePage(allIds)} /></TableHead>}
-                <TableHead className="text-start">الكود</TableHead>
-                <TableHead className="text-start">الاسم</TableHead>
-                <TableHead className="text-start">الهاتف</TableHead>
-                <TableHead className="text-start">الرصيد</TableHead>
-                <TableHead className="text-start">حد الائتمان</TableHead>
-                {canManage && <TableHead className="text-start">إجراءات</TableHead>}
+                {canManage && <TableHead className="w-10"><SelectBox label={t("تحديد الكل")} checked={sel.allOf(allIds)} indeterminate={sel.someOf(allIds)} onChange={() => sel.togglePage(allIds)} /></TableHead>}
+                <TableHead className="text-start">{t("الكود")}</TableHead>
+                <TableHead className="text-start">{t("الاسم")}</TableHead>
+                <TableHead className="text-start">{t("الهاتف")}</TableHead>
+                <TableHead className="text-start">{t("الرصيد")}</TableHead>
+                <TableHead className="text-start">{t("حد الائتمان")}</TableHead>
+                {canManage && <TableHead className="text-start">{t("إجراءات")}</TableHead>}
               </TableRow>
             </TableHeader>
             <TableBody>
               {customers.map((c) => (
                 <TableRow key={c.id} data-state={sel.has(c.id) ? "selected" : undefined}>
-                  {canManage && <TableCell><SelectBox label="تحديد" checked={sel.has(c.id)} onChange={() => sel.toggle(c.id)} /></TableCell>}
+                  {canManage && <TableCell><SelectBox label={t("تحديد")} checked={sel.has(c.id)} onChange={() => sel.toggle(c.id)} /></TableCell>}
                   <TableCell className="font-mono">{c.code}</TableCell>
-                  <TableCell className="max-w-[240px] truncate" title={c.nameAr}>{c.nameAr}</TableCell>
+                  <TableCell className="max-w-[240px] truncate" title={c.nameAr}>{t(c.nameAr)}</TableCell>
                   <TableCell dir="ltr" className="text-start">{c.phone ?? "—"}</TableCell>
                   <TableCell>{fmt(c.balance)}</TableCell>
                   <TableCell>{fmt(c.creditLimit)}</TableCell>
                   {canManage && (
                     <TableCell>
                       <div className="flex gap-1">
-                        <Button variant="ghost" size="icon" onClick={() => openEdit(c)} aria-label="تعديل">
+                        <Button variant="ghost" size="icon" onClick={() => openEdit(c)} aria-label={t("تعديل")}>
                           <Pencil className="size-4" />
                         </Button>
                         <Button
                           variant="ghost" size="icon"
                           onClick={() => { setPortalCustomer(c); setPortalOpen(true); }}
-                          aria-label="ربط ببوابة العميل"
-                          title="ربط ببوابة العميل"
+                          aria-label={t("ربط ببوابة العميل")}
+                          title={t("ربط ببوابة العميل")}
                         >
                           <span className={`text-base ${c.portalUserId ? "text-success" : "text-muted-foreground"}`}>🔗</span>
                         </Button>
                         <AlertDialog>
                           <AlertDialogTrigger asChild>
-                            <Button variant="ghost" size="icon" disabled={pending} aria-label="حذف">
+                            <Button variant="ghost" size="icon" disabled={pending} aria-label={t("حذف")}>
                               <Trash2 className="size-4 text-destructive" />
                             </Button>
                           </AlertDialogTrigger>
                           <AlertDialogContent>
                             <AlertDialogHeader>
-                              <AlertDialogTitle>حذف العميل «{c.nameAr}»؟</AlertDialogTitle>
-                              <AlertDialogDescription>لا يمكن التراجع عن هذا الإجراء.</AlertDialogDescription>
+                              <AlertDialogTitle>{t("حذف العميل «")}{t(c.nameAr)}{t("»؟")}</AlertDialogTitle>
+                              <AlertDialogDescription>{t("لا يمكن التراجع عن هذا الإجراء.")}</AlertDialogDescription>
                             </AlertDialogHeader>
                             <AlertDialogFooter>
-                              <AlertDialogCancel>إلغاء</AlertDialogCancel>
-                              <AlertDialogAction onClick={() => remove(c)}>حذف</AlertDialogAction>
+                              <AlertDialogCancel>{t("إلغاء")}</AlertDialogCancel>
+                              <AlertDialogAction onClick={() => remove(c)}>{t("حذف")}</AlertDialogAction>
                             </AlertDialogFooter>
                           </AlertDialogContent>
                         </AlertDialog>

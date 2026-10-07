@@ -1,4 +1,5 @@
 import { and, asc, eq, gt, inArray, or } from "drizzle-orm";
+import { getT } from "@/lib/i18n/server";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
 import { customers, salesInvoices, accounts } from "@/db/schema";
@@ -7,6 +8,7 @@ import { ErpPageHeader } from "@/components/erp/page-header";
 import { VoucherForm } from "@/components/erp/voucher-form";
 
 export default async function NewReceiptPage({ searchParams }: { searchParams: Promise<{ invoice?: string }> }) {
+  const t = await getT();
   return loadErpPage("sales.view", async ({ orgId }) => {
     const { invoice: invoiceParam } = await searchParams;
     const rc = await resolveAccountCodes(orgId, ["1101", "1102"]);
@@ -32,7 +34,7 @@ export default async function NewReceiptPage({ searchParams }: { searchParams: P
 
     return (
       <div className="space-y-6">
-        <ErpPageHeader icon="HandCoins" title="سند قبض جديد" subtitle="تحصيل من عميل" backHref="/sales/receipts" />
+        <ErpPageHeader icon="HandCoins" title={t("سند قبض جديد")} subtitle={t("تحصيل من عميل")} backHref="/sales/receipts" />
         <VoucherForm
           mode="receipt"
           parties={parties}

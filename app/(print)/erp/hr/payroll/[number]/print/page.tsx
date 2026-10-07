@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { getLocale, getT } from "@/lib/i18n/server";
 import { and, eq, sql } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
@@ -13,6 +14,8 @@ const STATUS: Record<string, string> = { DRAFT: "مسودة", POSTED: "مرحَ�
 type Params = { params: Promise<{ number: string }> };
 
 export default async function PrintPayrollRunPage({ params }: Params) {
+  const t = await getT();
+  const locale = await getLocale();
   const raw = (await params).number;
   return loadErpPage("hr.view", async ({ orgId }) => {
     const number = await docNumberParam(raw, orgId, payrollRuns,
@@ -50,12 +53,12 @@ export default async function PrintPayrollRunPage({ params }: Params) {
         org={org}
         hiddenColumns={hiddenFor("payroll")}
         footerText={footerText}
-        title="مسير رواتب"
+        title={t("مسير رواتب")}
         number={run.number}
         backHref={`/hr/payroll/${encodeURIComponent(run.number)}`}
-        watermark={run.status === "DRAFT" ? "مسودة" : undefined}
+        watermark={run.status === "DRAFT" ? t("مسودة") : undefined}
         meta={[
-          { label: "الفترة", value: `${dt(run.periodStart)} — ${dt(run.periodEnd)}` },
+          { label: "الفترة", value: `${dt(run.periodStart, locale)} — ${dt(run.periodEnd, locale)}` },
           { label: "الحالة", value: STATUS[run.status] ?? run.status },
         ]}
         columns={[
@@ -80,10 +83,10 @@ export default async function PrintPayrollRunPage({ params }: Params) {
           <b key="t">{fmt(l.netPay)}</b>,
         ])}
         totals={[
-          { label: "إجمالي المرتبات", value: money(run.totalGross, currency) },
-          { label: "إجمالي البدلات", value: money(run.totalAllowances, currency) },
-          { label: "إجمالي الاستقطاعات", value: money(run.totalDeductions, currency) },
-          { label: "إجمالي الصافي", value: money(run.totalNet, currency), tone: "strong" as const },
+          { label: "إجمالي المرتبات", value: money(run.totalGross, currency, locale) },
+          { label: "إجمالي البدلات", value: money(run.totalAllowances, currency, locale) },
+          { label: "إجمالي الاستقطاعات", value: money(run.totalDeductions, currency, locale) },
+          { label: "إجمالي الصافي", value: money(run.totalNet, currency, locale), tone: "strong" as const },
         ]}
         note={run.notes}
         signatures={["المحاسب", "مدير الموارد البشرية", "المدير العام"]}

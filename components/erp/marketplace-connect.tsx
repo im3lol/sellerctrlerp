@@ -1,7 +1,9 @@
 "use client";
 
 import { useState, useTransition, type ChangeEvent } from "react";
-import { toast } from "sonner";
+import { fill } from "@/lib/i18n";
+import { useT } from "@/lib/i18n/client";
+import { toast } from "@/lib/i18n/toast";
 import { Plug, PlugZap, Loader2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -35,6 +37,7 @@ export function MarketplaceConnect({
    *  admin panel" note instead of a broken connect button (Amazon/Shopify). */
   oauthReady?: boolean;
 }) {
+  const t = useT();
   const needsCredential = !!credentialKind;
   const [mp, setMp] = useState(marketplaces[0]?.code ?? "");
   const [shop, setShop] = useState("");
@@ -47,25 +50,25 @@ export function MarketplaceConnect({
 
   const connectNoon = () => start(async () => {
     const r = await connectNoonAction(cred);
-    if (r.ok) { toast.success(`تم ربط ${label} بنجاح`); setCred(""); }
+    if (r.ok) { toast.success(fill(t("تم ربط {0} بنجاح"), [label])); setCred(""); }
     else toast.error(r.error);
   });
 
   const connectWoo = () => start(async () => {
     const r = await connectWooAction({ storeUrl: f.storeUrl, consumerKey: f.consumerKey, consumerSecret: f.consumerSecret });
-    if (r.ok) { toast.success(`تم ربط ${label} بنجاح`); setF((s) => ({ ...s, consumerSecret: "" })); }
+    if (r.ok) { toast.success(fill(t("تم ربط {0} بنجاح"), [label])); setF((s) => ({ ...s, consumerSecret: "" })); }
     else toast.error(r.error);
   });
 
   const connectJumia = () => start(async () => {
     const r = await connectJumiaAction({ userId: f.userId, apiKey: f.apiKey, apiHost: f.apiHost });
-    if (r.ok) { toast.success(`تم ربط ${label} بنجاح`); setF((s) => ({ ...s, apiKey: "" })); }
+    if (r.ok) { toast.success(fill(t("تم ربط {0} بنجاح"), [label])); setF((s) => ({ ...s, apiKey: "" })); }
     else toast.error(r.error);
   });
 
   const disconnect = () => start(async () => {
     const r = await disconnectMarketplaceAction(provider);
-    if (r.ok) toast.success(`تم فصل حساب ${label}`);
+    if (r.ok) toast.success(fill(t("تم فصل حساب {0}"), [label]));
     else toast.error(r.error);
   });
 
@@ -80,14 +83,14 @@ export function MarketplaceConnect({
         <CardHeader>
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
-              <CardTitle className="flex items-center gap-2"><PlugZap className="size-5 text-emerald-600" />ربط {label}<Badge className="bg-emerald-600">مربوط</Badge>{conn.realtime && <Badge variant="secondary" title="طلبات أمازون الجديدة تصل خلال ثوانٍ عبر إشعارات فورية">التحديث الفوري مفعّل ⚡</Badge>}</CardTitle>
+              <CardTitle className="flex items-center gap-2"><PlugZap className="size-5 text-emerald-600" />{t("ربط")} {label}<Badge className="bg-emerald-600">{t("مربوط")}</Badge>{conn.realtime && <Badge variant="secondary" title={t("طلبات أمازون الجديدة تصل خلال ثوانٍ عبر إشعارات فورية")}>{t("التحديث الفوري مفعّل ⚡")}</Badge>}</CardTitle>
               <CardDescription className="mt-1.5">
-                {justConnected && <span className="text-emerald-600">تم الربط بنجاح. </span>}
-                السوق: {market?.name ?? conn.marketplaceId ?? "—"} · معرّف البائع: <span className="font-mono" dir="ltr">{conn.sellerId ?? "—"}</span> · آخر مزامنة: {dt(conn.lastSyncAt)}
+                {justConnected && <span className="text-emerald-600">{t("تم الربط بنجاح.")} </span>}
+                {fill(t("السوق: {0}"), [market?.name ?? conn.marketplaceId ?? "—"])} {t("· معرّف البائع:")} <span className="font-mono" dir="ltr">{conn.sellerId ?? "—"}</span> {t("· آخر مزامنة:")} {dt(conn.lastSyncAt)}
               </CardDescription>
             </div>
             <Button variant="ghost" size="sm" onClick={disconnect} disabled={pending} className="text-muted-foreground">
-              {pending ? <Loader2 className="size-4 animate-spin" /> : <Plug className="size-4" />}فصل الحساب
+              {pending ? <Loader2 className="size-4 animate-spin" /> : <Plug className="size-4" />}{t("فصل الحساب")}
             </Button>
           </div>
         </CardHeader>
@@ -95,15 +98,15 @@ export function MarketplaceConnect({
           {conn.needsReauth && (
             <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-destructive/40 bg-destructive/5 px-3 py-2.5">
               <div className="text-sm font-medium text-destructive">
-                انتهت صلاحية ربط {label} — توقفت المزامنة التلقائية حتى تعيد ربط الحساب.
+                {fill(t("انتهت صلاحية ربط {0} — توقفت المزامنة التلقائية حتى تعيد ربط الحساب."), [label])}
               </div>
               {needsCredential ? (
                 <Button size="sm" variant="destructive" onClick={disconnect} disabled={pending}>
-                  {pending ? <Loader2 className="size-4 animate-spin" /> : <Plug className="size-4" />}افصل ثم أعد لصق ملف الاعتماد
+                  {pending ? <Loader2 className="size-4 animate-spin" /> : <Plug className="size-4" />}{t("افصل ثم أعد لصق ملف الاعتماد")}
                 </Button>
               ) : (
                 <Button asChild size="sm" variant="destructive">
-                  <a href={reconnectHref}><Plug className="size-4" />إعادة ربط الحساب</a>
+                  <a href={reconnectHref}><Plug className="size-4" />{t("إعادة ربط الحساب")}</a>
                 </Button>
               )}
             </div>
@@ -116,15 +119,15 @@ export function MarketplaceConnect({
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center gap-2"><Plug className="size-5" />ربط {label}</CardTitle>
-        <CardDescription>{error ? <span className="text-destructive">تعذّر الربط: {error}</span> : `اربط حساب ${label} لسحب الأوامر والتسويات والمخزون تلقائيًا بدل رفع الملفات يدويًا.`}</CardDescription>
+        <CardTitle className="flex items-center gap-2"><Plug className="size-5" />{t("ربط")} {label}</CardTitle>
+        <CardDescription>{error ? <span className="text-destructive">{t("تعذّر الربط:")} {error}</span> : fill(t("اربط حساب {0} لسحب الأوامر والتسويات والمخزون تلقائيًا بدل رفع الملفات يدويًا."), [label])}</CardDescription>
       </CardHeader>
       {credentialKind === "noon" ? (
         <CardContent className="space-y-3">
           <div className="space-y-1.5">
-            <label className="text-sm font-medium">ملف اعتماد نون (JSON)</label>
+            <label className="text-sm font-medium">{t("ملف اعتماد نون (JSON)")}</label>
             <p className="text-xs text-muted-foreground">
-              من <span dir="ltr">access.noon.partners</span> ← أنشئ Service Account ونزّل ملف المفاتيح، ثم الصقه هنا. بعد الربط نجلب مخازنك ومنتجاتك تلقائيًا — لا حاجة لإدخال كود المخزن.
+              {t("من")} <span dir="ltr">access.noon.partners</span> {t("← أنشئ Service Account ونزّل ملف المفاتيح، ثم الصقه هنا. بعد الربط نجلب مخازنك ومنتجاتك تلقائيًا — لا حاجة لإدخال كود المخزن.")}
             </p>
             <textarea
               value={cred} onChange={(e) => setCred(e.target.value)} dir="ltr" rows={6} spellCheck={false}
@@ -133,25 +136,25 @@ export function MarketplaceConnect({
             />
           </div>
           <Button onClick={connectNoon} disabled={pending || cred.trim().length < 20}>
-            {pending ? <Loader2 className="size-4 animate-spin" /> : <Plug className="size-4" />}ربط {label}
+            {pending ? <Loader2 className="size-4 animate-spin" /> : <Plug className="size-4" />}{t("ربط")} {label}
           </Button>
         </CardContent>
       ) : credentialKind === "woo" ? (
         <CardContent className="space-y-3">
-          <p className="text-xs text-muted-foreground">من متجرك: WooCommerce ← الإعدادات ← متقدّم ← REST API ← «إضافة مفتاح» (صلاحية قراءة)، ثم الصق الرابط والمفاتيح هنا.</p>
-          <div className="space-y-1.5"><label className="text-sm font-medium">رابط المتجر</label>
+          <p className="text-xs text-muted-foreground">{t("من متجرك: WooCommerce ← الإعدادات ← متقدّم ← REST API ← «إضافة مفتاح» (صلاحية قراءة)، ثم الصق الرابط والمفاتيح هنا.")}</p>
+          <div className="space-y-1.5"><label className="text-sm font-medium">{t("رابط المتجر")}</label>
             <input value={f.storeUrl} onChange={setFld("storeUrl")} dir="ltr" placeholder="https://mystore.com" className="block h-9 w-full max-w-md rounded-md border bg-background px-3 text-sm" /></div>
           <div className="space-y-1.5"><label className="text-sm font-medium">Consumer Key</label>
             <input value={f.consumerKey} onChange={setFld("consumerKey")} dir="ltr" placeholder="ck_..." autoComplete="off" className="block h-9 w-full max-w-md rounded-md border bg-background px-3 text-sm" /></div>
           <div className="space-y-1.5"><label className="text-sm font-medium">Consumer Secret</label>
             <input value={f.consumerSecret} onChange={setFld("consumerSecret")} dir="ltr" type="password" placeholder="cs_..." autoComplete="off" className="block h-9 w-full max-w-md rounded-md border bg-background px-3 text-sm" /></div>
           <Button onClick={connectWoo} disabled={pending || !f.storeUrl.trim() || !f.consumerKey.trim() || !f.consumerSecret.trim()}>
-            {pending ? <Loader2 className="size-4 animate-spin" /> : <Plug className="size-4" />}ربط {label}
+            {pending ? <Loader2 className="size-4 animate-spin" /> : <Plug className="size-4" />}{t("ربط")} {label}
           </Button>
         </CardContent>
       ) : credentialKind === "jumia" ? (
         <CardContent className="space-y-3">
-          <p className="text-xs text-muted-foreground">من Vendor Center ← Settings ← Integration: انسخ الـUserID والـAPI Key وعنوان الواجهة (API Host) لدولتك، ثم الصقها هنا.</p>
+          <p className="text-xs text-muted-foreground">{t("من Vendor Center ← Settings ← Integration: انسخ الـUserID والـAPI Key وعنوان الواجهة (API Host) لدولتك، ثم الصقها هنا.")}</p>
           <div className="space-y-1.5"><label className="text-sm font-medium">UserID</label>
             <input value={f.userId} onChange={setFld("userId")} dir="ltr" placeholder="seller@email.com" autoComplete="off" className="block h-9 w-full max-w-md rounded-md border bg-background px-3 text-sm" /></div>
           <div className="space-y-1.5"><label className="text-sm font-medium">API Key</label>
@@ -159,20 +162,20 @@ export function MarketplaceConnect({
           <div className="space-y-1.5"><label className="text-sm font-medium">API Host</label>
             <input value={f.apiHost} onChange={setFld("apiHost")} dir="ltr" placeholder="https://vendor-api.jumia.com" className="block h-9 w-full max-w-md rounded-md border bg-background px-3 text-sm" /></div>
           <Button onClick={connectJumia} disabled={pending || !f.userId.trim() || !f.apiKey.trim() || !f.apiHost.trim()}>
-            {pending ? <Loader2 className="size-4 animate-spin" /> : <Plug className="size-4" />}ربط {label}
+            {pending ? <Loader2 className="size-4 animate-spin" /> : <Plug className="size-4" />}{t("ربط")} {label}
           </Button>
         </CardContent>
       ) : !oauthReady ? (
         // OAuth-capable connector whose client keys aren't set yet (Amazon/Shopify).
         <CardContent>
           <div className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-800 dark:bg-amber-950/20">
-            لم تُضبط مفاتيح ربط {label} بعد. يضبطها مالك المنصّة من لوحة الأدمن ← التكاملات.
+            {fill(t("لم تُضبط مفاتيح ربط {0} بعد. يضبطها مالك المنصّة من لوحة الأدمن ← التكاملات."), [label])}
           </div>
         </CardContent>
       ) : needsShop ? (
         <CardContent className="flex flex-wrap items-end gap-2">
           <div className="space-y-1.5">
-            <label className="text-sm font-medium">دومين المتجر</label>
+            <label className="text-sm font-medium">{t("دومين المتجر")}</label>
             <input
               value={shop} onChange={(e) => setShop(e.target.value)} dir="ltr" placeholder="store.myshopify.com"
               className="block h-9 w-64 rounded-md border bg-background px-3 text-sm"
@@ -180,7 +183,7 @@ export function MarketplaceConnect({
           </div>
           <Button asChild disabled={!shopValid}>
             <a href={shopValid ? `/api/erp/marketplace/${provider}/connect?shop=${encodeURIComponent(shop.trim().toLowerCase())}` : undefined}>
-              <Plug className="size-4" />ربط {label}
+              <Plug className="size-4" />{t("ربط")} {label}
             </a>
           </Button>
         </CardContent>
@@ -190,19 +193,19 @@ export function MarketplaceConnect({
         // (app keys + webhook) from the admin panel.
         <CardContent>
           <Button asChild>
-            <a href={`/api/erp/marketplace/${provider}/connect`}><Plug className="size-4" />ربط {label} (تفويض بنقرة واحدة)</a>
+            <a href={`/api/erp/marketplace/${provider}/connect`}><Plug className="size-4" />{fill(t("ربط {0} (تفويض بنقرة واحدة)"), [label])}</a>
           </Button>
         </CardContent>
       ) : (
         <CardContent className="flex flex-wrap items-end gap-2">
           <div className="space-y-1.5">
-            <label className="text-sm font-medium">السوق</label>
+            <label className="text-sm font-medium">{t("السوق")}</label>
             <select value={mp} onChange={(e) => setMp(e.target.value)} className="block h-9 rounded-md border bg-background px-3 text-sm">
-              {marketplaces.map((m) => <option key={m.code} value={m.code}>{m.name} ({m.code})</option>)}
+              {marketplaces.map((m) => <option key={m.code} value={m.code}>{t(m.name)} ({m.code})</option>)}
             </select>
           </div>
           <Button asChild>
-            <a href={`/api/erp/marketplace/${provider}/connect?marketplace=${mp}`}><Plug className="size-4" />ربط {label}</a>
+            <a href={`/api/erp/marketplace/${provider}/connect?marketplace=${mp}`}><Plug className="size-4" />{fill(t("ربط {0}"), [label])}</a>
           </Button>
         </CardContent>
       )}

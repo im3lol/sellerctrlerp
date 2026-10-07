@@ -8,6 +8,8 @@ import { getConnector } from "@/lib/erp/marketplace/registry";
 import type { MarketplaceConnector } from "@/lib/erp/marketplace/connector";
 import { verifyState, type OAuthState } from "@/lib/erp/marketplace/oauth-state";
 import { connectorEnabled } from "@/lib/saas/connector-enabled";
+import { dirOf, translator } from "@/lib/i18n";
+import { getLocale } from "@/lib/i18n/server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -36,10 +38,12 @@ export async function GET(req: Request, { params }: { params: Promise<{ provider
   // withhold the SameSite=Lax session cookie on it → the middleware bounces to /login
   // even though the tenant is logged in. A client-side navigation from this returned
   // HTML is unambiguously same-site, so the session cookie is always sent.
+  const locale = await getLocale();
+  const t = translator(locale);
   const back = (ok: boolean, msg?: string): Response => {
     const to = `/platforms/${provider.toLowerCase()}?connected=${ok ? "1" : "0"}${msg ? `&err=${encodeURIComponent(msg)}` : ""}`;
     const j = JSON.stringify(to);
-    const html = `<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><meta http-equiv="refresh" content="0;url=${to.replace(/"/g, "&quot;")}"><title>جارٍ التحويل…</title></head><body style="font-family:system-ui;padding:2rem;text-align:center">جارٍ إتمام الربط…<script>location.replace(${j})</script></body></html>`;
+    const html = `<!doctype html><html lang="${locale}" dir="${dirOf(locale)}"><head><meta charset="utf-8"><meta http-equiv="refresh" content="0;url=${to.replace(/"/g, "&quot;")}"><title>${t("جارٍ التحويل…")}</title></head><body style="font-family:system-ui;padding:2rem;text-align:center">${t("جارٍ إتمام الربط…")}<script>location.replace(${j})</script></body></html>`;
     return new Response(html, { headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" } });
   };
 

@@ -1,5 +1,7 @@
 package com.sellerctrl.app.ui
 
+import com.sellerctrl.app.tr
+
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -62,14 +64,14 @@ fun BankReconListScreen(nav: NavController) {
     LaunchedEffect(tick) { rows = try { ServiceLocator.repo.docList("api/v1/accounting/banks") } catch (e: Exception) { emptyList() } }
 
     Scaffold(topBar = {
-        TopAppBar(title = { Text("المطابقة البنكية") },
+        TopAppBar(title = { Text(tr("المطابقة البنكية")) },
             navigationIcon = { IconButton(onClick = { nav.popBackStack() }) { Icon(Icons.AutoMirrored.Filled.ArrowBack, null) } })
     }) { pad ->
         Box(Modifier.fillMaxSize().padding(pad)) {
             val r = rows
             when {
                 r == null -> CircularProgressIndicator(Modifier.align(Alignment.Center))
-                r.isEmpty() -> Text("لا توجد حسابات بنكية", Modifier.align(Alignment.Center), color = MaterialTheme.colorScheme.outline)
+                r.isEmpty() -> Text(tr("لا توجد حسابات بنكية"), Modifier.align(Alignment.Center), color = MaterialTheme.colorScheme.outline)
                 else -> LazyColumn(Modifier.fillMaxSize().padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     items(r) { b ->
                         AppCard(Modifier.fillMaxWidth().clickable { nav.navigate("recon/${b.id}") }) {
@@ -78,7 +80,7 @@ fun BankReconListScreen(nav: NavController) {
                                     Text(b.title, style = MaterialTheme.typography.titleSmall)
                                     if (!b.subtitle.isNullOrBlank()) Text(b.subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
                                 }
-                                Text("مطابقة ›", color = MaterialTheme.colorScheme.primary)
+                                Text(tr("مطابقة ›"), color = MaterialTheme.colorScheme.primary)
                             }
                         }
                     }
@@ -100,13 +102,13 @@ fun BankReconScreen(nav: NavController, bankId: String) {
     LaunchedEffect(reload, tick) { d = try { ServiceLocator.repo.bankStatement(bankId) } catch (e: Exception) { null } }
 
     fun act(path: String) {
-        scope.launch { try { ServiceLocator.repo.postAction(path); reload++ } catch (e: Exception) { message = e.message ?: "خطأ" } }
+        scope.launch { try { ServiceLocator.repo.postAction(path); reload++ } catch (e: Exception) { message = e.message ?: tr("خطأ") } }
     }
 
     Scaffold(
-        topBar = { TopAppBar(title = { Text(d?.bankName ?: "المطابقة") },
+        topBar = { TopAppBar(title = { Text(d?.bankName ?: tr("المطابقة")) },
             navigationIcon = { IconButton(onClick = { nav.popBackStack() }) { Icon(Icons.AutoMirrored.Filled.ArrowBack, null) } }) },
-        floatingActionButton = { FloatingActionButton(onClick = { addOpen = true }) { Icon(Icons.Filled.Add, "إضافة سطر") } },
+        floatingActionButton = { FloatingActionButton(onClick = { addOpen = true }) { Icon(Icons.Filled.Add, tr("إضافة سطر")) } },
     ) { pad ->
         Box(Modifier.fillMaxSize().padding(pad)) {
             val o = d
@@ -115,14 +117,14 @@ fun BankReconScreen(nav: NavController, bankId: String) {
                 AppCard(Modifier.fillMaxWidth().padding(bottom = 8.dp)) {
                     Row(Modifier.fillMaxWidth().padding(14.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                         Column {
-                            Text("مطابَق ${o.reconciledCount} · غير مطابَق ${o.unreconciledCount}", style = MaterialTheme.typography.bodyMedium)
-                            Text("رصيد الكشف", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
+                            Text(tr("مطابَق ${o.reconciledCount} · غير مطابَق ${o.unreconciledCount}"), style = MaterialTheme.typography.bodyMedium)
+                            Text(tr("رصيد الكشف"), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
                         }
                         Text(money(o.statementBalance), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
                     }
                 }
                 message?.let { Text(it, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(bottom = 6.dp)) }
-                if (o.lines.isEmpty()) Text("لا توجد حركات — أضف سطر كشف بالزر +", Modifier.padding(top = 24.dp), color = MaterialTheme.colorScheme.outline)
+                if (o.lines.isEmpty()) Text(tr("لا توجد حركات — أضف سطر كشف بالزر +"), Modifier.padding(top = 24.dp), color = MaterialTheme.colorScheme.outline)
                 else LazyColumn(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     items(o.lines) { l -> StatementLineCard(l, onToggle = { act("api/v1/accounting/statement-lines/${l.id}/toggle") }, onDelete = { act("api/v1/accounting/statement-lines/${l.id}/delete") }) }
                 }
@@ -138,8 +140,8 @@ private fun StatementLineCard(l: StatementLineDto, onToggle: () -> Unit, onDelet
     AppCard(Modifier.fillMaxWidth()) {
         Row(Modifier.fillMaxWidth().padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
             IconButton(onClick = onToggle) {
-                if (l.reconciled) Icon(Icons.Filled.CheckCircle, "مطابَق", tint = MaterialTheme.colorScheme.primary)
-                else Icon(Icons.Outlined.Circle, "غير مطابَق", tint = MaterialTheme.colorScheme.outline)
+                if (l.reconciled) Icon(Icons.Filled.CheckCircle, tr("مطابَق"), tint = MaterialTheme.colorScheme.primary)
+                else Icon(Icons.Outlined.Circle, tr("غير مطابَق"), tint = MaterialTheme.colorScheme.outline)
             }
             Column(Modifier.weight(1f)) {
                 Text(l.description.ifBlank { "—" }, style = MaterialTheme.typography.bodyMedium)
@@ -149,7 +151,7 @@ private fun StatementLineCard(l: StatementLineDto, onToggle: () -> Unit, onDelet
                 if (l.debit > 0) Text("+${money(l.debit)}", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.bodySmall)
                 if (l.credit > 0) Text("-${money(l.credit)}", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
             }
-            IconButton(onClick = onDelete) { Icon(Icons.Filled.Delete, "حذف", tint = MaterialTheme.colorScheme.outline) }
+            IconButton(onClick = onDelete) { Icon(Icons.Filled.Delete, tr("حذف"), tint = MaterialTheme.colorScheme.outline) }
         }
     }
 }
@@ -168,32 +170,32 @@ private fun AddStatementLineDialog(bankId: String, onDismiss: () -> Unit, onDone
 
     fun add() {
         val dv = debit.toDoubleOrNull() ?: 0.0; val cv = credit.toDoubleOrNull() ?: 0.0
-        if (dv == 0.0 && cv == 0.0) { error = "أدخل مبلغاً (وارد أو صادر)"; return }
+        if (dv == 0.0 && cv == 0.0) { error = tr("أدخل مبلغاً (وارد أو صادر)"); return }
         busy = true; error = null
         scope.launch {
             try { ServiceLocator.repo.statementLineAdd(bankId, StatementLineReq(date, description.ifBlank { null }, reference.ifBlank { null }, dv, cv)); onDone() }
-            catch (e: Exception) { error = e.message ?: "خطأ"; busy = false }
+            catch (e: Exception) { error = e.message ?: tr("خطأ"); busy = false }
         }
     }
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("سطر كشف بنكي") },
+        title = { Text(tr("سطر كشف بنكي")) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                OutlinedTextField(date, { date = it }, label = { Text("التاريخ") }, singleLine = true, modifier = Modifier.fillMaxWidth())
-                OutlinedTextField(description, { description = it }, label = { Text("البيان") }, singleLine = true, modifier = Modifier.fillMaxWidth())
-                OutlinedTextField(reference, { reference = it }, label = { Text("مرجع") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(date, { date = it }, label = { Text(tr("التاريخ")) }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(description, { description = it }, label = { Text(tr("البيان")) }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(reference, { reference = it }, label = { Text(tr("مرجع")) }, singleLine = true, modifier = Modifier.fillMaxWidth())
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedTextField(debit, { debit = it.filter { c -> c.isDigit() || c == '.' } }, label = { Text("وارد") }, singleLine = true,
+                    OutlinedTextField(debit, { debit = it.filter { c -> c.isDigit() || c == '.' } }, label = { Text(tr("وارد")) }, singleLine = true,
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal), modifier = Modifier.weight(1f))
-                    OutlinedTextField(credit, { credit = it.filter { c -> c.isDigit() || c == '.' } }, label = { Text("صادر") }, singleLine = true,
+                    OutlinedTextField(credit, { credit = it.filter { c -> c.isDigit() || c == '.' } }, label = { Text(tr("صادر")) }, singleLine = true,
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal), modifier = Modifier.weight(1f))
                 }
                 error?.let { Text(it, color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.SemiBold) }
             }
         },
-        confirmButton = { TextButton(onClick = { add() }, enabled = !busy) { Text(if (busy) "…" else "إضافة") } },
-        dismissButton = { OutlinedButton(onClick = onDismiss) { Text("إلغاء") } },
+        confirmButton = { TextButton(onClick = { add() }, enabled = !busy) { Text(if (busy) "…" else tr("إضافة")) } },
+        dismissButton = { OutlinedButton(onClick = onDismiss) { Text(tr("إلغاء")) } },
     )
 }

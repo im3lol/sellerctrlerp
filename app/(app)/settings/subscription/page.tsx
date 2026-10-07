@@ -1,4 +1,6 @@
 import { asc, eq } from "drizzle-orm";
+import { date, fill, type T } from "@/lib/i18n";
+import { getLocale, getT } from "@/lib/i18n/server";
 import { loadErpPage, getActiveOrg } from "@/lib/erp/org";
 import { db } from "@/lib/db";
 import { plans } from "@/db/schema";
@@ -11,15 +13,16 @@ import { ErpPageHeader } from "@/components/erp/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { SubscriptionPlans } from "@/components/erp/subscription-plans";
-import { formatDateAr } from "@/lib/format";
 
-const fmtBytes = (b: number) => {
-  if (b < 1024 * 1024) return `${(b / 1024).toFixed(0)} ك.ب`;
-  if (b < 1024 ** 3) return `${(b / 1024 / 1024).toFixed(1)} م.ب`;
-  return `${(b / 1024 ** 3).toFixed(2)} ج.ب`;
+const fmtBytes = (b: number, t: T) => {
+  if (b < 1024 * 1024) return fill(t("{0} ك.ب"), [(b / 1024).toFixed(0)]);
+  if (b < 1024 ** 3) return fill(t("{0} م.ب"), [(b / 1024 / 1024).toFixed(1)]);
+  return fill(t("{0} ج.ب"), [(b / 1024 ** 3).toFixed(2)]);
 };
 
 export default async function SubscriptionPage({ searchParams }: { searchParams: Promise<{ locked?: string; xpay?: string }> }) {
+  const t = await getT();
+  const locale = await getLocale();
   return loadErpPage("settings.view", async ({ orgId, role }) => {
     const { locked, xpay } = await searchParams;
     const { user, org } = await getActiveOrg();
@@ -42,35 +45,35 @@ export default async function SubscriptionPage({ searchParams }: { searchParams:
 
     // Status banner.
     const banner = !state.live
-      ? { cls: "border-destructive/50 bg-destructive/10 text-destructive", title: "انتهت فترة الوصول", body: locked ? `وحدة «${MODULE_LABELS[locked] ?? locked}» تتطلب اشتراكاً. اختر باقة للمتابعة.` : "اختر باقة لتفعيل النظام." }
+      ? { cls: "border-destructive/50 bg-destructive/10 text-destructive", title: "انتهت فترة الوصول", body: locked ? fill(t("وحدة «{0}» تتطلب اشتراكاً. اختر باقة للمتابعة."), [t(MODULE_LABELS[locked] ?? locked)]) : t("اختر باقة لتفعيل النظام.") }
       : state.isTrial
-      ? { cls: "border-amber-500/50 bg-amber-500/10 text-amber-700", title: `الفترة التجريبية — متبقٍ ${state.daysLeft} يوم`, body: `تنتهي التجربة في ${state.expiresAt ? formatDateAr(state.expiresAt) : "—"}. اشترك قبل انتهائها لمواصلة العمل دون انقطاع.` }
-      : { cls: "border-emerald-500/50 bg-emerald-500/10 text-emerald-700", title: `باقتك: ${state.planName ?? "مفعّلة"}`, body: state.expiresAt ? `تتجدد/تنتهي في ${formatDateAr(state.expiresAt)}.` : "اشتراك دائم." };
+      ? { cls: "border-amber-500/50 bg-amber-500/10 text-amber-700", title: fill(t("الفترة التجريبية — متبقٍ {0} يوم"), [state.daysLeft]), body: fill(t("تنتهي التجربة في {0}. اشترك قبل انتهائها لمواصلة العمل دون انقطاع."), [state.expiresAt ? date(state.expiresAt, locale) : "—"]) }
+      : { cls: "border-emerald-500/50 bg-emerald-500/10 text-emerald-700", title: fill(t("باقتك: {0}"), [state.planName ?? t("مفعّلة")]), body: state.expiresAt ? fill(t("تتجدد/تنتهي في {0}."), [date(state.expiresAt, locale)]) : t("اشتراك دائم.") };
 
     const usedPct = (used: number, limit: number | null) => (limit == null ? 0 : Math.min(100, Math.round((used / limit) * 100)));
     const storageLimitBytes = state.storageGb != null ? state.storageGb * 1024 ** 3 : null;
 
     return (
       <div className="space-y-6">
-        <ErpPageHeader icon="CreditCard" title="الاشتراك والباقة" subtitle="حالة اشتراكك والباقات المتاحة" />
+        <ErpPageHeader icon="CreditCard" title={t("الاشتراك والباقة")} subtitle={t("حالة اشتراكك والباقات المتاحة")} />
 
         <div className={`rounded-2xl border p-4 ${banner.cls}`}>
-          <div className="font-semibold">{banner.title}</div>
+          <div className="font-semibold">{t(banner.title)}</div>
           <p className="text-sm opacity-90">{banner.body}</p>
         </div>
 
         <div className="grid gap-4 sm:grid-cols-2">
           <Card>
-            <CardHeader className="pb-2"><CardTitle className="text-base">المستخدمون</CardTitle></CardHeader>
+            <CardHeader className="pb-2"><CardTitle className="text-base">{t("المستخدمون")}</CardTitle></CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold tabular-nums">{members.toLocaleString("ar-EG")}<span className="text-sm font-normal text-muted-foreground"> / {state.maxUsers == null ? "بلا حد" : state.maxUsers.toLocaleString("ar-EG")}</span></div>
+              <div className="text-2xl font-bold tabular-nums">{members.toLocaleString(locale === "en" ? "en-US" : "ar-EG")}<span className="text-sm font-normal text-muted-foreground"> / {state.maxUsers == null ? t("بلا حد") : state.maxUsers.toLocaleString("ar-EG")}</span></div>
               {state.maxUsers != null && <div className="mt-2 h-2 overflow-hidden rounded-full bg-muted"><div className="h-full bg-primary" style={{ width: `${usedPct(members, state.maxUsers)}%` }} /></div>}
             </CardContent>
           </Card>
           <Card>
-            <CardHeader className="pb-2"><CardTitle className="text-base">التخزين</CardTitle></CardHeader>
+            <CardHeader className="pb-2"><CardTitle className="text-base">{t("التخزين")}</CardTitle></CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold tabular-nums">{fmtBytes(storageBytes)}<span className="text-sm font-normal text-muted-foreground"> / {state.storageGb == null ? "بلا حد" : `${state.storageGb} ج.ب`}</span></div>
+              <div className="text-2xl font-bold tabular-nums">{fmtBytes(storageBytes, t)}<span className="text-sm font-normal text-muted-foreground"> / {state.storageGb == null ? t("بلا حد") : fill(t("{0} ج.ب"), [state.storageGb])}</span></div>
               {storageLimitBytes != null && <div className="mt-2 h-2 overflow-hidden rounded-full bg-muted"><div className="h-full bg-primary" style={{ width: `${usedPct(storageBytes, storageLimitBytes)}%` }} /></div>}
             </CardContent>
           </Card>
@@ -78,13 +81,13 @@ export default async function SubscriptionPage({ searchParams }: { searchParams:
 
         {latest && latest.status === "PENDING" && (
           <div className="rounded-2xl border border-amber-500/40 bg-amber-500/5 p-4">
-            <div className="flex items-center gap-2"><Badge variant="secondary">قيد المراجعة</Badge><span className="font-medium">طلب اشتراك في باقة {latest.planName}</span></div>
-            <p className="mt-1 text-sm text-muted-foreground">أُرسل الطلب وسيتم التفعيل بعد مراجعة الدفع. المبلغ: {Number(latest.price).toLocaleString("ar-EG")} ج.م ({latest.interval === "ANNUAL" ? "سنوي" : "شهري"}).</p>
+            <div className="flex items-center gap-2"><Badge variant="secondary">{t("قيد المراجعة")}</Badge><span className="font-medium">{t("طلب اشتراك في باقة")} {latest.planName}</span></div>
+            <p className="mt-1 text-sm text-muted-foreground">{t("أُرسل الطلب وسيتم التفعيل بعد مراجعة الدفع. المبلغ:")} {Number(latest.price).toLocaleString("ar-EG")} {t("ج.م (")}{latest.interval === "ANNUAL" ? t("سنوي") : t("شهري")}).</p>
           </div>
         )}
 
         <div>
-          <h2 className="mb-3 text-lg font-semibold">الباقات المتاحة</h2>
+          <h2 className="mb-3 text-lg font-semibold">{t("الباقات المتاحة")}</h2>
           <SubscriptionPlans plans={planCards} currentPlanId={state.planId} canSubscribe={canSubscribe} hasPending={hasPending} account={account} xpayEnabled={await xpayConfigured()} xpayResult={xpay} />
         </div>
       </div>

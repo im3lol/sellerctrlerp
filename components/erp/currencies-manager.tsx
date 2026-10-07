@@ -1,8 +1,10 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { fill } from "@/lib/i18n";
+import { useLocale, useT } from "@/lib/i18n/client";
 import { useRouter } from "next/navigation";
-import { toast } from "sonner";
+import { toast } from "@/lib/i18n/toast";
 import { Star, Plus, Power } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -46,6 +48,7 @@ const PRESETS = [
 ];
 
 function CurrencyDialog({ onClose }: { onClose: () => void }) {
+  const t = useT();
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [usePreset, setUsePreset] = useState(true);
@@ -72,7 +75,7 @@ function CurrencyDialog({ onClose }: { onClose: () => void }) {
         isBase,
         currentRate: currentRate ? Number(currentRate) : undefined,
       });
-      if (!res.ok) { setError(res.error); return; }
+      if (!res.ok) { setError(res.error ? t(res.error) : res.error); return; }
       toast.success("تمت إضافة العملة");
       onClose();
       router.refresh();
@@ -80,28 +83,28 @@ function CurrencyDialog({ onClose }: { onClose: () => void }) {
   }
 
   return (
-    <DialogContent dir="rtl">
-      <DialogHeader><DialogTitle>إضافة عملة</DialogTitle></DialogHeader>
+    <DialogContent>
+      <DialogHeader><DialogTitle>{t("إضافة عملة")}</DialogTitle></DialogHeader>
       <div className="space-y-4">
         <div className="space-y-1.5">
-          <Label>اختر من القائمة</Label>
+          <Label>{t("اختر من القائمة")}</Label>
           <Select value={preset} onValueChange={(v) => { setPreset(v); setUsePreset(true); }}>
             <SelectTrigger><SelectValue /></SelectTrigger>
             <SelectContent>
               {PRESETS.map((p) => (
-                <SelectItem key={p.code} value={p.code}>{p.code} — {p.nameAr}</SelectItem>
+                <SelectItem key={p.code} value={p.code}>{p.code} — {t(p.nameAr)}</SelectItem>
               ))}
             </SelectContent>
           </Select>
         </div>
 
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <div className="flex-1 border-t" />أو أدخل يدويًا<div className="flex-1 border-t" />
+          <div className="flex-1 border-t" />{t("أو أدخل يدويًا")}<div className="flex-1 border-t" />
         </div>
 
         <div className="grid grid-cols-3 gap-3">
           <div className="space-y-1.5">
-            <Label>الكود (ISO)</Label>
+            <Label>{t("الكود (ISO)")}</Label>
             <Input
               value={code}
               onChange={(e) => { setCode(e.target.value.toUpperCase()); setUsePreset(false); }}
@@ -110,25 +113,25 @@ function CurrencyDialog({ onClose }: { onClose: () => void }) {
             />
           </div>
           <div className="space-y-1.5 col-span-2">
-            <Label>الاسم بالعربية</Label>
+            <Label>{t("الاسم بالعربية")}</Label>
             <Input
               value={nameAr}
               onChange={(e) => { setNameAr(e.target.value); setUsePreset(false); }}
-              placeholder="دولار أمريكي"
+              placeholder={t("دولار أمريكي")}
             />
           </div>
         </div>
 
         {!isBase && (
           <div className="space-y-1.5">
-            <Label>السعر الحالي (1 {usePreset ? preset : code} = ؟ عملة أساسية)</Label>
+            <Label>{fill(t("السعر الحالي (1 {0} = ؟ عملة أساسية)"), [usePreset ? preset : code])}</Label>
             <Input
               type="number"
               min="0.000001"
               step="0.000001"
               value={currentRate}
               onChange={(e) => setCurrentRate(e.target.value)}
-              placeholder="مثال: 3.75"
+              placeholder={t("مثال: 3.75")}
             />
           </div>
         )}
@@ -141,14 +144,14 @@ function CurrencyDialog({ onClose }: { onClose: () => void }) {
             onChange={(e) => setIsBase(e.target.checked)}
             className="size-4"
           />
-          <Label htmlFor="isBase">هذه هي العملة الأساسية للمنظومة</Label>
+          <Label htmlFor="isBase">{t("هذه هي العملة الأساسية للمنظومة")}</Label>
         </div>
 
         {error && <p className="text-sm text-destructive">{error}</p>}
       </div>
       <DialogFooter>
-        <Button variant="outline" onClick={onClose}>إلغاء</Button>
-        <Button onClick={save} disabled={pending}>{pending ? "جارٍ الحفظ…" : "إضافة"}</Button>
+        <Button variant="outline" onClick={onClose}>{t("إلغاء")}</Button>
+        <Button onClick={save} disabled={pending}>{pending ? t("جارٍ الحفظ…") : t("إضافة")}</Button>
       </DialogFooter>
     </DialogContent>
   );
@@ -156,6 +159,7 @@ function CurrencyDialog({ onClose }: { onClose: () => void }) {
 
 function RateDialog({ currencies, baseCurrency, onClose }: { currencies: Currency[]; baseCurrency?: Currency; onClose: () => void }) {
   const router = useRouter();
+  const t = useT();
   const [pending, startTransition] = useTransition();
   const nonBase = currencies.filter((c) => !c.isBase && c.isActive);
   const [currCode, setCurrCode] = useState(nonBase[0]?.code ?? "");
@@ -169,7 +173,7 @@ function RateDialog({ currencies, baseCurrency, onClose }: { currencies: Currenc
     setError(undefined);
     startTransition(async () => {
       const res = await upsertExchangeRateAction({ currencyCode: currCode, date, rate: Number(rate) });
-      if (!res.ok) { setError(res.error); return; }
+      if (!res.ok) { setError(res.error ? t(res.error) : res.error); return; }
       toast.success("تم حفظ سعر الصرف");
       onClose();
       router.refresh();
@@ -177,31 +181,31 @@ function RateDialog({ currencies, baseCurrency, onClose }: { currencies: Currenc
   }
 
   return (
-    <DialogContent dir="rtl">
-      <DialogHeader><DialogTitle>تحديث سعر الصرف</DialogTitle></DialogHeader>
+    <DialogContent>
+      <DialogHeader><DialogTitle>{t("تحديث سعر الصرف")}</DialogTitle></DialogHeader>
       <div className="space-y-4">
         {nonBase.length === 0
-          ? <p className="text-sm text-muted-foreground">أضف عملات أجنبية أولًا.</p>
+          ? <p className="text-sm text-muted-foreground">{t("أضف عملات أجنبية أولًا.")}</p>
           : (
             <>
               <div className="space-y-1.5">
-                <Label>العملة</Label>
+                <Label>{t("العملة")}</Label>
                 <Select value={currCode} onValueChange={setCurrCode}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     {nonBase.map((c) => (
-                      <SelectItem key={c.code} value={c.code}>{c.code} — {c.nameAr}</SelectItem>
+                      <SelectItem key={c.code} value={c.code}>{c.code} — {t(c.nameAr)}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
-                  <Label>التاريخ</Label>
+                  <Label>{t("التاريخ")}</Label>
                   <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
                 </div>
                 <div className="space-y-1.5">
-                  <Label>1 {currCode} = كم {baseCurrency?.code ?? "EGP"}</Label>
+                  <Label>{fill(t("1 {0} = كم {1}"), [currCode, baseCurrency?.code ?? "EGP"])}</Label>
                   <Input
                     type="number"
                     min="0.000001"
@@ -218,9 +222,9 @@ function RateDialog({ currencies, baseCurrency, onClose }: { currencies: Currenc
         {error && <p className="text-sm text-destructive">{error}</p>}
       </div>
       <DialogFooter>
-        <Button variant="outline" onClick={onClose}>إلغاء</Button>
+        <Button variant="outline" onClick={onClose}>{t("إلغاء")}</Button>
         {nonBase.length > 0 && (
-          <Button onClick={save} disabled={pending}>{pending ? "جارٍ الحفظ…" : "حفظ"}</Button>
+          <Button onClick={save} disabled={pending}>{pending ? t("جارٍ الحفظ…") : t("حفظ")}</Button>
         )}
       </DialogFooter>
     </DialogContent>
@@ -234,6 +238,8 @@ export function CurrenciesManager({
   currencies: Currency[];
   rates: Rate[];
 }) {
+  const t = useT();
+  const locale = useLocale();
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [showAdd, setShowAdd] = useState(false);
@@ -247,31 +253,30 @@ export function CurrenciesManager({
       <Card>
         <CardHeader className="flex flex-row items-center justify-between pb-3">
           <div>
-            <CardTitle>العملات</CardTitle>
+            <CardTitle>{t("العملات")}</CardTitle>
             <CardDescription>
-              العملة الأساسية هي وحدة القياس في دفتر الأستاذ — تُستخدم في كل القيود المحاسبية.
-              العملات الأخرى تُحوَّل إليها بسعر الصرف عند الترحيل.
+              {t("العملة الأساسية هي وحدة القياس في دفتر الأستاذ — تُستخدم في كل القيود المحاسبية. العملات الأخرى تُحوَّل إليها بسعر الصرف عند الترحيل.")}
             </CardDescription>
           </div>
           <Button size="sm" onClick={() => setShowAdd(true)}>
-            <Plus className="me-1.5 size-4" /> إضافة عملة
+            <Plus className="me-1.5 size-4" /> {t("إضافة عملة")}
           </Button>
         </CardHeader>
         <CardContent>
           {currList.length === 0 ? (
             <div className="rounded-xl border border-dashed py-10 text-center text-muted-foreground text-sm">
-              لا توجد عملات — أضف العملة الأساسية أولًا (الجنيه المصري EGP).
+              {t("لا توجد عملات — أضف العملة الأساسية أولًا (الجنيه المصري EGP).")}
             </div>
           ) : (
             <div className="overflow-hidden rounded-xl border">
               <table className="w-full text-sm">
                 <thead className="bg-muted/30 text-xs text-muted-foreground">
                   <tr className="[&>th]:p-3 [&>th]:text-start">
-                    <th>الكود</th>
-                    <th>الاسم</th>
-                    <th>الرمز</th>
-                    <th>السعر الحالي</th>
-                    <th>الحالة</th>
+                    <th>{t("الكود")}</th>
+                    <th>{t("الاسم")}</th>
+                    <th>{t("الرمز")}</th>
+                    <th>{t("السعر الحالي")}</th>
+                    <th>{t("الحالة")}</th>
                     <th></th>
                   </tr>
                 </thead>
@@ -280,7 +285,7 @@ export function CurrenciesManager({
                     <tr key={c.id} className="border-t [&>td]:p-3 [&>td]:align-middle">
                       <td className="font-mono font-semibold">{c.code}</td>
                       <td>
-                        {c.nameAr}
+                        {t(c.nameAr)}
                         {c.isBase && (
                           <Star className="ms-1.5 inline size-3 fill-yellow-400 text-yellow-400" />
                         )}
@@ -291,7 +296,7 @@ export function CurrenciesManager({
                       </td>
                       <td>
                         <Badge variant={c.isActive ? "default" : "secondary"}>
-                          {c.isBase ? "أساسية" : c.isActive ? "نشطة" : "معطّلة"}
+                          {c.isBase ? t("أساسية") : c.isActive ? t("نشطة") : t("معطّلة")}
                         </Badge>
                       </td>
                       <td>
@@ -304,7 +309,7 @@ export function CurrenciesManager({
                             onClick={() =>
                               startTransition(async () => {
                                 const r = await toggleCurrencyActiveAction(c.id);
-                                if (!r.ok) toast.error(r.error ?? "خطأ");
+                                if (!r.ok) toast.error(r.error ?? t("خطأ"));
                                 else router.refresh();
                               })
                             }
@@ -326,36 +331,35 @@ export function CurrenciesManager({
       <Card>
         <CardHeader className="flex flex-row items-center justify-between pb-3">
           <div>
-            <CardTitle>سجل أسعار الصرف</CardTitle>
+            <CardTitle>{t("سجل أسعار الصرف")}</CardTitle>
             <CardDescription>
-              يُحفظ السعر بالتاريخ لضمان دقة التحويل في الفواتير التاريخية.
-              آخر سعر مُدخَّل يُعتمد للترحيل.
+              {t("يُحفظ السعر بالتاريخ لضمان دقة التحويل في الفواتير التاريخية. آخر سعر مُدخَّل يُعتمد للترحيل.")}
             </CardDescription>
           </div>
           <Button size="sm" variant="outline" onClick={() => setShowRate(true)} disabled={currList.filter(c => !c.isBase).length === 0}>
-            <Plus className="me-1.5 size-4" /> تحديث سعر
+            <Plus className="me-1.5 size-4" /> {t("تحديث سعر")}
           </Button>
         </CardHeader>
         <CardContent>
           {rates.length === 0 ? (
             <div className="rounded-xl border border-dashed py-10 text-center text-muted-foreground text-sm">
-              لا يوجد سجل أسعار — أضف سعر الصرف لكل عملة أجنبية.
+              {t("لا يوجد سجل أسعار — أضف سعر الصرف لكل عملة أجنبية.")}
             </div>
           ) : (
             <div className="overflow-hidden rounded-xl border">
               <table className="w-full text-sm">
                 <thead className="bg-muted/30 text-xs text-muted-foreground">
                   <tr className="[&>th]:p-3 [&>th]:text-start">
-                    <th>العملة</th>
-                    <th>التاريخ</th>
-                    <th>السعر (1 وحدة = ؟ {baseCurrency?.code ?? ""})</th>
+                    <th>{t("العملة")}</th>
+                    <th>{t("التاريخ")}</th>
+                    <th>{fill(t("السعر (1 وحدة = ؟ {0})"), [baseCurrency?.code ?? ""])}</th>
                   </tr>
                 </thead>
                 <tbody>
                   {rates.map((r) => (
                     <tr key={r.id} className="border-t [&>td]:p-3">
                       <td className="font-mono font-semibold">{r.currencyCode}</td>
-                      <td className="text-xs">{new Date(r.date).toLocaleDateString("ar-EG")}</td>
+                      <td className="text-xs">{new Date(r.date).toLocaleDateString(locale === "en" ? "en-GB" : "ar-EG")}</td>
                       <td className="tabular-nums">{Number(r.rate).toFixed(6)}</td>
                     </tr>
                   ))}

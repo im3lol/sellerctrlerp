@@ -1,5 +1,7 @@
 package com.sellerctrl.app.ui
 
+import com.sellerctrl.app.tr
+
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -49,7 +51,7 @@ import com.sellerctrl.app.data.RecurExpDetailDto
 import com.sellerctrl.app.data.RecurExpSaveReq
 import kotlinx.coroutines.launch
 
-private val EXP_FREQS = listOf("WEEKLY" to "أسبوعي", "MONTHLY" to "شهري", "QUARTERLY" to "ربع سنوي", "YEARLY" to "سنوي")
+private val EXP_FREQS = listOf("WEEKLY" to tr("أسبوعي"), "MONTHLY" to tr("شهري"), "QUARTERLY" to tr("ربع سنوي"), "YEARLY" to tr("سنوي"))
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -78,38 +80,38 @@ fun RecurringExpenseFormScreen(nav: NavController) {
     }
 
     fun save() {
-        if (expId.isBlank()) { error = "اختر بند المصروف"; return }
-        if (cashId.isBlank()) { error = "اختر حساب النقدية/البنك"; return }
+        if (expId.isBlank()) { error = tr("اختر بند المصروف"); return }
+        if (cashId.isBlank()) { error = tr("اختر حساب النقدية/البنك"); return }
         val amt = amount.toDoubleOrNull()
-        if (amt == null || amt <= 0) { error = "مبلغ غير صالح"; return }
+        if (amt == null || amt <= 0) { error = tr("مبلغ غير صالح"); return }
         busy = true; error = null
         scope.launch {
             try { ServiceLocator.repo.recurringExpenseSave(RecurExpSaveReq(null, expId, cashId, amt, frequency, nextRun, "CASH", payee.ifBlank { null }, notes.ifBlank { null })); nav.popBackStack() }
-            catch (e: Exception) { error = e.message ?: "خطأ"; busy = false }
+            catch (e: Exception) { error = e.message ?: tr("خطأ"); busy = false }
         }
     }
 
     Scaffold(topBar = {
-        TopAppBar(title = { Text("مصروف دوري جديد") },
+        TopAppBar(title = { Text(tr("مصروف دوري جديد")) },
             navigationIcon = { IconButton(onClick = { nav.popBackStack() }) { Icon(Icons.AutoMirrored.Filled.ArrowBack, null) } })
     }) { pad ->
         Column(Modifier.fillMaxSize().padding(pad).verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            OutlinedButton(onClick = { expPicker = true }, modifier = Modifier.fillMaxWidth()) { Text(if (expName.isBlank()) "بند المصروف *" else expName) }
-            OutlinedButton(onClick = { cashPicker = true }, modifier = Modifier.fillMaxWidth()) { Text(if (cashName.isBlank()) "من حساب (نقدية/بنك) *" else cashName) }
-            OutlinedTextField(amount, { amount = it.filter { c -> c.isDigit() || c == '.' } }, label = { Text("المبلغ") }, singleLine = true,
+            OutlinedButton(onClick = { expPicker = true }, modifier = Modifier.fillMaxWidth()) { Text(if (expName.isBlank()) tr("بند المصروف *") else expName) }
+            OutlinedButton(onClick = { cashPicker = true }, modifier = Modifier.fillMaxWidth()) { Text(if (cashName.isBlank()) tr("من حساب (نقدية/بنك) *") else cashName) }
+            OutlinedTextField(amount, { amount = it.filter { c -> c.isDigit() || c == '.' } }, label = { Text(tr("المبلغ")) }, singleLine = true,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal), modifier = Modifier.fillMaxWidth())
-            OutlinedButton(onClick = { freqPicker = true }, modifier = Modifier.fillMaxWidth()) { Text("التكرار: ${EXP_FREQS.firstOrNull { it.first == frequency }?.second ?: frequency}") }
-            OutlinedTextField(nextRun, { nextRun = it }, label = { Text("تاريخ أول تنفيذ") }, singleLine = true, modifier = Modifier.fillMaxWidth())
-            OutlinedTextField(payee, { payee = it }, label = { Text("المستفيد (اختياري)") }, singleLine = true, modifier = Modifier.fillMaxWidth())
-            OutlinedTextField(notes, { notes = it }, label = { Text("ملاحظات") }, modifier = Modifier.fillMaxWidth())
+            OutlinedButton(onClick = { freqPicker = true }, modifier = Modifier.fillMaxWidth()) { Text(tr("التكرار: ${EXP_FREQS.firstOrNull { it.first == frequency }?.second ?: frequency}")) }
+            OutlinedTextField(nextRun, { nextRun = it }, label = { Text(tr("تاريخ أول تنفيذ")) }, singleLine = true, modifier = Modifier.fillMaxWidth())
+            OutlinedTextField(payee, { payee = it }, label = { Text(tr("المستفيد (اختياري)")) }, singleLine = true, modifier = Modifier.fillMaxWidth())
+            OutlinedTextField(notes, { notes = it }, label = { Text(tr("ملاحظات")) }, modifier = Modifier.fillMaxWidth())
             error?.let { Text(it, color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.SemiBold) }
-            Button(onClick = { save() }, enabled = !busy, modifier = Modifier.fillMaxWidth()) { Text(if (busy) "جارٍ الحفظ…" else "حفظ") }
+            Button(onClick = { save() }, enabled = !busy, modifier = Modifier.fillMaxWidth()) { Text(if (busy) tr("جارٍ الحفظ…") else tr("حفظ")) }
         }
     }
 
-    if (expPicker) AccountPickerDialog("بند المصروف", expAccounts, onDismiss = { expPicker = false }) { a -> expId = a.id; expName = "${a.number} ${a.title}"; expPicker = false }
-    if (cashPicker) AccountPickerDialog("حساب النقدية/البنك", cashAccounts, onDismiss = { cashPicker = false }) { a -> cashId = a.id; cashName = "${a.number} ${a.title}"; cashPicker = false }
-    if (freqPicker) OptionPickerDialog("التكرار", EXP_FREQS, onDismiss = { freqPicker = false }) { id, _ -> frequency = id; freqPicker = false }
+    if (expPicker) AccountPickerDialog(tr("بند المصروف"), expAccounts, onDismiss = { expPicker = false }) { a -> expId = a.id; expName = "${a.number} ${a.title}"; expPicker = false }
+    if (cashPicker) AccountPickerDialog(tr("حساب النقدية/البنك"), cashAccounts, onDismiss = { cashPicker = false }) { a -> cashId = a.id; cashName = "${a.number} ${a.title}"; cashPicker = false }
+    if (freqPicker) OptionPickerDialog(tr("التكرار"), EXP_FREQS, onDismiss = { freqPicker = false }) { id, _ -> frequency = id; freqPicker = false }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -125,7 +127,7 @@ fun RecurringExpenseDetailScreen(nav: NavController, id: String) {
     LaunchedEffect(reload, tick) { d = try { ServiceLocator.repo.recurringExpenseDetail(id) } catch (e: Exception) { null } }
 
     Scaffold(topBar = {
-        TopAppBar(title = { Text("مصروف دوري") },
+        TopAppBar(title = { Text(tr("مصروف دوري")) },
             navigationIcon = { IconButton(onClick = { nav.popBackStack() }) { Icon(Icons.AutoMirrored.Filled.ArrowBack, null) } })
     }) { pad ->
         Box(Modifier.fillMaxSize().padding(pad)) {
@@ -135,35 +137,35 @@ fun RecurringExpenseDetailScreen(nav: NavController, id: String) {
                 AppCard(Modifier.fillMaxWidth()) {
                     Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         Text(o.account, style = MaterialTheme.typography.titleLarge)
-                        Text("${o.frequency} · التالي: ${o.nextRunDate}", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.outline)
+                        Text(tr("${o.frequency} · التالي: ${o.nextRunDate}"), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.outline)
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                            AssistChip(onClick = {}, label = { Text(if (o.isActive) "نشط" else "متوقف") })
+                            AssistChip(onClick = {}, label = { Text(if (o.isActive) tr("نشط") else tr("متوقف")) })
                             Text(money(o.amount), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                         }
-                        Text("من: ${o.cashAccount}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
-                        if (o.payee.isNotBlank()) Text("المستفيد: ${o.payee}", style = MaterialTheme.typography.bodySmall)
+                        Text(tr("من: ${o.cashAccount}"), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
+                        if (o.payee.isNotBlank()) Text(tr("المستفيد: ${o.payee}"), style = MaterialTheme.typography.bodySmall)
                         if (o.notes.isNotBlank()) Text(o.notes, style = MaterialTheme.typography.bodySmall)
                     }
                 }
                 message?.let { Text(it, color = MaterialTheme.colorScheme.primary) }
                 Button(onClick = {
                     busy = true; message = null
-                    scope.launch { try { ServiceLocator.repo.postAction("api/v1/accounting/recurring-expenses/$id/toggle"); message = "تم التحديث ✓"; reload++ } catch (e: Exception) { message = e.message ?: "خطأ" } finally { busy = false } }
-                }, enabled = !busy, modifier = Modifier.fillMaxWidth()) { Text("تفعيل / إيقاف") }
+                    scope.launch { try { ServiceLocator.repo.postAction("api/v1/accounting/recurring-expenses/$id/toggle"); message = tr("تم التحديث ✓"); reload++ } catch (e: Exception) { message = e.message ?: tr("خطأ") } finally { busy = false } }
+                }, enabled = !busy, modifier = Modifier.fillMaxWidth()) { Text(tr("تفعيل / إيقاف")) }
                 OutlinedButton(onClick = { confirmDelete = true }, enabled = !busy, modifier = Modifier.fillMaxWidth(),
-                    colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)) { Text("حذف") }
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)) { Text(tr("حذف")) }
             }
         }
     }
 
     if (confirmDelete) AlertDialog(
-        onDismissRequest = { confirmDelete = false }, title = { Text("حذف") }, text = { Text("متأكد من حذف المصروف الدوري؟") },
+        onDismissRequest = { confirmDelete = false }, title = { Text(tr("حذف")) }, text = { Text(tr("متأكد من حذف المصروف الدوري؟")) },
         confirmButton = {
             TextButton(onClick = {
                 confirmDelete = false; busy = true; message = null
-                scope.launch { try { ServiceLocator.repo.postAction("api/v1/accounting/recurring-expenses/$id/delete"); nav.popBackStack() } catch (e: Exception) { message = e.message ?: "خطأ" } finally { busy = false } }
-            }) { Text("حذف", color = MaterialTheme.colorScheme.error) }
+                scope.launch { try { ServiceLocator.repo.postAction("api/v1/accounting/recurring-expenses/$id/delete"); nav.popBackStack() } catch (e: Exception) { message = e.message ?: tr("خطأ") } finally { busy = false } }
+            }) { Text(tr("حذف"), color = MaterialTheme.colorScheme.error) }
         },
-        dismissButton = { OutlinedButton(onClick = { confirmDelete = false }) { Text("إلغاء") } },
+        dismissButton = { OutlinedButton(onClick = { confirmDelete = false }) { Text(tr("إلغاء")) } },
     )
 }

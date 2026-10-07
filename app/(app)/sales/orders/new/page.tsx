@@ -46,7 +46,7 @@ export default async function NewSalesOrderPage({
 
     return (
       <div className="space-y-6">
-        <ErpPageHeader icon="ClipboardList" title={t("أمر بيع جديد")} subtitle={initialLines ? "معبّأ من عرض السعر — راجِع وأكمل" : "التزام بيع — يُحوّل لفاتورة لاحقاً"} backHref="/sales/orders" />
+        <ErpPageHeader icon="ClipboardList" title={t("أمر بيع جديد")} subtitle={initialLines ? t("معبّأ من عرض السعر — راجِع وأكمل") : t("التزام بيع — يُحوّل لفاتورة لاحقاً")} backHref="/sales/orders" />
         <SalesOrderForm customers={custList} items={itemList} orgName={org[0]?.nameAr ?? "—"} vatRate={Number(org[0]?.vatRate ?? 0)} defaultCustomerId={defaultCustomerId} channelCustomerId={channelCustomerId} initialLines={initialLines} />
       </div>
     );

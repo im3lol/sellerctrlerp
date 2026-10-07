@@ -45,7 +45,7 @@ export function UserMenu({
             {initials}
           </AvatarFallback>
         </Avatar>
-        <div className="hidden text-right leading-tight md:block">
+        <div className="hidden text-start leading-tight md:block">
           <p className="text-sm font-semibold">{name}</p>
           {subtitle && <p className="text-xs text-muted-foreground">{subtitle}</p>}
         </div>
@@ -79,7 +79,7 @@ export function UserMenu({
         {LOCALES.filter((l) => l !== locale).map((l) => (
           <DropdownMenuItem key={l} className="cursor-pointer" onSelect={() => { void setLocaleAction(l); }}>
             <Languages className="size-4" />
-            {LOCALE_LABEL[l]}
+            {t(LOCALE_LABEL[l])}
           </DropdownMenuItem>
         ))}
         <DropdownMenuSeparator />

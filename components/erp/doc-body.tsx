@@ -25,7 +25,7 @@ const cls = {
   code: "rounded bg-muted px-1.5 py-0.5 font-mono text-[0.85em]",
   pre: "overflow-x-auto rounded-lg bg-muted p-3 text-sm",
   blockquote: "border-r-2 border-primary/40 pr-3 text-muted-foreground",
-  th: "border border-border bg-muted px-2 py-1 text-right font-semibold",
+  th: "border border-border bg-muted px-2 py-1 text-start font-semibold",
   td: "border border-border px-2 py-1",
 };
 
@@ -38,7 +38,7 @@ const drop = <T extends object>({ node: _node, ...rest }: T & { node?: unknown }
 
 export function DocBody({ body }: { body: string }) {
   return (
-    <div className="space-y-3 text-sm" dir="rtl">
+    <div className="space-y-3 text-sm">
       <Markdown
         remarkPlugins={[remarkGfm]}
         components={{

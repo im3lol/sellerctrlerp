@@ -1,5 +1,7 @@
 package com.sellerctrl.app.ui
 
+import com.sellerctrl.app.tr
+
 import android.Manifest
 import android.content.pm.PackageManager
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -63,7 +65,7 @@ fun ScanScreen(nav: NavController) {
 
     Scaffold(topBar = {
         TopAppBar(
-            title = { Text("مسح باركود") },
+            title = { Text(tr("مسح باركود")) },
             navigationIcon = { IconButton(onClick = { nav.popBackStack() }) { Icon(Icons.AutoMirrored.Filled.ArrowBack, null) } },
         )
     }) { pad ->
@@ -76,13 +78,13 @@ fun ScanScreen(nav: NavController) {
                             try {
                                 result = ServiceLocator.repo.scan(code); error = null
                             } catch (e: Exception) {
-                                error = "كود غير معروف: $code"; result = null
+                                error = tr("كود غير معروف: $code"); result = null
                             }
                         }
                     }
                 })
             } else {
-                Text("محتاج إذن الكاميرا للمسح", Modifier.align(Alignment.Center))
+                Text(tr("محتاج إذن الكاميرا للمسح"), Modifier.align(Alignment.Center))
             }
 
             result?.let { ItemCard(it, Modifier.align(Alignment.BottomCenter).padding(16.dp)) }
@@ -93,7 +95,7 @@ fun ScanScreen(nav: NavController) {
                 Button(
                     onClick = { result = null; error = null; scanning = true },
                     modifier = Modifier.align(Alignment.BottomEnd).padding(16.dp),
-                ) { Text("مسح تاني") }
+                ) { Text(tr("مسح تاني")) }
             }
         }
     }

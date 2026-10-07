@@ -1,4 +1,6 @@
 import { loadErpPage } from "@/lib/erp/org";
+import { fill } from "@/lib/i18n";
+import { getT } from "@/lib/i18n/server";
 import { orgFiscalYearStartISO } from "@/lib/erp/fiscal";
 import { accountBalances } from "@/lib/erp/financials";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,6 +13,7 @@ const fmt = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { minimumFraction
 const iso = (d: Date) => d.toISOString().slice(0, 10);
 
 export default async function ErpReportsPage({ searchParams }: { searchParams: Promise<{ from?: string; to?: string }> }) {
+  const t = await getT();
   return loadErpPage("reports.view", async ({ orgId, permissions }) => {
     const sp = await searchParams;
     const now = new Date();
@@ -31,14 +34,14 @@ export default async function ErpReportsPage({ searchParams }: { searchParams: P
       <ReportShell
         reportKey="trial-balance"
         icon="BarChart3"
-        title="ميزان المراجعة"
-        subtitle={`من ${from} إلى ${to} — من القيود المُرحّلة`}
+        title={t("ميزان المراجعة")}
+        subtitle={fill(t("من {0} إلى {1} — من القيود المُرحّلة"), [from, to])}
         query={query}
         permissions={permissions}
         filters={
           <>
-            <ReportField label="من تاريخ"><input name="from" type="date" defaultValue={from} className={selectCls} /></ReportField>
-            <ReportField label="إلى تاريخ"><input name="to" type="date" defaultValue={to} className={selectCls} /></ReportField>
+            <ReportField label={t("من تاريخ")}><input name="from" type="date" defaultValue={from} className={selectCls} /></ReportField>
+            <ReportField label={t("إلى تاريخ")}><input name="to" type="date" defaultValue={to} className={selectCls} /></ReportField>
           </>
         }
         kpis={[
@@ -46,30 +49,30 @@ export default async function ErpReportsPage({ searchParams }: { searchParams: P
           { op: "=" },
           { label: "إجمالي الدائن", value: fmt(totalCredit) },
           { label: "الفرق", value: fmt(Math.abs(totalDebit - totalCredit)), tone: balanced ? "profit" : "loss",
-            hint: balanced ? "متوازن" : "غير متوازن" },
+            hint: balanced ? t("متوازن") : t("غير متوازن") },
         ]}
       >
         <Card>
           <CardHeader className="flex-row items-center justify-between">
             <div>
-              <CardTitle>ميزان المراجعة</CardTitle>
-              <CardDescription>أرصدة الحسابات من واقع القيود المُرحّلة للمؤسسة النشطة.</CardDescription>
+              <CardTitle>{t("ميزان المراجعة")}</CardTitle>
+              <CardDescription>{t("أرصدة الحسابات من واقع القيود المُرحّلة للمؤسسة النشطة.")}</CardDescription>
             </div>
-            <Badge variant={balanced ? "default" : "destructive"}>{balanced ? "متوازن" : "غير متوازن"}</Badge>
+            <Badge variant={balanced ? "default" : "destructive"}>{balanced ? t("متوازن") : t("غير متوازن")}</Badge>
           </CardHeader>
           <CardContent>
             {lines.length === 0 ? (
               <div className="rounded-xl border border-dashed py-12 text-center text-muted-foreground">
-                لا توجد قيود مُرحّلة في هذه الفترة.
+                {t("لا توجد قيود مُرحّلة في هذه الفترة.")}
               </div>
             ) : (
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="text-start">الكود</TableHead>
-                    <TableHead className="text-start">الحساب</TableHead>
-                    <TableHead className="text-start">مدين</TableHead>
-                    <TableHead className="text-start">دائن</TableHead>
+                    <TableHead className="text-start">{t("الكود")}</TableHead>
+                    <TableHead className="text-start">{t("الحساب")}</TableHead>
+                    <TableHead className="text-start">{t("مدين")}</TableHead>
+                    <TableHead className="text-start">{t("دائن")}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -78,7 +81,7 @@ export default async function ErpReportsPage({ searchParams }: { searchParams: P
                       <TableCell className="font-mono">
                         <a href={`/accounting/ledger?${new URLSearchParams({ account: l.id, from, to }).toString()}`} className="hover:text-primary hover:underline">{l.code}</a>
                       </TableCell>
-                      <TableCell>{l.nameAr}</TableCell>
+                      <TableCell>{t(l.nameAr)}</TableCell>
                       <TableCell>{l.debit ? fmt(l.debit) : "—"}</TableCell>
                       <TableCell>{l.credit ? fmt(l.credit) : "—"}</TableCell>
                     </TableRow>
@@ -86,7 +89,7 @@ export default async function ErpReportsPage({ searchParams }: { searchParams: P
                 </TableBody>
                 <TableFooter>
                   <TableRow className="font-bold">
-                    <TableCell colSpan={2}>الإجمالي</TableCell>
+                    <TableCell colSpan={2}>{t("الإجمالي")}</TableCell>
                     <TableCell>{fmt(totalDebit)}</TableCell>
                     <TableCell>{fmt(totalCredit)}</TableCell>
                   </TableRow>

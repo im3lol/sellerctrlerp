@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useT } from "@/lib/i18n/client";
 import { bulkJournalAction, type JournalFilter } from "@/app/actions/erp/journal";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -32,6 +33,7 @@ const dt = (d: Date) => new Date(d).toLocaleDateString("en-GB", { year: "numeric
 
 // Only DRAFT entries are deletable — deleteDraftEntryAction rejects posted ones.
 export function JournalTable({ rows, canPost, canCreate, total, filter }: { rows: Row[]; canPost: boolean; canCreate: boolean; total: number; filter: JournalFilter }) {
+  const t = useT();
   const sel = useSelection(total);
   const pageIds = rows.map((r) => r.id);
   const showSelect = canPost || canCreate;
@@ -48,7 +50,7 @@ export function JournalTable({ rows, canPost, canCreate, total, filter }: { rows
           ops={ops}
           action={(op, ids, allPages) => bulkJournalAction(op, allPages ? [] : ids, allPages ? filter : undefined)}
           onDone={sel.clear}
-          entity="قيد"
+          entity={t("قيد")}
           all={{ total, active: sel.allPages, canOffer: sel.allOf(pageIds) && total > pageIds.length, onSelectAll: sel.selectAllPages }}
         />
       )}
@@ -57,15 +59,15 @@ export function JournalTable({ rows, canPost, canCreate, total, filter }: { rows
           <TableRow>
             {showSelect && (
               <TableHead className="w-10">
-                <SelectBox checked={sel.allOf(pageIds)} indeterminate={sel.someOf(pageIds)} onChange={() => sel.togglePage(pageIds)} label="تحديد الكل" />
+                <SelectBox checked={sel.allOf(pageIds)} indeterminate={sel.someOf(pageIds)} onChange={() => sel.togglePage(pageIds)} label={t("تحديد الكل")} />
               </TableHead>
             )}
-            <TableHead className="text-start">الرقم</TableHead>
-            <TableHead className="text-start">التاريخ</TableHead>
-            <TableHead className="text-start">البيان</TableHead>
-            <TableHead className="text-start">المصدر</TableHead>
-            <TableHead className="text-start">المبلغ</TableHead>
-            <TableHead className="text-start">الحالة</TableHead>
+            <TableHead className="text-start">{t("الرقم")}</TableHead>
+            <TableHead className="text-start">{t("التاريخ")}</TableHead>
+            <TableHead className="text-start">{t("البيان")}</TableHead>
+            <TableHead className="text-start">{t("المصدر")}</TableHead>
+            <TableHead className="text-start">{t("المبلغ")}</TableHead>
+            <TableHead className="text-start">{t("الحالة")}</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -76,17 +78,17 @@ export function JournalTable({ rows, canPost, canCreate, total, filter }: { rows
               <TableRow key={r.id} data-state={selectable && sel.has(r.id) ? "selected" : undefined} className="hover:bg-muted/50">
                 {showSelect && (
                   <TableCell>
-                    {selectable && <SelectBox checked={sel.has(r.id)} onChange={() => sel.toggle(r.id)} label="تحديد" />}
+                    {selectable && <SelectBox checked={sel.has(r.id)} onChange={() => sel.toggle(r.id)} label={t("تحديد")} />}
                   </TableCell>
                 )}
                 <TableCell className="font-mono">
                   <Link href={`/accounting/journal/${encodeURIComponent(r.number)}`} className="text-primary hover:underline">{r.number}</Link>
                 </TableCell>
                 <TableCell>{dt(r.date)}</TableCell>
-                <TableCell className="max-w-72 truncate">{r.description ?? "—"}</TableCell>
-                <TableCell className="text-muted-foreground">{SOURCE[r.sourceType ?? ""] ?? "—"}</TableCell>
+                <TableCell className="max-w-72 truncate">{t(r.description ?? "—")}</TableCell>
+                <TableCell className="text-muted-foreground">{t(SOURCE[r.sourceType ?? ""] ?? "—")}</TableCell>
                 <TableCell className="tabular-nums">{fmt(r.total)}</TableCell>
-                <TableCell><Badge variant={st.variant}>{st.label}</Badge></TableCell>
+                <TableCell><Badge variant={st.variant}>{t(st.label)}</Badge></TableCell>
               </TableRow>
             );
           })}

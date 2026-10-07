@@ -1,9 +1,11 @@
 "use client";
 
 import { useEffect, useMemo, useState, useTransition } from "react";
+import { fill } from "@/lib/i18n";
+import { useT } from "@/lib/i18n/client";
 import { useRouter } from "next/navigation";
 import { Plus, Trash2, Loader2 } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "@/lib/i18n/toast";
 import { createSalesOrderAction, updateSalesOrderAction } from "@/app/actions/erp/sales-orders";
 import { getItemWarehouseStockAction, type WarehouseStock } from "@/app/actions/erp/stock";
 import { Button } from "@/components/ui/button";
@@ -56,6 +58,7 @@ export type SalesOrderInitial = {
 };
 
 export function SalesOrderForm({ customers, items, orgName, vatRate, defaultCustomerId, channelCustomerId, initialLines, initial }: { customers: Customer[]; items: Item[]; orgName: string; vatRate: number; defaultCustomerId?: string; channelCustomerId?: Partial<Record<string, string>>; initialLines?: { itemId: string; quantity: number; unitPrice: number; discountAmount: number; taxAmount: number }[]; initial?: SalesOrderInitial }) {
+  const t = useT();
   const router = useRouter();
   const [pending, start] = useTransition();
   const today = new Date().toISOString().slice(0, 10);
@@ -100,7 +103,7 @@ export function SalesOrderForm({ customers, items, orgName, vatRate, defaultCust
   const [quickOpen, setQuickOpen] = useState(false);
   const [quickName, setQuickName] = useState("");
   const allCustomers = useMemo(() => [...customers, ...newCustomers], [customers, newCustomers]);
-  const customerOptions = useMemo(() => allCustomers.map((c) => ({ id: c.id, label: c.nameAr })), [allCustomers]);
+  const customerOptions = useMemo(() => allCustomers.map((c) => ({ id: c.id, label: t(c.nameAr) })), [allCustomers, t]);
   const customerLabelById = useMemo(() => new Map(customerOptions.map((o) => [o.id, o.label])), [customerOptions]);
 
   const setLine = (i: number, patch: Partial<Line>) => setLines((ls) => ls.map((l, idx) => (idx === i ? { ...l, ...patch } : l)));
@@ -178,11 +181,11 @@ export function SalesOrderForm({ customers, items, orgName, vatRate, defaultCust
       };
       const r = isEdit ? await updateSalesOrderAction(initial!.id, body) : await createSalesOrderAction(body);
       if (r.ok) {
-        toast.success(isEdit ? "تم حفظ التعديلات" : "تم حفظ أمر البيع (مسودة) — أكّده");
-        if (r.warning) toast.warning(`تنبيه مخزون: ${r.warning}`, { duration: 8000 });
+        toast.success(isEdit ? t("تم حفظ التعديلات") : t("تم حفظ أمر البيع (مسودة) — أكّده"));
+        if (r.warning) toast.warning(fill(t("تنبيه مخزون: {0}"), [r.warning]), { duration: 8000 });
         router.push(r.number ? `/sales/orders/${encodeURIComponent(r.number)}` : "/sales/orders"); router.refresh();
       }
-      else toast.error(r.error ?? "تعذّر الحفظ");
+      else toast.error(r.error ?? t("تعذّر الحفظ"));
     });
   };
 
@@ -190,21 +193,21 @@ export function SalesOrderForm({ customers, items, orgName, vatRate, defaultCust
     <Card>
       <CardHeader>
         <div className="flex w-full items-center justify-between gap-3">
-          <CardTitle>بيانات أمر البيع</CardTitle>
+          <CardTitle>{t("بيانات أمر البيع")}</CardTitle>
           <div className="flex gap-2">
-            <Button size="sm" onClick={submit} disabled={pending}>{pending && <Loader2 className="size-4 animate-spin" />}{isEdit ? "حفظ التعديلات" : "حفظ الأمر"}</Button>
-            <Button variant="outline" size="sm" onClick={() => router.push(isEdit ? `/sales/orders/${initial!.id}` : "/sales/orders")}>إلغاء</Button>
+            <Button size="sm" onClick={submit} disabled={pending}>{pending && <Loader2 className="size-4 animate-spin" />}{isEdit ? t("حفظ التعديلات") : t("حفظ الأمر")}</Button>
+            <Button variant="outline" size="sm" onClick={() => router.push(isEdit ? `/sales/orders/${initial!.id}` : "/sales/orders")}>{t("إلغاء")}</Button>
           </div>
         </div>
       </CardHeader>
       <CardContent className="space-y-5">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-4">
           <div className="space-y-2">
-            <Label>الشركة</Label>
+            <Label>{t("الشركة")}</Label>
             <div className="flex h-9 items-center rounded-md border bg-muted/40 px-3 text-sm font-medium">{orgName}</div>
           </div>
           <div className="space-y-2">
-            <Label>العميل</Label>
+            <Label>{t("العميل")}</Label>
             <CellCombobox
               selectedLabel={customerLabelById.get(customerId) ?? ""}
               options={customerOptions}
@@ -213,9 +216,9 @@ export function SalesOrderForm({ customers, items, orgName, vatRate, defaultCust
                 // Switching customer re-prices every line — that is the point of a list.
                 applyListPrices(id, lines);
               }}
-              placeholder="ابحث عن العميل…"
+              placeholder={t("ابحث عن العميل…")}
               onCreate={(typed) => { setQuickName(typed); setQuickOpen(true); }}
-              createLabel="إضافة عميل"
+              createLabel={t("إضافة عميل")}
             />
             <QuickCreateParty
               kind="customer"
@@ -225,39 +228,39 @@ export function SalesOrderForm({ customers, items, orgName, vatRate, defaultCust
               onCreated={(p: NewParty) => { setNewCustomers((xs) => [...xs, p]); setCustomerId(p.id); }}
             />
           </div>
-          <div className="space-y-2"><Label>التاريخ</Label><Input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></div>
-          <div className="space-y-2"><Label>تاريخ التسليم</Label><Input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} /></div>
+          <div className="space-y-2"><Label>{t("التاريخ")}</Label><Input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></div>
+          <div className="space-y-2"><Label>{t("تاريخ التسليم")}</Label><Input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} /></div>
           <div className="space-y-2">
-            <Label>الضريبة</Label>
+            <Label>{t("الضريبة")}</Label>
             <label className="flex h-9 cursor-pointer items-center gap-2 rounded-md border bg-background px-3 text-sm">
               <input type="checkbox" checked={applyVat} disabled={vatRate <= 0} onChange={(e) => setApplyVat(e.target.checked)} />
-              {vatRate > 0 ? `إضافة ض.ق.م (${qtyf(vatRate)}%)` : "لا توجد نسبة ضريبة مضبوطة"}
+              {vatRate > 0 ? fill(t("إضافة ض.ق.م ({0}%)"), [qtyf(vatRate)]) : t("لا توجد نسبة ضريبة مضبوطة")}
             </label>
           </div>
         </div>
         <div className={`grid grid-cols-1 gap-4 sm:grid-cols-4 ${isEdit ? "hidden" : ""}`}>
           <div className="space-y-2">
-            <Label>القناة</Label>
+            <Label>{t("القناة")}</Label>
             <select className={selectCls} value={channel} onChange={(e) => onChannel(e.target.value)}>
-              {CHANNELS.map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+              {CHANNELS.map(([k, v]) => <option key={k} value={k}>{t(v)}</option>)}
             </select>
           </div>
           {channel !== "MANUAL" && (
             <>
               <div className="space-y-2">
-                <Label>رقم الطلب ({CHANNELS.find(([k]) => k === channel)?.[1]})</Label>
-                <Input value={externalOrderId} onChange={(e) => setExternalOrderId(e.target.value)} placeholder="مثال: 407-..." dir="ltr" />
+                <Label>{t("رقم الطلب (")}{CHANNELS.find(([k]) => k === channel)?.[1]})</Label>
+                <Input value={externalOrderId} onChange={(e) => setExternalOrderId(e.target.value)} placeholder={t("مثال: 407-...")} dir="ltr" />
               </div>
               <div className="space-y-2">
-                <Label>الشحن</Label>
+                <Label>{t("الشحن")}</Label>
                 <Input type="number" step="0.01" min="0" value={shippingAmount} onChange={(e) => setShippingAmount(Number(e.target.value))} />
               </div>
             </>
           )}
         </div>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <div className="space-y-2"><Label>مسح باركود</Label><BarcodeScan onScan={addOrBumpItem} /></div>
-          <div className="space-y-2"><Label>ملاحظات</Label><Input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="اختياري" /></div>
+          <div className="space-y-2"><Label>{t("مسح باركود")}</Label><BarcodeScan onScan={addOrBumpItem} /></div>
+          <div className="space-y-2"><Label>{t("ملاحظات")}</Label><Input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder={t("اختياري")} /></div>
         </div>
 
         <div className="rounded-xl border">
@@ -265,14 +268,14 @@ export function SalesOrderForm({ customers, items, orgName, vatRate, defaultCust
             <TableHeader>
               <TableRow>
                 <TableHead className="w-8" />
-                <TableHead className="w-14 text-start">صورة</TableHead>
-                <TableHead className="w-72 min-w-64 text-start">الصنف</TableHead>
-                <TableHead className="w-48 text-start">المستودع</TableHead>
-                <TableHead className="w-24 text-start">المخزون الحالي</TableHead>
-                <TableHead className="w-24 text-center">الكمية</TableHead>
-                <TableHead className="w-32 text-center">السعر</TableHead>
-                <TableHead className="w-32 text-center">خصم</TableHead>
-                <TableHead className="w-28 text-start">الإجمالي</TableHead>
+                <TableHead className="w-14 text-start">{t("صورة")}</TableHead>
+                <TableHead className="w-72 min-w-64 text-start">{t("الصنف")}</TableHead>
+                <TableHead className="w-48 text-start">{t("المستودع")}</TableHead>
+                <TableHead className="w-24 text-start">{t("المخزون الحالي")}</TableHead>
+                <TableHead className="w-24 text-center">{t("الكمية")}</TableHead>
+                <TableHead className="w-32 text-center">{t("السعر")}</TableHead>
+                <TableHead className="w-32 text-center">{t("خصم")}</TableHead>
+                <TableHead className="w-28 text-start">{t("الإجمالي")}</TableHead>
                 <TableHead className="w-10"></TableHead>
                 <TableHead className="w-8" />
               </TableRow>
@@ -299,7 +302,7 @@ export function SalesOrderForm({ customers, items, orgName, vatRate, defaultCust
                           options={whOpts}
                           value={l.warehouseId}
                           disabled={!l.itemId}
-                          placeholder={l.itemId ? "ابحث عن مستودع…" : "اختر الصنف أولاً"}
+                          placeholder={l.itemId ? t("ابحث عن مستودع…") : t("اختر الصنف أولاً")}
                           onSelect={(id) => setLine(i, { warehouseId: id })}
                         />
                       </TableCell>
@@ -309,12 +312,12 @@ export function SalesOrderForm({ customers, items, orgName, vatRate, defaultCust
                         <Input type="number" step="0.01" className="w-28 text-base" value={l.unitPrice} onChange={(e) => setLine(i, { unitPrice: Number(e.target.value), priceEdited: true })} />
                         {/* Say where the number came from — a price that changes by itself is a support call. */}
                         {listPriced[l.itemId] && !l.priceEdited && (
-                          <span className="mt-0.5 block text-[11px] text-muted-foreground">من قائمة أسعار العميل</span>
+                          <span className="mt-0.5 block text-[11px] text-muted-foreground">{t("من قائمة أسعار العميل")}</span>
                         )}
                       </TableCell>
                       <TableCell><Input type="number" step="0.01" className="w-28 text-base" value={l.discountAmount} onChange={(e) => setLine(i, { discountAmount: Number(e.target.value) })} /></TableCell>
                       <TableCell className="font-medium">{fmt(lineTotal(l, vatRate, applyVat))}</TableCell>
-                      <TableCell><Button variant="ghost" size="icon" onClick={() => removeLine(i)} aria-label="حذف"><Trash2 className="size-4 text-destructive" /></Button></TableCell>
+                      <TableCell><Button variant="ghost" size="icon" onClick={() => removeLine(i)} aria-label={t("حذف")}><Trash2 className="size-4 text-destructive" /></Button></TableCell>
                     </>
                   );
                 }}
@@ -322,18 +325,18 @@ export function SalesOrderForm({ customers, items, orgName, vatRate, defaultCust
             </TableBody>
           </Table>
         </div>
-        <Button variant="outline" onClick={addLine}><Plus className="size-4" />إضافة بند</Button>
+        <Button variant="outline" onClick={addLine}><Plus className="size-4" />{t("إضافة بند")}</Button>
 
         <div className="flex items-start justify-between gap-4 text-sm">
           <div className="flex flex-col items-start gap-1">
-            <div>إجمالي الكمية: <span className="font-medium">{qtyf(totals.qty)}</span></div>
+            <div>{t("إجمالي الكمية:")} <span className="font-medium">{qtyf(totals.qty)}</span></div>
           </div>
           <div className="flex flex-col items-end gap-1">
-            <div>الإجمالي الفرعي: <span className="font-medium">{fmt(totals.subtotal)}</span></div>
-            <div>الخصم: <span className="font-medium">{fmt(totals.discount)}</span></div>
-            <div>الضريبة: <span className="font-medium">{fmt(totals.tax)}</span></div>
-            {(Number(shippingAmount) || 0) > 0 && <div>الشحن: <span className="font-medium">{fmt(Number(shippingAmount) || 0)}</span></div>}
-            <div className="text-base font-bold text-primary">الإجمالي: {fmt(totals.total)}</div>
+            <div>{t("الإجمالي الفرعي:")} <span className="font-medium">{fmt(totals.subtotal)}</span></div>
+            <div>{t("الخصم:")} <span className="font-medium">{fmt(totals.discount)}</span></div>
+            <div>{t("الضريبة:")} <span className="font-medium">{fmt(totals.tax)}</span></div>
+            {(Number(shippingAmount) || 0) > 0 && <div>{t("الشحن:")} <span className="font-medium">{fmt(Number(shippingAmount) || 0)}</span></div>}
+            <div className="text-base font-bold text-primary">{t("الإجمالي:")} {fmt(totals.total)}</div>
           </div>
         </div>
       </CardContent>

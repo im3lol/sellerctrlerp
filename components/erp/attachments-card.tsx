@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useRef, useState, useTransition } from "react";
-import { toast } from "sonner";
+import { fill } from "@/lib/i18n";
+import { useT } from "@/lib/i18n/client";
+import { toast } from "@/lib/i18n/toast";
 import { getAttachmentsAction, addAttachmentAction, deleteAttachmentAction, type AttachmentMeta } from "@/app/actions/erp/attachments";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -31,6 +33,7 @@ function fileIcon(mime: string) {
 }
 
 export function AttachmentsCard({ entityType, entityId, canManage }: { entityType: string; entityId: string; canManage: boolean }) {
+  const t = useT();
   const [attachments, setAttachments] = useState<AttachmentMeta[]>([]);
   const [loadPending, startLoad] = useTransition();
   const [uploadPending, startUpload] = useTransition();
@@ -53,7 +56,7 @@ export function AttachmentsCard({ entityType, entityId, canManage }: { entityTyp
       return;
     }
     if (file.size > MAX_MB * 1024 * 1024) {
-      toast.error(`حجم الملف لا يجب أن يتجاوز ${MAX_MB} ميجابايت`);
+      toast.error(fill(t("حجم الملف لا يجب أن يتجاوز {0} ميجابايت"), [MAX_MB]));
       return;
     }
     const reader = new FileReader();
@@ -88,13 +91,13 @@ export function AttachmentsCard({ entityType, entityId, canManage }: { entityTyp
       <CardHeader>
         <div className="flex items-center justify-between">
           <div>
-            <CardTitle>المرفقات</CardTitle>
-            <CardDescription>{attachments.length} ملف مرفق</CardDescription>
+            <CardTitle>{t("المرفقات")}</CardTitle>
+            <CardDescription>{attachments.length} {t("ملف مرفق")}</CardDescription>
           </div>
           {canManage && (
             <Button size="sm" variant="outline" onClick={() => fileRef.current?.click()} disabled={uploadPending}>
               <Icon name={uploadPending ? "Loader2" : "Paperclip"} className={`size-4 ${uploadPending ? "animate-spin" : ""}`} />
-              إرفاق ملف
+              {t("إرفاق ملف")}
             </Button>
           )}
         </div>
@@ -110,7 +113,7 @@ export function AttachmentsCard({ entityType, entityId, canManage }: { entityTyp
             onClick={() => fileRef.current?.click()}
           >
             <Icon name="Upload" className="size-4" />
-            اسحب ملفًا هنا أو انقر للرفع (PDF · صورة · Office · حد {MAX_MB} MB)
+            {fill(t("اسحب ملفًا هنا أو انقر للرفع (PDF · صورة · Office · حد {0} MB)"), [MAX_MB])}
           </div>
         )}
         <input ref={fileRef} type="file" className="hidden" accept={ALLOWED_TYPES.join(",")}
@@ -118,12 +121,12 @@ export function AttachmentsCard({ entityType, entityId, canManage }: { entityTyp
 
         {loadPending && attachments.length === 0 && (
           <div className="flex items-center gap-2 text-sm text-muted-foreground py-4">
-            <Icon name="Loader2" className="size-4 animate-spin" />جارٍ التحميل...
+            <Icon name="Loader2" className="size-4 animate-spin" />{t("جارٍ التحميل...")}
           </div>
         )}
 
         {!loadPending && attachments.length === 0 && (
-          <p className="py-6 text-center text-sm text-muted-foreground">لا توجد مرفقات بعد.</p>
+          <p className="py-6 text-center text-sm text-muted-foreground">{t("لا توجد مرفقات بعد.")}</p>
         )}
 
         {attachments.map((att) => (
@@ -134,24 +137,24 @@ export function AttachmentsCard({ entityType, entityId, canManage }: { entityTyp
               <p className="text-xs text-muted-foreground">{formatSize(att.fileSize)} · {new Date(att.createdAt).toLocaleDateString("en-GB")}</p>
             </div>
             <div className="flex gap-1 shrink-0">
-              <Button size="icon" variant="ghost" className="size-8" onClick={() => download(att)} title="تحميل">
+              <Button size="icon" variant="ghost" className="size-8" onClick={() => download(att)} title={t("تحميل")}>
                 <Icon name="Download" className="size-4" />
               </Button>
               {canManage && (
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
-                    <Button size="icon" variant="ghost" className="size-8" disabled={deletePending} title="حذف">
+                    <Button size="icon" variant="ghost" className="size-8" disabled={deletePending} title={t("حذف")}>
                       <Icon name="Trash2" className="size-4 text-destructive" />
                     </Button>
                   </AlertDialogTrigger>
                   <AlertDialogContent>
                     <AlertDialogHeader>
-                      <AlertDialogTitle>حذف «{att.fileName}»؟</AlertDialogTitle>
-                      <AlertDialogDescription>لا يمكن التراجع عن هذا الإجراء.</AlertDialogDescription>
+                      <AlertDialogTitle>{t("حذف «")}{att.fileName}{t("»؟")}</AlertDialogTitle>
+                      <AlertDialogDescription>{t("لا يمكن التراجع عن هذا الإجراء.")}</AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
-                      <AlertDialogCancel>إلغاء</AlertDialogCancel>
-                      <AlertDialogAction onClick={() => remove(att.id)}>حذف</AlertDialogAction>
+                      <AlertDialogCancel>{t("إلغاء")}</AlertDialogCancel>
+                      <AlertDialogAction onClick={() => remove(att.id)}>{t("حذف")}</AlertDialogAction>
                     </AlertDialogFooter>
                   </AlertDialogContent>
                 </AlertDialog>

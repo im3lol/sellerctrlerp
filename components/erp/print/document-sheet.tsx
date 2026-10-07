@@ -1,4 +1,6 @@
 import type { ReactNode } from "react";
+import { fill } from "@/lib/i18n";
+import { getT } from "@/lib/i18n/server";
 import { PrintNowButton } from "@/components/erp/print-now-button";
 
 /**
@@ -89,13 +91,16 @@ export type DocumentSheetProps = {
   backHref?: string;
 };
 
+/** Shown when the company has no name yet. */
+const NO_NAME = "؟";
 const initials = (name: string | null | undefined) =>
-  (name ?? "؟").trim().split(/\s+/).slice(0, 2).map((w) => w[0]).join("");
+  (name ?? NO_NAME).trim().split(/\s+/).slice(0, 2).map((w) => w[0]).join("");
 
-export function DocumentSheet({
+export async function DocumentSheet({
   org, title, number, meta = [], parties = [], columns: allColumns = [], rows: allRows = [],
   totals = [], balance, note, signatures = [], watermark, hiddenColumns = [], footerText, backHref,
 }: DocumentSheetProps) {
+  const t = await getT();
   const visible = allColumns.map((c, i) => (hiddenColumns.includes(c.label) ? -1 : i)).filter((i) => i >= 0);
   const columns = visible.map((i) => allColumns[i]);
   const rows = visible.length === allColumns.length ? allRows : allRows.map((r) => visible.map((i) => r[i]));
@@ -137,7 +142,7 @@ export function DocumentSheet({
         <PrintNowButton />
         {backHref && (
           <a href={backHref} className="rounded border bg-white px-4 py-2 text-sm font-medium shadow hover:bg-muted">
-            رجوع
+            {t("رجوع")}
           </a>
         )}
       </div>
@@ -170,21 +175,21 @@ export function DocumentSheet({
               }}>{initials(org?.nameAr)}</div>
             )}
             <div>
-              <div style={{ fontWeight: 800, fontSize: 17 }}>{org?.nameAr}</div>
+              <div style={{ fontWeight: 800, fontSize: 17 }}>{t(org?.nameAr ?? "")}</div>
               <div style={{ fontSize: 11, color: T.muted, marginTop: 3, lineHeight: 1.5 }}>
                 {org?.address && <div>{org.address}</div>}
                 {org?.phone && <div dir="ltr" style={{ textAlign: "start" }}>{org.phone}</div>}
-                {org?.taxNumber && <div>الرقم الضريبي: <span dir="ltr">{org.taxNumber}</span></div>}
+                {org?.taxNumber && <div>{t("الرقم الضريبي:")} <span dir="ltr">{org.taxNumber}</span></div>}
               </div>
             </div>
           </div>
 
           <div style={{ textAlign: "end" }}>
-            <div style={{ fontSize: 22, fontWeight: 800, letterSpacing: ".5px", color: T.primary }}>{title}</div>
+            <div style={{ fontSize: 22, fontWeight: 800, letterSpacing: ".5px", color: T.primary }}>{t(title)}</div>
             <div style={{ marginTop: 8, fontSize: 11, color: T.muted, lineHeight: 1.8 }}>
-              <div>رقم المستند <b style={{ color: T.ink }} dir="ltr">{number}</b></div>
+              <div>{t("رقم المستند")} <b style={{ color: T.ink }} dir="ltr">{number}</b></div>
               {meta.map((m) => (
-                <div key={m.label}>{m.label} <b style={{ color: T.ink }}>{m.value}</b></div>
+                <div key={m.label}>{t(m.label)} <b style={{ color: T.ink }}>{m.value}</b></div>
               ))}
             </div>
           </div>
@@ -195,8 +200,8 @@ export function DocumentSheet({
           <div className="mb-6 grid gap-8" style={{ gridTemplateColumns: `repeat(${parties.length}, 1fr)` }}>
             {parties.map((p) => (
               <div key={p.label}>
-                <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: "1px", color: T.muted }}>{p.label}</div>
-                <div style={{ fontWeight: 800, fontSize: 14, marginTop: 6 }}>{p.name}</div>
+                <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: "1px", color: T.muted }}>{t(p.label)}</div>
+                <div style={{ fontWeight: 800, fontSize: 14, marginTop: 6 }}>{t(p.name)}</div>
                 <div style={{ fontSize: 11.5, color: T.body, marginTop: 4, lineHeight: 1.6 }}>
                   {p.lines.filter(Boolean).map((l, i) => <div key={i}>{l}</div>)}
                 </div>
@@ -211,7 +216,7 @@ export function DocumentSheet({
             <thead>
               <tr>
                 {columns.map((c) => (
-                  <th key={c.label} style={{ textAlign: c.align ?? "start", width: c.width }}>{c.label}</th>
+                  <th key={c.label} style={{ textAlign: c.align ?? "start", width: c.width }}>{t(c.label)}</th>
                 ))}
               </tr>
             </thead>
@@ -231,21 +236,21 @@ export function DocumentSheet({
         {(totals.length > 0 || balance) && (
           <div className="flex justify-start">
             <div style={{ width: 270 }}>
-              {totals.map((t) => (
-                <div key={t.label} className="flex justify-between" style={{
+              {totals.map((it) => (
+                <div key={it.label} className="flex justify-between" style={{
                   padding: "5px 0",
-                  fontSize: t.tone === "strong" ? 14 : 12,
-                  fontWeight: t.tone === "strong" ? 800 : 500,
-                  borderTop: t.tone === "strong" ? `1px solid ${T.line}` : undefined,
-                  marginTop: t.tone === "strong" ? 4 : undefined,
+                  fontSize: it.tone === "strong" ? 14 : 12,
+                  fontWeight: it.tone === "strong" ? 800 : 500,
+                  borderTop: it.tone === "strong" ? `1px solid ${T.line}` : undefined,
+                  marginTop: it.tone === "strong" ? 4 : undefined,
                 }}>
-                  <span style={{ color: t.tone === "strong" ? T.ink : T.muted }}>{t.label}</span>
+                  <span style={{ color: it.tone === "strong" ? T.ink : T.muted }}>{t(it.label)}</span>
                   <span style={{
-                    fontWeight: t.tone === "strong" ? 800 : 700,
-                    color: t.tone === "danger" ? T.danger
-                      : t.tone === "success" ? T.success
-                      : t.tone === "strong" ? T.primary : T.ink,
-                  }}>{t.value}</span>
+                    fontWeight: it.tone === "strong" ? 800 : 700,
+                    color: it.tone === "danger" ? T.danger
+                      : it.tone === "success" ? T.success
+                      : it.tone === "strong" ? T.primary : T.ink,
+                  }}>{it.value}</span>
                 </div>
               ))}
               {balance && (
@@ -253,7 +258,7 @@ export function DocumentSheet({
                   marginTop: 8, padding: "9px 12px", borderRadius: 6,
                   background: T.accent, color: T.accentText, fontSize: 12.5, fontWeight: 800,
                 }}>
-                  <span>{balance.label}</span><span>{balance.value}</span>
+                  <span>{t(balance.label)}</span><span>{balance.value}</span>
                 </div>
               )}
             </div>
@@ -261,14 +266,14 @@ export function DocumentSheet({
         )}
 
         {note && (
-          <div style={{ marginTop: 24, fontSize: 12, color: T.body, lineHeight: 1.7 }}>{note}</div>
+          <div style={{ marginTop: 24, fontSize: 12, color: T.body, lineHeight: 1.7 }}>{typeof note === "string" ? t(note) : note}</div>
         )}
 
         {signatures.length > 0 && (
           <div className="mt-12 grid gap-8" style={{ gridTemplateColumns: `repeat(${signatures.length}, 1fr)` }}>
             {signatures.map((s) => (
               <div key={s} style={{ textAlign: "center" }}>
-                <div style={{ borderTop: `1px solid ${T.line}`, paddingTop: 6, fontSize: 11, color: T.muted }}>{s}</div>
+                <div style={{ borderTop: `1px solid ${T.line}`, paddingTop: 6, fontSize: 11, color: T.muted }}>{t(s)}</div>
               </div>
             ))}
           </div>
@@ -278,7 +283,7 @@ export function DocumentSheet({
           <div style={{ marginTop: 28, textAlign: "center", fontSize: 11, color: T.body, lineHeight: 1.7 }}>{footerText}</div>
         )}
         <div style={{ marginTop: footerText ? 12 : 32, paddingTop: 12, borderTop: `1px solid ${T.line}`, textAlign: "center", fontSize: 10, color: T.muted }}>
-          {[org?.nameAr, org?.phone, org?.taxNumber && `الرقم الضريبي: ${org.taxNumber}`].filter(Boolean).join(" · ")}
+          {[org?.nameAr, org?.phone, org?.taxNumber && fill(t("الرقم الضريبي: {0}"), [org.taxNumber])].filter(Boolean).join(" · ")}
         </div>
       </div>
     </>

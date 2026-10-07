@@ -49,10 +49,7 @@ export default async function NewPurchaseOrderPage({ searchParams }: { searchPar
     // Last unit price paid per item (any supplier) — suggested on the PO line.
     // The fallback for a supplier with no price in the catalog (supplierPrices below).
     const lastPriceRows = (await db.execute<{ item_id: string; unit_price: string }>(sql`
-      SELECT DISTINCT ON (pol.item_id) pol.item_id,
-        COALESCE((SELECT (source->>'unitPrice')::numeric * po.exchange_rate
-          FROM jsonb_array_elements(po.origin_cost_input->'lines') source
-          WHERE source->>'itemId' = pol.item_id LIMIT 1), pol.unit_price) AS unit_price
+      SELECT DISTINCT ON (pol.item_id) pol.item_id, pol.unit_price
       FROM purchase_order_lines pol
       JOIN purchase_orders po ON po.id = pol.purchase_order_id
       WHERE po.organization_id = ${orgId} AND pol.unit_price > 0
@@ -100,7 +97,7 @@ export default async function NewPurchaseOrderPage({ searchParams }: { searchPar
 
     return (
       <div className="space-y-6">
-        <ErpPageHeader icon="ClipboardList" title={t("أمر شراء جديد")} subtitle={initialLines ? "معبّأ مسبقاً — اختر المورّد وراجِع الكميات" : "التزام شراء — يُحوّل لفاتورة لاحقاً"} backHref="/purchases/orders" />
+        <ErpPageHeader icon="ClipboardList" title={t("أمر شراء جديد")} subtitle={initialLines ? t("معبّأ مسبقاً — اختر المورّد وراجِع الكميات") : t("التزام شراء — يُحوّل لفاتورة لاحقاً")} backHref="/purchases/orders" />
         <PurchaseOrderForm suppliers={supList} warehouses={whList} items={itemList} unitsByItem={unitsByItem} orgName={org[0]?.nameAr ?? "—"} vatRate={Number(org[0]?.vatRate ?? 0)} initialLines={initialLines} initialSupplierId={initialSupplierId} requisitionId={requisitionId} lastPrices={lastPrices} supplierPrices={supplierPrices} currencies={currRows} latestRates={latestRates}
         rateHistory={rateHistory} />
       </div>

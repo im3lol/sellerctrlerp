@@ -1,4 +1,6 @@
 import { and, eq, inArray, sql } from "drizzle-orm";
+import { fill } from "@/lib/i18n";
+import { getT } from "@/lib/i18n/server";
 import Link from "next/link";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
@@ -19,6 +21,7 @@ const tone = (v: number | null) =>
   v == null ? "text-muted-foreground" : v >= 85 ? "text-emerald-600" : v >= 60 ? "text-amber-600" : "text-destructive";
 
 export default async function SupplierRatingPage() {
+  const t = await getT();
   return loadErpPage("purchases.view", async ({ orgId }) => {
     // Delivery + quality, from confirmed receipts joined back to their order's promise.
     const receiptRows = await db
@@ -90,27 +93,24 @@ export default async function SupplierRatingPage() {
       <div className="space-y-6">
         <ErpPageHeader
           icon="Star"
-          title="تقييم الموردين"
-          subtitle="محسوب من أوامر الشراء والاستلامات والفواتير — مفيش أي إدخال بيانات إضافي"
+          title={t("تقييم الموردين")}
+          subtitle={t("محسوب من أوامر الشراء والاستلامات والفواتير — مفيش أي إدخال بيانات إضافي")}
           backHref="/purchases/suppliers"
         />
 
         <Card>
           <CardHeader>
-            <CardTitle>كيف بيتحسب</CardTitle>
+            <CardTitle>{t("كيف بيتحسب")}</CardTitle>
             <CardDescription>
-              <b>الالتزام بالمواعيد (٤٠٪)</b> من فرق تاريخ الاستلام عن التسليم المتوقّع في الأمر ·{" "}
-              <b>الجودة (٣٥٪)</b> من الكمية المرفوضة عند الاستلام ·{" "}
-              <b>الالتزام بالسعر (٢٥٪)</b> من فرق سعر الفاتورة عن سعر الأمر.
-              البُعد اللي مفيش بيانات ليه بيتشال من المعادلة، مش بيتحسب صفر — والمورّد بأقل من ٣ استلامات
-              بيتعرض من غير تقدير، لأن عيّنة صغيرة مش حكم.
+              <b>{t("الالتزام بالمواعيد (٤٠٪)")}</b> {t("من فرق تاريخ الاستلام عن التسليم المتوقّع في الأمر ·")}{" "}
+              <b>{t("الجودة (٣٥٪)")}</b> {t("من الكمية المرفوضة عند الاستلام ·")}{" "}
+              <b>{t("الالتزام بالسعر (٢٥٪)")}</b> {t("من فرق سعر الفاتورة عن سعر الأمر. البُعد اللي مفيش بيانات ليه بيتشال من المعادلة، مش بيتحسب صفر — والمورّد بأقل من ٣ استلامات بيتعرض من غير تقدير، لأن عيّنة صغيرة مش حكم.")}
             </CardDescription>
           </CardHeader>
           {undated && (
             <CardContent>
               <p className="rounded-lg border border-amber-500/40 bg-amber-500/5 p-3 text-sm">
-                مفيش ولا أمر شراء متسجّل فيه «التسليم المتوقّع»، فدرجة المواعيد فاضية للكل.
-                املا الحقل ده في أوامر الشراء الجاية والدرجة هتظهر لوحدها.
+                {t("مفيش ولا أمر شراء متسجّل فيه «التسليم المتوقّع»، فدرجة المواعيد فاضية للكل. املا الحقل ده في أوامر الشراء الجاية والدرجة هتظهر لوحدها.")}
               </p>
             </CardContent>
           )}
@@ -118,28 +118,28 @@ export default async function SupplierRatingPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle>الترتيب</CardTitle>
-            <CardDescription>{scores.length ? `${scores.length} مورّد` : "مفيش بيانات كفاية بعد"}</CardDescription>
+            <CardTitle>{t("الترتيب")}</CardTitle>
+            <CardDescription>{scores.length ? fill(t("{0} مورّد"), [scores.length]) : t("مفيش بيانات كفاية بعد")}</CardDescription>
           </CardHeader>
           <CardContent>
             {scores.length === 0 ? (
               <p className="text-sm text-muted-foreground">
-                التقييم بيظهر بعد أول إذن استلام مؤكّد. مفيش حاجة تتملى هنا — الأرقام بتيجي من المستندات نفسها.
+                {t("التقييم بيظهر بعد أول إذن استلام مؤكّد. مفيش حاجة تتملى هنا — الأرقام بتيجي من المستندات نفسها.")}
               </p>
             ) : (
               <div className="rounded-xl border overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead className="text-start">المورّد</TableHead>
-                      <TableHead className="text-start">التقدير</TableHead>
-                      <TableHead className="text-start">الإجمالي</TableHead>
-                      <TableHead className="text-start">المواعيد</TableHead>
-                      <TableHead className="text-start">الجودة</TableHead>
-                      <TableHead className="text-start">السعر</TableHead>
-                      <TableHead className="text-start">متوسط التأخير</TableHead>
-                      <TableHead className="text-start">نسبة الرفض</TableHead>
-                      <TableHead className="text-start">العيّنة</TableHead>
+                      <TableHead className="text-start">{t("المورّد")}</TableHead>
+                      <TableHead className="text-start">{t("التقدير")}</TableHead>
+                      <TableHead className="text-start">{t("الإجمالي")}</TableHead>
+                      <TableHead className="text-start">{t("المواعيد")}</TableHead>
+                      <TableHead className="text-start">{t("الجودة")}</TableHead>
+                      <TableHead className="text-start">{t("السعر")}</TableHead>
+                      <TableHead className="text-start">{t("متوسط التأخير")}</TableHead>
+                      <TableHead className="text-start">{t("نسبة الرفض")}</TableHead>
+                      <TableHead className="text-start">{t("العيّنة")}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -154,18 +154,18 @@ export default async function SupplierRatingPage() {
                           </TableCell>
                           <TableCell>
                             {label ? <Badge variant={label === "ضعيف" ? "destructive" : "secondary"}>{label}</Badge>
-                                   : <span className="text-xs text-muted-foreground">عيّنة صغيرة</span>}
+                                   : <span className="text-xs text-muted-foreground">{t("عيّنة صغيرة")}</span>}
                           </TableCell>
                           <TableCell className={`font-bold tabular-nums ${tone(s.overall)}`}>{n1(s.overall)}</TableCell>
                           <TableCell className={`tabular-nums ${tone(s.onTime)}`}>{n1(s.onTime)}</TableCell>
                           <TableCell className={`tabular-nums ${tone(s.quality)}`}>{n1(s.quality)}</TableCell>
                           <TableCell className={`tabular-nums ${tone(s.priceHonesty)}`}>{n1(s.priceHonesty)}</TableCell>
                           <TableCell className="tabular-nums">
-                            {s.avgDaysLate == null ? "—" : `${n1(s.avgDaysLate)} يوم`}
+                            {s.avgDaysLate == null ? "—" : fill(t("{0} يوم"), [n1(s.avgDaysLate)])}
                           </TableCell>
                           <TableCell className="tabular-nums">{pct(s.rejectRate)}</TableCell>
                           <TableCell className="text-xs text-muted-foreground">
-                            {s.sample.receipts} استلام · {s.sample.invoicedLines} بند مفوتر
+                            {fill(t("{0} استلام · {1} بند مفوتر"), [s.sample.receipts, s.sample.invoicedLines])}
                           </TableCell>
                         </TableRow>
                       );

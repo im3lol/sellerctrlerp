@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { fill } from "@/lib/i18n";
 import { getT } from "@/lib/i18n/server";
 import { and, asc, count, desc, eq, gte, ilike, inArray, lte, ne, sql } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
@@ -109,7 +110,7 @@ export default async function PurchaseInvoicesPage({ searchParams }: { searchPar
         <ErpPageHeader
           icon="ReceiptText"
           title={t("فواتير الشراء")}
-          subtitle={`${total} فاتورة`}
+          subtitle={fill(t("{0} فاتورة"), [total])}
           action={canManage ? (
             <div className="flex gap-2">
               <Button variant="outline" asChild><Link href="/purchases/read-bill"><Icon name="Sparkles" className="size-4" />{t("اقرأ فاتورة")}</Link></Button>
@@ -132,7 +133,7 @@ export default async function PurchaseInvoicesPage({ searchParams }: { searchPar
           <CardContent className="space-y-4">
             <details open={hasFilters} className="rounded-lg border">
               <summary className="flex cursor-pointer select-none items-center gap-2 px-4 py-2 text-sm font-medium">
-                <Icon name="ListFilter" className="size-4" /> بحث وتصفية
+                <Icon name="ListFilter" className="size-4" /> {t("بحث وتصفية")}
               </summary>
               <form className="grid gap-3 p-4 pt-0 sm:grid-cols-5 items-end">
                 <div className="space-y-1"><Label htmlFor="q">{t("رقم الفاتورة")}</Label><Input id="q" name="q" defaultValue={q} placeholder="PI-2026-..." /></div>
@@ -140,14 +141,14 @@ export default async function PurchaseInvoicesPage({ searchParams }: { searchPar
                   <Label htmlFor="status">{t("الحالة")}</Label>
                   <select id="status" name="status" defaultValue={fStatus} className={selectCls}>
                     <option value="">{t("الكل")}</option>
-                    {STATUS_OPTIONS.map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                    {STATUS_OPTIONS.map(([k, v]) => <option key={k} value={k}>{t(v)}</option>)}
                   </select>
                 </div>
                 <div className="space-y-1">
                   <Label htmlFor="supplier">{t("المورد")}</Label>
                   <select id="supplier" name="supplier" defaultValue={fSupplier} className={selectCls}>
                     <option value="">{t("الكل")}</option>
-                    {supList.map((s) => <option key={s.id} value={s.id}>{s.nameAr}</option>)}
+                    {supList.map((s) => <option key={s.id} value={s.id}>{t(s.nameAr)}</option>)}
                   </select>
                 </div>
                 <div className="space-y-1"><Label htmlFor="from">{t("من تاريخ")}</Label><Input id="from" name="from" type="date" defaultValue={from} /></div>
@@ -160,12 +161,12 @@ export default async function PurchaseInvoicesPage({ searchParams }: { searchPar
             </details>
 
             {tableRows.length === 0 ? (
-              <div className="rounded-xl border border-dashed py-12 text-center text-muted-foreground">{hasFilters ? "لا توجد نتائج مطابقة." : "لا توجد فواتير بعد."}</div>
+              <div className="rounded-xl border border-dashed py-12 text-center text-muted-foreground">{hasFilters ? t("لا توجد نتائج مطابقة.") : t("لا توجد فواتير بعد.")}</div>
             ) : (
               <>
                 <PurchaseInvoicesTable rows={rows} canCreate={canManage} canPost={canPost} />
                 <div className="flex items-center justify-between text-sm text-muted-foreground">
-                  <span>صفحة {safePage} من {pages}</span>
+                  <span>{t("صفحة")} {safePage} {t("من")} {pages}</span>
                   <div className="flex gap-2">
                     <Button variant="outline" size="sm" disabled={safePage <= 1} asChild={safePage > 1}>
                       {safePage > 1 ? <a href={qs(safePage - 1)}>{t("السابق")}</a> : <span>{t("السابق")}</span>}

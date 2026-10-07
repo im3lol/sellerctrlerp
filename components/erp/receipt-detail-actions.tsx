@@ -1,8 +1,10 @@
 "use client";
 
 import { useTransition } from "react";
+import { fill } from "@/lib/i18n";
+import { useT } from "@/lib/i18n/client";
 import { useRouter } from "next/navigation";
-import { toast } from "sonner";
+import { toast } from "@/lib/i18n/toast";
 import { confirmReceiptAction, deleteReceiptAction, cancelReceiptAction, convertReceiptToInvoiceAction } from "@/app/actions/erp/goods-receipts";
 import { deleteCancelledDocumentAction } from "@/app/actions/erp/doc-purge";
 import { confirmPurge } from "@/components/erp/purge-confirm";
@@ -24,6 +26,7 @@ export function ReceiptDetailActions({
   canReceive: boolean;
   printHref: string; barcodeRows?: BulkRow[];
 }) {
+  const t = useT();
   const router = useRouter();
   const [pending, start] = useTransition();
 
@@ -33,7 +36,7 @@ export function ReceiptDetailActions({
       start(async () => {
         const r = await fn();
         if (r.ok) { toast.success(ok); if (dest) router.push(dest); router.refresh(); }
-        else toast.error(r.error ?? "تعذّر التنفيذ");
+        else toast.error(r.error ?? t("تعذّر التنفيذ"));
       });
     })();
   };
@@ -44,7 +47,7 @@ export function ReceiptDetailActions({
       start(async () => {
         const r = await convertReceiptToInvoiceAction(id);
         if (r.ok) { toast.success("تم إنشاء مسودة فاتورة — راجِعها وأكّدها"); router.push(r.invoiceId ? `/purchases/invoices/${r.invoiceId}` : "/purchases/invoices"); router.refresh(); }
-        else toast.error(r.error ?? "تعذّر التحويل");
+        else toast.error(r.error ?? t("تعذّر التحويل"));
       });
     })();
 
@@ -69,7 +72,7 @@ export function ReceiptDetailActions({
           start(async () => {
             const r = await deleteCancelledDocumentAction("receipt", id);
             if (r.ok) { toast.success("تم حذف الإذن نهائياً"); router.push("/purchases/receipts"); router.refresh(); }
-            else toast.error(r.error ?? "تعذّر الحذف");
+            else toast.error(r.error ?? t("تعذّر الحذف"));
           });
         })() });
     }
@@ -79,11 +82,11 @@ export function ReceiptDetailActions({
     <DocumentActions
       primary={canReceive && status === "DRAFT" ? (
         <Button size="sm" disabled={pending} onClick={() => run(() => confirmReceiptAction(id), "تم تأكيد الاستلام وترحيله")}>
-          <Icon name="Check" className="size-4" />تأكيد الاستلام
+          <Icon name="Check" className="size-4" />{t("تأكيد الاستلام")}
         </Button>
       ) : undefined}
       items={items}
-      barcode={barcodeRows.length ? { docTitle: `إذن استلام ${number}`, rows: barcodeRows } : undefined}
+      barcode={barcodeRows.length ? { docTitle: fill(t("إذن استلام {0}"), [number]), rows: barcodeRows } : undefined}
     />
   );
 }

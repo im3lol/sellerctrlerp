@@ -1,4 +1,5 @@
 import { and, asc, eq, inArray } from "drizzle-orm";
+import { getT } from "@/lib/i18n/server";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
 import { employees, accounts, users } from "@/db/schema";
@@ -6,6 +7,7 @@ import { ErpPageHeader } from "@/components/erp/page-header";
 import { CustodyManager } from "@/components/erp/custody-manager";
 
 export default async function CustodyPage() {
+  const t = await getT();
   return loadErpPage("accounting.view", async ({ orgId, can }) => {
     const [staff, cash, expense] = await Promise.all([
       db.select({ id: employees.id, fullName: employees.fullName, code: employees.employeeCode, name: users.name })
@@ -30,15 +32,15 @@ export default async function CustodyPage() {
       <div className="space-y-6">
         <ErpPageHeader
           icon="HandCoins"
-          title="العُهد"
-          subtitle="فلوس مع الموظف لحساب الشركة — والرصيد هو اللي لسه في إيده"
+          title={t("العُهد")}
+          subtitle={t("فلوس مع الموظف لحساب الشركة — والرصيد هو اللي لسه في إيده")}
           backHref="/accounting"
         />
         <CustodyManager
           canManage={can("accounting.post")}
           employees={staff.map((s) => ({ id: s.id, label: `${s.fullName ?? s.name ?? "—"}${s.code ? ` — ${s.code}` : ""}` }))}
-          cashAccounts={cash.map((a) => ({ id: a.id, label: `${a.code} — ${a.nameAr}` }))}
-          expenseAccounts={expense.map((a) => ({ id: a.id, label: `${a.code} — ${a.nameAr}` }))}
+          cashAccounts={cash.map((a) => ({ id: a.id, label: `${a.code} — ${t(a.nameAr)}` }))}
+          expenseAccounts={expense.map((a) => ({ id: a.id, label: `${a.code} — ${t(a.nameAr)}` }))}
         />
       </div>
     );

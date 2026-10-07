@@ -1,4 +1,5 @@
 import { and, asc, eq, inArray } from "drizzle-orm";
+import { getT } from "@/lib/i18n/server";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
 import { warehouses, accounts, customers, organizations, promotions } from "@/db/schema";
@@ -10,6 +11,7 @@ import { PosTerminal } from "@/components/erp/pos-terminal";
 export const dynamic = "force-dynamic";
 
 export default async function PosPage() {
+  const t = await getT();
   return loadErpPage("sales.create", async ({ orgId }) => {
     const [whList, cashList, custList, org, promoRows] = await Promise.all([
       db.select({ id: warehouses.id, nameAr: warehouses.nameAr })
@@ -42,8 +44,8 @@ export default async function PosPage() {
       <div className="space-y-6">
         <ErpPageHeader
           icon="Store"
-          title="نقطة البيع"
-          subtitle="بيع سريع بالباركود — كل بيعة فاتورة مرحّلة وسند قبض"
+          title={t("نقطة البيع")}
+          subtitle={t("بيع سريع بالباركود — كل بيعة فاتورة مرحّلة وسند قبض")}
           backHref="/sales"
           action={<DatasetExport dataset="pos-shifts" />}
         />
@@ -51,15 +53,14 @@ export default async function PosPage() {
         {missing ? (
           <Card><CardContent className="pt-6">
             <p className="text-sm text-muted-foreground">
-              نقطة البيع محتاجة مخزن مفعّل، وحساب خزينة (١١٠١ أو ١١٠٢)، وعميل واحد على الأقل —
-              اعمل «عميل نقدي» لو مش بتسجّل بيانات كل مشترٍ.
+              {t("نقطة البيع محتاجة مخزن مفعّل، وحساب خزينة (١١٠١ أو ١١٠٢)، وعميل واحد على الأقل — اعمل «عميل نقدي» لو مش بتسجّل بيانات كل مشترٍ.")}
             </p>
           </CardContent></Card>
         ) : (
           <PosTerminal
-            warehouses={whList.map((w) => ({ id: w.id, label: w.nameAr }))}
-            cashAccounts={cashList.map((a) => ({ id: a.id, label: `${a.code} — ${a.nameAr}` }))}
-            customers={custList.map((c) => ({ id: c.id, label: `${c.code} — ${c.nameAr}` }))}
+            warehouses={whList.map((w) => ({ id: w.id, label: t(w.nameAr) }))}
+            cashAccounts={cashList.map((a) => ({ id: a.id, label: `${a.code} — ${t(a.nameAr)}` }))}
+            customers={custList.map((c) => ({ id: c.id, label: `${c.code} — ${t(c.nameAr)}` }))}
             defaultCustomerId={custList[0]?.id ?? null}
             vatRate={Number(org[0]?.vatRate ?? 0)}
             promotions={promoRows.map((r) => ({

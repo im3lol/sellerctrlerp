@@ -1069,8 +1069,15 @@
     {
       "idx": 152,
       "version": "7",
-      "when": 1791000000001,
-      "tag": "0152_purchase_order_origin_costs",
+      "when": 1792000000000,
+      "tag": "0152_rule_dashboard_numbers",
+      "breakpoints": true
+    },
+    {
+      "idx": 153,
+      "version": "7",
+      "when": 1792000001000,
+      "tag": "0153_purchase_order_origin_costs",
       "breakpoints": true
     }
   ]

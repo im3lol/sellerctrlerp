@@ -1,4 +1,5 @@
 import { loadErpPage } from "@/lib/erp/org";
+import { fill } from "@/lib/i18n";
 import { getT } from "@/lib/i18n/server";
 import { getStockBalances } from "@/lib/erp/stock-balances";
 import { resolveAccountIds } from "@/lib/erp/accounting-config";
@@ -44,18 +45,18 @@ export default async function InventoryValuationReconciliationPage() {
               <CardTitle>{t("النتيجة")}</CardTitle>
               <CardDescription>
                 {invAccount
-                  ? `حساب المخزون: ${invAccount.code} — ${invAccount.nameAr}. القيمتان يجب أن تتطابقا؛ أي فرق يعني خطأً في الترحيل.`
-                  : "لم يُضبط حساب المخزون (1104) في دليل الحسابات."}
+                  ? fill(t("حساب المخزون: {0} — {1}. القيمتان يجب أن تتطابقا؛ أي فرق يعني خطأً في الترحيل."), [invAccount.code, t(invAccount.nameAr)])
+                  : t("لم يُضبط حساب المخزون (1104) في دليل الحسابات.")}
               </CardDescription>
             </div>
-            <Badge variant={matched ? "default" : "destructive"} className="text-sm">{matched ? "مطابَق" : "غير مطابَق"}</Badge>
+            <Badge variant={matched ? "default" : "destructive"} className="text-sm">{matched ? t("مطابَق") : t("غير مطابَق")}</Badge>
           </CardHeader>
           <CardContent>
             {matched ? (
               <p className="text-sm text-muted-foreground">{t("دفتر المخزون يطابق حساب الأستاذ العام تماماً.")}</p>
             ) : (
               <p className="text-sm text-destructive">
-                يوجد فرق قدره {fmt(Math.abs(diff))}. راجِع القيود اليدوية على حساب المخزون أو حركات المخزون غير المُرحَّلة محاسبياً.
+                {fill(t("يوجد فرق قدره {0}. راجِع القيود اليدوية على حساب المخزون أو حركات المخزون غير المُرحَّلة محاسبياً."), [fmt(Math.abs(diff))])}
               </p>
             )}
           </CardContent>

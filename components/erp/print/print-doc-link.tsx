@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { getT } from "@/lib/i18n/server";
 import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/icon";
 
@@ -8,11 +9,12 @@ import { Icon } from "@/components/icon";
  * A plain link, so it works from a server component. The print page itself carries the
  * client-side print trigger (PrintNowButton).
  */
-export function PrintDocLink({ href }: { href: string }) {
+export async function PrintDocLink({ href }: { href: string }) {
+  const t = await getT();
   return (
     <Button size="sm" variant="outline" asChild>
       <Link href={href} target="_blank" rel="noopener">
-        <Icon name="Printer" className="size-4" />طباعة
+        <Icon name="Printer" className="size-4" />{t("طباعة")}
       </Link>
     </Button>
   );

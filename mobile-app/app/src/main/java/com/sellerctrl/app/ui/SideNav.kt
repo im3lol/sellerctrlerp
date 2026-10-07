@@ -1,5 +1,7 @@
 package com.sellerctrl.app.ui
 
+import com.sellerctrl.app.tr
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -41,11 +43,11 @@ fun SideNav(nav: NavController, current: String?, onNavigate: (String) -> Unit) 
         Text("sellerctrl", color = Color.White, fontSize = 25.sp)
         Text(ServiceLocator.repo.orgName(), color = Color.White.copy(alpha = 0.7f), fontSize = 12.sp)
         Spacer(Modifier.height(24.dp))
-        DrawerRow("الرئيسية", Icons.Filled.Home, current == "home") { onNavigate("home") }
-        DrawerRow("كل التطبيقات", Icons.Filled.GridView, current == "apps") { onNavigate("apps") }
-        DrawerRow("مسح باركود", Icons.Filled.QrCodeScanner, current == "scan") { onNavigate("scan") }
+        DrawerRow(tr("الرئيسية"), Icons.Filled.Home, current == "home") { onNavigate("home") }
+        DrawerRow(tr("كل التطبيقات"), Icons.Filled.GridView, current == "apps") { onNavigate("apps") }
+        DrawerRow(tr("مسح باركود"), Icons.Filled.QrCodeScanner, current == "scan") { onNavigate("scan") }
         Spacer(Modifier.weight(1f))
-        DrawerRow("تسجيل الخروج", Icons.AutoMirrored.Filled.Logout, false) {
+        DrawerRow(tr("تسجيل الخروج"), Icons.AutoMirrored.Filled.Logout, false) {
             scope.launch {
                 ServiceLocator.repo.logout()
                 onNavigate("login")

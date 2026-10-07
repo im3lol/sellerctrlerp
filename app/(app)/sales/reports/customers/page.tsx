@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { getT } from "@/lib/i18n/server";
 import { and, eq, gte, inArray, lte, sql } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
 import { orgFiscalYearStartISO } from "@/lib/erp/fiscal";
@@ -18,6 +19,7 @@ const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) 
 const POSTED = ["POSTED", "PARTIAL_PAID", "PAID"];
 
 export default async function CustomerRankingPage({ searchParams }: { searchParams: Promise<SP> }) {
+  const t = await getT();
   return loadErpPage("sales.view", async ({ orgId, permissions }) => {
     const sp = await searchParams;
     const from = one(sp.from) || (await orgFiscalYearStartISO(orgId));
@@ -49,8 +51,8 @@ export default async function CustomerRankingPage({ searchParams }: { searchPara
       <ReportShell
         reportKey="sales-customers"
         icon="Users"
-        title="ترتيب العملاء"
-        subtitle="أفضل العملاء بالإيراد مع الرصيد المستحق وآخر تعامل"
+        title={t("ترتيب العملاء")}
+        subtitle={t("أفضل العملاء بالإيراد مع الرصيد المستحق وآخر تعامل")}
         query={qs.toString()}
         permissions={permissions}
         filtersRaw={<ItemSalesFilters from={from} to={to} q={search} />}
@@ -59,29 +61,29 @@ export default async function CustomerRankingPage({ searchParams }: { searchPara
           { label: "إجمالي الإيراد", value: fmt(tRevenue), tone: "profit", hint: "بدون ضريبة" },
           { label: "الذمم المستحقة", value: fmt(tAr), hint: "الرصيد الحالي" },
         ]}
-        chartTitle={list.length > 0 ? "أعلى ٨ عملاء إيرادًا" : undefined}
+        chartTitle={list.length > 0 ? t("أعلى ٨ عملاء إيرادًا") : undefined}
         chart={list.length > 0
-          ? <BarChart data={list.slice(0, 8).map((r) => ({ label: r.name, value: r.revenue }))} valueLabel="الإيراد" money height={240} />
+          ? <BarChart data={list.slice(0, 8).map((r) => ({ label: r.name, value: r.revenue }))} valueLabel={t("الإيراد")} money height={240} />
           : undefined}
       >
         <Card>
           <CardHeader>
-            <CardTitle>العملاء حسب الإيراد</CardTitle>
-            <CardDescription>الفترة {from} إلى {to} — الإيراد صافٍ من الضريبة؛ الرصيد المستحق هو الرصيد الحالي.</CardDescription>
+            <CardTitle>{t("العملاء حسب الإيراد")}</CardTitle>
+            <CardDescription>{t("الفترة")} {from} {t("إلى")} {to} {t("— الإيراد صافٍ من الضريبة؛ الرصيد المستحق هو الرصيد الحالي.")}</CardDescription>
           </CardHeader>
           <CardContent>
             {list.length === 0 ? (
-              <div className="rounded-xl border border-dashed py-12 text-center text-muted-foreground">لا توجد مبيعات في هذه الفترة.</div>
+              <div className="rounded-xl border border-dashed py-12 text-center text-muted-foreground">{t("لا توجد مبيعات في هذه الفترة.")}</div>
             ) : (
               <Table>
                 <TableHeader><TableRow>
                   <TableHead className="text-start">#</TableHead>
-                  <TableHead className="text-start">العميل</TableHead>
-                  <TableHead className="text-end">الإيراد</TableHead>
-                  <TableHead className="text-end">الفواتير</TableHead>
-                  <TableHead className="text-end">الرصيد المستحق</TableHead>
-                  <TableHead className="text-end">آخر فاتورة</TableHead>
-                  <TableHead className="text-end">% من الإجمالي</TableHead>
+                  <TableHead className="text-start">{t("العميل")}</TableHead>
+                  <TableHead className="text-end">{t("الإيراد")}</TableHead>
+                  <TableHead className="text-end">{t("الفواتير")}</TableHead>
+                  <TableHead className="text-end">{t("الرصيد المستحق")}</TableHead>
+                  <TableHead className="text-end">{t("آخر فاتورة")}</TableHead>
+                  <TableHead className="text-end">{t("% من الإجمالي")}</TableHead>
                 </TableRow></TableHeader>
                 <TableBody>
                   {list.map((r, i) => {
@@ -89,7 +91,7 @@ export default async function CustomerRankingPage({ searchParams }: { searchPara
                     return (
                       <TableRow key={r.id}>
                         <TableCell className="text-muted-foreground">{i + 1}</TableCell>
-                        <TableCell className="max-w-[280px] whitespace-normal"><Link href={`/accounting/customer-statement?customer=${r.id}`} className="hover:text-primary"><span className="line-clamp-2 leading-snug" title={r.name ?? undefined}><span className="font-mono text-xs text-muted-foreground">{r.code}</span> {r.name}</span></Link></TableCell>
+                        <TableCell className="max-w-[280px] whitespace-normal"><Link href={`/accounting/customer-statement?customer=${r.id}`} className="hover:text-primary"><span className="line-clamp-2 leading-snug" title={r.name ?? undefined}><span className="font-mono text-xs text-muted-foreground">{r.code}</span> {t(r.name)}</span></Link></TableCell>
                         <TableCell className="text-end tabular-nums font-medium">{fmt(r.revenue)}</TableCell>
                         <TableCell className="text-end tabular-nums">{r.invoices}</TableCell>
                         <TableCell className={`text-end tabular-nums ${r.balance > 0 ? "text-amber-600" : ""}`}>{fmt(r.balance)}</TableCell>

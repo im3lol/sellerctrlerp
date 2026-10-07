@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { fill } from "@/lib/i18n";
+import { getT } from "@/lib/i18n/server";
 import { count, desc, eq } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
@@ -24,6 +26,7 @@ type SP = { [k: string]: string | string[] | undefined };
 const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) ?? "";
 
 export default async function LandedCostsPage({ searchParams }: { searchParams: Promise<SP> }) {
+  const t = await getT();
   return loadErpPage("purchases.create", async ({ orgId, can }) => {
     const canManage = can("purchases.create");
     const page = Math.max(1, parseInt(one((await searchParams).page) || "1", 10) || 1);
@@ -49,36 +52,36 @@ export default async function LandedCostsPage({ searchParams }: { searchParams: 
       <div className="space-y-6">
         <ErpPageHeader
           icon="Ship"
-          title="تكاليف الاستيراد"
-          subtitle={`${total} مستند`}
+          title={t("تكاليف الاستيراد")}
+          subtitle={fill(t("{0} مستند"), [total])}
           action={canManage ? (
-            <Button asChild><Link href="/purchases/landed-costs/new"><Icon name="Plus" className="size-4" />مستند تكاليف</Link></Button>
+            <Button asChild><Link href="/purchases/landed-costs/new"><Icon name="Plus" className="size-4" />{t("مستند تكاليف")}</Link></Button>
           ) : undefined}
         />
 
         <Card>
           <CardHeader>
-            <CardTitle>مستندات تكاليف الاستيراد</CardTitle>
+            <CardTitle>{t("مستندات تكاليف الاستيراد")}</CardTitle>
             <CardDescription>
-              فاتورة الشحن/الجمارك التي تصل بعد استلام البضاعة. الترحيل يرفع تكلفة المخزون المتاح، وما بِيع منه بالفعل يذهب إلى تكلفة المبيعات، والمقابل مستحق للمورّد.
+              {t("فاتورة الشحن/الجمارك التي تصل بعد استلام البضاعة. الترحيل يرفع تكلفة المخزون المتاح، وما بِيع منه بالفعل يذهب إلى تكلفة المبيعات، والمقابل مستحق للمورّد.")}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             {rows.length === 0 ? (
               <div className="rounded-xl border border-dashed py-12 text-center text-muted-foreground">
-                لا توجد مستندات بعد — أنشئ واحداً بعد استلام البضاعة ووصول فاتورة الشحن.
+                {t("لا توجد مستندات بعد — أنشئ واحداً بعد استلام البضاعة ووصول فاتورة الشحن.")}
               </div>
             ) : (
               <>
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead className="text-start">الرقم</TableHead>
-                      <TableHead className="text-start">التاريخ</TableHead>
-                      <TableHead className="text-start">المورّد</TableHead>
-                      <TableHead className="text-start">طريقة التوزيع</TableHead>
-                      <TableHead className="text-start">الإجمالي</TableHead>
-                      <TableHead className="text-start">الحالة</TableHead>
+                      <TableHead className="text-start">{t("الرقم")}</TableHead>
+                      <TableHead className="text-start">{t("التاريخ")}</TableHead>
+                      <TableHead className="text-start">{t("المورّد")}</TableHead>
+                      <TableHead className="text-start">{t("طريقة التوزيع")}</TableHead>
+                      <TableHead className="text-start">{t("الإجمالي")}</TableHead>
+                      <TableHead className="text-start">{t("الحالة")}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -91,9 +94,9 @@ export default async function LandedCostsPage({ searchParams }: { searchParams: 
                           </TableCell>
                           <TableCell>{dt(r.date)}</TableCell>
                           <TableCell>{r.supplier ?? "—"}</TableCell>
-                          <TableCell>{r.method === "weight" ? "بالوزن" : r.method === "qty" ? "بالكمية" : "بالقيمة"}</TableCell>
+                          <TableCell>{r.method === "weight" ? t("بالوزن") : r.method === "qty" ? t("بالكمية") : t("بالقيمة")}</TableCell>
                           <TableCell className="tabular-nums">{fmt(r.totalAmount)}</TableCell>
-                          <TableCell><Badge variant={st.variant}>{st.label}</Badge></TableCell>
+                          <TableCell><Badge variant={st.variant}>{t(st.label)}</Badge></TableCell>
                         </TableRow>
                       );
                     })}
@@ -101,13 +104,13 @@ export default async function LandedCostsPage({ searchParams }: { searchParams: 
                 </Table>
                 {pages > 1 && (
                   <div className="flex items-center justify-between text-sm text-muted-foreground">
-                    <span>صفحة {page} من {pages}</span>
+                    <span>{t("صفحة")} {page} {t("من")} {pages}</span>
                     <div className="flex gap-2">
                       <Button variant="outline" size="sm" disabled={page <= 1} asChild={page > 1}>
-                        {page > 1 ? <a href={`?page=${page - 1}`}>السابق</a> : <span>السابق</span>}
+                        {page > 1 ? <a href={`?page=${page - 1}`}>{t("السابق")}</a> : <span>{t("السابق")}</span>}
                       </Button>
                       <Button variant="outline" size="sm" disabled={page >= pages} asChild={page < pages}>
-                        {page < pages ? <a href={`?page=${page + 1}`}>التالي</a> : <span>التالي</span>}
+                        {page < pages ? <a href={`?page=${page + 1}`}>{t("التالي")}</a> : <span>{t("التالي")}</span>}
                       </Button>
                     </div>
                   </div>

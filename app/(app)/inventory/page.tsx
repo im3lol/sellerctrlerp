@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { getT } from "@/lib/i18n/server";
+import { getLocale, getT } from "@/lib/i18n/server";
 import { sql } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
@@ -24,6 +24,7 @@ type TrendRow = { m: string; type: string; qty: string };
 const DEAD_DAYS = 90; // matches the dead-stock report default (no sale in N days)
 
 export default async function InventoryDashboardPage() {
+  const locale = await getLocale();
   const t = await getT();
   return loadErpPage("inventory.view", async ({ orgId, permissions }) => {
     // Two scans only: (1) light — active items + their category; (2) the one heavy
@@ -77,7 +78,7 @@ export default async function InventoryDashboardPage() {
       const cur = byItem.get(b.item_id) ?? { qty: 0, val: 0 };
       cur.qty += q; cur.val += v;
       byItem.set(b.item_id, cur);
-      if (v) whValue.set(b.warehouse || "غير محدد", (whValue.get(b.warehouse || "غير محدد") ?? 0) + v);
+      if (v) whValue.set(b.warehouse || t("غير محدد"), (whValue.get(b.warehouse || t("غير محدد")) ?? 0) + v);
     }
 
     const rows = items.map((i) => {
@@ -126,7 +127,7 @@ export default async function InventoryDashboardPage() {
     const trend = Array.from({ length: 6 }, (_, i) => {
       const d = new Date(now.getFullYear(), now.getMonth() - 5 + i, 1);
       const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-      return { label: d.toLocaleDateString("ar-EG-u-nu-latn", { month: "short" }), inQ: inByM.get(key) ?? 0, outQ: outByM.get(key) ?? 0 };
+      return { label: d.toLocaleDateString((locale === "en" ? "en-GB" : "ar-EG-u-nu-latn"), { month: "short" }), inQ: inByM.get(key) ?? 0, outQ: outByM.get(key) ?? 0 };
     });
     const hasMovement = trend.some((t) => t.inQ || t.outQ);
 
@@ -171,7 +172,7 @@ export default async function InventoryDashboardPage() {
             <Card key={k.label}>
               <CardContent className="p-4">
                 <div className="flex items-start justify-between gap-2">
-                  <div className="text-sm text-muted-foreground">{k.label}</div>
+                  <div className="text-sm text-muted-foreground">{t(k.label)}</div>
                   <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary"><Icon name={k.icon} className="size-4" /></div>
                 </div>
                 <div className={cn("mt-2 text-xl font-bold tabular-nums", k.tone)}>{k.value}</div>
@@ -187,7 +188,7 @@ export default async function InventoryDashboardPage() {
               <CardDescription>{t("توزيع الأصناف حسب توفّر الرصيد.")}</CardDescription>
             </CardHeader>
             <CardContent>
-              <StatusDonut data={health} unit="صنف" />
+              <StatusDonut data={health} unit={t("صنف")} />
             </CardContent>
           </Card>
 
@@ -205,9 +206,9 @@ export default async function InventoryDashboardPage() {
                     <div className="flex items-center justify-between gap-3 text-sm">
                       <span className="flex items-center gap-2">
                         <span className={cn("flex size-6 items-center justify-center rounded-md text-xs font-bold text-white", a.color)}>{a.cls}</span>
-                        <span className="text-muted-foreground">{a.label}</span>
+                        <span className="text-muted-foreground">{t(a.label)}</span>
                       </span>
-                      <span className="shrink-0 tabular-nums"><span className="font-semibold">{money(a.val)}</span> · {intf(a.n)} صنف</span>
+                      <span className="shrink-0 tabular-nums"><span className="font-semibold">{money(a.val)}</span> · {intf(a.n)} {t("صنف")}</span>
                     </div>
                     <div className="h-2 rounded-full bg-muted"><div className={cn("h-2 rounded-full", a.color)} style={{ width: `${Math.max((a.val / totalValue) * 100, 1)}%` }} /></div>
                   </div>
@@ -227,7 +228,7 @@ export default async function InventoryDashboardPage() {
               {byCategory.length === 0 ? (
                 <div className="py-8 text-center text-sm text-muted-foreground">{t("لا توجد بيانات.")}</div>
               ) : (
-                <BarChart data={byCategory} valueLabel="القيمة" money height={240} />
+                <BarChart data={byCategory} valueLabel={t("القيمة")} money height={240} />
               )}
             </CardContent>
           </Card>
@@ -241,7 +242,7 @@ export default async function InventoryDashboardPage() {
               {byWarehouse.length === 0 ? (
                 <div className="py-8 text-center text-sm text-muted-foreground">{t("لا توجد بيانات.")}</div>
               ) : (
-                <BarChart data={byWarehouse} valueLabel="القيمة" money height={240} colors={["#6366f1"]} />
+                <BarChart data={byWarehouse} valueLabel={t("القيمة")} money height={240} colors={["#6366f1"]} />
               )}
             </CardContent>
           </Card>
@@ -265,7 +266,7 @@ export default async function InventoryDashboardPage() {
           <Card>
             <CardHeader>
               <CardTitle>{t("الأصناف الراكدة")}</CardTitle>
-              <CardDescription>لها رصيد ولم تُبَع خلال {intf(DEAD_DAYS)} يوماً — رأس مال متجمّد.</CardDescription>
+              <CardDescription>{t("لها رصيد ولم تُبَع خلال")} {intf(DEAD_DAYS)} {t("يوماً — رأس مال متجمّد.")}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex items-center justify-between rounded-xl border bg-muted/40 p-4">
@@ -280,7 +281,7 @@ export default async function InventoryDashboardPage() {
                   {topDead.map((r) => (
                     <li key={r.id} className="flex items-center justify-between gap-3 text-sm">
                       <div className="min-w-0">
-                        <div dir="ltr" className="truncate text-start" title={r.name ?? undefined}>{r.name}</div>
+                        <div dir="ltr" className="truncate text-start" title={r.name ?? undefined}>{t(r.name)}</div>
                         <div dir="ltr" className="text-start font-mono text-xs text-muted-foreground">{r.code}</div>
                       </div>
                       <span className="shrink-0 tabular-nums text-muted-foreground">{money(r.val)}</span>
@@ -294,7 +295,7 @@ export default async function InventoryDashboardPage() {
 
         {/* Every page in this module, straight from the sidebar config — see
             ModuleWorkspace for why this is derived and not another hand-kept list. */}
-        <ModuleWorkspace heading="المخزون" permissions={permissions} counts={counts}
+        <ModuleWorkspace heading={t("المخزون")} permissions={permissions} counts={counts}
           actions={[{ label: "صنف جديد", href: "/inventory/items/new", icon: "Plus" }, { label: "تسوية مخزون", href: "/inventory/adjustments/new", icon: "Plus" }]} />
       </div>
     );

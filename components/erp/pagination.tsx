@@ -39,7 +39,7 @@ export async function Pagination({
 
   return (
     <div className="mt-4 flex items-center justify-between text-sm text-muted-foreground">
-      <span>صفحة {num(page)} من {num(pages)} · {num(total)} {unit}</span>
+      <span>{t("صفحة")} {num(page)} {t("من")} {num(pages)} · {num(total)} {unit}</span>
       <div className="flex gap-2">
         <Button asChild variant="outline" size="sm" disabled={page <= 1} className={page <= 1 ? "pointer-events-none opacity-50" : ""}>
           <Link href={href(page - 1)}><Icon name="ChevronRight" className="size-4" />{t("السابق")}</Link>

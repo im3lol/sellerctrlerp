@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
-import { toast } from "sonner";
+import { fill } from "@/lib/i18n";
+import { useT } from "@/lib/i18n/client";
+import { toast } from "@/lib/i18n/toast";
 import { clockAction, getMyClockAction } from "@/app/actions/erp/attendance";
 import { formatDuration } from "@/lib/erp/attendance";
 import { Button } from "@/components/ui/button";
@@ -13,6 +15,7 @@ import { Icon } from "@/components/icon";
  * recorded.
  */
 export function ClockButton() {
+  const t = useT();
   const [state, setState] = useState<"IN" | "OUT" | "NONE" | null>(null);
   const [linked, setLinked] = useState(false);
   const [seconds, setSeconds] = useState(0);
@@ -35,26 +38,26 @@ export function ClockButton() {
   const go = (direction: "IN" | "OUT") =>
     start(async () => {
       const r = await clockAction(direction);
-      if (!r.ok) { toast.error(r.error ?? "تعذّر التسجيل"); return; }
-      toast.success(direction === "IN" ? "تم تسجيل الحضور" : `تم تسجيل الانصراف — ${formatDuration(r.seconds ?? 0)}`);
+      if (!r.ok) { toast.error(r.error ?? t("تعذّر التسجيل")); return; }
+      toast.success(direction === "IN" ? t("تم تسجيل الحضور") : fill(t("تم تسجيل الانصراف — {0}"), [formatDuration(r.seconds ?? 0)]));
       refresh();
     });
 
   return (
     <div className="flex w-full flex-col items-center gap-2 rounded-lg border p-3">
       <div className="text-sm text-muted-foreground">
-        {state === "IN" ? "أنت مسجّل حضور" : state === "OUT" ? "انتهى يومك" : "لسه مسجّلتش حضور النهارده"}
+        {state === "IN" ? t("أنت مسجّل حضور") : state === "OUT" ? t("انتهى يومك") : t("لسه مسجّلتش حضور النهارده")}
       </div>
       {(state === "IN" || state === "OUT") && (
         <div className="font-mono text-2xl font-bold tabular-nums" dir="ltr">{formatDuration(seconds)}</div>
       )}
       {state === "IN" ? (
         <Button variant="outline" className="w-full" disabled={pending} onClick={() => go("OUT")}>
-          <Icon name="LogOut" className="size-4" />تسجيل انصراف
+          <Icon name="LogOut" className="size-4" />{t("تسجيل انصراف")}
         </Button>
       ) : (
         <Button className="w-full" disabled={pending} onClick={() => go("IN")}>
-          <Icon name="LogIn" className="size-4" />تسجيل حضور
+          <Icon name="LogIn" className="size-4" />{t("تسجيل حضور")}
         </Button>
       )}
     </div>

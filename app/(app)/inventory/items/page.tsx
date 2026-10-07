@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { fill } from "@/lib/i18n";
 import { getT } from "@/lib/i18n/server";
 import { and, or, asc, count, eq, inArray, isNull, notInArray, sql } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
@@ -120,7 +121,7 @@ export default async function ItemsPage({ searchParams }: { searchParams: Promis
         <ErpPageHeader
           icon="Package"
           title={t("الأصناف")}
-          subtitle={`${total} صنف`}
+          subtitle={fill(t("{0} صنف"), [total])}
           backHref="/inventory"
           action={
             <div className="flex items-center gap-2">
@@ -138,7 +139,7 @@ export default async function ItemsPage({ searchParams }: { searchParams: Promis
                 <Label htmlFor="category">{t("الفئة")}</Label>
                 <select id="category" name="category" defaultValue={fCategory} className={selectCls}>
                   <option value="">{t("الكل")}</option>
-                  {cats.map((c) => <option key={c.id} value={c.id}>{c.nameAr}</option>)}
+                  {cats.map((c) => <option key={c.id} value={c.id}>{t(c.nameAr)}</option>)}
                 </select>
               </div>
               <div className="space-y-1">
@@ -162,7 +163,7 @@ export default async function ItemsPage({ searchParams }: { searchParams: Promis
                 {hasFilters && <Button type="button" variant="outline" asChild><Link href="/inventory/items">{t("مسح")}</Link></Button>}
                 <label className="flex cursor-pointer items-center gap-2 text-sm" title={t("عند البحث بكود صنف، أظهر معه بقية عائلته (الأب والتنويعات الأخرى)")}>
                   <input type="checkbox" name="related" value="1" defaultChecked={showRelated} className="size-4 rounded border-input" />
-                  إظهار المنتجات المرتبطة
+                  {t("إظهار المنتجات المرتبطة")}
                 </label>
               </div>
             </form>
@@ -189,7 +190,7 @@ export default async function ItemsPage({ searchParams }: { searchParams: Promis
                   filter={{ q, status: fStatus, category: fCategory, missing: fMissing }}
                 />
                 <div className="flex items-center justify-between text-sm text-muted-foreground">
-                  <span>صفحة {safePage} من {pages}</span>
+                  <span>{t("صفحة")} {safePage} {t("من")} {pages}</span>
                   <div className="flex gap-2">
                     <Button variant="outline" size="sm" disabled={safePage <= 1} asChild={safePage > 1}>
                       {safePage > 1 ? <a href={qs(safePage - 1)}>{t("السابق")}</a> : <span>{t("السابق")}</span>}

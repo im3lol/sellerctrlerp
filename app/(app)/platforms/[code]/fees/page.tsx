@@ -1,4 +1,6 @@
 import { and, eq, isNotNull, sql } from "drizzle-orm";
+import { fill } from "@/lib/i18n";
+import { getT } from "@/lib/i18n/server";
 import { notFound } from "next/navigation";
 import { loadErpPage } from "@/lib/erp/org";
 import { orgFiscalYearStartISO } from "@/lib/erp/fiscal";
@@ -24,6 +26,7 @@ type SP = { from?: string; to?: string };
  * arrives as a non-order Service Fee row and is categorized here.
  */
 export default async function PlatformFeesPage({ params, searchParams }: { params: Promise<{ code: string }>; searchParams: Promise<SP> }) {
+  const t = await getT();
   const { code } = await params;
   return loadErpPage("accounting.view", async ({ orgId }) => {
     const channel = code.toUpperCase();
@@ -67,50 +70,50 @@ export default async function PlatformFeesPage({ params, searchParams }: { param
     const s = summarizeSettlementFees(feeRows);
 
     return (
-      <div className="space-y-6" dir="rtl">
+      <div className="space-y-6">
         <ErpPageHeader
           icon="Percent"
-          title={`مصاريف ${platform.name} من التسويات`}
-          subtitle="كل ما خصمه أمازون فعليًا في الفترة — مصنّفًا (إعلانات، FBA، عمولة، تخزين…) من تقرير التسويات"
+          title={fill(t("مصاريف {0} من التسويات"), [platform.name])}
+          subtitle={t("كل ما خصمه أمازون فعليًا في الفترة — مصنّفًا (إعلانات، FBA، عمولة، تخزين…) من تقرير التسويات")}
           backHref={`/platforms/${code}`}
         />
 
         <Card>
           <CardContent className="pt-6">
             <form className="flex flex-wrap items-end gap-3">
-              <div className="space-y-1"><Label htmlFor="from">من تاريخ</Label><Input id="from" name="from" type="date" defaultValue={fromStr} dir="ltr" className="w-44" /></div>
-              <div className="space-y-1"><Label htmlFor="to">إلى تاريخ</Label><Input id="to" name="to" type="date" defaultValue={toStr} dir="ltr" className="w-44" /></div>
-              <Button type="submit">عرض</Button>
+              <div className="space-y-1"><Label htmlFor="from">{t("من تاريخ")}</Label><Input id="from" name="from" type="date" defaultValue={fromStr} dir="ltr" className="w-44" /></div>
+              <div className="space-y-1"><Label htmlFor="to">{t("إلى تاريخ")}</Label><Input id="to" name="to" type="date" defaultValue={toStr} dir="ltr" className="w-44" /></div>
+              <Button type="submit">{t("عرض")}</Button>
             </form>
           </CardContent>
         </Card>
 
         <div className="grid gap-3 sm:grid-cols-3">
-          <Card><CardContent className="pt-6"><div className="text-sm text-muted-foreground">إجمالي المصاريف</div><div className="text-2xl font-bold tabular-nums text-destructive">{money(s.totalExpense)}</div></CardContent></Card>
-          <Card><CardContent className="pt-6"><div className="text-sm text-muted-foreground">التعويضات (دخل)</div><div className="text-2xl font-bold tabular-nums text-emerald-600">{money(s.reimbursement)}</div></CardContent></Card>
-          <Card><CardContent className="pt-6"><div className="text-sm text-muted-foreground">صافي تكلفة أمازون</div><div className="text-2xl font-bold tabular-nums">{money(s.net)}</div></CardContent></Card>
+          <Card><CardContent className="pt-6"><div className="text-sm text-muted-foreground">{t("إجمالي المصاريف")}</div><div className="text-2xl font-bold tabular-nums text-destructive">{money(s.totalExpense)}</div></CardContent></Card>
+          <Card><CardContent className="pt-6"><div className="text-sm text-muted-foreground">{t("التعويضات (دخل)")}</div><div className="text-2xl font-bold tabular-nums text-emerald-600">{money(s.reimbursement)}</div></CardContent></Card>
+          <Card><CardContent className="pt-6"><div className="text-sm text-muted-foreground">{t("صافي تكلفة أمازون")}</div><div className="text-2xl font-bold tabular-nums">{money(s.net)}</div></CardContent></Card>
         </div>
 
         <Card>
           <CardContent className="pt-6">
             {s.categories.length === 0 ? (
               <div className="rounded-xl border border-dashed py-12 text-center text-muted-foreground">
-                لا توجد تسويات مُرحّلة إلى الدفتر في هذه الفترة. اسحب تقرير التسويات ثم رحّله من صفحة المنصّة أولًا.
+                {t("لا توجد تسويات مُرحّلة إلى الدفتر في هذه الفترة. اسحب تقرير التسويات ثم رحّله من صفحة المنصّة أولًا.")}
               </div>
             ) : (
               <div className="overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead className="text-start">البند</TableHead>
-                      <TableHead className="text-start">عدد الحركات</TableHead>
-                      <TableHead className="text-start">المبلغ</TableHead>
+                      <TableHead className="text-start">{t("البند")}</TableHead>
+                      <TableHead className="text-start">{t("عدد الحركات")}</TableHead>
+                      <TableHead className="text-start">{t("المبلغ")}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {s.categories.map((c) => (
                       <TableRow key={c.key}>
-                        <TableCell className="font-medium">{c.label}</TableCell>
+                        <TableCell className="font-medium">{t(c.label)}</TableCell>
                         <TableCell className="tabular-nums text-muted-foreground">{c.count.toLocaleString("ar-EG-u-nu-latn")}</TableCell>
                         <TableCell className={`tabular-nums font-semibold ${isIncomeCategory(c.key) ? "text-emerald-600" : ""}`}>
                           {isIncomeCategory(c.key) ? "+" : "−"}{money(c.amount)}
@@ -121,7 +124,7 @@ export default async function PlatformFeesPage({ params, searchParams }: { param
                 </Table>
               </div>
             )}
-            <p className="mt-3 text-xs text-muted-foreground">أرقام فعلية من تقرير تسويات أمازون — الصفوف المُرحّلة إلى الدفتر فقط، مؤرّخة بتاريخ الإصدار، فتتطابق مع رصيد حساب رسوم أمازون. الإعلانات تظهر تلقائيًا لأنها تنزل كرسوم خدمة في التسوية — بدون الحاجة لأي ربط إعلانات.</p>
+            <p className="mt-3 text-xs text-muted-foreground">{t("أرقام فعلية من تقرير تسويات أمازون — الصفوف المُرحّلة إلى الدفتر فقط، مؤرّخة بتاريخ الإصدار، فتتطابق مع رصيد حساب رسوم أمازون. الإعلانات تظهر تلقائيًا لأنها تنزل كرسوم خدمة في التسوية — بدون الحاجة لأي ربط إعلانات.")}</p>
           </CardContent>
         </Card>
       </div>

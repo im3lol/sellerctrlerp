@@ -30,11 +30,6 @@ const ALLOWED = new Set([
   "app/(print)/erp/accounting/banks/[id]",
   // Generic barcode printer: /erp/barcodes/<type>/<id>, one route for every entity type.
   "app/(print)/erp/barcodes/[type]/[id]",
-  // Configuration, not documents: an automation rule and a saved dashboard have no
-  // system-generated number at all — only a name their owner renames freely — so the id
-  // is the one address that survives a rename.
-  "app/(app)/automation/[id]",
-  "app/(app)/reports/dashboards/[id]",
 ]);
 
 const ROOTS = ["app/(app)", "app/(print)"];

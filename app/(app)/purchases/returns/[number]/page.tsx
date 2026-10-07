@@ -1,4 +1,6 @@
 import { notFound, redirect } from "next/navigation";
+import { fill } from "@/lib/i18n";
+import { getT } from "@/lib/i18n/server";
 import { and, eq } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
@@ -24,6 +26,7 @@ const STATUS: Record<string, { label: string; variant: "default" | "secondary" |
 };
 
 export default async function PurchaseReturnDetailPage({ params }: { params: Promise<{ number: string }> }) {
+  const t = await getT();
   const raw = decodeURIComponent((await params).number);
   return loadErpPage("purchases.view", async ({ orgId, can }) => {
     if (UUID_RE.test(raw)) {
@@ -63,7 +66,7 @@ export default async function PurchaseReturnDetailPage({ params }: { params: Pro
       <div className="space-y-6">
         <ErpPageHeader
           icon="Undo2"
-          title={`مرتجع مشتريات ${ret.number}`}
+          title={fill(t("مرتجع مشتريات {0}"), [ret.number])}
           subtitle={sup ? `${sup.code} — ${sup.name}` : "مرتجع مشتريات"}
           backHref={backHref}
           action={
@@ -75,27 +78,27 @@ export default async function PurchaseReturnDetailPage({ params }: { params: Pro
         />
 
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <Field label="الحالة"><Badge variant={st.variant}>{st.label}</Badge></Field>
-          <Field label="التاريخ">{dt(ret.date)}</Field>
-          <Field label="الإجمالي">{fmt(ret.totalAmount)}</Field>
+          <Field label={t("الحالة")}><Badge variant={st.variant}>{t(st.label)}</Badge></Field>
+          <Field label={t("التاريخ")}>{dt(ret.date)}</Field>
+          <Field label={t("الإجمالي")}>{fmt(ret.totalAmount)}</Field>
         </div>
 
         <Card>
-          <CardHeader><CardTitle>البنود المرتجعة</CardTitle><CardDescription>الأصناف والكميات المرتجعة.</CardDescription></CardHeader>
+          <CardHeader><CardTitle>{t("البنود المرتجعة")}</CardTitle><CardDescription>{t("الأصناف والكميات المرتجعة.")}</CardDescription></CardHeader>
           <CardContent>
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="text-start">الصنف</TableHead>
-                  <TableHead className="text-start">الكمية</TableHead>
-                  <TableHead className="text-start">السعر</TableHead>
-                  <TableHead className="text-start">الإجمالي</TableHead>
+                  <TableHead className="text-start">{t("الصنف")}</TableHead>
+                  <TableHead className="text-start">{t("الكمية")}</TableHead>
+                  <TableHead className="text-start">{t("السعر")}</TableHead>
+                  <TableHead className="text-start">{t("الإجمالي")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {lines.map((l) => (
                   <TableRow key={l.id}>
-                    <TableCell className="max-w-[320px] whitespace-normal"><div className="line-clamp-2 leading-snug" title={l.name ?? undefined}><span className="font-mono text-muted-foreground">{l.code}</span> {l.name}</div></TableCell>
+                    <TableCell className="max-w-[320px] whitespace-normal"><div className="line-clamp-2 leading-snug" title={l.name ?? undefined}><span className="font-mono text-muted-foreground">{l.code}</span> {t(l.name ?? "")}</div></TableCell>
                     <TableCell>{qty(l.qty)}</TableCell>
                     <TableCell>{fmt(l.unitPrice)}</TableCell>
                     <TableCell>{fmt(l.total)}</TableCell>
@@ -103,10 +106,10 @@ export default async function PurchaseReturnDetailPage({ params }: { params: Pro
                 ))}
               </TableBody>
               <TableFooter>
-                <TableRow className="font-bold"><TableCell colSpan={3}>إجمالي المرتجع</TableCell><TableCell>{fmt(ret.totalAmount)}</TableCell></TableRow>
+                <TableRow className="font-bold"><TableCell colSpan={3}>{t("إجمالي المرتجع")}</TableCell><TableCell>{fmt(ret.totalAmount)}</TableCell></TableRow>
               </TableFooter>
             </Table>
-            {ret.notes && <p className="mt-4 text-sm text-muted-foreground">ملاحظات: {ret.notes}</p>}
+            {ret.notes && <p className="mt-4 text-sm text-muted-foreground">{t("ملاحظات:")} {ret.notes}</p>}
           </CardContent>
         </Card>
 

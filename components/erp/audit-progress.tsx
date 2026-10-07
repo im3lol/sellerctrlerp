@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useT } from "@/lib/i18n/client";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ClipboardCheck, Check, X, Loader2 } from "lucide-react";
@@ -12,6 +13,7 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 /** Bottom-left progress card for the background Inventory Audit. Polls the latest
  *  INVENTORY sync_run; closing keeps the server job running. */
 export function AuditProgress({ code, open, onClose }: { code: string; open: boolean; onClose: () => void }) {
+  const t = useT();
   const router = useRouter();
   const [st, setSt] = useState<AuditStatus>({ phase: "running" });
   const started = useRef(false);
@@ -37,10 +39,10 @@ export function AuditProgress({ code, open, onClose }: { code: string; open: boo
   const running = st.phase === "running" || st.phase === "idle";
 
   return (
-    <div className="w-80 rounded-2xl border bg-background p-4 shadow-xl" dir="rtl">
+    <div className="w-80 rounded-2xl border bg-background p-4 shadow-xl">
       <div className="mb-3 flex items-center justify-between">
-        <div className="flex items-center gap-2 font-semibold"><ClipboardCheck className={`size-4 ${running ? "animate-pulse" : ""}`} />تدقيق المخزون</div>
-        <button onClick={close} aria-label="إغلاق" className="text-muted-foreground hover:text-foreground"><X className="size-4" /></button>
+        <div className="flex items-center gap-2 font-semibold"><ClipboardCheck className={`size-4 ${running ? "animate-pulse" : ""}`} />{t("تدقيق المخزون")}</div>
+        <button onClick={close} aria-label={t("إغلاق")} className="text-muted-foreground hover:text-foreground"><X className="size-4" /></button>
       </div>
 
       <div className="mb-3 h-1.5 overflow-hidden rounded-full bg-muted">
@@ -54,13 +56,13 @@ export function AuditProgress({ code, open, onClose }: { code: string; open: boo
             : <X className="size-3.5 text-destructive" />}
         </span>
         <div className="min-w-0 flex-1">
-          {running && <span>جاري مطابقة مخزون FBA مع النظام… (قد يستغرق دقائق)</span>}
-          {st.phase === "done" && <span className="text-muted-foreground">تم: <b>{st.totalSkus ?? 0}</b> صنف · {st.withDiff ?? 0} فرق. <Link href="/inventory/reconciliation" className="text-primary hover:underline">افتح التقرير</Link></span>}
-          {st.phase === "error" && <span className="text-destructive">{st.error ?? "فشل التدقيق"}</span>}
+          {running && <span>{t("جاري مطابقة مخزون FBA مع النظام… (قد يستغرق دقائق)")}</span>}
+          {st.phase === "done" && <span className="text-muted-foreground">{t("تم:")} <b>{st.totalSkus ?? 0}</b> {t("صنف ·")} {st.withDiff ?? 0} {t("فرق.")} <Link href="/inventory/reconciliation" className="text-primary hover:underline">{t("افتح التقرير")}</Link></span>}
+          {st.phase === "error" && <span className="text-destructive">{st.error ?? t("فشل التدقيق")}</span>}
         </div>
       </div>
 
-      <div className="mt-2 text-center text-xs text-muted-foreground">قراءة فقط — لا يغيّر المخزون. تقدر تقفل النافذة.</div>
+      <div className="mt-2 text-center text-xs text-muted-foreground">{t("قراءة فقط — لا يغيّر المخزون. تقدر تقفل النافذة.")}</div>
     </div>
   );
 }

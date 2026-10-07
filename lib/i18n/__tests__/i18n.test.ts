@@ -43,3 +43,35 @@ describe("i18n core", () => {
     }
   });
 });
+
+describe("fill", () => {
+  it("puts values into numbered slots, in whatever order the sentence needs", async () => {
+    const { fill } = await import("@/lib/i18n");
+    expect(fill("من {0} إلى {1}", ["1 يناير", "5 يناير"])).toBe("من 1 يناير إلى 5 يناير");
+    expect(fill("{1} back to {0}", ["a", "b"])).toBe("b back to a");
+    expect(fill("{0} و{2}", ["x"])).toBe("x و{2}");
+  });
+});
+
+describe("sentences with values", () => {
+  const t = translator("en");
+  it("translates a message built around values by its slotted entry", () => {
+    expect(t("فاتورة بيع SI-2026-0005")).toBe("Sales invoice SI-2026-0005");
+    expect(t("سند قبض RV-2026-0001 — تحويل بنكي")).toBe("Receipt RV-2026-0001 — Bank transfer");
+  });
+  it("leaves names and unknown text alone", () => {
+    expect(t("شاحن سريع 65 واط")).toBe("شاحن سريع 65 واط");
+    expect(t("PO-2026-0001")).toBe("PO-2026-0001");
+  });
+  it("is a no-op in Arabic", () => {
+    expect(translator("ar")("فاتورة بيع SI-2026-0005")).toBe("فاتورة بيع SI-2026-0005");
+  });
+});
+
+describe("a code, then a name", () => {
+  const t = translator("en");
+  it("translates the name after a code", () => {
+    expect(t("1101 — النقدية")).toBe("1101 — Cash");
+    expect(t("ITM-1001 — ساعة ذكية رياضية")).toBe("ITM-1001 — ساعة ذكية رياضية");
+  });
+});

@@ -1,8 +1,10 @@
 "use client";
 
 import { useTransition } from "react";
+import { fill } from "@/lib/i18n";
+import { useT } from "@/lib/i18n/client";
 import { useRouter } from "next/navigation";
-import { toast } from "sonner";
+import { toast } from "@/lib/i18n/toast";
 import { confirmDeliveryAction, deleteDeliveryAction, cancelDeliveryAction, convertDeliveryToInvoiceAction } from "@/app/actions/erp/deliveries";
 import { deleteCancelledDocumentAction } from "@/app/actions/erp/doc-purge";
 import { confirmPurge } from "@/components/erp/purge-confirm";
@@ -20,6 +22,7 @@ export function DeliveryDetailActions({
   id: string; number: string; status: string; canManage: boolean;
   printHref: string; barcodeRows?: BulkRow[];
 }) {
+  const t = useT();
   const router = useRouter();
   const [pending, start] = useTransition();
 
@@ -29,7 +32,7 @@ export function DeliveryDetailActions({
       start(async () => {
         const r = await fn();
         if (r.ok) { toast.success(ok); if (dest) router.push(dest); router.refresh(); }
-        else toast.error(r.error ?? "تعذّر التنفيذ");
+        else toast.error(r.error ?? t("تعذّر التنفيذ"));
       });
     })();
   };
@@ -40,7 +43,7 @@ export function DeliveryDetailActions({
       start(async () => {
         const r = await convertDeliveryToInvoiceAction(id);
         if (r.ok) { toast.success("تم إنشاء مسودة فاتورة — راجِعها وأكّدها"); router.push(r.invoiceId ? `/sales/invoices/${r.invoiceId}` : "/sales/invoices"); router.refresh(); }
-        else toast.error(r.error ?? "تعذّر التحويل");
+        else toast.error(r.error ?? t("تعذّر التحويل"));
       });
     })();
 
@@ -63,7 +66,7 @@ export function DeliveryDetailActions({
           start(async () => {
             const r = await deleteCancelledDocumentAction("delivery", id);
             if (r.ok) { toast.success("تم حذف الإذن نهائياً"); router.push("/sales/deliveries"); router.refresh(); }
-            else toast.error(r.error ?? "تعذّر الحذف");
+            else toast.error(r.error ?? t("تعذّر الحذف"));
           });
         })() });
     }
@@ -73,11 +76,11 @@ export function DeliveryDetailActions({
     <DocumentActions
       primary={canManage && status === "DRAFT" ? (
         <Button size="sm" disabled={pending} onClick={() => run(() => confirmDeliveryAction(id), "تم تأكيد إذن الصرف وترحيله")}>
-          <Icon name="Check" className="size-4" />تأكيد الصرف
+          <Icon name="Check" className="size-4" />{t("تأكيد الصرف")}
         </Button>
       ) : undefined}
       items={items}
-      barcode={barcodeRows.length ? { docTitle: `إذن صرف ${number}`, rows: barcodeRows } : undefined}
+      barcode={barcodeRows.length ? { docTitle: fill(t("إذن صرف {0}"), [number]), rows: barcodeRows } : undefined}
     />
   );
 }

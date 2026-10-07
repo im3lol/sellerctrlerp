@@ -1,4 +1,6 @@
 import { and, eq, gt } from "drizzle-orm";
+import { fill } from "@/lib/i18n";
+import { getLocale, getT } from "@/lib/i18n/server";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
 import { purchaseInvoices, suppliers } from "@/db/schema";
@@ -11,6 +13,8 @@ const iso = (d: Date) => d.toISOString().slice(0, 10);
 const z = (n: number) => (n ? fmt(n) : "—");
 
 export default async function PrintApAgingPage({ searchParams }: { searchParams: Promise<{ asOf?: string }> }) {
+  const t = await getT();
+  const locale = await getLocale();
   return loadErpPage("purchases.view", async ({ orgId }) => {
     const sp = await searchParams;
     const asOf = sp.asOf || iso(new Date());
@@ -43,8 +47,8 @@ export default async function PrintApAgingPage({ searchParams }: { searchParams:
     return (
       <ReportSheet
         org={org}
-        title="أعمار ذمم الموردين"
-        period={`كما في ${dt(asOf)}`}
+        title={t("أعمار ذمم الموردين")}
+        period={fill(t("كما في {0}"), [dt(asOf, locale)])}
         kpis={[{ label: "إجمالي المستحق للموردين", value: fmt(grand), tone: "danger" }]}
         sections={[{
           title: "تحليل الأعمار حسب تاريخ الاستحقاق",
@@ -60,7 +64,7 @@ export default async function PrintApAgingPage({ searchParams }: { searchParams:
           ]),
           footerRow: ["الإجمالي", ...AGING_BUCKETS.map((b) => z(totals[b])), fmt(grand)],
         }]}
-        note={rows.length === 0 ? "لا توجد أرصدة مستحقة للموردين." : null}
+        note={rows.length === 0 ? t("لا توجد أرصدة مستحقة للموردين.") : null}
         backHref={`/purchases/aging?asOf=${asOf}`}
       />
     );

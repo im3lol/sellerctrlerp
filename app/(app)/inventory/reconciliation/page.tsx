@@ -75,12 +75,12 @@ export default async function InventoryReconciliationPage({ searchParams }: { se
 
         {!audit ? (
           <Card><CardContent className="py-12 text-center text-sm text-muted-foreground">
-            لا يوجد تدقيق بعد. شغّل «تدقيق المخزون» من صفحة منصّة أمازون.
+            {t("لا يوجد تدقيق بعد. شغّل «تدقيق المخزون» من صفحة منصّة أمازون.")}
           </CardContent></Card>
         ) : (
           <>
             <AuditStats audit={audit} />
-            <div className="text-xs text-muted-foreground">آخر تدقيق: {dt(audit.finishedAt ?? audit.createdAt)} · يشمل فقط أصناف FBA اللي ليها كمية أو حالة (باقي الكتالوج لا يظهر). الأحمر (مفقود/تالف) يحتاج مراجعة؛ المؤقت (استلام/محجوز/بحث) طبيعي.</div>
+            <div className="text-xs text-muted-foreground">{t("آخر تدقيق:")} {dt(audit.finishedAt ?? audit.createdAt)} {t("· يشمل فقط أصناف FBA اللي ليها كمية أو حالة (باقي الكتالوج لا يظهر). الأحمر (مفقود/تالف) يحتاج مراجعة؛ المؤقت (استلام/محجوز/بحث) طبيعي.")}</div>
 
             <Card>
               <CardContent className="pt-6">
@@ -93,7 +93,7 @@ export default async function InventoryReconciliationPage({ searchParams }: { se
                     <Label htmlFor="status">{t("الحالة")}</Label>
                     <select id="status" name="status" defaultValue={fStatus} className={selectCls}>
                       <option value="">{t("كل الحالات")}</option>
-                      {STATUS_OPTS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                      {STATUS_OPTS.map(([v, l]) => <option key={v} value={v}>{t(l)}</option>)}
                     </select>
                   </div>
                   <Button type="submit">{t("تطبيق")}</Button>
@@ -102,7 +102,7 @@ export default async function InventoryReconciliationPage({ searchParams }: { se
             </Card>
 
             <div className="max-h-[70vh] overflow-auto rounded-xl border"><AuditLinesTable rows={lines} reimbursedSkus={reimbursedSkus} /></div>
-            <Pagination page={page} pages={pages} total={total} unit="صنف" basePath="/inventory/reconciliation" params={{ status: fStatus, q: fQ }} />
+            <Pagination page={page} pages={pages} total={total} unit={t("صنف")} basePath="/inventory/reconciliation" params={{ status: fStatus, q: fQ }} />
           </>
         )}
       </div>

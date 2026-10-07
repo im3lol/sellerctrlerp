@@ -1,4 +1,6 @@
 import { loadErpPage } from "@/lib/erp/org";
+import { fill } from "@/lib/i18n";
+import { getLocale, getT } from "@/lib/i18n/server";
 import { getStockLedger, MOVE_TYPE, MOVE_REF } from "@/lib/erp/stock-ledger";
 import { loadPrintHeader } from "@/lib/erp/print-org";
 import { fmt, qty, dt } from "@/lib/erp/print-format";
@@ -11,6 +13,8 @@ type SP = { [k: string]: string | string[] | undefined };
 const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) ?? "";
 
 export default async function PrintStockLedgerPage({ searchParams }: { searchParams: Promise<SP> }) {
+  const t = await getT();
+  const locale = await getLocale();
   return loadErpPage("inventory.view", async ({ orgId }) => {
     const sp = await searchParams;
     const itemId = one(sp.item);
@@ -34,13 +38,13 @@ export default async function PrintStockLedgerPage({ searchParams }: { searchPar
     if (to) backQs.set("to", to);
 
     const period = from || to
-      ? [from && `من ${dt(from)}`, to && `إلى ${dt(to)}`].filter(Boolean).join(" ")
+      ? [from && fill(t("من {0}"), [dt(from, locale)]), to && fill(t("إلى {0}"), [dt(to, locale)])].filter(Boolean).join(" ")
       : undefined;
 
     return (
       <ReportSheet
         org={org}
-        title="دفتر حركة المخزون"
+        title={t("دفتر حركة المخزون")}
         period={period}
         backHref={`/inventory/ledger${backQs.size ? `?${backQs}` : ""}`}
         filters={[
@@ -71,7 +75,7 @@ export default async function PrintStockLedgerPage({ searchParams }: { searchPar
               </span>,
               MOVE_TYPE[r.type]?.label ?? r.type,
               <span key="d">
-                {MOVE_REF[r.refType ?? ""] ?? r.reason ?? "—"}
+                {t(MOVE_REF[r.refType ?? ""] ?? r.reason ?? "—")}
                 {r.refNumber && <span dir="ltr" style={{ display: "block", color: "#8a93a6", fontSize: 9.5 }}>{r.refNumber}</span>}
               </span>,
               r.warehouse ?? "—",
@@ -83,14 +87,16 @@ export default async function PrintStockLedgerPage({ searchParams }: { searchPar
             ];
           }),
           footerRow: [
-            `الإجمالي (صافي ${qty(totals.net)}${totals.adjNet !== 0 ? ` — تسويات ${totals.adjNet > 0 ? "+" : ""}${qty(totals.adjNet)}` : ""})`,
+            totals.adjNet !== 0
+              ? fill(t("الإجمالي (صافي {0} — تسويات {1})"), [qty(totals.net), `${totals.adjNet > 0 ? "+" : ""}${qty(totals.adjNet)}`])
+              : fill(t("الإجمالي (صافي {0})"), [qty(totals.net)]),
             "", "", "", "",
             qty(totals.inQty),
             qty(totals.outQty),
             "", "", "",
           ],
         }]}
-        note={all.length > CAP ? `عُرضت أول ${CAP.toLocaleString("ar-EG-u-nu-latn")} صف من ${all.length.toLocaleString("ar-EG-u-nu-latn")}.` : null}
+        note={all.length > CAP ? fill(t("عُرضت أول {0} صف من {1}."), [CAP.toLocaleString("ar-EG-u-nu-latn"), all.length.toLocaleString("ar-EG-u-nu-latn")]) : null}
       />
     );
   });

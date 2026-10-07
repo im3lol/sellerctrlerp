@@ -1,4 +1,6 @@
 import { loadErpPage } from "@/lib/erp/org";
+import { fill } from "@/lib/i18n";
+import { getT } from "@/lib/i18n/server";
 import { getStockBalances } from "@/lib/erp/stock-balances";
 import { loadPrintHeader } from "@/lib/erp/print-org";
 import { fmt, qty } from "@/lib/erp/print-format";
@@ -13,6 +15,7 @@ type SP = { [k: string]: string | string[] | undefined };
 const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) ?? "";
 
 export default async function PrintStockBalancePage({ searchParams }: { searchParams: Promise<SP> }) {
+  const t = await getT();
   return loadErpPage("inventory.view", async ({ orgId }) => {
     const sp = await searchParams;
     const fProduct = one(sp.product).trim();
@@ -33,7 +36,7 @@ export default async function PrintStockBalancePage({ searchParams }: { searchPa
     return (
       <ReportSheet
         org={org}
-        title="أرصدة المخزون"
+        title={t("أرصدة المخزون")}
         backHref={`/inventory/stock${backQs.size ? `?${backQs}` : ""}`}
         filters={[
           ...(fProduct ? [{ label: "المنتج", value: fProduct }] : []),
@@ -60,7 +63,7 @@ export default async function PrintStockBalancePage({ searchParams }: { searchPa
           ],
           rows: lines.map((l) => [
             <span key="c" dir="ltr" style={{ display: "block", textAlign: "start" }}>{l.code}</span>,
-            <span key="n" dir="ltr" style={{ display: "block", textAlign: "start" }}>{l.name}</span>,
+            <span key="n" dir="ltr" style={{ display: "block", textAlign: "start" }}>{t(l.name)}</span>,
             l.warehouse,
             qty(l.quantity),
             fmt(l.avgCost),
@@ -70,7 +73,7 @@ export default async function PrintStockBalancePage({ searchParams }: { searchPa
           ]),
           footerRow: ["الإجمالي (كل الصفوف)", "", "", qty(totals.quantity), "", fmt(totals.value), "", ""],
         }]}
-        note={all.length > CAP ? `عُرضت أول ${intl(CAP)} صف من ${intl(all.length)}.` : null}
+        note={all.length > CAP ? fill(t("عُرضت أول {0} صف من {1}."), [intl(CAP), intl(all.length)]) : null}
       />
     );
   });

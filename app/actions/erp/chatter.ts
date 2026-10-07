@@ -9,6 +9,7 @@ import { docComments, docFollowUps, organizationMembers, users } from "@/db/sche
 import { authorizeErp, type ActionState } from "@/lib/erp/action-auth";
 import { CHATTER_DOCS, docHref, isChatterKind, type ChatterKind } from "@/lib/erp/chatter";
 import { notifyUsers } from "@/lib/erp/approval-notify";
+import { fill } from "@/lib/i18n";
 
 export type ChatterData = {
   me: string;
@@ -89,9 +90,10 @@ export async function addCommentAction(input: z.input<typeof commentSchema>): Pr
       organizationId: auth.orgId, kind, entityId: d.entityId, entityNumber: d.entityNumber,
       userId: auth.userId, body: d.body, mentions,
     });
-    const me = members.find((m) => m.id === auth.userId)?.name ?? "حد";
+    const me = members.find((m) => m.id === auth.userId)?.name;
     await notifyUsers(auth.orgId, mentions.filter((id) => id !== auth.userId),
-      `💬 ${me} ذكرك في ${CHATTER_DOCS[kind].label} ${d.entityNumber}`, [excerpt(d.body)], docHref(kind, d.entityNumber));
+      (t) => ({ heading: fill(t("💬 {0} ذكرك في {1} {2}"), [me ?? t("حد"), t(CHATTER_DOCS[kind].label), d.entityNumber]), lines: [excerpt(d.body)] }),
+      docHref(kind, d.entityNumber));
     revalidatePath("/approvals");
     return { ok: true };
   });
@@ -122,9 +124,11 @@ export async function addFollowUpAction(input: z.input<typeof followUpSchema>): 
       summary: d.summary, assignedTo: d.assignedTo, dueDate: d.dueDate, createdBy: auth.userId,
     });
     if (d.assignedTo !== auth.userId) {
-      const me = members.find((m) => m.id === auth.userId)?.name ?? "حد";
-      await notifyUsers(auth.orgId, [d.assignedTo], `📌 متابعة عليك: ${d.summary}`,
-        [`${CHATTER_DOCS[kind].label} ${d.entityNumber}`, `موعدها ${d.dueDate}`, `من: ${me}`], docHref(kind, d.entityNumber));
+      const me = members.find((m) => m.id === auth.userId)?.name;
+      await notifyUsers(auth.orgId, [d.assignedTo], (t) => ({
+        heading: fill(t("📌 متابعة عليك: {0}"), [d.summary]),
+        lines: [`${t(CHATTER_DOCS[kind].label)} ${d.entityNumber}`, fill(t("موعدها {0}"), [d.dueDate]), fill(t("من: {0}"), [me ?? t("حد")])],
+      }), docHref(kind, d.entityNumber));
     }
     revalidatePath("/approvals");
     return { ok: true };

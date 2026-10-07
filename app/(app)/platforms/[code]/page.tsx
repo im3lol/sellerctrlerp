@@ -1,4 +1,6 @@
 import { notFound } from "next/navigation";
+import { fill } from "@/lib/i18n";
+import { getT } from "@/lib/i18n/server";
 import Link from "next/link";
 import { and, desc, eq, gte, or, sql } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
@@ -52,6 +54,7 @@ function Kpi({ label, value, hint, tone }: { label: string; value: string; hint?
 }
 
 export default async function PlatformDetailPage({ params, searchParams }: { params: Promise<{ code: string }>; searchParams: Promise<{ connected?: string; err?: string }> }) {
+  const t = await getT();
   const { code: codeParam } = await params;
   const { connected, err } = await searchParams;
   return loadErpPage("sales.view", async ({ orgId, can }) => {
@@ -188,7 +191,7 @@ export default async function PlatformDetailPage({ params, searchParams }: { par
         <ErpPageHeader
           icon="Store"
           title={platform.name}
-          subtitle={`منصة ${connector?.label ?? (isAmazon ? "أمازون" : "عامة")} · الكود ${platform.code}${platform.isActive ? "" : " · موقوفة"}`}
+          subtitle={fill(t("منصة {0} · الكود {1}{2}"), [connector?.label ?? (isAmazon ? t("أمازون") : t("عامة")), platform.code, platform.isActive ? "" : t(" · موقوفة")])}
           backHref="/platforms"
           action={
             <PlatformHeaderActions
@@ -212,7 +215,7 @@ export default async function PlatformDetailPage({ params, searchParams }: { par
             marketplaces={(connectable?.marketplaces ?? []).map((m) => ({ code: m.code, name: m.name, marketplaceId: m.marketplaceId }))}
             conn={conn}
             justConnected={connected === "1"}
-            error={connected === "0" ? (err ?? "خطأ غير معروف") : undefined}
+            error={connected === "0" ? (err ? t(err) : t("خطأ غير معروف")) : undefined}
             needsShop={connectable?.needsTarget}
             credentialKind={connector.code === "WOO" ? "woo" : connector.code === "JUMIA" ? "jumia" : (connector.code === "NOON" && !oauthReady) ? "noon" : undefined}
             oauthReady={oauthReady}
@@ -221,7 +224,7 @@ export default async function PlatformDetailPage({ params, searchParams }: { par
 
         {analyticsFailed && (
           <div className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-800 dark:bg-amber-950/20">
-            تعذّر تحميل التحليلات مؤقتًا — أعد تحميل الصفحة. (بقية الصفحة تعمل بشكل طبيعي.)
+            {t("تعذّر تحميل التحليلات مؤقتًا — أعد تحميل الصفحة. (بقية الصفحة تعمل بشكل طبيعي.)")}
           </div>
         )}
 
@@ -230,20 +233,20 @@ export default async function PlatformDetailPage({ params, searchParams }: { par
             <CardHeader>
               <div className="flex items-center justify-between gap-2">
                 <div>
-                  <CardTitle>تدقيق مخزون FBA</CardTitle>
-                  <CardDescription>مطابقة كميات أمازون مع مخزن «{platform.warehouseName ?? "غير محدد"}» — قراءة فقط، لا يغيّر المخزون ولا الحسابات.</CardDescription>
+                  <CardTitle>{t("تدقيق مخزون FBA")}</CardTitle>
+                  <CardDescription>{t("مطابقة كميات أمازون مع مخزن «")}{platform.warehouseName ?? t("غير محدد")}{t("» — قراءة فقط، لا يغيّر المخزون ولا الحسابات.")}</CardDescription>
                 </div>
                 <div className="flex shrink-0 items-center gap-3 text-sm">
-                  <Link href={`/platforms/${platform.code.toLowerCase()}/health`} className="text-primary hover:underline">صحة أمازون ←</Link>
-                  <Link href={`/platforms/${platform.code.toLowerCase()}/fba-plan`} className="text-primary hover:underline">خطة شحن FBA ←</Link>
-                  <Link href={`/platforms/${platform.code.toLowerCase()}/buy-box`} className="text-primary hover:underline">مراقبة الـBuy Box ←</Link>
-                  {audit && <Link href="/inventory/reconciliation" className="text-primary hover:underline">التقرير الكامل ←</Link>}
+                  <Link href={`/platforms/${platform.code.toLowerCase()}/health`} className="text-primary hover:underline">{t("صحة أمازون ←")}</Link>
+                  <Link href={`/platforms/${platform.code.toLowerCase()}/fba-plan`} className="text-primary hover:underline">{t("خطة شحن FBA ←")}</Link>
+                  <Link href={`/platforms/${platform.code.toLowerCase()}/buy-box`} className="text-primary hover:underline">{t("مراقبة الـBuy Box ←")}</Link>
+                  {audit && <Link href="/inventory/reconciliation" className="text-primary hover:underline">{t("التقرير الكامل ←")}</Link>}
                 </div>
               </div>
             </CardHeader>
             <CardContent className="space-y-4">
               {!audit ? (
-                <div className="py-6 text-center text-sm text-muted-foreground">لا يوجد تدقيق بعد — اضغط «تدقيق المخزون» بالأعلى لمطابقة كميات FBA مع النظام.</div>
+                <div className="py-6 text-center text-sm text-muted-foreground">{t("لا يوجد تدقيق بعد — اضغط «تدقيق المخزون» بالأعلى لمطابقة كميات FBA مع النظام.")}</div>
               ) : (
                 <>
                   <AuditStats audit={audit} />
@@ -253,16 +256,16 @@ export default async function PlatformDetailPage({ params, searchParams }: { par
                       quantity diffs → one DRAFT adjustment to review then post. */}
                   {amazonFbaQty > 0 && invQty === 0 ? (
                     <div className="flex flex-wrap items-center gap-3 rounded-lg border border-dashed p-3">
-                      <p className="flex-1 text-sm text-muted-foreground">مخزون النظام صفر بينما أمازون لديها {int(amazonFbaQty)} وحدة — أنشئ رصيدًا افتتاحيًا بكميات أمازون (تُدخل تكلفة الوحدة ثم ترحّل المسودة) ليتظبط المخزون.</p>
-                      <Button asChild variant="outline"><Link href="/settings/opening-balance">إنشاء رصيد افتتاحي</Link></Button>
+                      <p className="flex-1 text-sm text-muted-foreground">{t("مخزون النظام صفر بينما أمازون لديها")} {int(amazonFbaQty)} {t("وحدة — أنشئ رصيدًا افتتاحيًا بكميات أمازون (تُدخل تكلفة الوحدة ثم ترحّل المسودة) ليتظبط المخزون.")}</p>
+                      <Button asChild variant="outline"><Link href="/settings/opening-balance">{t("إنشاء رصيد افتتاحي")}</Link></Button>
                     </div>
                   ) : audit.withDiff > 0 ? (
                     <div className="flex flex-wrap items-center gap-3 rounded-lg border border-dashed p-3">
-                      <p className="flex-1 text-sm text-muted-foreground">توجد فروقات كمية بين أمازون والنظام — أنشئ مسودة تسوية من التدقيق وراجعها قبل الترحيل.</p>
+                      <p className="flex-1 text-sm text-muted-foreground">{t("توجد فروقات كمية بين أمازون والنظام — أنشئ مسودة تسوية من التدقيق وراجعها قبل الترحيل.")}</p>
                       <AuditAdjustmentButton />
                     </div>
                   ) : null}
-                  <div className="text-xs text-muted-foreground">آخر تدقيق: {new Date(audit.finishedAt ?? audit.createdAt).toLocaleString("ar-EG-u-nu-latn", { dateStyle: "short", timeStyle: "short" })} · يشمل أصناف FBA اللي ليها كمية/حالة فقط (مش كل الكتالوج). التفاصيل في <Link href="/inventory/reconciliation" className="text-primary hover:underline">التقرير الكامل</Link>.</div>
+                  <div className="text-xs text-muted-foreground">{t("آخر تدقيق:")} {new Date(audit.finishedAt ?? audit.createdAt).toLocaleString("ar-EG-u-nu-latn", { dateStyle: "short", timeStyle: "short" })} {t("· يشمل أصناف FBA اللي ليها كمية/حالة فقط (مش كل الكتالوج). التفاصيل في")} <Link href="/inventory/reconciliation" className="text-primary hover:underline">{t("التقرير الكامل")}</Link>.</div>
                 </>
               )}
             </CardContent>
@@ -271,32 +274,32 @@ export default async function PlatformDetailPage({ params, searchParams }: { par
 
         {/* Smart KPIs */}
         <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
-          <Kpi label="عدد المنتجات" value={int(productCount)} hint={`أصناف ${platform.name} النشطة`} />
-          {isAmazon && <Kpi label="مخزون أمازون FBA" value={int(amazonFbaQty)} hint={audit ? "الكمية من أمازون · آخر تدقيق" : "شغّل «تدقيق المخزون»"} />}
-          <Kpi label={isAmazon ? "مخزون النظام (FBA)" : "مخزون النظام"} value={int(invQty)} hint={platform.warehouseName ? `مخزن ${platform.warehouseName}` : "كل المخازن"} />
-          <Kpi label="عدد الأوامر" value={int(ordersCount)} hint={`${int(monthN)} هذا الشهر`} />
-          <Kpi label="إجمالي المبيعات" value={fmt(salesTotal)} hint={`${fmt(monthTotal)} هذا الشهر`} />
-          <Kpi label="متوسط قيمة الأمر" value={fmt(avgOrder)} />
-          <Kpi label="المرتجعات" value={fmt(retTotal)} hint={`${int(retN)} مرتجع`} tone={retTotal > 0 ? "danger" : undefined} />
-          <Kpi label="المحصّل (سندات مرحّلة)" value={fmt(collTotal)} tone="ok" />
-          <Kpi label="رصيد العميل (مستحق)" value={fmt(outstanding)} tone={outstanding > 0 ? "danger" : undefined} />
+          <Kpi label={t("عدد المنتجات")} value={int(productCount)} hint={fill(t("أصناف {0} النشطة"), [platform.name])} />
+          {isAmazon && <Kpi label={t("مخزون أمازون FBA")} value={int(amazonFbaQty)} hint={audit ? t("الكمية من أمازون · آخر تدقيق") : t("شغّل «تدقيق المخزون»")} />}
+          <Kpi label={isAmazon ? t("مخزون النظام (FBA)") : t("مخزون النظام")} value={int(invQty)} hint={platform.warehouseName ? fill(t("مخزن {0}"), [platform.warehouseName]) : t("كل المخازن")} />
+          <Kpi label={t("عدد الأوامر")} value={int(ordersCount)} hint={fill(t("{0} هذا الشهر"), [int(monthN)])} />
+          <Kpi label={t("إجمالي المبيعات")} value={fmt(salesTotal)} hint={fill(t("{0} هذا الشهر"), [fmt(monthTotal)])} />
+          <Kpi label={t("متوسط قيمة الأمر")} value={fmt(avgOrder)} />
+          <Kpi label={t("المرتجعات")} value={fmt(retTotal)} hint={fill(t("{0} مرتجع"), [int(retN)])} tone={retTotal > 0 ? "danger" : undefined} />
+          <Kpi label={t("المحصّل (سندات مرحّلة)")} value={fmt(collTotal)} tone="ok" />
+          <Kpi label={t("رصيد العميل (مستحق)")} value={fmt(outstanding)} tone={outstanding > 0 ? "danger" : undefined} />
         </div>
 
         {/* Platform P&L */}
         {pnl && (
           <Card>
             <CardHeader>
-              <CardTitle>ربحية المنصة (P&L)</CardTitle>
-              <CardDescription>إيراد وتكلفة مبيعات المنصة من الفواتير المرحّلة، ورسوم المنصة الفعلية من التسويات.</CardDescription>
+              <CardTitle>{t("ربحية المنصة (P&L)")}</CardTitle>
+              <CardDescription>{t("إيراد وتكلفة مبيعات المنصة من الفواتير المرحّلة، ورسوم المنصة الفعلية من التسويات.")}</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-6">
-                <Field label="المبيعات">{fmt(pnl.revenue)}</Field>
-                <Field label={isAmazon ? "عمولة أمازون" : "عمولة المنصة"}>{fmt(pnl.referralFee)}</Field>
-                {isAmazon && <Field label="رسوم FBA">{fmt(pnl.fbaFee)}</Field>}
-                <Field label="رسوم أخرى">{fmt(pnl.otherFee)}</Field>
-                <Field label="تكلفة البضاعة">{fmt(pnl.cogs)}</Field>
-                <Field label="صافي الربح">
+                <Field label={t("المبيعات")}>{fmt(pnl.revenue)}</Field>
+                <Field label={isAmazon ? t("عمولة أمازون") : t("عمولة المنصة")}>{fmt(pnl.referralFee)}</Field>
+                {isAmazon && <Field label={t("رسوم FBA")}>{fmt(pnl.fbaFee)}</Field>}
+                <Field label={t("رسوم أخرى")}>{fmt(pnl.otherFee)}</Field>
+                <Field label={t("تكلفة البضاعة")}>{fmt(pnl.cogs)}</Field>
+                <Field label={t("صافي الربح")}>
                   <span className={pnl.net < 0 ? "font-bold text-destructive" : "font-bold text-emerald-600"}>{fmt(pnl.net)}</span>
                   <span className="ms-2 text-xs text-muted-foreground">({pnl.margin.toFixed(1)}%)</span>
                 </Field>
@@ -307,22 +310,22 @@ export default async function PlatformDetailPage({ params, searchParams }: { par
 
         {/* Sales trend — last 30 days */}
         <Card>
-          <CardHeader><CardTitle>اتجاه المبيعات</CardTitle><CardDescription>إجمالي المبيعات اليومية على المنصة — آخر ٣٠ يومًا.</CardDescription></CardHeader>
+          <CardHeader><CardTitle>{t("اتجاه المبيعات")}</CardTitle><CardDescription>{t("إجمالي المبيعات اليومية على المنصة — آخر ٣٠ يومًا.")}</CardDescription></CardHeader>
           <CardContent>
             {salesSeries.some((s) => s.value > 0)
-              ? <TrendChart data={salesSeries} valueLabel="المبيعات" money id="platform-sales" />
-              : <div className="py-10 text-center text-sm text-muted-foreground">لا توجد مبيعات في آخر ٣٠ يومًا.</div>}
+              ? <TrendChart data={salesSeries} valueLabel={t("المبيعات")} money id="platform-sales" />
+              : <div className="py-10 text-center text-sm text-muted-foreground">{t("لا توجد مبيعات في آخر ٣٠ يومًا.")}</div>}
           </CardContent>
         </Card>
 
         <div className="grid gap-6 lg:grid-cols-2">
           {/* Top items */}
           <Card>
-            <CardHeader><CardTitle>أعلى الأصناف مبيعًا</CardTitle><CardDescription>حسب قيمة المبيعات على المنصة.</CardDescription></CardHeader>
+            <CardHeader><CardTitle>{t("أعلى الأصناف مبيعًا")}</CardTitle><CardDescription>{t("حسب قيمة المبيعات على المنصة.")}</CardDescription></CardHeader>
             <CardContent>
-              {topItems.length === 0 ? <div className="py-8 text-center text-sm text-muted-foreground">لا توجد مبيعات بعد.</div> : (
+              {topItems.length === 0 ? <div className="py-8 text-center text-sm text-muted-foreground">{t("لا توجد مبيعات بعد.")}</div> : (
                 <Table>
-                  <TableHeader><TableRow><TableHead className="text-start">الصنف</TableHead><TableHead className="text-start">الكمية</TableHead><TableHead className="text-start">المبيعات</TableHead></TableRow></TableHeader>
+                  <TableHeader><TableRow><TableHead className="text-start">{t("الصنف")}</TableHead><TableHead className="text-start">{t("الكمية")}</TableHead><TableHead className="text-start">{t("المبيعات")}</TableHead></TableRow></TableHeader>
                   <TableBody>
                     {topItems.map((t, i) => (
                       <TableRow key={i}><TableCell className="max-w-[320px] whitespace-normal"><div className="line-clamp-2 leading-snug" title={t.name ?? undefined}><span className="font-mono text-muted-foreground">{t.code}</span> {t.name}</div></TableCell><TableCell>{int(t.qty)}</TableCell><TableCell className="tabular-nums">{fmt(t.total)}</TableCell></TableRow>
@@ -335,17 +338,17 @@ export default async function PlatformDetailPage({ params, searchParams }: { par
 
           {/* Recent orders */}
           <Card>
-            <CardHeader><CardTitle>آخر الأوامر</CardTitle><CardDescription>أحدث ٨ أوامر مستوردة.</CardDescription></CardHeader>
+            <CardHeader><CardTitle>{t("آخر الأوامر")}</CardTitle><CardDescription>{t("أحدث ٨ أوامر مستوردة.")}</CardDescription></CardHeader>
             <CardContent>
-              {recent.length === 0 ? <div className="py-8 text-center text-sm text-muted-foreground">لا توجد أوامر بعد.</div> : (
+              {recent.length === 0 ? <div className="py-8 text-center text-sm text-muted-foreground">{t("لا توجد أوامر بعد.")}</div> : (
                 <Table>
-                  <TableHeader><TableRow><TableHead className="text-start">الرقم</TableHead><TableHead className="text-start">التاريخ</TableHead><TableHead className="text-start">الحالة</TableHead><TableHead className="text-start">الإجمالي</TableHead></TableRow></TableHeader>
+                  <TableHeader><TableRow><TableHead className="text-start">{t("الرقم")}</TableHead><TableHead className="text-start">{t("التاريخ")}</TableHead><TableHead className="text-start">{t("الحالة")}</TableHead><TableHead className="text-start">{t("الإجمالي")}</TableHead></TableRow></TableHeader>
                   <TableBody>
                     {recent.map((o) => (
                       <TableRow key={o.number}>
                         <TableCell><Link href={`/sales/orders/${encodeURIComponent(o.number)}`} className="text-primary hover:underline">{o.number}</Link>{o.ext && <div className="font-mono text-[10px] text-muted-foreground">{o.ext}</div>}</TableCell>
                         <TableCell>{dt(o.date)}</TableCell>
-                        <TableCell><Badge variant="outline">{STATUS[o.status]?.label ?? o.status}</Badge></TableCell>
+                        <TableCell><Badge variant="outline">{t(STATUS[o.status]?.label ?? o.status)}</Badge></TableCell>
                         <TableCell className="tabular-nums">{fmt(o.total)}</TableCell>
                       </TableRow>
                     ))}
@@ -358,10 +361,10 @@ export default async function PlatformDetailPage({ params, searchParams }: { par
 
         {statusRows.length > 0 && (
           <Card>
-            <CardHeader><CardTitle>توزيع حالات الأوامر</CardTitle><CardDescription>عدد الأوامر حسب الحالة.</CardDescription></CardHeader>
+            <CardHeader><CardTitle>{t("توزيع حالات الأوامر")}</CardTitle><CardDescription>{t("عدد الأوامر حسب الحالة.")}</CardDescription></CardHeader>
             <CardContent>
               <StatusDonut
-                unit="أمر"
+                unit={t("أمر")}
                 data={statusRows.map((s) => ({ name: STATUS[s.status]?.label ?? s.status, value: Number(s.n), color: STATUS[s.status]?.color ?? "#94a3b8" }))}
               />
             </CardContent>

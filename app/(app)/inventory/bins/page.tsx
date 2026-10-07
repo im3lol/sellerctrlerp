@@ -35,8 +35,8 @@ export default async function BinsPage() {
         ) : (
           <BinsManager
             canEdit={can("inventory.edit")}
-            warehouses={whList.map((w) => ({ id: w.id, label: w.nameAr }))}
-            items={itemList.map((i) => ({ id: i.id, label: `${i.code} — ${i.nameAr ?? ""}` }))}
+            warehouses={whList.map((w) => ({ id: w.id, label: t(w.nameAr) }))}
+            items={itemList.map((i) => ({ id: i.id, label: `${i.code} — ${t(i.nameAr ?? "")}` }))}
           />
         )}
       </div>

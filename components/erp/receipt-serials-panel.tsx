@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
+import { useT } from "@/lib/i18n/client";
 import { useRouter } from "next/navigation";
-import { toast } from "sonner";
+import { toast } from "@/lib/i18n/toast";
 import { getReceiptSerialsAction, saveReceiptSerialsAction } from "@/app/actions/erp/serials";
 import { parseSerials, validateSerials } from "@/lib/erp/serials";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -24,6 +25,7 @@ export type SerialLine = { itemId: string; code: string; name: string; quantity:
 export function ReceiptSerialsPanel({ receiptId, lines, canEdit }: {
   receiptId: string; lines: SerialLine[]; canEdit: boolean;
 }) {
+  const t = useT();
   const router = useRouter();
   const [text, setText] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
@@ -35,13 +37,13 @@ export function ReceiptSerialsPanel({ receiptId, lines, canEdit }: {
       const r = await getReceiptSerialsAction(receiptId);
       if (!alive) return;
       setLoading(false);
-      if (!r.ok) { toast.error(r.error ?? "تعذّر تحميل الأرقام"); return; }
+      if (!r.ok) { toast.error(r.error ?? t("تعذّر تحميل الأرقام")); return; }
       const next: Record<string, string> = {};
       for (const [itemId, serials] of Object.entries(r.byItem ?? {})) next[itemId] = serials.join("\n");
       setText(next);
     })();
     return () => { alive = false; };
-  }, [receiptId]);
+  }, [receiptId, t]);
 
   const save = () => {
     for (const l of lines) {
@@ -55,7 +57,7 @@ export function ReceiptSerialsPanel({ receiptId, lines, canEdit }: {
         lines.map((l) => ({ itemId: l.itemId, serials: parseSerials(text[l.itemId] ?? "") })),
       );
       if (r.ok) { toast.success("تم حفظ الأرقام التسلسلية"); router.refresh(); }
-      else toast.error(r.error ?? "تعذّر الحفظ");
+      else toast.error(r.error ?? t("تعذّر الحفظ"));
     });
   };
 
@@ -66,14 +68,14 @@ export function ReceiptSerialsPanel({ receiptId, lines, canEdit }: {
       <CardHeader>
         <div className="flex w-full flex-wrap items-start justify-between gap-3">
           <div>
-            <CardTitle>الأرقام التسلسلية</CardTitle>
+            <CardTitle>{t("الأرقام التسلسلية")}</CardTitle>
             <CardDescription>
-              رقم لكل قطعة، واحد في كل سطر (أو مفصولين بفاصلة). لازم العدد يساوي الكمية قبل تأكيد الاستلام.
+              {t("رقم لكل قطعة، واحد في كل سطر (أو مفصولين بفاصلة). لازم العدد يساوي الكمية قبل تأكيد الاستلام.")}
             </CardDescription>
           </div>
           {canEdit && (
             <Button size="sm" onClick={save} disabled={pending}>
-              <Icon name="Check" className="size-4" />حفظ الأرقام
+              <Icon name="Check" className="size-4" />{t("حفظ الأرقام")}
             </Button>
           )}
         </div>
@@ -85,7 +87,7 @@ export function ReceiptSerialsPanel({ receiptId, lines, canEdit }: {
           return (
             <div key={l.itemId} className="space-y-2">
               <div className="flex flex-wrap items-center gap-2">
-                <Label className="font-medium">{l.name}</Label>
+                <Label className="font-medium">{t(l.name)}</Label>
                 <span className="font-mono text-xs text-muted-foreground" dir="ltr">{l.code}</span>
                 <Badge variant={matched ? "secondary" : "outline"} className={matched ? "" : "text-amber-600"}>
                   {count} / {l.quantity}

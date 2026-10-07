@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useT } from "@/lib/i18n/client";
 import { useRouter } from "next/navigation";
-import { toast } from "sonner";
+import { toast } from "@/lib/i18n/toast";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -26,13 +27,14 @@ export function InvestorTxnForm({ kind, investors, cashAccounts }: {
   investors: Opt[];
   cashAccounts: Opt[];
 }) {
+  const t = useT();
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [pending, start] = useTransition();
   const today = new Date().toISOString().slice(0, 10);
 
   const isInv = kind === "investment";
-  const title = isInv ? "تسجيل مساهمة رأس مال" : "تسجيل سحب";
+  const title = isInv ? t("تسجيل مساهمة رأس مال") : t("تسجيل سحب");
 
   function submit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -49,10 +51,10 @@ export function InvestorTxnForm({ kind, investors, cashAccounts }: {
         ? await createInvestmentAction(base)
         : await createWithdrawalAction({ ...base, type: String(fd.get("type") ?? "profit") });
       if (res.ok) {
-        toast.success(isInv ? "تم تسجيل المساهمة وترحيل القيد" : "تم تسجيل السحب وترحيل القيد");
+        toast.success(isInv ? t("تم تسجيل المساهمة وترحيل القيد") : t("تم تسجيل السحب وترحيل القيد"));
         router.refresh();
         setOpen(false);
-      } else toast.error(res.error ?? "تعذّر التنفيذ");
+      } else toast.error(res.error ?? t("تعذّر التنفيذ"));
     });
   }
 
@@ -71,47 +73,47 @@ export function InvestorTxnForm({ kind, investors, cashAccounts }: {
         <form onSubmit={submit} className="space-y-4">
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="space-y-1">
-              <Label htmlFor="investorId">المستثمر *</Label>
-              <FormCombobox name="investorId" options={investors} placeholder="ابحث عن مستثمر…" />
+              <Label htmlFor="investorId">{t("المستثمر *")}</Label>
+              <FormCombobox name="investorId" options={investors} placeholder={t("ابحث عن مستثمر…")} />
             </div>
             <div className="space-y-1">
-              <Label htmlFor="date">التاريخ *</Label>
+              <Label htmlFor="date">{t("التاريخ *")}</Label>
               <Input id="date" name="date" type="date" defaultValue={today} required />
             </div>
           </div>
 
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="space-y-1">
-              <Label htmlFor="amount">المبلغ *</Label>
+              <Label htmlFor="amount">{t("المبلغ *")}</Label>
               <Input id="amount" name="amount" type="number" step="0.01" min="0.01" required placeholder="0.00" />
             </div>
             <div className="space-y-1">
-              <Label htmlFor="accountId">{isInv ? "استُلم في حساب *" : "صُرف من حساب *"}</Label>
-              <FormCombobox name="accountId" options={cashAccounts} placeholder="النقدية / البنك…" />
+              <Label htmlFor="accountId">{isInv ? t("استُلم في حساب *") : t("صُرف من حساب *")}</Label>
+              <FormCombobox name="accountId" options={cashAccounts} placeholder={t("النقدية / البنك…")} />
             </div>
           </div>
 
           {!isInv && (
             <div className="space-y-1 max-w-64">
-              <Label htmlFor="type">نوع السحب *</Label>
+              <Label htmlFor="type">{t("نوع السحب *")}</Label>
               <select id="type" name="type" className={selectCls} defaultValue="profit">
-                <option value="profit">صرف أرباح مستحقة</option>
-                <option value="capital">سحب من رأس المال</option>
+                <option value="profit">{t("صرف أرباح مستحقة")}</option>
+                <option value="capital">{t("سحب من رأس المال")}</option>
               </select>
               <p className="text-xs text-muted-foreground">
-                صرف الأرباح يُقفل المستحق فقط ولا يمسّ رأس المال. سحب رأس المال يقلّل حصة المستثمر ونسبة ملكيته.
+                {t("صرف الأرباح يُقفل المستحق فقط ولا يمسّ رأس المال. سحب رأس المال يقلّل حصة المستثمر ونسبة ملكيته.")}
               </p>
             </div>
           )}
 
           <div className="space-y-1">
-            <Label htmlFor="notes">ملاحظات</Label>
+            <Label htmlFor="notes">{t("ملاحظات")}</Label>
             <Input id="notes" name="notes" />
           </div>
 
           <div className="flex gap-2">
-            <Button type="submit" size="sm" disabled={pending}>حفظ وترحيل</Button>
-            <Button type="button" variant="ghost" size="sm" onClick={() => setOpen(false)}>إلغاء</Button>
+            <Button type="submit" size="sm" disabled={pending}>{t("حفظ وترحيل")}</Button>
+            <Button type="button" variant="ghost" size="sm" onClick={() => setOpen(false)}>{t("إلغاء")}</Button>
           </div>
         </form>
       </CardContent>

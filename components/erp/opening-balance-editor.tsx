@@ -1,8 +1,11 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { fill } from "@/lib/i18n";
+import { useLocale, useT } from "@/lib/i18n/client";
+import { dirOf } from "@/lib/i18n";
 import { useRouter } from "next/navigation";
-import { toast } from "sonner";
+import { toast } from "@/lib/i18n/toast";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -40,17 +43,19 @@ const blank = (kind: OpeningKind): Row =>
 
 /** Note shown under a section table when rows are capped for rendering. */
 function MoreNote({ total }: { total: number }) {
+  const t = useT();
   if (total <= RENDER_CAP) return null;
   const n = (v: number) => v.toLocaleString("ar-EG-u-nu-latn");
   return (
     <p className="rounded-md bg-muted/50 px-3 py-2 text-xs text-muted-foreground">
-      عرض أول {n(RENDER_CAP)} من {n(total)} صف — الباقي مستورد ومحفوظ وسيُرحّل (غير معروض لتفادي تجميد المتصفح).
+      {fill(t("عرض أول {0} من {1} صف — الباقي مستورد ومحفوظ وسيُرحّل (غير معروض لتفادي تجميد المتصفح)."), [n(RENDER_CAP), n(total)])}
     </p>
   );
 }
 
 /** In-cell item picker backed by a server search — the catalog is too large to ship. */
 function ItemPicker({ label, onPick }: { label: string; onPick: (id: string, label: string) => void }) {
+  const t = useT();
   const [q, setQ] = useState("");
   const [open, setOpen] = useState(false);
   const [rows, setRows] = useState<{ id: string; code: string; nameAr: string | null }[]>([]);
@@ -67,15 +72,15 @@ function ItemPicker({ label, onPick }: { label: string; onPick: (id: string, lab
   }, []);
   return (
     <div ref={box} className="relative">
-      <Input value={open ? q : label} placeholder="ابحث بالكود أو الاسم…" onFocus={() => { setOpen(true); setQ(""); }}
+      <Input value={open ? q : label} placeholder={t("ابحث بالكود أو الاسم…")} onFocus={() => { setOpen(true); setQ(""); }}
         onChange={(e) => setQ(e.target.value)} />
       {open && rows.length > 0 && (
         <div className="absolute z-20 mt-1 max-h-64 w-72 overflow-auto rounded-md border bg-popover p-1 shadow-lg">
           {rows.map((r) => (
             <button key={r.id} type="button" className="flex w-full flex-col items-start gap-0.5 rounded-sm px-3 py-1.5 text-start text-sm hover:bg-accent"
-              onClick={() => { onPick(r.id, `${r.code} — ${r.nameAr ?? ""}`); setOpen(false); }}>
+              onClick={() => { onPick(r.id, `${r.code} — ${t(r.nameAr ?? "")}`); setOpen(false); }}>
               <span className="font-mono text-xs" dir="ltr">{r.code}</span>
-              <span className="line-clamp-1">{r.nameAr}</span>
+              <span className="line-clamp-1">{t(r.nameAr ?? "")}</span>
             </button>
           ))}
         </div>
@@ -100,6 +105,7 @@ const CSV_TEMPLATE: Record<OpeningKind, string> = {
 /** CSV import + match preview for a section — upload, review matched/unmatched, add.
  *  `amazonCode` (ITEM only) adds a "pull from Amazon" button feeding the same preview. */
 function CsvImport({ kind, onAdd, amazonCode }: { kind: OpeningKind; onAdd: (rows: CsvRow[]) => void; amazonCode?: string }) {
+  const t = useT();
   const [pending, start] = useTransition();
   const [preview, setPreview] = useState<CsvRow[] | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -120,7 +126,7 @@ function CsvImport({ kind, onAdd, amazonCode }: { kind: OpeningKind; onAdd: (row
   const apply = () => {
     const ok = (preview ?? []).filter((p) => !p.error && p.refId);
     if (!ok.length) { toast.error("لا توجد صفوف صالحة"); return; }
-    onAdd(ok); setPreview(null); toast.success(`تمت إضافة ${ok.length} سطر`);
+    onAdd(ok); setPreview(null); toast.success(fill(t("تمت إضافة {0} سطر"), [ok.length]));
   };
   const dl = () => {
     const blob = new Blob(["﻿" + CSV_TEMPLATE[kind]], { type: "text/csv;charset=utf-8" });
@@ -131,28 +137,28 @@ function CsvImport({ kind, onAdd, amazonCode }: { kind: OpeningKind; onAdd: (row
     <div className="space-y-2">
       <div className="flex flex-wrap items-center gap-2">
         <input ref={fileRef} type="file" accept=".csv,text/csv" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) onFile(f); e.target.value = ""; }} />
-        <Button type="button" variant="outline" size="sm" disabled={pending} onClick={() => fileRef.current?.click()}><Icon name="Upload" className="size-4" /> استيراد CSV</Button>
+        <Button type="button" variant="outline" size="sm" disabled={pending} onClick={() => fileRef.current?.click()}><Icon name="Upload" className="size-4" /> {t("استيراد CSV")}</Button>
         {amazonCode && (
           <Button type="button" variant="outline" size="sm" disabled={pending} onClick={fromAmazon}>
-            {pending ? <Icon name="Loader2" className="size-4 animate-spin" /> : <Icon name="RefreshCw" className="size-4" />} استيراد المخزون من أمازون
+            {pending ? <Icon name="Loader2" className="size-4 animate-spin" /> : <Icon name="RefreshCw" className="size-4" />} {t("استيراد المخزون من أمازون")}
           </Button>
         )}
-        <Button type="button" variant="ghost" size="sm" onClick={dl}><Icon name="Download" className="size-4" /> قالب</Button>
-        <span className="text-xs text-muted-foreground">{CSV_COLS[kind]}</span>
+        <Button type="button" variant="ghost" size="sm" onClick={dl}><Icon name="Download" className="size-4" /> {t("قالب")}</Button>
+        <span className="text-xs text-muted-foreground">{t(CSV_COLS[kind])}</span>
       </div>
       {preview && (
         <div className="rounded-lg border">
           <div className="flex items-center justify-between border-b bg-muted/40 px-3 py-2 text-sm">
-            <span>معاينة — {preview.filter((p) => !p.error).length} صالح · {preview.filter((p) => p.error).length} خطأ</span>
-            <div className="flex gap-2"><Button type="button" size="sm" variant="ghost" onClick={() => setPreview(null)}>إلغاء</Button><Button type="button" size="sm" onClick={apply}>إضافة الصالح</Button></div>
+            <span>{t("معاينة —")} {preview.filter((p) => !p.error).length} {t("صالح ·")} {preview.filter((p) => p.error).length} {t("خطأ")}</span>
+            <div className="flex gap-2"><Button type="button" size="sm" variant="ghost" onClick={() => setPreview(null)}>{t("إلغاء")}</Button><Button type="button" size="sm" onClick={apply}>{t("إضافة الصالح")}</Button></div>
           </div>
           <div className="max-h-64 overflow-auto"><table className="w-full text-xs">
-            <thead className="text-right text-muted-foreground"><tr><th className="p-2">الكود</th><th className="p-2">المطابقة</th><th className="p-2">القيمة</th><th className="p-2">الحالة</th></tr></thead>
+            <thead className="text-start text-muted-foreground"><tr><th className="p-2">{t("الكود")}</th><th className="p-2">{t("المطابقة")}</th><th className="p-2">{t("القيمة")}</th><th className="p-2">{t("الحالة")}</th></tr></thead>
             <tbody>{preview.slice(0, 300).map((p, i) => (
               <tr key={i} className="border-t">
                 <td className="p-2 font-mono" dir="ltr">{p.code}</td><td className="p-2">{p.name ?? "—"}</td>
                 <td className="p-2 tabular-nums">{kind === "ITEM" ? `${p.quantity} × ${money(p.unitCost)}` : kind === "ACCOUNT" ? `${money(p.debit)} / ${money(p.credit)}` : money(p.amount)}</td>
-                <td className="p-2">{p.error ? <span className="text-destructive">{p.error}</span> : <span className="text-emerald-600">مطابَق</span>}</td>
+                <td className="p-2">{p.error ? <span className="text-destructive">{p.error}</span> : <span className="text-emerald-600">{t("مطابَق")}</span>}</td>
               </tr>
             ))}</tbody>
           </table></div>
@@ -175,6 +181,8 @@ export function OpeningBalanceEditor({ posted, date: initialDate, initial, accou
   accounts: Opt[]; customers: Opt[]; suppliers: Opt[]; warehouses: Opt[];
   amazonCode?: string;
 }) {
+  const t = useT();
+  const locale = useLocale();
   const router = useRouter();
   const [date, setDate] = useState(initialDate);
   const [rows, setRows] = useState<Row[]>(() => initial.map((r) => ({ ...r, key: ++KEY })));
@@ -197,9 +205,9 @@ export function OpeningBalanceEditor({ posted, date: initialDate, initial, accou
     dueDate: r.dueDate || null,
   })), [rows]);
 
-  const t = useMemo(() => totals(lines), [lines]);
-  const problem = useMemo(() => (rows.length ? validateOpening(lines) : "أضف بندًا واحدًا على الأقل"), [lines, rows.length]);
-  const equityZero = Math.abs(t.balancing) < 0.005; // the entry always balances (3002 absorbs); this is the "no residual equity" signal
+  const tot = useMemo(() => totals(lines), [lines]);
+  const problem = useMemo(() => (rows.length ? validateOpening(lines) : t("أضف بندًا واحدًا على الأقل")), [lines, rows.length, t]);
+  const equityZero = Math.abs(tot.balancing) < 0.005; // the entry always balances (3002 absorbs); this is the "no residual equity" signal
 
   const set = (key: number, patch: Partial<Row>) => setRows((rs) => rs.map((r) => (r.key === key ? { ...r, ...patch } : r)));
   const del = (key: number) => setRows((rs) => rs.filter((r) => r.key !== key));
@@ -208,12 +216,12 @@ export function OpeningBalanceEditor({ posted, date: initialDate, initial, accou
 
   const save = (thenPost: boolean) => start(async () => {
     const res = await saveOpeningBalanceAction({ date, lines });
-    if (!res.ok || !res.id) { toast.error(res.error ?? "تعذّر الحفظ"); return; }
+    if (!res.ok || !res.id) { toast.error(res.error ?? t("تعذّر الحفظ")); return; }
     if (!thenPost) { toast.success("تم حفظ المسودة"); router.refresh(); return; }
     // Post runs in the BACKGROUND (an 11k-item post takes minutes); poll for a live
     // "done / total" line instead of blocking the request.
     const s0 = await startOpeningPostAction(res.id);
-    if (!s0.ok) { toast.error(s0.error ?? "تعذّر بدء الترحيل"); return; }
+    if (!s0.ok) { toast.error(s0.error ?? t("تعذّر بدء الترحيل")); return; }
     const id = res.id;
     setPosting({ done: 0, total: s0.total ?? lines.length });
     pollRef.current = setInterval(async () => {
@@ -221,7 +229,7 @@ export function OpeningBalanceEditor({ posted, date: initialDate, initial, accou
       if (st.phase === "running") { setPosting({ done: st.done, total: st.total }); return; }
       if (pollRef.current) clearInterval(pollRef.current);
       setPosting(null);
-      if (st.phase === "error") toast.error(st.error ?? "تعذّر الترحيل");
+      if (st.phase === "error") toast.error(st.error ?? t("تعذّر الترحيل"));
       else toast.success("تم ترحيل الأرصدة الافتتاحية");
       router.refresh();
     }, 1500);
@@ -231,7 +239,7 @@ export function OpeningBalanceEditor({ posted, date: initialDate, initial, accou
     if (!(await confirm({ title: "إلغاء ترحيل الأرصدة الافتتاحية؟", description: "سيُعكس القيد وتُلغى الفواتير الافتتاحية وتُزال حركات المخزون، ثم تعود مسودة للتعديل. (متاح فقط قبل أي معاملة على الأرصدة).", danger: true }))) return;
     const r = await reverseOpeningBalanceAction(id);
     if (r.ok) { toast.success("تم إلغاء الترحيل — عادت مسودة"); router.refresh(); }
-    else toast.error(r.error ?? "تعذّر الإلغاء");
+    else toast.error(r.error ?? t("تعذّر الإلغاء"));
   });
 
   // Merge CSV-matched rows (any section) into the draft.
@@ -247,45 +255,45 @@ export function OpeningBalanceEditor({ posted, date: initialDate, initial, accou
 
   const numCell = "w-32";
   return (
-    <div className="space-y-4" dir="rtl">
+    <div className="space-y-4">
       {posted.length > 0 && (
         <Card><CardContent className="space-y-2 pt-6">
-          <div className="flex items-center gap-2 text-sm font-medium"><Icon name="CheckCircle2" className="size-4 text-emerald-600" /> أرصدة افتتاحية مُرحّلة</div>
+          <div className="flex items-center gap-2 text-sm font-medium"><Icon name="CheckCircle2" className="size-4 text-emerald-600" /> {t("أرصدة افتتاحية مُرحّلة")}</div>
           {posted.map((p) => (
             <div key={p.id} className="flex items-center justify-between rounded-md border px-3 py-2 text-sm">
-              <span className="text-muted-foreground">مُرحّلة بتاريخ {p.date}</span>
-              <Button size="sm" variant="outline" disabled={pending} onClick={() => reverse(p.id)}><Icon name="Undo2" className="size-4" /> إلغاء الترحيل</Button>
+              <span className="text-muted-foreground">{t("مُرحّلة بتاريخ")} {p.date}</span>
+              <Button size="sm" variant="outline" disabled={pending} onClick={() => reverse(p.id)}><Icon name="Undo2" className="size-4" /> {t("إلغاء الترحيل")}</Button>
             </div>
           ))}
-          <p className="text-xs text-muted-foreground">تقدر تضيف أرصدة إضافية بالأسفل (مثلاً الحسابات أو العملاء) وترحّلها بشكل منفصل — كل ترحيل يضيف ولا يكرّر. الإلغاء متاح فقط قبل أي معاملة على الأرصدة.</p>
+          <p className="text-xs text-muted-foreground">{t("تقدر تضيف أرصدة إضافية بالأسفل (مثلاً الحسابات أو العملاء) وترحّلها بشكل منفصل — كل ترحيل يضيف ولا يكرّر. الإلغاء متاح فقط قبل أي معاملة على الأرصدة.")}</p>
         </CardContent></Card>
       )}
       <Card>
         <CardContent className="flex flex-wrap items-end justify-between gap-4 pt-6">
           <div className="space-y-1">
-            <Label htmlFor="ob-date">تاريخ الأرصدة الافتتاحية (بداية السنة المالية) *</Label>
+            <Label htmlFor="ob-date">{t("تاريخ الأرصدة الافتتاحية (بداية السنة المالية) *")}</Label>
             <Input id="ob-date" type="date" className="w-56" value={date} onChange={(e) => setDate(e.target.value)} />
           </div>
           <div className="flex flex-wrap gap-4 text-sm">
-            <div><div className="text-muted-foreground">إجمالي المدين</div><div className="text-lg font-bold tabular-nums">{money(t.debit)}</div></div>
-            <div><div className="text-muted-foreground">إجمالي الدائن</div><div className="text-lg font-bold tabular-nums">{money(t.credit)}</div></div>
+            <div><div className="text-muted-foreground">{t("إجمالي المدين")}</div><div className="text-lg font-bold tabular-nums">{money(tot.debit)}</div></div>
+            <div><div className="text-muted-foreground">{t("إجمالي الدائن")}</div><div className="text-lg font-bold tabular-nums">{money(tot.credit)}</div></div>
             <div>
-              <div className="text-muted-foreground">حساب الأرصدة الافتتاحية ({OPENING_EQUITY_CODE})</div>
-              <div className="text-lg font-bold tabular-nums">{money(Math.abs(t.balancing))} <span className="text-xs font-normal">{t.balancing >= 0 ? "دائن" : "مدين"}</span></div>
+              <div className="text-muted-foreground">{t("حساب الأرصدة الافتتاحية (")}{OPENING_EQUITY_CODE})</div>
+              <div className="text-lg font-bold tabular-nums">{money(Math.abs(tot.balancing))} <span className="text-xs font-normal">{tot.balancing >= 0 ? t("دائن") : t("مدين")}</span></div>
             </div>
             <div className={cn("self-center rounded-full px-3 py-1 text-xs font-medium", equityZero ? "bg-emerald-500/15 text-emerald-600" : "bg-amber-500/15 text-amber-600")}>
-              {equityZero ? "متوازن (الفرق صفر)" : "الفرق يذهب لحقوق الملكية الافتتاحية"}
+              {equityZero ? t("متوازن (الفرق صفر)") : t("الفرق يذهب لحقوق الملكية الافتتاحية")}
             </div>
           </div>
         </CardContent>
       </Card>
 
-      <Tabs defaultValue="ACCOUNT" dir="rtl">
+      <Tabs defaultValue="ACCOUNT" dir={dirOf(locale)}>
         <TabsList>
-          <TabsTrigger value="ACCOUNT">الحسابات ({byKind("ACCOUNT").length})</TabsTrigger>
-          <TabsTrigger value="CUSTOMER">أرصدة العملاء ({byKind("CUSTOMER").length})</TabsTrigger>
-          <TabsTrigger value="SUPPLIER">أرصدة الموردين ({byKind("SUPPLIER").length})</TabsTrigger>
-          <TabsTrigger value="ITEM">المخزون الافتتاحي ({byKind("ITEM").length})</TabsTrigger>
+          <TabsTrigger value="ACCOUNT">{t("الحسابات (")}{byKind("ACCOUNT").length})</TabsTrigger>
+          <TabsTrigger value="CUSTOMER">{t("أرصدة العملاء (")}{byKind("CUSTOMER").length})</TabsTrigger>
+          <TabsTrigger value="SUPPLIER">{t("أرصدة الموردين (")}{byKind("SUPPLIER").length})</TabsTrigger>
+          <TabsTrigger value="ITEM">{t("المخزون الافتتاحي (")}{byKind("ITEM").length})</TabsTrigger>
         </TabsList>
 
         {/* ── Accounts ── */}
@@ -293,12 +301,12 @@ export function OpeningBalanceEditor({ posted, date: initialDate, initial, accou
           <Card><CardContent className="space-y-3 pt-6">
             <CsvImport kind="ACCOUNT" onAdd={mergeCsv} />
             <div className="overflow-x-auto"><table className="w-full min-w-[640px] text-sm">
-              <thead className="text-right text-xs text-muted-foreground"><tr>
-                <th className="p-2 font-medium">الحساب</th><th className={cn("p-2 font-medium", numCell)}>مدين</th><th className={cn("p-2 font-medium", numCell)}>دائن</th><th className="w-10" />
+              <thead className="text-start text-xs text-muted-foreground"><tr>
+                <th className="p-2 font-medium">{t("الحساب")}</th><th className={cn("p-2 font-medium", numCell)}>{t("مدين")}</th><th className={cn("p-2 font-medium", numCell)}>{t("دائن")}</th><th className="w-10" />
               </tr></thead>
               <tbody>{byKind("ACCOUNT").slice(0, RENDER_CAP).map((r) => (
                 <tr key={r.key} className="border-t">
-                  <td className="p-2"><CellCombobox selectedLabel={r.refLabel} options={accounts} placeholder="اختر الحساب…" onSelect={(id, label) => set(r.key, { ref: id, refLabel: label })} /></td>
+                  <td className="p-2"><CellCombobox selectedLabel={r.refLabel} options={accounts} placeholder={t("اختر الحساب…")} onSelect={(id, label) => set(r.key, { ref: id, refLabel: label })} /></td>
                   <td className="p-2"><Input type="number" step="0.01" min="0" value={r.debit} onChange={(e) => set(r.key, { debit: e.target.value, credit: "" })} /></td>
                   <td className="p-2"><Input type="number" step="0.01" min="0" value={r.credit} onChange={(e) => set(r.key, { credit: e.target.value, debit: "" })} /></td>
                   <td className="p-2"><Button type="button" variant="ghost" size="icon" onClick={() => del(r.key)}><Icon name="Trash2" className="size-4 text-destructive" /></Button></td>
@@ -306,7 +314,7 @@ export function OpeningBalanceEditor({ posted, date: initialDate, initial, accou
               ))}</tbody>
             </table></div>
             <MoreNote total={byKind("ACCOUNT").length} />
-            <Button type="button" variant="outline" size="sm" onClick={() => add("ACCOUNT")}><Icon name="Plus" className="size-4" /> إضافة حساب</Button>
+            <Button type="button" variant="outline" size="sm" onClick={() => add("ACCOUNT")}><Icon name="Plus" className="size-4" /> {t("إضافة حساب")}</Button>
           </CardContent></Card>
         </TabsContent>
 
@@ -314,15 +322,15 @@ export function OpeningBalanceEditor({ posted, date: initialDate, initial, accou
         <TabsContent value="CUSTOMER">
           <Card><CardContent className="space-y-3 pt-6">
             <CsvImport kind="CUSTOMER" onAdd={mergeCsv} />
-            <p className="text-xs text-muted-foreground">كل سطر = فاتورة مفتوحة بتاريخ استحقاقها — عشان تحليل الأعمار يطلع صح.</p>
+            <p className="text-xs text-muted-foreground">{t("كل سطر = فاتورة مفتوحة بتاريخ استحقاقها — عشان تحليل الأعمار يطلع صح.")}</p>
             <div className="overflow-x-auto"><table className="w-full min-w-[720px] text-sm">
-              <thead className="text-right text-xs text-muted-foreground"><tr>
-                <th className="p-2 font-medium">العميل</th><th className="p-2 font-medium w-32">رقم الفاتورة</th><th className="p-2 font-medium w-40">تاريخ الاستحقاق</th><th className={cn("p-2 font-medium", numCell)}>المبلغ (مدين)</th><th className="w-10" />
+              <thead className="text-start text-xs text-muted-foreground"><tr>
+                <th className="p-2 font-medium">{t("العميل")}</th><th className="p-2 font-medium w-32">{t("رقم الفاتورة")}</th><th className="p-2 font-medium w-40">{t("تاريخ الاستحقاق")}</th><th className={cn("p-2 font-medium", numCell)}>{t("المبلغ (مدين)")}</th><th className="w-10" />
               </tr></thead>
               <tbody>{byKind("CUSTOMER").slice(0, RENDER_CAP).map((r) => (
                 <tr key={r.key} className="border-t">
-                  <td className="p-2"><CellCombobox selectedLabel={r.refLabel} options={customers} placeholder="اختر العميل…" onSelect={(id, label) => set(r.key, { ref: id, refLabel: label })} /></td>
-                  <td className="p-2"><Input value={r.reference} placeholder="اختياري" onChange={(e) => set(r.key, { reference: e.target.value })} /></td>
+                  <td className="p-2"><CellCombobox selectedLabel={r.refLabel} options={customers} placeholder={t("اختر العميل…")} onSelect={(id, label) => set(r.key, { ref: id, refLabel: label })} /></td>
+                  <td className="p-2"><Input value={r.reference} placeholder={t("اختياري")} onChange={(e) => set(r.key, { reference: e.target.value })} /></td>
                   <td className="p-2"><Input type="date" value={r.dueDate} onChange={(e) => set(r.key, { dueDate: e.target.value })} /></td>
                   <td className="p-2"><Input type="number" step="0.01" min="0" value={r.debit} onChange={(e) => set(r.key, { debit: e.target.value })} /></td>
                   <td className="p-2"><Button type="button" variant="ghost" size="icon" onClick={() => del(r.key)}><Icon name="Trash2" className="size-4 text-destructive" /></Button></td>
@@ -330,7 +338,7 @@ export function OpeningBalanceEditor({ posted, date: initialDate, initial, accou
               ))}</tbody>
             </table></div>
             <MoreNote total={byKind("CUSTOMER").length} />
-            <Button type="button" variant="outline" size="sm" onClick={() => add("CUSTOMER")}><Icon name="Plus" className="size-4" /> فاتورة عميل</Button>
+            <Button type="button" variant="outline" size="sm" onClick={() => add("CUSTOMER")}><Icon name="Plus" className="size-4" /> {t("فاتورة عميل")}</Button>
           </CardContent></Card>
         </TabsContent>
 
@@ -338,15 +346,15 @@ export function OpeningBalanceEditor({ posted, date: initialDate, initial, accou
         <TabsContent value="SUPPLIER">
           <Card><CardContent className="space-y-3 pt-6">
             <CsvImport kind="SUPPLIER" onAdd={mergeCsv} />
-            <p className="text-xs text-muted-foreground">كل سطر = فاتورة مورّد مفتوحة بتاريخ استحقاقها.</p>
+            <p className="text-xs text-muted-foreground">{t("كل سطر = فاتورة مورّد مفتوحة بتاريخ استحقاقها.")}</p>
             <div className="overflow-x-auto"><table className="w-full min-w-[720px] text-sm">
-              <thead className="text-right text-xs text-muted-foreground"><tr>
-                <th className="p-2 font-medium">المورّد</th><th className="p-2 font-medium w-32">رقم الفاتورة</th><th className="p-2 font-medium w-40">تاريخ الاستحقاق</th><th className={cn("p-2 font-medium", numCell)}>المبلغ (دائن)</th><th className="w-10" />
+              <thead className="text-start text-xs text-muted-foreground"><tr>
+                <th className="p-2 font-medium">{t("المورّد")}</th><th className="p-2 font-medium w-32">{t("رقم الفاتورة")}</th><th className="p-2 font-medium w-40">{t("تاريخ الاستحقاق")}</th><th className={cn("p-2 font-medium", numCell)}>{t("المبلغ (دائن)")}</th><th className="w-10" />
               </tr></thead>
               <tbody>{byKind("SUPPLIER").slice(0, RENDER_CAP).map((r) => (
                 <tr key={r.key} className="border-t">
-                  <td className="p-2"><CellCombobox selectedLabel={r.refLabel} options={suppliers} placeholder="اختر المورّد…" onSelect={(id, label) => set(r.key, { ref: id, refLabel: label })} /></td>
-                  <td className="p-2"><Input value={r.reference} placeholder="اختياري" onChange={(e) => set(r.key, { reference: e.target.value })} /></td>
+                  <td className="p-2"><CellCombobox selectedLabel={r.refLabel} options={suppliers} placeholder={t("اختر المورّد…")} onSelect={(id, label) => set(r.key, { ref: id, refLabel: label })} /></td>
+                  <td className="p-2"><Input value={r.reference} placeholder={t("اختياري")} onChange={(e) => set(r.key, { reference: e.target.value })} /></td>
                   <td className="p-2"><Input type="date" value={r.dueDate} onChange={(e) => set(r.key, { dueDate: e.target.value })} /></td>
                   <td className="p-2"><Input type="number" step="0.01" min="0" value={r.credit} onChange={(e) => set(r.key, { credit: e.target.value })} /></td>
                   <td className="p-2"><Button type="button" variant="ghost" size="icon" onClick={() => del(r.key)}><Icon name="Trash2" className="size-4 text-destructive" /></Button></td>
@@ -354,7 +362,7 @@ export function OpeningBalanceEditor({ posted, date: initialDate, initial, accou
               ))}</tbody>
             </table></div>
             <MoreNote total={byKind("SUPPLIER").length} />
-            <Button type="button" variant="outline" size="sm" onClick={() => add("SUPPLIER")}><Icon name="Plus" className="size-4" /> فاتورة مورّد</Button>
+            <Button type="button" variant="outline" size="sm" onClick={() => add("SUPPLIER")}><Icon name="Plus" className="size-4" /> {t("فاتورة مورّد")}</Button>
           </CardContent></Card>
         </TabsContent>
 
@@ -362,15 +370,15 @@ export function OpeningBalanceEditor({ posted, date: initialDate, initial, accou
         <TabsContent value="ITEM">
           <Card><CardContent className="space-y-3 pt-6">
             <CsvImport kind="ITEM" onAdd={mergeCsv} amazonCode={amazonCode} />
-            {amazonCode && <p className="text-xs text-muted-foreground">«استيراد المخزون من أمازون» يجلب كميات FBA الحالية للأصناف المربوطة. أدخل تكلفة الوحدة لكل صنف قبل الترحيل — أمازون لا يعرف تكلفة شرائك.</p>}
+            {amazonCode && <p className="text-xs text-muted-foreground">{t("«استيراد المخزون من أمازون» يجلب كميات FBA الحالية للأصناف المربوطة. أدخل تكلفة الوحدة لكل صنف قبل الترحيل — أمازون لا يعرف تكلفة شرائك.")}</p>}
             <div className="overflow-x-auto"><table className="w-full min-w-[760px] text-sm">
-              <thead className="text-right text-xs text-muted-foreground"><tr>
-                <th className="p-2 font-medium">الصنف</th><th className="p-2 font-medium w-44">المخزن</th><th className="p-2 font-medium w-24">الكمية</th><th className="p-2 font-medium w-32">تكلفة الوحدة</th><th className="p-2 font-medium w-32">القيمة</th><th className="w-10" />
+              <thead className="text-start text-xs text-muted-foreground"><tr>
+                <th className="p-2 font-medium">{t("الصنف")}</th><th className="p-2 font-medium w-44">{t("المخزن")}</th><th className="p-2 font-medium w-24">{t("الكمية")}</th><th className="p-2 font-medium w-32">{t("تكلفة الوحدة")}</th><th className="p-2 font-medium w-32">{t("القيمة")}</th><th className="w-10" />
               </tr></thead>
               <tbody>{byKind("ITEM").slice(0, RENDER_CAP).map((r) => (
                 <tr key={r.key} className="border-t">
                   <td className="p-2"><ItemPicker label={r.refLabel} onPick={(id, label) => set(r.key, { ref: id, refLabel: label })} /></td>
-                  <td className="p-2"><CellCombobox selectedLabel={r.warehouseLabel} options={warehouses} placeholder="المخزن…" onSelect={(id, label) => set(r.key, { warehouseId: id, warehouseLabel: label })} /></td>
+                  <td className="p-2"><CellCombobox selectedLabel={r.warehouseLabel} options={warehouses} placeholder={t("المخزن…")} onSelect={(id, label) => set(r.key, { warehouseId: id, warehouseLabel: label })} /></td>
                   <td className="p-2"><Input type="number" step="1" min="1" value={r.quantity} onChange={(e) => set(r.key, { quantity: e.target.value.replace(/[^\d]/g, "") })} /></td>
                   <td className="p-2"><Input type="number" step="0.01" min="0" value={r.unitCost} onChange={(e) => set(r.key, { unitCost: e.target.value })} /></td>
                   <td className="p-2 tabular-nums text-muted-foreground">{money(Number(r.quantity || 0) * Number(r.unitCost || 0))}</td>
@@ -379,7 +387,7 @@ export function OpeningBalanceEditor({ posted, date: initialDate, initial, accou
               ))}</tbody>
             </table></div>
             <MoreNote total={byKind("ITEM").length} />
-            <Button type="button" variant="outline" size="sm" onClick={() => add("ITEM")}><Icon name="Plus" className="size-4" /> إضافة صنف</Button>
+            <Button type="button" variant="outline" size="sm" onClick={() => add("ITEM")}><Icon name="Plus" className="size-4" /> {t("إضافة صنف")}</Button>
           </CardContent></Card>
         </TabsContent>
       </Tabs>
@@ -389,20 +397,20 @@ export function OpeningBalanceEditor({ posted, date: initialDate, initial, accou
         {posting && (
           <div className="space-y-2 rounded-md border bg-muted/40 px-3 py-3">
             <div className="flex items-center justify-between text-sm">
-              <span className="flex items-center gap-2"><Icon name="Loader2" className="size-4 animate-spin" /> جارٍ الترحيل في الخلفية…</span>
+              <span className="flex items-center gap-2"><Icon name="Loader2" className="size-4 animate-spin" /> {t("جارٍ الترحيل في الخلفية…")}</span>
               <span className="tabular-nums font-medium">{posting.done.toLocaleString("ar-EG-u-nu-latn")} / {posting.total.toLocaleString("ar-EG-u-nu-latn")}</span>
             </div>
             <div className="h-2 overflow-hidden rounded-full bg-muted">
               <div className="h-full bg-primary transition-all" style={{ width: `${posting.total ? Math.round((posting.done / posting.total) * 100) : 0}%` }} />
             </div>
-            <p className="text-xs text-muted-foreground">يعمل بهدوء في الخلفية — تقدر تسيب الصفحة مفتوحة، وسيكتمل دون تحميل على السيرفر.</p>
+            <p className="text-xs text-muted-foreground">{t("يعمل بهدوء في الخلفية — تقدر تسيب الصفحة مفتوحة، وسيكتمل دون تحميل على السيرفر.")}</p>
           </div>
         )}
         <div className="flex flex-wrap gap-2">
-          <Button size="sm" variant="outline" disabled={pending || !!posting || !!problem} onClick={() => save(false)}>حفظ كمسودة</Button>
-          <Button size="sm" disabled={pending || !!posting || !!problem} onClick={() => save(true)}>حفظ وترحيل</Button>
+          <Button size="sm" variant="outline" disabled={pending || !!posting || !!problem} onClick={() => save(false)}>{t("حفظ كمسودة")}</Button>
+          <Button size="sm" disabled={pending || !!posting || !!problem} onClick={() => save(true)}>{t("حفظ وترحيل")}</Button>
         </div>
-        <p className="text-xs text-muted-foreground">الترحيل ينشئ القيد الافتتاحي + فاتورة لكل رصيد طرف + حركة مخزون لكل صنف. يمكن إلغاء الترحيل قبل أي معاملة على الأرصدة.</p>
+        <p className="text-xs text-muted-foreground">{t("الترحيل ينشئ القيد الافتتاحي + فاتورة لكل رصيد طرف + حركة مخزون لكل صنف. يمكن إلغاء الترحيل قبل أي معاملة على الأرصدة.")}</p>
       </CardContent></Card>
     </div>
   );

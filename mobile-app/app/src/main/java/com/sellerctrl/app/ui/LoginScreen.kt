@@ -1,5 +1,7 @@
 package com.sellerctrl.app.ui
 
+import com.sellerctrl.app.tr
+
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -58,7 +60,7 @@ fun LoginScreen(onDone: () -> Unit) {
                 ServiceLocator.repo.login(username, password)
                 onDone()
             } catch (_: Exception) {
-                error = "تعذّر تسجيل الدخول. تأكد من البريد وكلمة المرور ثم أعد المحاولة."
+                error = tr("تعذّر تسجيل الدخول. تأكد من البريد وكلمة المرور ثم أعد المحاولة.")
             } finally {
                 loading = false
             }
@@ -76,23 +78,23 @@ fun LoginScreen(onDone: () -> Unit) {
             ) {
                 Image(painterResource(R.drawable.sellerctrl_logo_white), "SellerCtrl", Modifier.width(210.dp))
                 Spacer(Modifier.height(14.dp))
-                Text("إدارة تجارتك من أي مكان", color = Color.White.copy(alpha = 0.82f), style = MaterialTheme.typography.bodyLarge)
+                Text(tr("إدارة تجارتك من أي مكان"), color = Color.White.copy(alpha = 0.82f), style = MaterialTheme.typography.bodyLarge)
             }
             Column(
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 30.dp),
                 verticalArrangement = Arrangement.spacedBy(14.dp),
             ) {
-                Text("أهلاً بك", style = MaterialTheme.typography.headlineMedium)
-                Text("سجّل الدخول للوصول إلى مساحة عملك بأمان.", color = MaterialTheme.colorScheme.outline)
+                Text(tr("أهلاً بك"), style = MaterialTheme.typography.headlineMedium)
+                Text(tr("سجّل الدخول للوصول إلى مساحة عملك بأمان."), color = MaterialTheme.colorScheme.outline)
                 Spacer(Modifier.height(2.dp))
                 OutlinedTextField(
                     value = username, onValueChange = { username = it },
-                    label = { Text("البريد الإلكتروني أو اسم المستخدم") }, singleLine = true,
+                    label = { Text(tr("البريد الإلكتروني أو اسم المستخدم")) }, singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email, imeAction = ImeAction.Next),
                     colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = BrandBlue), modifier = Modifier.fillMaxWidth(),
                 )
                 OutlinedTextField(
-                    value = password, onValueChange = { password = it }, label = { Text("كلمة المرور") },
+                    value = password, onValueChange = { password = it }, label = { Text(tr("كلمة المرور")) },
                     singleLine = true, visualTransformation = PasswordVisualTransformation(),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Done),
                     keyboardActions = KeyboardActions(onDone = { submit() }),
@@ -103,9 +105,9 @@ fun LoginScreen(onDone: () -> Unit) {
                     onClick = { submit() }, enabled = !loading && username.isNotBlank() && password.isNotBlank(),
                     modifier = Modifier.fillMaxWidth().height(54.dp), shape = RoundedCornerShape(14.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = BrandBlue),
-                ) { if (loading) CircularProgressIndicator(color = Color.White) else Text("تسجيل الدخول") }
+                ) { if (loading) CircularProgressIndicator(color = Color.White) else Text(tr("تسجيل الدخول")) }
                 Text(
-                    text = "لا يتم حفظ كلمة المرور على الهاتف.",
+                    text = tr("لا يتم حفظ كلمة المرور على الهاتف."),
                     modifier = Modifier.align(Alignment.CenterHorizontally),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.outline,

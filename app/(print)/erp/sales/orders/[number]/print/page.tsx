@@ -1,4 +1,6 @@
 import { notFound } from "next/navigation";
+import { fill } from "@/lib/i18n";
+import { getLocale, getT } from "@/lib/i18n/server";
 import { and, eq } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
@@ -15,6 +17,8 @@ const STATUS: Record<string, string> = {
 type Params = { params: Promise<{ number: string }> };
 
 export default async function PrintSalesOrderPage({ params }: Params) {
+  const t = await getT();
+  const locale = await getLocale();
   const raw = decodeURIComponent((await params).number);
   return loadErpPage("sales.view", async ({ orgId }) => {
     const [so] = await db
@@ -55,13 +59,13 @@ export default async function PrintSalesOrderPage({ params }: Params) {
         org={org}
         hiddenColumns={hiddenFor("sales-order")}
         footerText={footerText}
-        title="أمر بيع"
+        title={t("أمر بيع")}
         number={so.number}
-        watermark={so.status === "DRAFT" ? "مسودة" : undefined}
+        watermark={so.status === "DRAFT" ? t("مسودة") : undefined}
         backHref={`/sales/orders/${encodeURIComponent(raw)}`}
         meta={[
-          { label: "التاريخ", value: dt(so.date) },
-          ...(so.dueDate ? [{ label: "التسليم", value: dt(so.dueDate) }] : []),
+          { label: "التاريخ", value: dt(so.date, locale) },
+          ...(so.dueDate ? [{ label: "التسليم", value: dt(so.dueDate, locale) }] : []),
           { label: "الحالة", value: STATUS[so.status] ?? so.status },
         ]}
         parties={cust ? [{
@@ -81,7 +85,7 @@ export default async function PrintSalesOrderPage({ params }: Params) {
         rows={lines.map((l, i) => [
           <span key="i" style={{ color: "#8a93a6" }}>{i + 1}</span>,
           <span key="n">
-            <b>{l.name}</b>
+            <b>{t(l.name ?? "")}</b>
             {l.code && <span dir="ltr" style={{ color: "#8a93a6", fontSize: 10.5, marginInlineStart: 6 }}>{l.code}</span>}
           </span>,
           qty(l.qty),
@@ -93,12 +97,12 @@ export default async function PrintSalesOrderPage({ params }: Params) {
         totals={[
           // Same shape as the purchase order: the subtotal always, then only the lines
           // that actually carry a figure.
-          { label: "الإجمالي الفرعي", value: money(subtotal, currency) },
-          ...(shipping > 0 ? [{ label: "الشحن", value: money(shipping, currency) }] : []),
-          ...(discount > 0 ? [{ label: "الخصم", value: `− ${money(discount, currency)}`, tone: "danger" as const }] : []),
-          ...(tax > 0 ? [{ label: `الضريبة (${so.taxPercent}%)`, value: money(tax, currency) }] : []),
+          { label: "الإجمالي الفرعي", value: money(subtotal, currency, locale) },
+          ...(shipping > 0 ? [{ label: "الشحن", value: money(shipping, currency, locale) }] : []),
+          ...(discount > 0 ? [{ label: "الخصم", value: `− ${money(discount, currency, locale)}`, tone: "danger" as const }] : []),
+          ...(tax > 0 ? [{ label: fill(t("الضريبة ({0}%)"), [so.taxPercent]), value: money(tax, currency, locale) }] : []),
         ]}
-        balance={{ label: "الإجمالي", value: money(so.totalAmount, currency) }}
+        balance={{ label: "الإجمالي", value: money(so.totalAmount, currency, locale) }}
         note={so.notes}
         signatures={["إعداد", "اعتماد", "العميل"]}
       />

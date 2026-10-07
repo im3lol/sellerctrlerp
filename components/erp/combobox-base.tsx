@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useT } from "@/lib/i18n/client";
 import { createPortal } from "react-dom";
 import { Plus } from "lucide-react";
 import { Input } from "@/components/ui/input";
@@ -34,6 +35,7 @@ export function ComboboxBase({
   onCreate?: (typed: string) => void;
   createLabel?: string;
 }) {
+  const t = useT();
   const [q, setQ] = useState("");
   const [editing, setEditing] = useState(false);
   const [open, setOpen] = useState(false);
@@ -89,8 +91,8 @@ export function ComboboxBase({
               onClick={() => pick(o)}
               className="flex w-full flex-col items-start gap-0.5 rounded-sm px-3 py-1.5 text-start text-sm hover:bg-accent hover:text-accent-foreground"
             >
-              <span>{o.label}</span>
-              {o.hint && <span className="font-mono text-xs text-muted-foreground">{o.hint}</span>}
+              <span>{t(o.label)}</span>
+              {o.hint && <span className="font-mono text-xs text-muted-foreground">{t(o.hint)}</span>}
             </button>
           ))}
           {onCreate && (

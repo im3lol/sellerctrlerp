@@ -1,4 +1,6 @@
 import { and, eq, gte, lte, sql } from "drizzle-orm";
+import { fill } from "@/lib/i18n";
+import { getLocale, getT } from "@/lib/i18n/server";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
 import { leaveRequests } from "@/db/schema";
@@ -10,6 +12,8 @@ import { ReportSheet } from "@/components/erp/print/report-sheet";
 const iso = (d: Date) => d.toISOString().slice(0, 10);
 
 export default async function PrintLeaveReportPage({ searchParams }: { searchParams: Promise<{ from?: string; to?: string }> }) {
+  const t = await getT();
+  const locale = await getLocale();
   return loadErpPage("hr.view", async ({ orgId }) => {
     const sp = await searchParams;
     const now = new Date();
@@ -50,8 +54,8 @@ export default async function PrintLeaveReportPage({ searchParams }: { searchPar
     return (
       <ReportSheet
         org={org}
-        title="تقرير أرصدة الإجازات"
-        period={`من ${dt(from)} إلى ${dt(to)}`}
+        title={t("تقرير أرصدة الإجازات")}
+        period={fill(t("من {0} إلى {1}"), [dt(from, locale), dt(to, locale)])}
         kpis={[
           { label: "عدد الموظفين", value: String(list.length) },
           { label: "إجمالي الأيام المعتمدة", value: String(grandTotal) },
@@ -70,7 +74,7 @@ export default async function PrintLeaveReportPage({ searchParams }: { searchPar
           ]),
           footerRow: ["الإجمالي", ...colTotals.map((n) => (n ? String(n) : "—")), String(grandTotal)],
         }]}
-        note={list.length === 0 ? "لا توجد إجازات معتمدة في هذه الفترة." : "تُحتسب الطلبات المعتمدة التي تبدأ ضمن الفترة."}
+        note={list.length === 0 ? t("لا توجد إجازات معتمدة في هذه الفترة.") : t("تُحتسب الطلبات المعتمدة التي تبدأ ضمن الفترة.")}
         backHref={`/hr/leaves/report?${new URLSearchParams({ from, to })}`}
       />
     );

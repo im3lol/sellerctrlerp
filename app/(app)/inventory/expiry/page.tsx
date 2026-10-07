@@ -1,4 +1,5 @@
 import { loadErpPage } from "@/lib/erp/org";
+import { fill } from "@/lib/i18n";
 import { getT } from "@/lib/i18n/server";
 import { getExpiryReport } from "@/lib/erp/expiry";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -49,7 +50,7 @@ export default async function ExpiryPage({ searchParams }: { searchParams: Promi
         reportKey="inv-expiry"
         icon="CalendarClock"
         title={t("انتهاء الصلاحية")}
-        subtitle={`${rows.length} دفعة لها تاريخ صلاحية`}
+        subtitle={fill(t("{0} دفعة لها تاريخ صلاحية"), [rows.length])}
         query={filterQs.toString()}
         permissions={permissions}
         filters={
@@ -60,13 +61,13 @@ export default async function ExpiryPage({ searchParams }: { searchParams: Promi
             <ReportField label={t("المستودع")}>
               <select name="warehouse" defaultValue={fWarehouse} className={selectCls}>
                 <option value="">{t("كل المستودعات")}</option>
-                {whList.map((w) => <option key={w.id} value={w.id}>{w.nameAr}</option>)}
+                {whList.map((w) => <option key={w.id} value={w.id}>{t(w.nameAr)}</option>)}
               </select>
             </ReportField>
             <ReportField label={t("الحالة")}>
               <select name="status" defaultValue={fStatus} className={selectCls}>
                 <option value="">{t("الكل")}</option>
-                {STATUS_OPTIONS.map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                {STATUS_OPTIONS.map(([k, v]) => <option key={k} value={k}>{t(v)}</option>)}
               </select>
             </ReportField>
             <ReportField label={t("حد التنبيه (أيام)")}>
@@ -77,7 +78,7 @@ export default async function ExpiryPage({ searchParams }: { searchParams: Promi
         kpis={[
           { label: "دفعات منتهية", value: intl(totals.expiredCount), tone: "loss" },
           { label: "قيمة المنتهي", value: fmt(totals.expiredValue), tone: "loss" },
-          { label: `قرب الانتهاء (≤${intl(withinDays)} يوم)`, value: intl(totals.nearCount) },
+          { label: fill(t("قرب الانتهاء (≤{0} يوم)"), [intl(withinDays)]), value: intl(totals.nearCount) },
           { label: "قيمة قرب الانتهاء", value: fmt(totals.nearValue) },
         ]}
       >
@@ -89,7 +90,7 @@ export default async function ExpiryPage({ searchParams }: { searchParams: Promi
           <CardContent className="space-y-4">
 
             {rows.length === 0 ? (
-              <div className="rounded-xl border border-dashed py-12 text-center text-muted-foreground">{hasFilters ? "لا توجد دفعات مطابقة." : "لا توجد دفعات لها تاريخ صلاحية."}</div>
+              <div className="rounded-xl border border-dashed py-12 text-center text-muted-foreground">{hasFilters ? t("لا توجد دفعات مطابقة.") : t("لا توجد دفعات لها تاريخ صلاحية.")}</div>
             ) : (
               <>
               <Table>
@@ -113,7 +114,7 @@ export default async function ExpiryPage({ searchParams }: { searchParams: Promi
                       <TableCell>{r.batchNo ?? "—"}</TableCell>
                       <TableCell className="whitespace-nowrap">{dt(r.expiryDate)}</TableCell>
                       <TableCell className={r.daysLeft < 0 ? "text-destructive" : r.daysLeft <= withinDays ? "text-amber-600" : ""}>
-                        {r.daysLeft < 0 ? `انتهى منذ ${intl(-r.daysLeft)} يوم` : `${intl(r.daysLeft)} يوم`}
+                        {r.daysLeft < 0 ? fill(t("انتهى منذ {0} يوم"), [intl(-r.daysLeft)]) : fill(t("{0} يوم"), [intl(r.daysLeft)])}
                       </TableCell>
                       <TableCell>{qty(r.remaining)}</TableCell>
                       <TableCell>{fmt(r.value)}</TableCell>
@@ -124,7 +125,7 @@ export default async function ExpiryPage({ searchParams }: { searchParams: Promi
                   ))}
                 </TableBody>
               </Table>
-              <Pagination page={page} pages={pages} total={rows.length} unit="دفعة" basePath="/inventory/expiry" params={{ product: fProduct, warehouse: fWarehouse, status: fStatus, within: one(sp.within) }} />
+              <Pagination page={page} pages={pages} total={rows.length} unit={t("دفعة")} basePath="/inventory/expiry" params={{ product: fProduct, warehouse: fWarehouse, status: fStatus, within: one(sp.within) }} />
               </>
             )}
           </CardContent>

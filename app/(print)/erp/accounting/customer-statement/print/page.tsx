@@ -1,4 +1,6 @@
 import { loadErpPage } from "@/lib/erp/org";
+import { fill } from "@/lib/i18n";
+import { getLocale, getT } from "@/lib/i18n/server";
 import { getPartyStatement, statementPeriod, STATEMENT_TYPE_AR } from "@/lib/erp/party-statement";
 import { loadPrintHeader } from "@/lib/erp/print-org";
 import { fmt, dt, money } from "@/lib/erp/print-format";
@@ -7,6 +9,8 @@ import { ReportSheet } from "@/components/erp/print/report-sheet";
 type SP = { customerId?: string; from?: string; to?: string };
 
 export default async function PrintCustomerStatementPage({ searchParams }: { searchParams: Promise<SP> }) {
+  const t = await getT();
+  const locale = await getLocale();
   return loadErpPage("accounting.view", async ({ orgId }) => {
     const sp = await searchParams;
     const selectedId = sp.customerId ?? "";
@@ -22,7 +26,7 @@ export default async function PrintCustomerStatementPage({ searchParams }: { sea
     const backHref = `/accounting/customer-statement${backQs.size ? `?${backQs}` : ""}`;
 
     if (!selectedId) {
-      return <ReportSheet org={org} title="كشف حساب العميل" sections={[]} note="اختر عميلاً أولاً." backHref={backHref} />;
+      return <ReportSheet org={org} title={t("كشف حساب العميل")} sections={[]} note={t("اختر عميلاً أولاً.")} backHref={backHref} />;
     }
 
     const st = await getPartyStatement(orgId, "customer", selectedId, fromDate, toDate);
@@ -32,17 +36,17 @@ export default async function PrintCustomerStatementPage({ searchParams }: { sea
     return (
       <ReportSheet
         org={org}
-        title="كشف حساب العميل"
-        period={`من ${dt(fromDate)} إلى ${dt(toDate)}`}
+        title={t("كشف حساب العميل")}
+        period={fill(t("من {0} إلى {1}"), [dt(fromDate, locale), dt(toDate, locale)])}
         backHref={backHref}
         filters={[{ label: "العميل", value: cust?.nameAr ?? "—" }]}
         kpis={[
-          { label: "رصيد الافتتاح", value: money(openingBalance, currency) },
-          { label: "إجمالي الفواتير", value: money(debitTotal, currency) },
-          { label: "إجمالي المقبوضات", value: money(creditTotal, currency), tone: "success" },
+          { label: "رصيد الافتتاح", value: money(openingBalance, currency, locale) },
+          { label: "إجمالي الفواتير", value: money(debitTotal, currency, locale) },
+          { label: "إجمالي المقبوضات", value: money(creditTotal, currency, locale), tone: "success" },
           {
-            label: closingBalance >= 0 ? "الرصيد المدين (مستحق)" : "رصيد زائد (دائن)",
-            value: money(Math.abs(closingBalance), currency),
+            label: closingBalance >= 0 ? t("الرصيد المدين (مستحق)") : t("رصيد زائد (دائن)"),
+            value: money(Math.abs(closingBalance), currency, locale),
             tone: closingBalance > 0 ? "danger" : "success",
           },
         ]}
@@ -58,16 +62,16 @@ export default async function PrintCustomerStatementPage({ searchParams }: { sea
           ],
           rows: [
             [
-              dt(fromDate),
+              dt(fromDate, locale),
               "—",
-              <b key="o">رصيد افتتاحي</b>,
+              <b key="o">{t("رصيد افتتاحي")}</b>,
               "",
               openingBalance > 0 ? fmt(openingBalance) : "—",
               openingBalance < 0 ? fmt(-openingBalance) : "—",
               <b key="b">{fmt(openingBalance)}</b>,
             ],
             ...rows.map((r) => [
-              dt(r.date),
+              dt(r.date, locale),
               <span key="n" dir="ltr" style={{ display: "block", textAlign: "start" }}>{r.number}</span>,
               r.description,
               STATEMENT_TYPE_AR[r.type],
@@ -80,10 +84,10 @@ export default async function PrintCustomerStatementPage({ searchParams }: { sea
             "الرصيد الختامي", "", "", "",
             fmt(debitTotal),
             fmt(creditTotal),
-            `${fmt(closingBalance)}${closingBalance > 0 ? " (مدين)" : closingBalance < 0 ? " (دائن)" : ""}`,
+            `${fmt(closingBalance)}${closingBalance > 0 ? t(" (مدين)") : closingBalance < 0 ? t(" (دائن)") : ""}`,
           ],
         }]}
-        note={rows.length === 0 ? "لا توجد حركات في هذه الفترة." : null}
+        note={rows.length === 0 ? t("لا توجد حركات في هذه الفترة.") : null}
       />
     );
   });

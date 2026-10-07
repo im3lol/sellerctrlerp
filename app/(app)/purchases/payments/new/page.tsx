@@ -1,4 +1,5 @@
 import { and, asc, eq, gt, inArray, or } from "drizzle-orm";
+import { getT } from "@/lib/i18n/server";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
 import { suppliers, purchaseInvoices, accounts } from "@/db/schema";
@@ -7,6 +8,7 @@ import { ErpPageHeader } from "@/components/erp/page-header";
 import { VoucherForm } from "@/components/erp/voucher-form";
 
 export default async function NewPaymentPage() {
+  const t = await getT();
   return loadErpPage("purchases.view", async ({ orgId }) => {
     const rc = await resolveAccountCodes(orgId, ["1101", "1102"]);
     const [parties, invoices, cashAccs] = await Promise.all([
@@ -28,7 +30,7 @@ export default async function NewPaymentPage() {
 
     return (
       <div className="space-y-6">
-        <ErpPageHeader icon="Banknote" title="سند صرف جديد" subtitle="دفع لمورد" backHref="/purchases/payments" />
+        <ErpPageHeader icon="Banknote" title={t("سند صرف جديد")} subtitle={t("دفع لمورد")} backHref="/purchases/payments" />
         <VoucherForm
           mode="payment"
           parties={parties}

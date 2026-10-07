@@ -1,4 +1,5 @@
 import { notFound, redirect } from "next/navigation";
+import { fill } from "@/lib/i18n";
 import { getT } from "@/lib/i18n/server";
 import { and, asc, eq } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
@@ -40,7 +41,7 @@ export default async function EditSalesOrderPage({ params }: { params: Promise<{
 
     return (
       <div className="space-y-6">
-        <ErpPageHeader icon="ShoppingCart" title={`تعديل أمر بيع ${so.number}`} subtitle={t("مسودة — عدّل الأصناف والكميات والأسعار ثم احفظ")} backHref={`/sales/orders/${encodeURIComponent(so.number)}`} />
+        <ErpPageHeader icon="ShoppingCart" title={fill(t("تعديل أمر بيع {0}"), [so.number])} subtitle={t("مسودة — عدّل الأصناف والكميات والأسعار ثم احفظ")} backHref={`/sales/orders/${encodeURIComponent(so.number)}`} />
         <SalesOrderForm customers={custList} items={itemList} orgName={org[0]?.nameAr ?? "—"} vatRate={Number(org[0]?.vatRate ?? 0)} initial={initial} />
       </div>
     );

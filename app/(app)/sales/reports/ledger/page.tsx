@@ -1,4 +1,6 @@
 import { loadErpPage } from "@/lib/erp/org";
+import { fill } from "@/lib/i18n";
+import { getT } from "@/lib/i18n/server";
 import Link from "next/link";
 import { getSalesLedger } from "@/lib/erp/sales-ledger";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -24,6 +26,7 @@ type SP = { [k: string]: string | string[] | undefined };
 const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) ?? "";
 
 export default async function SalesLedgerPage({ searchParams }: { searchParams: Promise<SP> }) {
+  const t = await getT();
   return loadErpPage("sales.view", async ({ orgId , permissions }) => {
     const sp = await searchParams;
     const fCustomer = one(sp.customer).trim();
@@ -62,65 +65,65 @@ export default async function SalesLedgerPage({ searchParams }: { searchParams: 
       <ReportShell
         reportKey="sales-ledger"
         icon="BookOpen"
-        title="تقرير دفتر المبيعات"
-        subtitle={`${totalRows} حركة`}
+        title={t("تقرير دفتر المبيعات")}
+        subtitle={fill(t("{0} حركة"), [totalRows])}
         query={filterQs().toString()}
         permissions={permissions}
       >
         <Card>
           <CardHeader>
-            <CardTitle>دفتر المبيعات (Ledger)</CardTitle>
+            <CardTitle>{t("دفتر المبيعات (Ledger)")}</CardTitle>
             <CardDescription>
-              حصر شامل لكل حركات المبيعات — أوامر البيع، إذون الصرف، فواتير البيع، والمرتجعات — مع تفصيل السعر والخصم والضريبة والإجمالي. استخدم الفلاتر لحصر عميل أو منتج أو نوع وثيقة أو فترة زمنية.
+              {t("حصر شامل لكل حركات المبيعات — أوامر البيع، إذون الصرف، فواتير البيع، والمرتجعات — مع تفصيل السعر والخصم والضريبة والإجمالي. استخدم الفلاتر لحصر عميل أو منتج أو نوع وثيقة أو فترة زمنية.")}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <details open={hasFilters} className="rounded-lg border">
               <summary className="flex cursor-pointer select-none items-center gap-2 px-4 py-2 text-sm font-medium">
-                <Icon name="ListFilter" className="size-4" /> بحث وتصفية
+                <Icon name="ListFilter" className="size-4" /> {t("بحث وتصفية")}
               </summary>
               <form className="grid gap-3 p-4 pt-0 sm:grid-cols-5 items-end">
                 <div className="space-y-1 sm:col-span-2">
-                  <Label htmlFor="product">المنتج (اسم أو كود)</Label>
-                  <LedgerCombobox name="product" defaultValue={fProduct} placeholder="ابحث باسم الصنف أو الكود…"
+                  <Label htmlFor="product">{t("المنتج (اسم أو كود)")}</Label>
+                  <LedgerCombobox name="product" defaultValue={fProduct} placeholder={t("ابحث باسم الصنف أو الكود…")}
                     options={itemList.map((it) => ({ value: it.nameAr ?? it.code, hint: it.code }))} />
                 </div>
                 <div className="space-y-1">
-                  <Label htmlFor="customer">العميل (اسم أو كود)</Label>
-                  <LedgerCombobox name="customer" defaultValue={fCustomer} placeholder="ابحث باسم العميل أو الكود…"
+                  <Label htmlFor="customer">{t("العميل (اسم أو كود)")}</Label>
+                  <LedgerCombobox name="customer" defaultValue={fCustomer} placeholder={t("ابحث باسم العميل أو الكود…")}
                     options={custList.map((c) => ({ value: c.nameAr ?? c.code, hint: c.code }))} />
                 </div>
                 <div className="space-y-1">
-                  <Label htmlFor="type">نوع الوثيقة</Label>
+                  <Label htmlFor="type">{t("نوع الوثيقة")}</Label>
                   <select id="type" name="type" defaultValue={fType} className={selectCls}>
-                    <option value="">كل الأنواع</option>
-                    {DOC_TYPES.map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                    <option value="">{t("كل الأنواع")}</option>
+                    {DOC_TYPES.map(([k, v]) => <option key={k} value={k}>{t(v)}</option>)}
                   </select>
                 </div>
-                <div className="space-y-1"><Label htmlFor="from">من تاريخ</Label><Input id="from" name="from" type="date" defaultValue={from} /></div>
-                <div className="space-y-1"><Label htmlFor="to">إلى تاريخ</Label><Input id="to" name="to" type="date" defaultValue={to} /></div>
+                <div className="space-y-1"><Label htmlFor="from">{t("من تاريخ")}</Label><Input id="from" name="from" type="date" defaultValue={from} /></div>
+                <div className="space-y-1"><Label htmlFor="to">{t("إلى تاريخ")}</Label><Input id="to" name="to" type="date" defaultValue={to} /></div>
                 <div className="flex gap-2 sm:col-span-5">
-                  <Button type="submit">تطبيق</Button>
-                  {hasFilters && <Button type="button" variant="outline" asChild><Link href="/sales/reports/ledger">مسح</Link></Button>}
+                  <Button type="submit">{t("تطبيق")}</Button>
+                  {hasFilters && <Button type="button" variant="outline" asChild><Link href="/sales/reports/ledger">{t("مسح")}</Link></Button>}
                 </div>
               </form>
             </details>
 
             {totalRows === 0 ? (
               <div className="rounded-xl border border-dashed py-12 text-center text-muted-foreground">
-                {hasFilters ? "لا توجد حركات مطابقة." : "لا توجد حركات مبيعات بعد."}
+                {hasFilters ? t("لا توجد حركات مطابقة.") : t("لا توجد حركات مبيعات بعد.")}
               </div>
             ) : (
               <>
                 <SalesLedgerTable rows={pageRows} totals={totals} />
                 <div className="flex items-center justify-between text-sm text-muted-foreground">
-                  <span>صفحة {safePage} من {pages}</span>
+                  <span>{t("صفحة")} {safePage} {t("من")} {pages}</span>
                   <div className="flex gap-2">
                     <Button variant="outline" size="sm" disabled={safePage <= 1} asChild={safePage > 1}>
-                      {safePage > 1 ? <a href={qs(safePage - 1)}>السابق</a> : <span>السابق</span>}
+                      {safePage > 1 ? <a href={qs(safePage - 1)}>{t("السابق")}</a> : <span>{t("السابق")}</span>}
                     </Button>
                     <Button variant="outline" size="sm" disabled={safePage >= pages} asChild={safePage < pages}>
-                      {safePage < pages ? <a href={qs(safePage + 1)}>التالي</a> : <span>التالي</span>}
+                      {safePage < pages ? <a href={qs(safePage + 1)}>{t("التالي")}</a> : <span>{t("التالي")}</span>}
                     </Button>
                   </div>
                 </div>

@@ -1,4 +1,5 @@
 import { and, asc, eq } from "drizzle-orm";
+import { getT } from "@/lib/i18n/server";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
 import { employees, users } from "@/db/schema";
@@ -8,6 +9,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { AttendanceManager } from "@/components/erp/attendance-manager";
 
 export default async function AttendancePage() {
+  const t = await getT();
   return loadErpPage("hr.view", async ({ orgId, can }) => {
     // Only employees with a login can have attendance — the table is keyed by user.
     const staff = await db
@@ -28,8 +30,8 @@ export default async function AttendancePage() {
       <div className="space-y-6">
         <ErpPageHeader
           icon="Clock"
-          title="الحضور والانصراف"
-          subtitle="ساعات العمل اللي الرواتب بالساعة بتتحسب منها"
+          title={t("الحضور والانصراف")}
+          subtitle={t("ساعات العمل اللي الرواتب بالساعة بتتحسب منها")}
           backHref="/hr"
           action={<DatasetExport dataset="attendance" />}
         />
@@ -37,7 +39,7 @@ export default async function AttendancePage() {
         {options.length === 0 && (
           <Card><CardContent className="pt-6">
             <p className="text-sm text-muted-foreground">
-              مفيش موظف مربوط بحساب دخول. الحضور بيتسجّل على الحساب، فاربط كل موظف بمستخدم من صفحة الموظفين الأول.
+              {t("مفيش موظف مربوط بحساب دخول. الحضور بيتسجّل على الحساب، فاربط كل موظف بمستخدم من صفحة الموظفين الأول.")}
             </p>
           </CardContent></Card>
         )}

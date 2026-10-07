@@ -1,4 +1,6 @@
 import { and, desc, eq, ilike, sql, count } from "drizzle-orm";
+import { fill } from "@/lib/i18n";
+import { getT } from "@/lib/i18n/server";
 import Link from "next/link";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
@@ -40,6 +42,7 @@ type SP = { [k: string]: string | string[] | undefined };
 const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) ?? "";
 
 export default async function AuditLogPage({ searchParams }: { searchParams: Promise<SP> }) {
+  const t = await getT();
   return loadErpPage("settings.view", async ({ orgId }) => {
     const sp = await searchParams;
     const fAction = one(sp.action);
@@ -86,56 +89,56 @@ export default async function AuditLogPage({ searchParams }: { searchParams: Pro
 
     return (
       <div className="space-y-6">
-        <ErpPageHeader icon="ScrollText" title="سجل التدقيق" subtitle={`${total} حدث`} />
+        <ErpPageHeader icon="ScrollText" title={t("سجل التدقيق")} subtitle={fill(t("{0} حدث"), [total])} />
         <Card>
           <CardHeader>
-            <CardTitle>أحداث المستندات</CardTitle>
-            <CardDescription>سجل غير قابل للتعديل لكل إنشاء/تأكيد/ترحيل/إلغاء/عكس على مستندات المؤسسة.</CardDescription>
+            <CardTitle>{t("أحداث المستندات")}</CardTitle>
+            <CardDescription>{t("سجل غير قابل للتعديل لكل إنشاء/تأكيد/ترحيل/إلغاء/عكس على مستندات المؤسسة.")}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <details open={hasFilters} className="rounded-lg border">
               <summary className="cursor-pointer select-none px-4 py-2 text-sm font-medium flex items-center gap-2">
-                <Icon name="ListFilter" className="size-4" /> التصفية
+                <Icon name="ListFilter" className="size-4" /> {t("التصفية")}
               </summary>
               <form className="grid gap-3 p-4 pt-0 sm:grid-cols-4 items-end">
                 <div className="space-y-1">
-                  <Label htmlFor="q">رقم المستند</Label>
+                  <Label htmlFor="q">{t("رقم المستند")}</Label>
                   <Input id="q" name="q" defaultValue={q} placeholder="SO-2026-..." />
                 </div>
                 <div className="space-y-1">
-                  <Label htmlFor="action">الإجراء</Label>
+                  <Label htmlFor="action">{t("الإجراء")}</Label>
                   <select id="action" name="action" defaultValue={fAction} className={selectCls}>
-                    <option value="">الكل</option>
+                    <option value="">{t("الكل")}</option>
                     {Object.entries(ACTION).map(([k, v]) => <option key={k} value={k}>{v.ar}</option>)}
                   </select>
                 </div>
                 <div className="space-y-1">
-                  <Label htmlFor="entity">نوع المستند</Label>
+                  <Label htmlFor="entity">{t("نوع المستند")}</Label>
                   <select id="entity" name="entity" defaultValue={fEntity} className={selectCls}>
-                    <option value="">الكل</option>
-                    {Object.entries(ENTITY).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                    <option value="">{t("الكل")}</option>
+                    {Object.entries(ENTITY).map(([k, v]) => <option key={k} value={k}>{t(v)}</option>)}
                   </select>
                 </div>
                 <div className="flex gap-2">
-                  <Button type="submit" className="flex-1">تطبيق</Button>
-                  {hasFilters && <Button type="button" variant="outline" asChild><Link href="/audit">مسح</Link></Button>}
+                  <Button type="submit" className="flex-1">{t("تطبيق")}</Button>
+                  {hasFilters && <Button type="button" variant="outline" asChild><Link href="/audit">{t("مسح")}</Link></Button>}
                 </div>
               </form>
             </details>
 
             {rows.length === 0 ? (
-              <div className="rounded-xl border border-dashed py-12 text-center text-muted-foreground">لا توجد أحداث.</div>
+              <div className="rounded-xl border border-dashed py-12 text-center text-muted-foreground">{t("لا توجد أحداث.")}</div>
             ) : (
               <>
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead className="text-start">التاريخ والوقت</TableHead>
-                      <TableHead className="text-start">المستخدم</TableHead>
-                      <TableHead className="text-start">الإجراء</TableHead>
-                      <TableHead className="text-start">نوع المستند</TableHead>
-                      <TableHead className="text-start">الرقم</TableHead>
-                      <TableHead className="text-start">التفاصيل</TableHead>
+                      <TableHead className="text-start">{t("التاريخ والوقت")}</TableHead>
+                      <TableHead className="text-start">{t("المستخدم")}</TableHead>
+                      <TableHead className="text-start">{t("الإجراء")}</TableHead>
+                      <TableHead className="text-start">{t("نوع المستند")}</TableHead>
+                      <TableHead className="text-start">{t("الرقم")}</TableHead>
+                      <TableHead className="text-start">{t("التفاصيل")}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -146,22 +149,22 @@ export default async function AuditLogPage({ searchParams }: { searchParams: Pro
                           <TableCell className="whitespace-nowrap font-mono text-xs">{dt(r.createdAt)}</TableCell>
                           <TableCell>{r.userName ?? "—"}</TableCell>
                           <TableCell><Badge variant={a.variant}>{a.ar}</Badge></TableCell>
-                          <TableCell>{ENTITY[r.entityType] ?? r.entityType}</TableCell>
+                          <TableCell>{t(ENTITY[r.entityType] ?? r.entityType)}</TableCell>
                           <TableCell className="font-mono">{r.entityNumber ?? "—"}</TableCell>
-                          <TableCell className="text-muted-foreground">{r.summary ?? "—"}</TableCell>
+                          <TableCell className="text-muted-foreground">{t(r.summary ?? "—")}</TableCell>
                         </TableRow>
                       );
                     })}
                   </TableBody>
                 </Table>
                 <div className="flex items-center justify-between text-sm text-muted-foreground">
-                  <span>صفحة {safePage} من {pages}</span>
+                  <span>{t("صفحة")} {safePage} {t("من")} {pages}</span>
                   <div className="flex gap-2">
                     <Button variant="outline" size="sm" disabled={safePage <= 1} asChild={safePage > 1}>
-                      {safePage > 1 ? <a href={qs(safePage - 1)}>السابق</a> : <span>السابق</span>}
+                      {safePage > 1 ? <a href={qs(safePage - 1)}>{t("السابق")}</a> : <span>{t("السابق")}</span>}
                     </Button>
                     <Button variant="outline" size="sm" disabled={safePage >= pages} asChild={safePage < pages}>
-                      {safePage < pages ? <a href={qs(safePage + 1)}>التالي</a> : <span>التالي</span>}
+                      {safePage < pages ? <a href={qs(safePage + 1)}>{t("التالي")}</a> : <span>{t("التالي")}</span>}
                     </Button>
                   </div>
                 </div>

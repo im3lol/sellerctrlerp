@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
-import { toast } from "sonner";
+import { fill } from "@/lib/i18n";
+import { useT } from "@/lib/i18n/client";
+import { toast } from "@/lib/i18n/toast";
 import {
   getMyShiftAction, openShiftAction, ringSaleAction, closeShiftAction, type ShiftState,
 } from "@/app/actions/erp/pos";
@@ -42,6 +44,7 @@ export function PosTerminal({ warehouses, cashAccounts, customers, defaultCustom
   defaultCustomerId: string | null; vatRate: number;
   promotions: Promotion[]; loyalty: LoyaltyProgram;
 }) {
+  const t = useT();
   const [state, setState] = useState<ShiftState | null>(null);
   const [pending, start] = useTransition();
   const scanRef = useRef<HTMLInputElement>(null);
@@ -60,7 +63,7 @@ export function PosTerminal({ warehouses, cashAccounts, customers, defaultCustom
 
   const load = () => {
     void getMyShiftAction().then((r) => {
-      if (!r.ok) { toast.error(r.error ?? "تعذّر التحميل"); return; }
+      if (!r.ok) { toast.error(r.error ?? t("تعذّر التحميل")); return; }
       setState(r.state ?? null);
     });
   };
@@ -98,8 +101,8 @@ export function PosTerminal({ warehouses, cashAccounts, customers, defaultCustom
         warehouseId: openForm.warehouseId, cashAccountId: openForm.cashAccountId,
         openingFloat: Number(openForm.float) || 0,
       });
-      if (r.ok) { toast.success(`فتحت وردية ${r.number}`); load(); }
-      else toast.error(r.error ?? "تعذّر فتح الوردية");
+      if (r.ok) { toast.success(fill(t("فتحت وردية {0}"), [r.number])); load(); }
+      else toast.error(r.error ?? t("تعذّر فتح الوردية"));
     });
 
   const addScanned = () => {
@@ -107,7 +110,7 @@ export function PosTerminal({ warehouses, cashAccounts, customers, defaultCustom
     if (!code) return;
     setScan("");
     const add = (it: Awaited<ReturnType<typeof scanItemAction>>) => {
-      if (!it) { toast.error(q.online ? "مفيش صنف بالكود ده" : "الصنف ده مش متخزّن على الجهاز — محتاج نت أول مرة"); return; }
+      if (!it) { toast.error(q.online ? t("مفيش صنف بالكود ده") : t("الصنف ده مش متخزّن على الجهاز — محتاج نت أول مرة")); return; }
       // Scanning the same barcode again bumps the line rather than adding a second one —
       // three of the same thing is one line with a 3 in it.
       setCart((c) => {
@@ -164,7 +167,7 @@ export function PosTerminal({ warehouses, cashAccounts, customers, defaultCustom
         if (blocked) return toast.error(blocked);
         if (redeemPoints > 0) return toast.error("النقط محتاجة نت — رصيد العميل مش هيتخمّن");
         q.add(sale);
-        toast.success(`اتسجّلت بدون نت — هتترحّل أول ما الشبكة ترجع${change > 0 ? ` · الفكة ${money(change)}` : ""}`);
+        toast.success(t("اتسجّلت بدون نت — هتترحّل أول ما الشبكة ترجع") + (change > 0 ? fill(t(" · الفكة {0}"), [money(change)]) : ""));
         clearCart();
         return;
       }
@@ -180,10 +183,10 @@ export function PosTerminal({ warehouses, cashAccounts, customers, defaultCustom
             clientRef: sale.clientRef, soldAt: sale.soldAt,
             redeemPoints,
           });
-          if (!r.ok) { toast.error(r.error ?? "تعذّر إتمام البيع"); return; }
+          if (!r.ok) { toast.error(r.error ?? t("تعذّر إتمام البيع")); return; }
           toast.success(
-            `${r.invoiceNumber}${r.change && r.change > 0 ? ` — الفكة ${money(r.change)}` : ""}`
-            + (r.earnedPoints ? ` · +${r.earnedPoints} نقطة` : ""),
+            `${r.invoiceNumber}${r.change && r.change > 0 ? fill(t(" — الفكة {0}"), [money(r.change)]) : ""}`
+            + (r.earnedPoints ? fill(t(" · +{0} نقطة"), [r.earnedPoints]) : ""),
           );
           clearCart();
           load();
@@ -207,17 +210,17 @@ export function PosTerminal({ warehouses, cashAccounts, customers, defaultCustom
       const diff = Math.round((c - expected) * 100) / 100;
       const go = await confirm({
         danger: Math.abs(diff) > 0.005,
-        title: `قفل وردية ${state.shift.number}؟`,
+        title: fill(t("قفل وردية {0}؟"), [state.shift.number]),
         description: diff === 0
-          ? `الدرج مطابق (${money(expected)}).`
-          : `المتوقّع ${money(expected)} والمعدود ${money(c)} — ${diff > 0 ? "زيادة" : "عجز"} ${money(Math.abs(diff))}. الفرق هيتسجّل على الوردية.`,
+          ? fill(t("الدرج مطابق ({0})."), [money(expected)])
+          : fill(t("المتوقّع {0} والمعدود {1} — {2} {3}. الفرق هيتسجّل على الوردية."), [money(expected), money(c), diff > 0 ? t("زيادة") : t("عجز"), money(Math.abs(diff))]),
         confirmText: "اقفل الوردية", cancelText: "رجوع",
       });
       if (!go) return;
       start(async () => {
         const r = await closeShiftAction({ shiftId: state.shift!.id, countedCash: c });
-        if (r.ok) { toast.success(`اتقفلت — الفرق ${money(r.difference ?? 0)}`); setClosing(false); setCounted(""); load(); }
-        else toast.error(r.error ?? "تعذّر القفل");
+        if (r.ok) { toast.success(fill(t("اتقفلت — الفرق {0}"), [money(r.difference ?? 0)])); setClosing(false); setCounted(""); load(); }
+        else toast.error(r.error ?? t("تعذّر القفل"));
       });
     })();
 
@@ -228,32 +231,32 @@ export function PosTerminal({ warehouses, cashAccounts, customers, defaultCustom
     return (
       <Card>
         <CardHeader>
-          <CardTitle>افتح وردية</CardTitle>
+          <CardTitle>{t("افتح وردية")}</CardTitle>
           <CardDescription>
-            الوردية بتربط كل بيعة بالكاشير والدرج، وفي الآخر بتقارن اللي في الدرج باللي الدفاتر بتقوله.
+            {t("الوردية بتربط كل بيعة بالكاشير والدرج، وفي الآخر بتقارن اللي في الدرج باللي الدفاتر بتقوله.")}
           </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="flex flex-wrap items-end gap-3">
             <div className="space-y-2">
-              <Label>المخزن</Label>
+              <Label>{t("المخزن")}</Label>
               <select className={`${selectCls} w-48`} value={openForm.warehouseId}
                 onChange={(e) => setOpenForm((f) => ({ ...f, warehouseId: e.target.value }))}>
-                {warehouses.map((w) => <option key={w.id} value={w.id}>{w.label}</option>)}
+                {warehouses.map((w) => <option key={w.id} value={w.id}>{t(w.label)}</option>)}
               </select>
             </div>
             <div className="space-y-2">
-              <Label>الخزينة</Label>
+              <Label>{t("الخزينة")}</Label>
               <select className={`${selectCls} w-56`} value={openForm.cashAccountId}
                 onChange={(e) => setOpenForm((f) => ({ ...f, cashAccountId: e.target.value }))}>
-                {cashAccounts.map((a) => <option key={a.id} value={a.id}>{a.label}</option>)}
+                {cashAccounts.map((a) => <option key={a.id} value={a.id}>{t(a.label)}</option>)}
               </select>
             </div>
-            <div className="space-y-2"><Label>رصيد افتتاحي في الدرج</Label>
+            <div className="space-y-2"><Label>{t("رصيد افتتاحي في الدرج")}</Label>
               <Input type="number" step="0.01" min="0" className="w-32" value={openForm.float}
                 onChange={(e) => setOpenForm((f) => ({ ...f, float: e.target.value }))} /></div>
             <Button onClick={openShift} disabled={pending || !openForm.warehouseId || !openForm.cashAccountId}>
-              <Icon name="LogIn" className="size-4" />افتح
+              <Icon name="LogIn" className="size-4" />{t("افتح")}
             </Button>
           </div>
         </CardContent>
@@ -275,36 +278,36 @@ export function PosTerminal({ warehouses, cashAccounts, customers, defaultCustom
           <div className="flex w-full flex-wrap items-center justify-between gap-3">
             <div>
               <CardTitle className="flex items-center gap-2">
-                وردية {state.shift.number}
-                {!q.online && <Badge variant="destructive" className="gap-1"><Icon name="WifiOff" className="size-3" />بدون نت</Badge>}
-                {q.syncing && <Badge variant="outline" className="gap-1"><Icon name="Loader2" className="size-3 animate-spin" />بيزامن</Badge>}
+                {fill(t("وردية {0}"), [state.shift.number])}
+                {!q.online && <Badge variant="destructive" className="gap-1"><Icon name="WifiOff" className="size-3" />{t("بدون نت")}</Badge>}
+                {q.syncing && <Badge variant="outline" className="gap-1"><Icon name="Loader2" className="size-3 animate-spin" />{t("بيزامن")}</Badge>}
               </CardTitle>
               <CardDescription>
-                {state.sales.length + unsettled} بيعة · إجمالي {money((r?.totalSales ?? 0) + queued.sales)} · كاش في الدرج (متوقّع) {money(expectedCash)}
-                {unsettled > 0 && ` · ${unsettled} لسه ما اترحّلتش`}
+                {fill(t("{0} بيعة · إجمالي {1} · كاش في الدرج (متوقّع) {2}"), [state.sales.length + unsettled, money((r?.totalSales ?? 0) + queued.sales), money(expectedCash)])}
+                {unsettled > 0 && fill(t(" · {0} لسه ما اترحّلتش"), [unsettled])}
               </CardDescription>
             </div>
             <Button size="sm" variant="outline" onClick={() => setClosing((v) => !v)}>
-              <Icon name="LogOut" className="size-4" />قفل الوردية
+              <Icon name="LogOut" className="size-4" />{t("قفل الوردية")}
             </Button>
           </div>
         </CardHeader>
         {closing && (
           <CardContent>
             <div className="flex flex-wrap items-end gap-3">
-              <div className="space-y-2"><Label>الكاش المعدود في الدرج</Label>
+              <div className="space-y-2"><Label>{t("الكاش المعدود في الدرج")}</Label>
                 <Input type="number" step="0.01" min="0" className="w-40" value={counted} autoFocus
                   onChange={(e) => setCounted(e.target.value)} /></div>
               <Button onClick={close} disabled={pending || counted === "" || unsettled > 0}>
-                <Icon name="Check" className="size-4" />اقفل
+                <Icon name="Check" className="size-4" />{t("اقفل")}
               </Button>
               <span className="pb-2 text-sm text-muted-foreground">
-                المتوقّع {money(expectedCash)}
-                {counted !== "" && ` · الفرق ${money((Number(counted) || 0) - expectedCash)}`}
+                {fill(t("المتوقّع {0}"), [money(expectedCash)])}
+                {counted !== "" && fill(t(" · الفرق {0}"), [money((Number(counted) || 0) - expectedCash)])}
               </span>
               {unsettled > 0 && (
                 <span className="pb-2 text-sm font-medium text-destructive">
-                  فيه {unsettled} بيعة لسه ما وصلتش للدفاتر — زامنها الأول، الوردية مبتتقفلش على فرق مش حقيقي.
+                  {fill(t("فيه {0} بيعة لسه ما وصلتش للدفاتر — زامنها الأول، الوردية مبتتقفلش على فرق مش حقيقي."), [unsettled])}
                 </span>
               )}
             </div>
@@ -315,30 +318,30 @@ export function PosTerminal({ warehouses, cashAccounts, customers, defaultCustom
       <div className="grid gap-6 lg:grid-cols-3">
         <Card className="lg:col-span-2">
           <CardHeader>
-            <CardTitle>السلة</CardTitle>
-            <CardDescription>امسح الباركود أو اكتب الكود واضغط Enter.</CardDescription>
+            <CardTitle>{t("السلة")}</CardTitle>
+            <CardDescription>{t("امسح الباركود أو اكتب الكود واضغط Enter.")}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <Input
               ref={scanRef} autoFocus dir="ltr" className="font-mono text-lg"
-              placeholder="امسح الباركود…"
+              placeholder={t("امسح الباركود…")}
               value={scan}
               onChange={(e) => setScan(e.target.value)}
               onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addScanned(); } }}
             />
 
             {cart.length === 0 ? (
-              <p className="text-sm text-muted-foreground">السلة فاضية.</p>
+              <p className="text-sm text-muted-foreground">{t("السلة فاضية.")}</p>
             ) : (
               <div className="rounded-xl border">
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead className="text-start">الصنف</TableHead>
-                      <TableHead className="w-24 text-start">الكمية</TableHead>
-                      <TableHead className="w-28 text-start">السعر</TableHead>
-                      <TableHead className="w-28 text-start">خصم</TableHead>
-                      <TableHead className="text-start">الإجمالي</TableHead>
+                      <TableHead className="text-start">{t("الصنف")}</TableHead>
+                      <TableHead className="w-24 text-start">{t("الكمية")}</TableHead>
+                      <TableHead className="w-28 text-start">{t("السعر")}</TableHead>
+                      <TableHead className="w-28 text-start">{t("خصم")}</TableHead>
+                      <TableHead className="text-start">{t("الإجمالي")}</TableHead>
                       <TableHead className="w-10" />
                     </TableRow>
                   </TableHeader>
@@ -346,7 +349,7 @@ export function PosTerminal({ warehouses, cashAccounts, customers, defaultCustom
                     {cart.map((l, i) => (
                       <TableRow key={l.itemId}>
                         <TableCell>
-                          <div className="font-medium">{l.name}</div>
+                          <div className="font-medium">{t(l.name)}</div>
                           <div className="font-mono text-xs text-muted-foreground" dir="ltr">{l.code}</div>
                         </TableCell>
                         <TableCell>
@@ -365,7 +368,7 @@ export function PosTerminal({ warehouses, cashAccounts, customers, defaultCustom
                           {money(l.quantity * l.unitPrice - (promo.lines[i]?.discount ?? l.discount ?? 0))}
                         </TableCell>
                         <TableCell>
-                          <Button size="icon" variant="ghost" aria-label="حذف"
+                          <Button size="icon" variant="ghost" aria-label={t("حذف")}
                             onClick={() => setCart((c) => c.filter((_, k) => k !== i))}>
                             <Icon name="X" className="size-4 text-destructive" />
                           </Button>
@@ -381,31 +384,31 @@ export function PosTerminal({ warehouses, cashAccounts, customers, defaultCustom
 
         <Card>
           <CardHeader>
-            <CardTitle>الدفع</CardTitle>
-            <CardDescription>الفكة كاش بس — البطاقة مفيهاش فكة.</CardDescription>
+            <CardTitle>{t("الدفع")}</CardTitle>
+            <CardDescription>{t("الفكة كاش بس — البطاقة مفيهاش فكة.")}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
-              <Label>العميل</Label>
+              <Label>{t("العميل")}</Label>
               <CellCombobox
                 selectedLabel={customers.find((c) => c.id === customerId)?.label ?? ""}
-                options={customers} onSelect={setCustomerId} placeholder="عميل نقدي…"
+                options={customers} onSelect={setCustomerId} placeholder={t("عميل نقدي…")}
               />
             </div>
 
             {canRedeem && customerId && (
               <div className="space-y-2 rounded-lg border p-3">
                 <div className="flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground">رصيد النقط</span>
-                  <span className="font-medium tabular-nums">{points} نقطة · {money(pointsValue(points, loyalty))}</span>
+                  <span className="text-muted-foreground">{t("رصيد النقط")}</span>
+                  <span className="font-medium tabular-nums">{points} {t("نقطة ·")} {money(pointsValue(points, loyalty))}</span>
                 </div>
                 {maxRedeemable(points, beforePoints, loyalty) > 0 && (
                   <div className="flex gap-2">
-                    <Input type="number" step="1" min="0" className="tabular-nums" placeholder="استبدل نقط"
+                    <Input type="number" step="1" min="0" className="tabular-nums" placeholder={t("استبدل نقط")}
                       value={redeem} onChange={(e) => setRedeem(e.target.value)} />
                     <Button size="sm" variant="outline"
                       onClick={() => setRedeem(String(maxRedeemable(points, beforePoints, loyalty)))}>
-                      الأقصى
+                      {t("الأقصى")}
                     </Button>
                   </div>
                 )}
@@ -416,26 +419,26 @@ export function PosTerminal({ warehouses, cashAccounts, customers, defaultCustom
             )}
 
             <div className="space-y-1 rounded-lg border p-3 text-sm">
-              <div className="flex justify-between"><span className="text-muted-foreground">الإجمالي</span><span className="tabular-nums">{money(totals.subtotal)}</span></div>
-              {totals.discount > 0 && <div className="flex justify-between"><span className="text-muted-foreground">الخصم</span><span className="tabular-nums">−{money(totals.discount)}</span></div>}
+              <div className="flex justify-between"><span className="text-muted-foreground">{t("الإجمالي")}</span><span className="tabular-nums">{money(totals.subtotal)}</span></div>
+              {totals.discount > 0 && <div className="flex justify-between"><span className="text-muted-foreground">{t("الخصم")}</span><span className="tabular-nums">−{money(totals.discount)}</span></div>}
               {promo.applied.map((a) => (
                 <div key={a.promotionId} className="flex justify-between text-emerald-600">
-                  <span>{a.nameAr}</span><span className="tabular-nums">−{money(a.amount)}</span>
+                  <span>{t(a.nameAr)}</span><span className="tabular-nums">−{money(a.amount)}</span>
                 </div>
               ))}
               {redeemAmount > 0 && (
                 <div className="flex justify-between text-emerald-600">
-                  <span>{redeemPoints} نقطة</span><span className="tabular-nums">−{money(redeemAmount)}</span>
+                  <span>{redeemPoints} {t("نقطة")}</span><span className="tabular-nums">−{money(redeemAmount)}</span>
                 </div>
               )}
-              {applyVat && <div className="flex justify-between"><span className="text-muted-foreground">ضريبة {vatRate}%</span><span className="tabular-nums">{money(totals.tax)}</span></div>}
-              <div className="flex justify-between border-t pt-1 text-base font-bold"><span>المطلوب</span><span className="tabular-nums">{money(totals.total)}</span></div>
+              {applyVat && <div className="flex justify-between"><span className="text-muted-foreground">{t("ضريبة")} {vatRate}%</span><span className="tabular-nums">{money(totals.tax)}</span></div>}
+              <div className="flex justify-between border-t pt-1 text-base font-bold"><span>{t("المطلوب")}</span><span className="tabular-nums">{money(totals.total)}</span></div>
             </div>
 
             {vatRate > 0 && (
               <label className="flex cursor-pointer items-center gap-2 text-sm">
                 <input type="checkbox" className="size-4 rounded border-input" checked={applyVat} onChange={(e) => setApplyVat(e.target.checked)} />
-                إضافة ضريبة القيمة المضافة
+                {t("إضافة ضريبة القيمة المضافة")}
               </label>
             )}
 
@@ -444,13 +447,13 @@ export function PosTerminal({ warehouses, cashAccounts, customers, defaultCustom
                 <div key={i} className="flex gap-2">
                   <select className={`${selectCls} w-32`} value={p.method}
                     onChange={(e) => setPayments((ps) => ps.map((x, k) => (k === i ? { ...x, method: e.target.value as PaymentMethod } : x)))}>
-                    {METHODS.map((m) => <option key={m} value={m}>{METHOD_LABEL[m]}</option>)}
+                    {METHODS.map((m) => <option key={m} value={m}>{t(METHOD_LABEL[m])}</option>)}
                   </select>
                   <Input type="number" step="0.01" min="0" className="tabular-nums" value={p.amount || ""}
                     placeholder="0"
                     onChange={(e) => setPayments((ps) => ps.map((x, k) => (k === i ? { ...x, amount: Number(e.target.value) || 0 } : x)))} />
                   {payments.length > 1 && (
-                    <Button size="icon" variant="ghost" aria-label="حذف"
+                    <Button size="icon" variant="ghost" aria-label={t("حذف")}
                       onClick={() => setPayments((ps) => ps.filter((_, k) => k !== i))}>
                       <Icon name="X" className="size-4 text-destructive" />
                     </Button>
@@ -459,17 +462,17 @@ export function PosTerminal({ warehouses, cashAccounts, customers, defaultCustom
               ))}
               <div className="flex flex-wrap gap-2">
                 <Button size="sm" variant="outline" onClick={() => setPayments((ps) => [...ps, { method: "CARD", amount: 0 }])}>
-                  <Icon name="Plus" className="size-4" />طريقة تانية
+                  <Icon name="Plus" className="size-4" />{t("طريقة تانية")}
                 </Button>
                 <Button size="sm" variant="ghost" onClick={() => setPayments((ps) => ps.map((x, k) => (k === 0 ? { ...x, amount: totals.total } : x)).slice(0, 1))}>
-                  المبلغ بالظبط
+                  {t("المبلغ بالظبط")}
                 </Button>
               </div>
             </div>
 
             {paid > 0 && (
               <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">{paid >= totals.total ? "الفكة" : "الباقي"}</span>
+                <span className="text-muted-foreground">{paid >= totals.total ? t("الفكة") : t("الباقي")}</span>
                 <span className={`font-bold tabular-nums ${paid >= totals.total ? "text-emerald-600" : "text-destructive"}`}>
                   {money(paid >= totals.total ? change : totals.total - paid)}
                 </span>
@@ -477,7 +480,7 @@ export function PosTerminal({ warehouses, cashAccounts, customers, defaultCustom
             )}
 
             <Button className="w-full" size="lg" onClick={ring} disabled={pending || !cart.length}>
-              <Icon name="Check" className="size-4" />إتمام البيع
+              <Icon name="Check" className="size-4" />{t("إتمام البيع")}
             </Button>
           </CardContent>
         </Card>
@@ -488,17 +491,17 @@ export function PosTerminal({ warehouses, cashAccounts, customers, defaultCustom
           <CardHeader>
             <div className="flex w-full flex-wrap items-center justify-between gap-3">
               <div>
-                <CardTitle>بيعات لسه ما اترحّلتش</CardTitle>
+                <CardTitle>{t("بيعات لسه ما اترحّلتش")}</CardTitle>
                 <CardDescription>
-                  الفلوس اتاخدت والبضاعة مشيت. البيعة بتفضل هنا لحد ما تترحّل — ولا بتتشال لوحدها أبداً.
+                  {t("الفلوس اتاخدت والبضاعة مشيت. البيعة بتفضل هنا لحد ما تترحّل — ولا بتتشال لوحدها أبداً.")}
                 </CardDescription>
               </div>
               <Button size="sm" variant="outline" disabled={!q.online || q.syncing}
                 onClick={() => void q.sync().then((res) => {
-                  if (res.failed > 0) toast.error(`${res.failed} بيعة اترفضت — شوف السبب تحت`);
-                  else if (res.done > 0) { toast.success(`اترحّلت ${res.done} بيعة`); load(); }
+                  if (res.failed > 0) toast.error(fill(t("{0} بيعة اترفضت — شوف السبب تحت"), [res.failed]));
+                  else if (res.done > 0) { toast.success(fill(t("اترحّلت {0} بيعة"), [res.done])); load(); }
                 })}>
-                <Icon name="RefreshCw" className={`size-4 ${q.syncing ? "animate-spin" : ""}`} />زامن دلوقتي
+                <Icon name="RefreshCw" className={`size-4 ${q.syncing ? "animate-spin" : ""}`} />{t("زامن دلوقتي")}
               </Button>
             </div>
           </CardHeader>
@@ -507,10 +510,10 @@ export function PosTerminal({ warehouses, cashAccounts, customers, defaultCustom
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="text-start">وقت البيع</TableHead>
-                    <TableHead className="text-start">الأصناف</TableHead>
-                    <TableHead className="text-start">الإجمالي</TableHead>
-                    <TableHead className="text-start">الحالة</TableHead>
+                    <TableHead className="text-start">{t("وقت البيع")}</TableHead>
+                    <TableHead className="text-start">{t("الأصناف")}</TableHead>
+                    <TableHead className="text-start">{t("الإجمالي")}</TableHead>
+                    <TableHead className="text-start">{t("الحالة")}</TableHead>
                     <TableHead className="w-40" />
                   </TableRow>
                 </TableHeader>
@@ -520,24 +523,24 @@ export function PosTerminal({ warehouses, cashAccounts, customers, defaultCustom
                       <TableCell className="whitespace-nowrap text-xs tabular-nums">
                         {new Date(x.soldAt).toLocaleString("ar-EG-u-nu-latn", { dateStyle: "short", timeStyle: "short" })}
                       </TableCell>
-                      <TableCell className="text-sm">{x.lines.map((l) => `${l.label} ×${l.quantity}`).join(" · ")}</TableCell>
+                      <TableCell className="text-sm">{x.lines.map((l) => `${t(l.label)} ×${l.quantity}`).join(" · ")}</TableCell>
                       <TableCell className="font-medium tabular-nums">{money(x.total)}</TableCell>
                       <TableCell>
                         {x.status === "FAILED"
                           ? <span className="text-sm text-destructive">{x.error}</span>
-                          : <Badge variant="outline">في الطابور</Badge>}
+                          : <Badge variant="outline">{t("في الطابور")}</Badge>}
                       </TableCell>
                       <TableCell>
                         {x.status === "FAILED" && (
                           <div className="flex gap-1">
                             <Button size="sm" variant="outline" onClick={() => { q.retry(x.clientRef); void q.sync().then(() => load()); }}>
-                              أعِد المحاولة
+                              {t("أعِد المحاولة")}
                             </Button>
-                            <Button size="sm" variant="ghost" aria-label="إلغاء" onClick={() => void (async () => {
+                            <Button size="sm" variant="ghost" aria-label={t("إلغاء")} onClick={() => void (async () => {
                               const go = await confirm({
                                 danger: true,
                                 title: "تلغي البيعة دي نهائياً؟",
-                                description: `${money(x.total)} اتاخدوا فعلاً من العميل. لو مسحتها من غير ما ترحّلها، الفلوس دي هتفضل في الدرج من غير فاتورة ومحدش هيعرف مصدرها.`,
+                                description: fill(t("{0} اتاخدوا فعلاً من العميل. لو مسحتها من غير ما ترحّلها، الفلوس دي هتفضل في الدرج من غير فاتورة ومحدش هيعرف مصدرها."), [money(x.total)]),
                                 confirmText: "امسحها", cancelText: "رجوع",
                               });
                               if (go) q.discard(x.clientRef);
@@ -559,17 +562,17 @@ export function PosTerminal({ warehouses, cashAccounts, customers, defaultCustom
       {state.sales.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle>مبيعات الوردية</CardTitle>
-            <CardDescription>{state.sales.length} فاتورة</CardDescription>
+            <CardTitle>{t("مبيعات الوردية")}</CardTitle>
+            <CardDescription>{state.sales.length} {t("فاتورة")}</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="rounded-xl border">
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="text-start">الفاتورة</TableHead>
-                    <TableHead className="text-start">الدفع</TableHead>
-                    <TableHead className="text-start">الإجمالي</TableHead>
+                    <TableHead className="text-start">{t("الفاتورة")}</TableHead>
+                    <TableHead className="text-start">{t("الدفع")}</TableHead>
+                    <TableHead className="text-start">{t("الإجمالي")}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>

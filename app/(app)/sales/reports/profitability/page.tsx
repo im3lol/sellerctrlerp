@@ -1,4 +1,6 @@
 import { and, eq, gte, inArray, isNull, lte, sql } from "drizzle-orm";
+import { fill } from "@/lib/i18n";
+import { getT } from "@/lib/i18n/server";
 import { loadErpPage } from "@/lib/erp/org";
 import { orgFiscalYearStartISO } from "@/lib/erp/fiscal";
 import { db } from "@/lib/db";
@@ -25,6 +27,7 @@ const POSTED = ["POSTED", "PARTIAL_PAID", "PAID"];
 const SALE_REFS = ["DELIVERY", "SALES_INVOICE", "SALES_RETURN"];
 
 export default async function ProfitabilityReportPage({ searchParams }: { searchParams: Promise<SP> }) {
+  const t = await getT();
   return loadErpPage("reports.view", async ({ orgId, permissions }) => {
     const sp = await searchParams;
     const from = one(sp.from) || (await orgFiscalYearStartISO(orgId));
@@ -97,8 +100,8 @@ export default async function ProfitabilityReportPage({ searchParams }: { search
       <ReportShell
         reportKey="sales-profit"
         icon="TrendingUp"
-        title="ربحية المنتجات"
-        subtitle="الإيراد والتكلفة والربح الإجمالي لكل صنف"
+        title={t("ربحية المنتجات")}
+        subtitle={t("الإيراد والتكلفة والربح الإجمالي لكل صنف")}
         query={qs.toString()}
         permissions={permissions}
         filtersRaw={
@@ -110,8 +113,8 @@ export default async function ProfitabilityReportPage({ searchParams }: { search
             <a href={`/sales/reports/marketplace-pnl?from=${from}&to=${to}`}
               className="flex items-center justify-between gap-4 rounded-xl border bg-muted/30 px-4 py-3 text-sm hover:bg-muted/60">
               <span>
-                <span className="font-medium">ربحية المنصة — بالطلب وبالمنتج</span>
-                <span className="ms-2 text-muted-foreground">رسوم أمازون الفعلية لكل طلب ولكل SKU، شاملة الحركات المؤجّلة</span>
+                <span className="font-medium">{t("ربحية المنصة — بالطلب وبالمنتج")}</span>
+                <span className="ms-2 text-muted-foreground">{t("رسوم أمازون الفعلية لكل طلب ولكل SKU، شاملة الحركات المؤجّلة")}</span>
               </span>
               <span className="text-muted-foreground">←</span>
             </a>
@@ -127,44 +130,44 @@ export default async function ProfitabilityReportPage({ searchParams }: { search
           ] : []),
           { op: "=" },
           hasFees
-            ? { label: "صافي الربح بعد الرسوم", value: fmt(tNet), tone: tNet >= 0 ? "profit" as const : "loss" as const, hint: `هامش ${pct(tMargin)}` }
-            : { label: "الربح الإجمالي", value: fmt(tProfit), tone: tProfit >= 0 ? "profit" as const : "loss" as const, hint: `هامش ${pct(tMargin)}` },
+            ? { label: "صافي الربح بعد الرسوم", value: fmt(tNet), tone: tNet >= 0 ? "profit" as const : "loss" as const, hint: fill(t("هامش {0}"), [pct(tMargin)]) }
+            : { label: "الربح الإجمالي", value: fmt(tProfit), tone: tProfit >= 0 ? "profit" as const : "loss" as const, hint: fill(t("هامش {0}"), [pct(tMargin)]) },
         ]}
-        chartTitle={list.length > 0 ? "أعلى ٨ أصناف ربحًا" : undefined}
+        chartTitle={list.length > 0 ? t("أعلى ٨ أصناف ربحًا") : undefined}
         chart={list.length > 0 ? (
           <BarChart data={list.slice(0, 8).map((r) => ({ label: r.name ?? r.code ?? "—", value: r.profit }))}
-            valueLabel="الربح" money height={240}
+            valueLabel={t("الربح")} money height={240}
             colors={list.slice(0, 8).map((r) => (r.profit >= 0 ? "#008300" : "#e34948"))} />
         ) : undefined}
       >
         <Card>
           <CardHeader>
-            <CardTitle>الربحية حسب الصنف</CardTitle>
-            <CardDescription>الفترة {from} إلى {to} — التكلفة من إذون الصرف/الفواتير المرحّلة (قد تختلف توقيتاً عن الإيراد في دورة التسليم-ثم-الفوترة).</CardDescription>
+            <CardTitle>{t("الربحية حسب الصنف")}</CardTitle>
+            <CardDescription>{t("الفترة")} {from} {t("إلى")} {to} {t("— التكلفة من إذون الصرف/الفواتير المرحّلة (قد تختلف توقيتاً عن الإيراد في دورة التسليم-ثم-الفوترة).")}</CardDescription>
           </CardHeader>
           <CardContent>
             {list.length === 0 ? (
-              <div className="rounded-xl border border-dashed py-12 text-center text-muted-foreground">لا توجد مبيعات في هذه الفترة.</div>
+              <div className="rounded-xl border border-dashed py-12 text-center text-muted-foreground">{t("لا توجد مبيعات في هذه الفترة.")}</div>
             ) : (
               <Table>
                 <TableHeader>
                   <TableRow>
                     <TableHead className="text-start">#</TableHead>
-                    <TableHead className="text-start">الصنف</TableHead>
-                    <TableHead className="text-end">الكمية</TableHead>
-                    <TableHead className="text-end">صافي الإيراد</TableHead>
-                    <TableHead className="text-end">التكلفة</TableHead>
-                    <TableHead className="text-end">الربح</TableHead>
-                    <TableHead className="text-end">الهامش</TableHead>
-                    {hasFees && <TableHead className="text-end">رسوم أمازون الفعلية</TableHead>}
-                    {hasFees && <TableHead className="text-end">الصافي بعد الرسوم</TableHead>}
+                    <TableHead className="text-start">{t("الصنف")}</TableHead>
+                    <TableHead className="text-end">{t("الكمية")}</TableHead>
+                    <TableHead className="text-end">{t("صافي الإيراد")}</TableHead>
+                    <TableHead className="text-end">{t("التكلفة")}</TableHead>
+                    <TableHead className="text-end">{t("الربح")}</TableHead>
+                    <TableHead className="text-end">{t("الهامش")}</TableHead>
+                    {hasFees && <TableHead className="text-end">{t("رسوم أمازون الفعلية")}</TableHead>}
+                    {hasFees && <TableHead className="text-end">{t("الصافي بعد الرسوم")}</TableHead>}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {list.map((r, i) => (
                     <TableRow key={r.code ?? i}>
                       <TableCell className="text-muted-foreground">{i + 1}</TableCell>
-                      <TableCell className="max-w-[320px] whitespace-normal"><div className="line-clamp-2 leading-snug" title={r.name ?? undefined}><span className="font-mono text-xs text-muted-foreground">{r.code}</span> {r.name}</div></TableCell>
+                      <TableCell className="max-w-[320px] whitespace-normal"><div className="line-clamp-2 leading-snug" title={r.name ?? undefined}><span className="font-mono text-xs text-muted-foreground">{r.code}</span> {t(r.name ?? "")}</div></TableCell>
                       <TableCell className="text-end tabular-nums">{qtyf(r.qty)}</TableCell>
                       <TableCell className="text-end tabular-nums">{fmt(r.revenue)}</TableCell>
                       <TableCell className="text-end tabular-nums text-muted-foreground">{fmt(r.cogs)}</TableCell>
@@ -181,36 +184,35 @@ export default async function ProfitabilityReportPage({ searchParams }: { search
         </Card>
         <Card>
           <CardHeader>
-            <CardTitle>ربحية القطعة الواحدة</CardTitle>
+            <CardTitle>{t("ربحية القطعة الواحدة")}</CardTitle>
             <CardDescription>
-              متوسط سعر البيع الفعلي مقابل سعر التعادل — التكلفة الشاملة للقطعة زائد رسوم أمازون الفعلية.
-              أي صنف فرقه بالسالب بتبيعه بأقل مما يكلّفك.
+              {t("متوسط سعر البيع الفعلي مقابل سعر التعادل — التكلفة الشاملة للقطعة زائد رسوم أمازون الفعلية. أي صنف فرقه بالسالب بتبيعه بأقل مما يكلّفك.")}
               {missingFees > 0 && (
-                <span className="text-amber-600"> · {qtyf(missingFees)} صنف لسه مافيش عليه تسوية أمازون — سعر تعادله ناقص الرسوم.</span>
+                <span className="text-amber-600"> · {qtyf(missingFees)} {t("صنف لسه مافيش عليه تسوية أمازون — سعر تعادله ناقص الرسوم.")}</span>
               )}
             </CardDescription>
           </CardHeader>
           <CardContent>
             {list.length === 0 ? (
-              <div className="rounded-xl border border-dashed py-12 text-center text-muted-foreground">لا توجد مبيعات في هذه الفترة.</div>
+              <div className="rounded-xl border border-dashed py-12 text-center text-muted-foreground">{t("لا توجد مبيعات في هذه الفترة.")}</div>
             ) : (
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="text-start">الصنف</TableHead>
-                    <TableHead className="text-end">الكمية</TableHead>
-                    <TableHead className="text-end">متوسط سعر البيع</TableHead>
-                    <TableHead className="text-end">التكلفة/وحدة</TableHead>
-                    <TableHead className="text-end">رسوم أمازون/وحدة</TableHead>
-                    <TableHead className="text-end">سعر التعادل</TableHead>
-                    <TableHead className="text-end">الفرق</TableHead>
-                    <TableHead className="text-end">السعر المقترح ({qtyf(targetMargin)}%)</TableHead>
+                    <TableHead className="text-start">{t("الصنف")}</TableHead>
+                    <TableHead className="text-end">{t("الكمية")}</TableHead>
+                    <TableHead className="text-end">{t("متوسط سعر البيع")}</TableHead>
+                    <TableHead className="text-end">{t("التكلفة/وحدة")}</TableHead>
+                    <TableHead className="text-end">{t("رسوم أمازون/وحدة")}</TableHead>
+                    <TableHead className="text-end">{t("سعر التعادل")}</TableHead>
+                    <TableHead className="text-end">{t("الفرق")}</TableHead>
+                    <TableHead className="text-end">{t("السعر المقترح (")}{qtyf(targetMargin)}%)</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {list.map((r, i) => (
                     <TableRow key={`u-${r.code ?? i}`}>
-                      <TableCell className="max-w-[300px] whitespace-normal"><div className="line-clamp-2 leading-snug" title={r.name ?? undefined}><span className="font-mono text-xs text-muted-foreground">{r.code}</span> {r.name}</div></TableCell>
+                      <TableCell className="max-w-[300px] whitespace-normal"><div className="line-clamp-2 leading-snug" title={r.name ?? undefined}><span className="font-mono text-xs text-muted-foreground">{r.code}</span> {t(r.name ?? "")}</div></TableCell>
                       <TableCell className="text-end tabular-nums">{qtyf(r.qty)}</TableCell>
                       <TableCell className="text-end tabular-nums font-medium">{fmt(r.avgSellPrice)}</TableCell>
                       <TableCell className="text-end tabular-nums text-muted-foreground">{fmt(r.unitCost)}</TableCell>

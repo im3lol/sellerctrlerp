@@ -1,8 +1,10 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
+import { fill } from "@/lib/i18n";
+import { useT } from "@/lib/i18n/client";
 import { useRouter } from "next/navigation";
-import { toast } from "sonner";
+import { toast } from "@/lib/i18n/toast";
 import { getItemUnitsAction, saveItemUnitsAction, type ItemUnitRow } from "@/app/actions/erp/item-units";
 import { validateUnitSet } from "@/lib/erp/item-units";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -27,6 +29,7 @@ const toDraft = (r: ItemUnitRow): Draft => ({
  * in the accounts.
  */
 export function ItemUnitsManager({ itemId, canEdit }: { itemId: string; canEdit: boolean }) {
+  const t = useT();
   const router = useRouter();
   const [rows, setRows] = useState<Draft[]>([]);
   const [allUoms, setAllUoms] = useState<{ id: string; label: string }[]>([]);
@@ -40,13 +43,13 @@ export function ItemUnitsManager({ itemId, canEdit }: { itemId: string; canEdit:
       const r = await getItemUnitsAction(itemId);
       if (!alive) return;
       setLoading(false);
-      if (!r.ok) { toast.error(r.error ?? "تعذّر تحميل الوحدات"); return; }
+      if (!r.ok) { toast.error(r.error ?? t("تعذّر تحميل الوحدات")); return; }
       setRows((r.units ?? []).map(toDraft));
       setAllUoms(r.allUoms ?? []);
       setBaseLabel(r.baseLabel ?? "");
     })();
     return () => { alive = false; };
-  }, [itemId]);
+  }, [itemId, t]);
 
   const addRow = () =>
     setRows((rs) => [...rs, {
@@ -73,7 +76,7 @@ export function ItemUnitsManager({ itemId, canEdit }: { itemId: string; canEdit:
     start(async () => {
       const res = await saveItemUnitsAction({ itemId, units });
       if (res.ok) { toast.success("تم حفظ وحدات الصنف"); router.refresh(); }
-      else toast.error(res.error ?? "تعذّر الحفظ");
+      else toast.error(res.error ?? t("تعذّر الحفظ"));
     });
   };
 
@@ -85,19 +88,18 @@ export function ItemUnitsManager({ itemId, canEdit }: { itemId: string; canEdit:
       <CardHeader>
         <div className="flex w-full flex-wrap items-start justify-between gap-3">
           <div>
-            <CardTitle>وحدات القياس</CardTitle>
+            <CardTitle>{t("وحدات القياس")}</CardTitle>
             <CardDescription>
-              اشترِ بالكرتونة وبِع بالقطعة. المعامل = كام وحدة أساسية جوّه الوحدة دي.
-              المخزون والتكلفة بيتخزّنوا بالوحدة الأساسية دايماً{baseLabel ? ` (${baseLabel})` : ""}.
+              {fill(t("اشترِ بالكرتونة وبِع بالقطعة. المعامل = كام وحدة أساسية جوّه الوحدة دي. المخزون والتكلفة بيتخزّنوا بالوحدة الأساسية دايماً{0}."), [baseLabel ? ` (${t(baseLabel)})` : ""])}
             </CardDescription>
           </div>
           {canEdit && (
             <div className="flex gap-2">
               <Button size="sm" variant="outline" onClick={addRow} disabled={pending}>
-                <Icon name="Plus" className="size-4" />وحدة
+                <Icon name="Plus" className="size-4" />{t("وحدة")}
               </Button>
               <Button size="sm" onClick={save} disabled={pending || rows.length === 0}>
-                <Icon name="Check" className="size-4" />حفظ
+                <Icon name="Check" className="size-4" />{t("حفظ")}
               </Button>
             </div>
           )}
@@ -106,17 +108,17 @@ export function ItemUnitsManager({ itemId, canEdit }: { itemId: string; canEdit:
       <CardContent>
         {rows.length === 0 ? (
           <p className="text-sm text-muted-foreground">
-            مفيش وحدات إضافية — الصنف بيتعامل بوحدته الأساسية بس{baseLabel ? ` (${baseLabel})` : ""}.
+            {fill(t("مفيش وحدات إضافية — الصنف بيتعامل بوحدته الأساسية بس{0}."), [baseLabel ? ` (${t(baseLabel)})` : ""])}
           </p>
         ) : (
           <div className="rounded-xl border">
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="text-start">الوحدة</TableHead>
-                  <TableHead className="text-start">المعامل</TableHead>
-                  <TableHead className="text-start">باركود الوحدة</TableHead>
-                  <TableHead className="text-start">أساسية</TableHead>
+                  <TableHead className="text-start">{t("الوحدة")}</TableHead>
+                  <TableHead className="text-start">{t("المعامل")}</TableHead>
+                  <TableHead className="text-start">{t("باركود الوحدة")}</TableHead>
+                  <TableHead className="text-start">{t("أساسية")}</TableHead>
                   {canEdit && <TableHead className="w-10" />}
                 </TableRow>
               </TableHeader>
@@ -129,7 +131,7 @@ export function ItemUnitsManager({ itemId, canEdit }: { itemId: string; canEdit:
                           selectedLabel={allUoms.find((u) => u.id === r.uomId)?.label ?? r.label}
                           options={allUoms.map((u) => ({ id: u.id, label: u.label }))}
                           onSelect={(id, label) => patch(r.key, { uomId: id, label })}
-                          placeholder="اختر الوحدة…"
+                          placeholder={t("اختر الوحدة…")}
                         />
                       ) : (
                         <span className="font-medium">{r.label || "—"}</span>
@@ -149,7 +151,7 @@ export function ItemUnitsManager({ itemId, canEdit }: { itemId: string; canEdit:
                     <TableCell className="w-44">
                       {canEdit ? (
                         <Input
-                          className="w-40" value={r.barcode} placeholder="اختياري"
+                          className="w-40" value={r.barcode} placeholder={t("اختياري")}
                           onChange={(e) => patch(r.key, { barcode: e.target.value })}
                         />
                       ) : (
@@ -158,17 +160,17 @@ export function ItemUnitsManager({ itemId, canEdit }: { itemId: string; canEdit:
                     </TableCell>
                     <TableCell>
                       {r.isBase ? (
-                        <Badge variant="secondary">أساسية</Badge>
+                        <Badge variant="secondary">{t("أساسية")}</Badge>
                       ) : canEdit && !r.inUse ? (
-                        <Button size="sm" variant="ghost" onClick={() => setBase(r.key)}>اجعلها أساسية</Button>
+                        <Button size="sm" variant="ghost" onClick={() => setBase(r.key)}>{t("اجعلها أساسية")}</Button>
                       ) : null}
                     </TableCell>
                     {canEdit && (
                       <TableCell>
                         {r.inUse ? (
-                          <span title="مستخدمة في مستندات — المعامل مقفول"><Icon name="Lock" className="size-4 text-muted-foreground" /></span>
+                          <span title={t("مستخدمة في مستندات — المعامل مقفول")}><Icon name="Lock" className="size-4 text-muted-foreground" /></span>
                         ) : (
-                          <Button size="icon" variant="ghost" aria-label="حذف" onClick={() => remove(r.key)}>
+                          <Button size="icon" variant="ghost" aria-label={t("حذف")} onClick={() => remove(r.key)}>
                             <Icon name="Trash2" className="size-4 text-destructive" />
                           </Button>
                         )}
@@ -182,7 +184,7 @@ export function ItemUnitsManager({ itemId, canEdit }: { itemId: string; canEdit:
         )}
         {rows.some((r) => r.inUse) && (
           <p className="mt-3 text-xs text-muted-foreground">
-            الوحدات المقفولة اتسجّلت عليها مستندات — تعديل معاملها كان هيغيّر كميات محفوظة بأثر رجعي.
+            {t("الوحدات المقفولة اتسجّلت عليها مستندات — تعديل معاملها كان هيغيّر كميات محفوظة بأثر رجعي.")}
           </p>
         )}
       </CardContent>

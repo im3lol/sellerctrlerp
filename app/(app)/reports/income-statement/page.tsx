@@ -1,4 +1,6 @@
 import { sql } from "drizzle-orm";
+import { fill } from "@/lib/i18n";
+import { getLocale, getT } from "@/lib/i18n/server";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
 import { accountBalances, naturalAmount } from "@/lib/erp/financials";
@@ -17,6 +19,8 @@ export default async function IncomeStatementPage({
 }: {
   searchParams: Promise<{ from?: string; to?: string }>;
 }) {
+  const locale = await getLocale();
+  const t = await getT();
   return loadErpPage("reports.view", async ({ orgId, permissions }) => {
     const sp = await searchParams;
 
@@ -61,7 +65,7 @@ export default async function IncomeStatementPage({
     const monthlyNet = Array.from({ length: 12 }, (_, i) => {
       const d = new Date(now.getFullYear(), now.getMonth() - 11 + i, 1);
       const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-      return { label: d.toLocaleDateString("ar-EG-u-nu-latn", { month: "short", year: "2-digit" }), value: netByMonth.get(key) ?? 0 };
+      return { label: d.toLocaleDateString((locale === "en" ? "en-GB" : "ar-EG-u-nu-latn"), { month: "short", year: "2-digit" }), value: netByMonth.get(key) ?? 0 };
     });
 
     const query = new URLSearchParams({ from, to }).toString();
@@ -70,14 +74,14 @@ export default async function IncomeStatementPage({
       <ReportShell
         reportKey="income-statement"
         icon="TrendingUp"
-        title="قائمة الدخل"
-        subtitle={`من ${from} إلى ${to} — من القيود المُرحّلة`}
+        title={t("قائمة الدخل")}
+        subtitle={fill(t("من {0} إلى {1} — من القيود المُرحّلة"), [from, to])}
         query={query}
         permissions={permissions}
         filters={
           <>
-            <ReportField label="من تاريخ"><input name="from" type="date" defaultValue={from} className={selectCls} /></ReportField>
-            <ReportField label="إلى تاريخ"><input name="to" type="date" defaultValue={to} className={selectCls} /></ReportField>
+            <ReportField label={t("من تاريخ")}><input name="from" type="date" defaultValue={from} className={selectCls} /></ReportField>
+            <ReportField label={t("إلى تاريخ")}><input name="to" type="date" defaultValue={to} className={selectCls} /></ReportField>
           </>
         }
         kpis={[
@@ -87,29 +91,29 @@ export default async function IncomeStatementPage({
           { op: "=" },
           { label: "صافي الربح", value: fmt(netProfit), tone: netProfit >= 0 ? "profit" : "loss" },
         ]}
-        chartTitle={monthlyNet.some((m) => m.value !== 0) ? "صافي الربح الشهري — آخر ١٢ شهرًا" : undefined}
+        chartTitle={monthlyNet.some((m) => m.value !== 0) ? t("صافي الربح الشهري — آخر ١٢ شهرًا") : undefined}
         chart={monthlyNet.some((m) => m.value !== 0)
-          ? <BarChart data={monthlyNet} valueLabel="الصافي" money height={220} colors={monthlyNet.map((m) => (m.value >= 0 ? "#008300" : "#e34948"))} />
+          ? <BarChart data={monthlyNet} valueLabel={t("الصافي")} money height={220} colors={monthlyNet.map((m) => (m.value >= 0 ? "#008300" : "#e34948"))} />
           : undefined}
       >
         <div className="grid gap-6 lg:grid-cols-2">
           <Card>
             <CardHeader>
-              <CardTitle>الإيرادات</CardTitle>
-              <CardDescription>إجمالي {fmt(totalRevenue)}</CardDescription>
+              <CardTitle>{t("الإيرادات")}</CardTitle>
+              <CardDescription>{t("إجمالي")} {fmt(totalRevenue)}</CardDescription>
             </CardHeader>
             <CardContent>
-              <StatementTable rows={revenue} empty="لا توجد إيرادات في الفترة." totalLabel="إجمالي الإيرادات" total={totalRevenue} />
+              <StatementTable rows={revenue} empty={t("لا توجد إيرادات في الفترة.")} totalLabel={t("إجمالي الإيرادات")} total={totalRevenue} />
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader>
-              <CardTitle>المصروفات</CardTitle>
-              <CardDescription>إجمالي {fmt(totalExpense)}</CardDescription>
+              <CardTitle>{t("المصروفات")}</CardTitle>
+              <CardDescription>{t("إجمالي")} {fmt(totalExpense)}</CardDescription>
             </CardHeader>
             <CardContent>
-              <StatementTable rows={expense} empty="لا توجد مصروفات في الفترة." totalLabel="إجمالي المصروفات" total={totalExpense} />
+              <StatementTable rows={expense} empty={t("لا توجد مصروفات في الفترة.")} totalLabel={t("إجمالي المصروفات")} total={totalExpense} />
             </CardContent>
           </Card>
         </div>
@@ -119,7 +123,7 @@ export default async function IncomeStatementPage({
   });
 }
 
-function StatementTable({
+async function StatementTable({
   rows,
   empty,
   totalLabel,
@@ -130,6 +134,7 @@ function StatementTable({
   totalLabel: string;
   total: number;
 }) {
+  const t = await getT();
   if (rows.length === 0) {
     return <div className="rounded-xl border border-dashed py-10 text-center text-muted-foreground">{empty}</div>;
   }
@@ -137,16 +142,16 @@ function StatementTable({
     <Table>
       <TableHeader>
         <TableRow>
-          <TableHead className="text-start">الكود</TableHead>
-          <TableHead className="text-start">الحساب</TableHead>
-          <TableHead className="text-start">المبلغ</TableHead>
+          <TableHead className="text-start">{t("الكود")}</TableHead>
+          <TableHead className="text-start">{t("الحساب")}</TableHead>
+          <TableHead className="text-start">{t("المبلغ")}</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
         {rows.map((r) => (
           <TableRow key={r.code}>
             <TableCell className="font-mono">{r.code}</TableCell>
-            <TableCell>{r.nameAr}</TableCell>
+            <TableCell>{t(r.nameAr)}</TableCell>
             <TableCell>{fmt(r.amount)}</TableCell>
           </TableRow>
         ))}

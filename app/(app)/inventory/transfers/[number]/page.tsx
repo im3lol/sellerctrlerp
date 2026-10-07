@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { fill } from "@/lib/i18n";
 import { getT } from "@/lib/i18n/server";
 import { and, asc, eq, inArray } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
@@ -76,8 +77,8 @@ export default async function TransferDetailPage({ params }: { params: Promise<{
       <div className="space-y-6">
         <ErpPageHeader
           icon="ArrowLeftRight"
-          title={`تحويل مخزني ${tr.number}`}
-          subtitle={tr.notes ?? "نقل بين المستودعات"}
+          title={fill(t("تحويل مخزني {0}"), [tr.number])}
+          subtitle={tr.notes ?? t("نقل بين المستودعات")}
           backHref="/inventory/transfers"
           action={
             <div className="flex gap-2">
@@ -94,14 +95,14 @@ export default async function TransferDetailPage({ params }: { params: Promise<{
             <div><div className="text-muted-foreground">{t("الرقم")}</div><div className="font-mono font-medium">{tr.number}</div></div>
             <div><div className="text-muted-foreground">{t("التاريخ")}</div><div className="font-medium">{dt(tr.date)}</div></div>
             <div><div className="text-muted-foreground">{t("ملاحظات")}</div><div className="font-medium">{tr.notes ?? "—"}</div></div>
-            <div><div className="text-muted-foreground">{t("الحالة")}</div><Badge variant={tr.status === "POSTED" ? "default" : "secondary"}>{tr.status === "POSTED" ? "مرحّل" : "مسودة"}</Badge></div>
+            <div><div className="text-muted-foreground">{t("الحالة")}</div><Badge variant={tr.status === "POSTED" ? "default" : "secondary"}>{tr.status === "POSTED" ? t("مرحّل") : t("مسودة")}</Badge></div>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader>
             <CardTitle>{t("الأصناف")}</CardTitle>
-            <CardDescription>{isDraft ? "لم تُرحّل بعد — أكّد التحويل لتنفيذ النقل المخزني." : "تم النقل المخزني."}</CardDescription>
+            <CardDescription>{isDraft ? t("لم تُرحّل بعد — أكّد التحويل لتنفيذ النقل المخزني.") : t("تم النقل المخزني.")}</CardDescription>
           </CardHeader>
           <CardContent>
             <Table>

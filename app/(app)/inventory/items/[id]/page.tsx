@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { fill } from "@/lib/i18n";
 import { getT } from "@/lib/i18n/server";
 import { and, eq, or, sql } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
@@ -75,7 +76,7 @@ export default async function ItemDetailPage({ params }: { params: Promise<{ id:
         <ErpPageHeader
           icon="Package"
           title={item.nameAr ?? item.code}
-          subtitle={`الكود: ${item.code}`}
+          subtitle={fill(t("الكود: {0}"), [item.code])}
           backHref="/inventory/items"
           action={
             <div className="flex flex-wrap items-center gap-2">
@@ -99,7 +100,7 @@ export default async function ItemDetailPage({ params }: { params: Promise<{ id:
 
           <div className="space-y-4 lg:col-span-2">
             <div className="grid gap-4 sm:grid-cols-2">
-              <Field label={t("الاسم")}>{item.nameAr ?? "—"}</Field>
+              <Field label={t("الاسم")}>{t(item.nameAr ?? "—")}</Field>
               <Field label={t("سعر البيع")}>{money(item.sellPrice)}</Field>
               <Field label={t("حد إعادة الطلب")}>{qf(item.minStock)}</Field>
               <Field label={t("الرصيد الكلي")}>{qf(totalQty)}</Field>
@@ -155,7 +156,7 @@ export default async function ItemDetailPage({ params }: { params: Promise<{ id:
         {item.description && (
           <Card>
             <CardHeader><CardTitle>{t("الوصف")}</CardTitle></CardHeader>
-            <CardContent><p className="whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground">{item.description}</p></CardContent>
+            <CardContent><p className="whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground">{t(item.description)}</p></CardContent>
           </Card>
         )}
 
@@ -192,8 +193,8 @@ export default async function ItemDetailPage({ params }: { params: Promise<{ id:
             <CardHeader>
               <CardTitle>{t("الربحية (P&L)")}</CardTitle>
               <CardDescription>
-                إيراد وتكلفة الصنف من فواتير البيع المرحّلة، ورسوم أمازون الفعلية من التسويات.
-                {!pnl.hasSettlement && " (لا توجد تسويات أمازون لهذا الصنف بعد — الرسوم صفر.)"}
+                {t("إيراد وتكلفة الصنف من فواتير البيع المرحّلة، ورسوم أمازون الفعلية من التسويات.")}
+                {!pnl.hasSettlement && " " + t("(لا توجد تسويات أمازون لهذا الصنف بعد — الرسوم صفر.)")}
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -208,7 +209,7 @@ export default async function ItemDetailPage({ params }: { params: Promise<{ id:
                   <span className="ms-2 text-xs text-muted-foreground">({pnl.margin.toFixed(1)}%)</span>
                 </Field>
               </div>
-              {pnl.otherFee !== 0 && <p className="mt-3 text-xs text-muted-foreground">رسوم أمازون أخرى: {money(pnl.otherFee)} · إجمالي رسوم أمازون: {money(pnl.amazonFees)}</p>}
+              {pnl.otherFee !== 0 && <p className="mt-3 text-xs text-muted-foreground">{t("رسوم أمازون أخرى:")} {money(pnl.otherFee)} {t("· إجمالي رسوم أمازون:")} {money(pnl.amazonFees)}</p>}
             </CardContent>
           </Card>
         )}
@@ -229,7 +230,7 @@ export default async function ItemDetailPage({ params }: { params: Promise<{ id:
                 <TableBody>
                   {linkedDocs.map((d, i) => (
                     <TableRow key={i}>
-                      <TableCell><Badge variant="secondary">{d.kind}</Badge></TableCell>
+                      <TableCell><Badge variant="secondary">{t(d.kind)}</Badge></TableCell>
                       <TableCell className="font-mono"><Link href={d.href} className="text-primary hover:underline">{d.number}</Link></TableCell>
                       <TableCell>{ldt(d.date)}</TableCell>
                       <TableCell className="tabular-nums">{qf(d.qty)}</TableCell>

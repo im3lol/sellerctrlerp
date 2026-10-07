@@ -1,9 +1,11 @@
 "use client";
 
 import Link from "next/link";
+import { fill } from "@/lib/i18n";
+import { useT } from "@/lib/i18n/client";
 import { Fragment, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { toast } from "sonner";
+import { toast } from "@/lib/i18n/toast";
 import { bulkPurchaseInvoicesAction } from "@/app/actions/erp/purchase-invoices";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -28,6 +30,7 @@ type ReturnRow = { id: string; number: string; date: Date; total: string | null;
 type Row = { id: string; number: string; date: Date; supplier: string | null; total: string | null; balanceDue: string | null; status: string; returned?: boolean; returns?: ReturnRow[] };
 
 export function PurchaseInvoicesTable({ rows, canCreate, canPost }: { rows: Row[]; canCreate: boolean; canPost: boolean }) {
+  const t = useT();
   const canAct = canPost || canCreate;
   const router = useRouter();
   const [pending, start] = useTransition();
@@ -42,11 +45,11 @@ export function PurchaseInvoicesTable({ rows, canCreate, canPost }: { rows: Row[
 
   const run = (op: "post" | "delete", verb: string) => {
     void (async () => {
-      if (!(await confirm({ title: `${verb} ${sel.size} فاتورة`, danger: op === "delete" }))) return;
+      if (!(await confirm({ title: fill(t("{0} {1} فاتورة"), [verb, sel.size]), danger: op === "delete" }))) return;
       start(async () => {
         const r = await bulkPurchaseInvoicesAction(op, [...sel]);
-        if (r.ok) { toast.success(`تم ${verb} ${r.count ?? 0} فاتورة`); setSel(new Set()); router.refresh(); }
-        else toast.error(r.error ?? "تعذّر التنفيذ");
+        if (r.ok) { toast.success(fill(t("تم {0} {1} فاتورة"), [verb, r.count ?? 0])); setSel(new Set()); router.refresh(); }
+        else toast.error(r.error ?? t("تعذّر التنفيذ"));
       });
     })();
   };
@@ -55,28 +58,28 @@ export function PurchaseInvoicesTable({ rows, canCreate, canPost }: { rows: Row[
     <div className="space-y-3">
       {actionable && sel.size > 0 && (
         <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-muted/40 px-3 py-2 text-sm">
-          <span className="font-medium">{sel.size.toLocaleString("ar-EG-u-nu-latn")} محدّد</span>
+          <span className="font-medium">{sel.size.toLocaleString("ar-EG-u-nu-latn")} {t("محدّد")}</span>
           <div className="ms-auto flex gap-2">
             <Button size="sm" variant="outline" asChild>
               <a href={`/api/erp/purchases/invoices/export?numbers=${encodeURIComponent(rows.filter((r) => sel.has(r.id)).map((r) => r.number).join(","))}`}>
-                <Icon name="FileSpreadsheet" className="size-4" />تنزيل Excel
+                <Icon name="FileSpreadsheet" className="size-4" />{t("تنزيل Excel")}
               </a>
             </Button>
-            {canPost && <Button size="sm" disabled={pending} onClick={() => run("post", "تأكيد")}><Icon name="Check" className="size-4" />تأكيد</Button>}
-            {canCreate && <Button size="sm" variant="ghost" disabled={pending} onClick={() => run("delete", "حذف")}><Icon name="Trash2" className="size-4 text-destructive" />حذف</Button>}
+            {canPost && <Button size="sm" disabled={pending} onClick={() => run("post", "تأكيد")}><Icon name="Check" className="size-4" />{t("تأكيد")}</Button>}
+            {canCreate && <Button size="sm" variant="ghost" disabled={pending} onClick={() => run("delete", "حذف")}><Icon name="Trash2" className="size-4 text-destructive" />{t("حذف")}</Button>}
           </div>
         </div>
       )}
       <Table>
         <TableHeader>
           <TableRow>
-            {actionable && <TableHead className="w-10"><Checkbox checked={allSelected} onCheckedChange={toggleAll} aria-label="تحديد الكل" /></TableHead>}
-            <TableHead className="text-start">الرقم</TableHead>
-            <TableHead className="text-start">التاريخ</TableHead>
-            <TableHead className="text-start">المورد</TableHead>
-            <TableHead className="text-start">الإجمالي</TableHead>
-            <TableHead className="text-start">المتبقّي</TableHead>
-            <TableHead className="text-start">الحالة</TableHead>
+            {actionable && <TableHead className="w-10"><Checkbox checked={allSelected} onCheckedChange={toggleAll} aria-label={t("تحديد الكل")} /></TableHead>}
+            <TableHead className="text-start">{t("الرقم")}</TableHead>
+            <TableHead className="text-start">{t("التاريخ")}</TableHead>
+            <TableHead className="text-start">{t("المورد")}</TableHead>
+            <TableHead className="text-start">{t("الإجمالي")}</TableHead>
+            <TableHead className="text-start">{t("المتبقّي")}</TableHead>
+            <TableHead className="text-start">{t("الحالة")}</TableHead>
             <TableHead className="w-10" />
           </TableRow>
         </TableHeader>
@@ -86,7 +89,7 @@ export function PurchaseInvoicesTable({ rows, canCreate, canPost }: { rows: Row[
             return (
               <Fragment key={r.id}>
                 <TableRow data-state={sel.has(r.id) ? "selected" : undefined}>
-                  {actionable && <TableCell><Checkbox checked={sel.has(r.id)} onCheckedChange={() => toggle(r.id)} aria-label="تحديد" /></TableCell>}
+                  {actionable && <TableCell><Checkbox checked={sel.has(r.id)} onCheckedChange={() => toggle(r.id)} aria-label={t("تحديد")} /></TableCell>}
                   <TableCell>
                     <Link href={`/purchases/invoices/${encodeURIComponent(r.number)}`} className="hover:text-primary">{r.number}</Link>
                   </TableCell>
@@ -94,7 +97,7 @@ export function PurchaseInvoicesTable({ rows, canCreate, canPost }: { rows: Row[
                   <TableCell className="max-w-[200px] truncate" title={r.supplier ?? undefined}>{r.supplier ?? "—"}</TableCell>
                   <TableCell>{fmt(r.total)}</TableCell>
                   <TableCell>{fmt(r.balanceDue)}</TableCell>
-                  <TableCell><div className="flex items-center gap-1"><Badge variant={st.variant}>{st.label}</Badge>{r.returned && <Badge variant="destructive">مرتجع</Badge>}</div></TableCell>
+                  <TableCell><div className="flex items-center gap-1"><Badge variant={st.variant}>{t(st.label)}</Badge>{r.returned && <Badge variant="destructive">{t("مرتجع")}</Badge>}</div></TableCell>
                   <TableCell>
                     <PurchaseInvoiceRowMenu id={r.id} number={r.number} status={r.status} canPost={canPost} canManage={canCreate} />
                   </TableCell>
@@ -109,7 +112,7 @@ export function PurchaseInvoicesTable({ rows, canCreate, canPost }: { rows: Row[
                     <TableCell className="text-muted-foreground">{r.supplier ?? "—"}</TableCell>
                     <TableCell className="text-destructive">−{fmt(rt.total)}</TableCell>
                     <TableCell>—</TableCell>
-                    <TableCell><Badge variant="destructive">{rt.status === "POSTED" ? "مرتجع" : "مرتجع (مسودة)"}</Badge></TableCell>
+                    <TableCell><Badge variant="destructive">{rt.status === "POSTED" ? t("مرتجع") : t("مرتجع (مسودة)")}</Badge></TableCell>
                     <TableCell />
                   </TableRow>
                 ))}

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { fill } from "@/lib/i18n";
 import { getT } from "@/lib/i18n/server";
 import { and, count, desc, eq, gte, ilike, isNull, lte, ne, or, sql } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
@@ -91,7 +92,7 @@ export default async function SalesReturnsPage({ searchParams }: { searchParams:
 
     return (
       <div className="space-y-6">
-        <ErpPageHeader icon="Undo2" title={t("مرتجعات المبيعات")} subtitle={`${total} مرتجع`} />
+        <ErpPageHeader icon="Undo2" title={t("مرتجعات المبيعات")} subtitle={fill(t("{0} مرتجع"), [total])} />
 
         <div className="grid gap-4 sm:grid-cols-3">
           <Card><CardContent className="pt-6"><div className="text-sm text-muted-foreground">{t("إجمالي قيمة المرتجعات")}</div><p className="mt-1 text-2xl font-bold tabular-nums">{money(totalValue)}</p></CardContent></Card>
@@ -103,7 +104,7 @@ export default async function SalesReturnsPage({ searchParams }: { searchParams:
           <CardContent className="space-y-4 pt-6">
             <details open={hasFilters} className="rounded-lg border">
               <summary className="flex cursor-pointer select-none items-center gap-2 px-4 py-2 text-sm font-medium">
-                <Icon name="ListFilter" className="size-4" /> بحث وتصفية
+                <Icon name="ListFilter" className="size-4" /> {t("بحث وتصفية")}
               </summary>
               <form className="grid gap-3 p-4 pt-0 sm:grid-cols-6 items-end">
                 <div className="space-y-1"><Label htmlFor="q">{t("الرقم / رقم أمازون")}</Label><Input id="q" name="q" defaultValue={q} placeholder={t("SR-2026-... أو 407-...")} /></div>
@@ -111,14 +112,14 @@ export default async function SalesReturnsPage({ searchParams }: { searchParams:
                   <Label htmlFor="status">{t("المستند")}</Label>
                   <select id="status" name="status" defaultValue={fStatus} className={selectCls}>
                     <option value="">{t("الكل")}</option>
-                    {STATUS_OPTIONS.map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                    {STATUS_OPTIONS.map(([k, v]) => <option key={k} value={k}>{t(v)}</option>)}
                   </select>
                 </div>
                 <div className="space-y-1">
                   <Label htmlFor="channel">{t("المصدر")}</Label>
                   <select id="channel" name="channel" defaultValue={fChannel} className={selectCls}>
                     <option value="">{t("الكل")}</option>
-                    {CHANNEL_OPTIONS.map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                    {CHANNEL_OPTIONS.map(([k, v]) => <option key={k} value={k}>{t(v)}</option>)}
                   </select>
                 </div>
                 <div className="space-y-1">
@@ -140,13 +141,13 @@ export default async function SalesReturnsPage({ searchParams }: { searchParams:
 
             {rows.length === 0 ? (
               <div className="rounded-xl border border-dashed py-12 text-center text-muted-foreground">
-                {hasFilters ? "لا توجد نتائج مطابقة." : "لا توجد مرتجعات بعد. مرتجعات المنصّات (FBA) تظهر هنا تلقائيًا كمسودّات بعد المزامنة."}
+                {hasFilters ? t("لا توجد نتائج مطابقة.") : t("لا توجد مرتجعات بعد. مرتجعات المنصّات (FBA) تظهر هنا تلقائيًا كمسودّات بعد المزامنة.")}
               </div>
             ) : (
               <>
                 <SalesReturnsTable rows={rows} canConfirm={canConfirm} canCreate={canCreate} />
                 <div className="flex items-center justify-between text-sm text-muted-foreground">
-                  <span>صفحة {safePage} من {pages}</span>
+                  <span>{t("صفحة")} {safePage} {t("من")} {pages}</span>
                   <div className="flex gap-2">
                     <Button variant="outline" size="sm" disabled={safePage <= 1} asChild={safePage > 1}>
                       {safePage > 1 ? <a href={qs(safePage - 1)}>{t("السابق")}</a> : <span>{t("السابق")}</span>}

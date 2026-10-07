@@ -1,4 +1,6 @@
 import { loadErpPage } from "@/lib/erp/org";
+import { fill } from "@/lib/i18n";
+import { getLocale, getT } from "@/lib/i18n/server";
 import { accountBalances, naturalAmount } from "@/lib/erp/financials";
 import { fmt, dt } from "@/lib/erp/print-format";
 import { loadPrintHeader } from "@/lib/erp/print-org";
@@ -17,6 +19,8 @@ export default async function PrintBalanceSheetPage({
 }: {
   searchParams: Promise<{ to?: string }>;
 }) {
+  const t = await getT();
+  const locale = await getLocale();
   return loadErpPage("reports.view", async ({ orgId }) => {
     const sp = await searchParams;
     const to = sp.to || iso(new Date());
@@ -76,8 +80,8 @@ export default async function PrintBalanceSheetPage({
     return (
       <ReportSheet
         org={org}
-        title="الميزانية العمومية"
-        period={`كما في ${dt(to)} — من القيود المُرحّلة`}
+        title={t("الميزانية العمومية")}
+        period={fill(t("كما في {0} — من القيود المُرحّلة"), [dt(to, locale)])}
         backHref={`/reports/balance-sheet?to=${to}`}
         kpis={[
           { label: "إجمالي الأصول", value: fmt(totalAssets) },

@@ -1,4 +1,5 @@
 import { eq } from "drizzle-orm";
+import { getT } from "@/lib/i18n/server";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
 import { employees, users } from "@/db/schema";
@@ -6,6 +7,7 @@ import { ErpPageHeader } from "@/components/erp/page-header";
 import { EmployeesManager } from "@/components/erp/employees-manager";
 
 export default async function EmployeesPage() {
+  const t = await getT();
   return loadErpPage("hr.view", async ({ orgId }) => {
     const [userRows, empRows] = await Promise.all([
       db.select({ userId: users.id, name: users.name, email: users.email, title: users.title, avatarUrl: users.avatarUrl })
@@ -25,7 +27,7 @@ export default async function EmployeesPage() {
 
     return (
       <div className="space-y-6">
-        <ErpPageHeader icon="UserCog" title="الموظفون" subtitle="أضف أي مستخدم كموظف بإعداد بيانات راتبه." />
+        <ErpPageHeader icon="UserCog" title={t("الموظفون")} subtitle={t("أضف أي مستخدم كموظف بإعداد بيانات راتبه.")} />
         <EmployeesManager members={list} orgId={orgId} />
       </div>
     );

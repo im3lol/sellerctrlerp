@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { getT } from "@/lib/i18n/server";
 import { desc, eq } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
@@ -7,6 +8,7 @@ import { ErpPageHeader } from "@/components/erp/page-header";
 import { PayrollRunsList } from "@/components/erp/payroll-runs-list";
 
 export default async function PayrollPage() {
+  const t = await getT();
   return loadErpPage("hr.view", async ({ orgId }) => {
     const runs = await db
       .select()
@@ -18,14 +20,14 @@ export default async function PayrollPage() {
       <div className="space-y-6">
         <ErpPageHeader
           icon="Banknote"
-          title="مسير الرواتب"
-          subtitle="معالجة الرواتب الشهرية وترحيل القيود المحاسبية."
+          title={t("مسير الرواتب")}
+          subtitle={t("معالجة الرواتب الشهرية وترحيل القيود المحاسبية.")}
           action={
             <Link
               href="/hr/payroll/new"
               className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
             >
-              + مسير جديد
+              {t("+ مسير جديد")}
             </Link>
           }
         />

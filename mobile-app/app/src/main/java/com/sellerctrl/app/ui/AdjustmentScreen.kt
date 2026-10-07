@@ -1,5 +1,7 @@
 package com.sellerctrl.app.ui
 
+import com.sellerctrl.app.tr
+
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -82,7 +84,7 @@ fun AdjustmentScreen(nav: NavController) {
                 }
             })
             Button(onClick = { scanning = false }, modifier = Modifier.align(Alignment.BottomCenter).padding(24.dp)) {
-                Text("إغلاق الكاميرا")
+                Text(tr("إغلاق الكاميرا"))
             }
         }
         return
@@ -90,12 +92,12 @@ fun AdjustmentScreen(nav: NavController) {
 
     Scaffold(topBar = {
         TopAppBar(
-            title = { Text("جرد المخزون") },
+            title = { Text(tr("جرد المخزون")) },
             navigationIcon = { IconButton(onClick = { nav.popBackStack() }) { Icon(Icons.AutoMirrored.Filled.ArrowBack, null) } },
         )
     }) { pad ->
         Column(Modifier.fillMaxSize().padding(pad).padding(16.dp)) {
-            Text("المستودع", style = MaterialTheme.typography.labelLarge)
+            Text(tr("المستودع"), style = MaterialTheme.typography.labelLarge)
             LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 items(warehouses) { w ->
                     FilterChip(selected = selected?.id == w.id, onClick = { selected = w }, label = { Text(w.name) })
@@ -103,12 +105,12 @@ fun AdjustmentScreen(nav: NavController) {
             }
             OutlinedTextField(
                 value = reason, onValueChange = { reason = it },
-                label = { Text("السبب (اختياري)") }, singleLine = true,
+                label = { Text(tr("السبب (اختياري)")) }, singleLine = true,
                 modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
             )
             Button(onClick = { scanning = true }, modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
                 Icon(Icons.Filled.QrCodeScanner, null, modifier = Modifier.padding(end = 8.dp))
-                Text("مسح صنف")
+                Text(tr("مسح صنف"))
             }
             message?.let { Text(it, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(top = 8.dp)) }
 
@@ -118,7 +120,7 @@ fun AdjustmentScreen(nav: NavController) {
                         Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
                             Column(Modifier.weight(1f)) {
                                 Text(row.item.name, style = MaterialTheme.typography.titleSmall)
-                                Text("رصيد النظام: ${fmt(row.item.stock)}", style = MaterialTheme.typography.bodySmall)
+                                Text(tr("رصيد النظام: ${fmt(row.item.stock)}"), style = MaterialTheme.typography.bodySmall)
                             }
                             OutlinedTextField(
                                 value = row.qty,
@@ -126,7 +128,7 @@ fun AdjustmentScreen(nav: NavController) {
                                     val i = rows.indexOfFirst { it.item.id == row.item.id }
                                     if (i >= 0) rows[i] = rows[i].copy(qty = v)
                                 },
-                                label = { Text("المعدود") }, singleLine = true,
+                                label = { Text(tr("المعدود")) }, singleLine = true,
                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                                 modifier = Modifier.width(120.dp),
                             )
@@ -142,14 +144,14 @@ fun AdjustmentScreen(nav: NavController) {
                 onClick = {
                     val wh = selected ?: return@Button
                     val lines = rows.mapNotNull { r -> r.qty.toDoubleOrNull()?.let { CountLine(r.item.id, it) } }
-                    if (lines.isEmpty()) { message = "أدخل الكميات المعدودة"; return@Button }
+                    if (lines.isEmpty()) { message = tr("أدخل الكميات المعدودة"); return@Button }
                     busy = true; message = null
                     scope.launch {
                         try {
                             repo.submitCount(wh.id, reason, lines)
-                            rows.clear(); reason = ""; message = "تم حفظ الجرد ✓"
+                            rows.clear(); reason = ""; message = tr("تم حفظ الجرد ✓")
                         } catch (e: Exception) {
-                            message = e.message ?: "خطأ"
+                            message = e.message ?: tr("خطأ")
                         } finally {
                             busy = false
                         }
@@ -157,7 +159,7 @@ fun AdjustmentScreen(nav: NavController) {
                 },
                 enabled = !busy && rows.isNotEmpty() && selected != null,
                 modifier = Modifier.fillMaxWidth(),
-            ) { Text(if (busy) "جارٍ الحفظ…" else "حفظ الجرد") }
+            ) { Text(if (busy) tr("جارٍ الحفظ…") else tr("حفظ الجرد")) }
         }
     }
 }

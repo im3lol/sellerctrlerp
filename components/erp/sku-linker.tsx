@@ -1,8 +1,10 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
+import { fill } from "@/lib/i18n";
+import { useT } from "@/lib/i18n/client";
 import Link from "next/link";
-import { toast } from "sonner";
+import { toast } from "@/lib/i18n/toast";
 import { previewAmazonCodeLinkAction, previewMarketplaceListingsAction, saveAmazonCodeLinksAction, createItemsFromSkusAction, type SkuLinkRow } from "@/app/actions/erp/amazon-codes";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -16,6 +18,7 @@ type Preview = { rows: SkuLinkRow[]; items: { id: string; label: string }[]; alr
 /** `amazonCode` set → live "verify links" mode: pull the seller's Amazon listings
  *  instead of an uploaded report. Omitted → the file-upload flow. */
 export function SkuLinker({ amazonCode }: { amazonCode?: string } = {}) {
+  const t = useT();
   const live = !!amazonCode;
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<Preview | null>(null);
@@ -47,7 +50,7 @@ export function SkuLinker({ amazonCode }: { amazonCode?: string } = {}) {
       const init: Record<string, string> = {};
       for (const row of r.rows) if (row.autoItemId) init[row.sku] = row.autoItemId;
       setChosen(init);
-      if (r.rows.length === 0) toast.success(live ? "كل منتجات أمازون مربوطة بالفعل 🎉" : "كل أكواد الملف مربوطة بالفعل 🎉");
+      if (r.rows.length === 0) toast.success(live ? t("كل منتجات أمازون مربوطة بالفعل 🎉") : t("كل أكواد الملف مربوطة بالفعل 🎉"));
     });
   };
 
@@ -59,7 +62,7 @@ export function SkuLinker({ amazonCode }: { amazonCode?: string } = {}) {
     startSave(async () => {
       const r = await saveAmazonCodeLinksAction(links);
       if (!r.ok) { toast.error(r.error); return; }
-      toast.success(`تم ربط ${r.linked} صنف`);
+      toast.success(fill(t("تم ربط {0} صنف"), [r.linked]));
       // Drop the just-linked rows from the table.
       setPreview((p) => p ? { ...p, rows: p.rows.filter((row) => !chosen[row.sku]), alreadyLinked: p.alreadyLinked + r.linked } : p);
       setChosen({});
@@ -75,7 +78,7 @@ export function SkuLinker({ amazonCode }: { amazonCode?: string } = {}) {
     startCreate(async () => {
       const r = await createItemsFromSkusAction(rows);
       if (!r.ok) { toast.error(r.error); return; }
-      toast.success(`تم إنشاء ${r.created} صنف جديد وربط أكوادها`);
+      toast.success(fill(t("تم إنشاء {0} صنف جديد وربط أكوادها"), [r.created]));
       setPreview((p) => p ? { ...p, rows: p.rows.filter((row) => !set.has(row.sku)), alreadyLinked: p.alreadyLinked + r.created } : p);
       setChosen((c) => { const n = { ...c }; skus.forEach((s) => delete n[s]); return n; });
     });
@@ -85,11 +88,11 @@ export function SkuLinker({ amazonCode }: { amazonCode?: string } = {}) {
     <div className="space-y-6">
       <Card>
         <CardHeader>
-          <CardTitle>{live ? "التحقق من ربط منتجات أمازون" : "ربط أكواد أمازون بالأصناف"}</CardTitle>
+          <CardTitle>{live ? t("التحقق من ربط منتجات أمازون") : t("ربط أكواد أمازون بالأصناف")}</CardTitle>
           <CardDescription>
             {live
-              ? "اضغط «تحقق الآن» لجلب منتجاتك من أمازون ومقارنتها بأصنافك. المنتجات غير المربوطة تظهر بالأسفل — اربط كلاً منها بصنف موجود (يُقترح تلقائياً)، أو أنشئ صنفاً جديداً مباشرة. بعد ما يكون كل شيء مربوطاً تقدر تعمل مزامنة الطلبات والمخزون والمرتجعات بأمان."
-              : "ارفع تقرير طلبات أمازون لاستخراج أكواد SKU/ASIN غير المربوطة. لكل كود: إمّا تربطه بصنف موجود (يُقترح تلقائياً لو كوده الداخلي = SKU)، أو — لو تعمل لأول مرة — تنشئ صنفاً جديداً مباشرة (كود داخلي تلقائي P-xxxxx + اسم وسعر أمازون). زر «إنشاء أصناف جديدة للباقي» يفعلها للكل دفعة واحدة."}
+              ? t("اضغط «تحقق الآن» لجلب منتجاتك من أمازون ومقارنتها بأصنافك. المنتجات غير المربوطة تظهر بالأسفل — اربط كلاً منها بصنف موجود (يُقترح تلقائياً)، أو أنشئ صنفاً جديداً مباشرة. بعد ما يكون كل شيء مربوطاً تقدر تعمل مزامنة الطلبات والمخزون والمرتجعات بأمان.")
+              : t("ارفع تقرير طلبات أمازون لاستخراج أكواد SKU/ASIN غير المربوطة. لكل كود: إمّا تربطه بصنف موجود (يُقترح تلقائياً لو كوده الداخلي = SKU)، أو — لو تعمل لأول مرة — تنشئ صنفاً جديداً مباشرة (كود داخلي تلقائي P-xxxxx + اسم وسعر أمازون). زر «إنشاء أصناف جديدة للباقي» يفعلها للكل دفعة واحدة.")}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -104,18 +107,18 @@ export function SkuLinker({ amazonCode }: { amazonCode?: string } = {}) {
             )}
             <Button onClick={doPreview} disabled={busy || (!live && !file)}>
               {previewing ? <Icon name="Loader2" className="size-4 animate-spin" /> : <Icon name="Eye" className="size-4" />}
-              {live ? "تحقق الآن" : "فحص الأكواد"}
+              {live ? t("تحقق الآن") : t("فحص الأكواد")}
             </Button>
             {preview && preview.rows.length > 0 && (
               <>
                 <Button onClick={doSave} disabled={busy || chosenCount === 0} className="bg-emerald-600 hover:bg-emerald-700">
                   {saving ? <Icon name="Loader2" className="size-4 animate-spin" /> : <Icon name="Link" className="size-4" />}
-                  ربط بأصناف موجودة ({chosenCount})
+                  {fill(t("ربط بأصناف موجودة ({0})"), [chosenCount])}
                 </Button>
                 {unassignedCount > 0 && (
                   <Button variant="outline" onClick={() => createNew(preview.rows.filter((r) => !chosen[r.sku]).map((r) => r.sku))} disabled={busy}>
                     {creating ? <Icon name="Loader2" className="size-4 animate-spin" /> : <Icon name="PackagePlus" className="size-4" />}
-                    إنشاء أصناف جديدة للباقي ({unassignedCount})
+                    {fill(t("إنشاء أصناف جديدة للباقي ({0})"), [unassignedCount])}
                   </Button>
                 )}
               </>
@@ -124,11 +127,11 @@ export function SkuLinker({ amazonCode }: { amazonCode?: string } = {}) {
 
           {preview && (
             <div className="flex flex-wrap items-center gap-2 text-sm">
-              <Badge variant="secondary">إجمالي الأكواد: {preview.totalSkus}</Badge>
-              <Badge className="bg-emerald-600">مربوطة سابقاً: {preview.alreadyLinked}</Badge>
-              <Badge variant="destructive">غير مربوطة: {preview.rows.length}</Badge>
-              {autoCount > 0 && <Badge variant="outline">مُقترح تلقائياً: {autoCount}</Badge>}
-              {!live && <Link href="/sales/orders/import" className="ms-auto text-primary hover:underline">→ العودة لاستيراد الطلبات</Link>}
+              <Badge variant="secondary">{t("إجمالي الأكواد:")} {preview.totalSkus}</Badge>
+              <Badge className="bg-emerald-600">{t("مربوطة سابقاً:")} {preview.alreadyLinked}</Badge>
+              <Badge variant="destructive">{t("غير مربوطة:")} {preview.rows.length}</Badge>
+              {autoCount > 0 && <Badge variant="outline">{t("مُقترح تلقائياً:")} {autoCount}</Badge>}
+              {!live && <Link href="/sales/orders/import" className="ms-auto text-primary hover:underline">{t("→ العودة لاستيراد الطلبات")}</Link>}
             </div>
           )}
         </CardContent>
@@ -137,8 +140,8 @@ export function SkuLinker({ amazonCode }: { amazonCode?: string } = {}) {
       {preview && preview.rows.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">أكواد بحاجة لربط ({preview.rows.length})</CardTitle>
-            <CardDescription>اختر الصنف المقابل لكل كود. اترك أي صف فارغاً لتجاهله الآن.</CardDescription>
+            <CardTitle className="text-base">{t("أكواد بحاجة لربط (")}{preview.rows.length})</CardTitle>
+            <CardDescription>{t("اختر الصنف المقابل لكل كود. اترك أي صف فارغاً لتجاهله الآن.")}</CardDescription>
           </CardHeader>
           <CardContent className="overflow-x-auto">
             <Table>
@@ -146,8 +149,8 @@ export function SkuLinker({ amazonCode }: { amazonCode?: string } = {}) {
                 <TableRow>
                   <TableHead className="text-start">SKU</TableHead>
                   <TableHead className="text-start">ASIN</TableHead>
-                  <TableHead className="text-start">المنتج (أمازون)</TableHead>
-                  <TableHead className="text-start min-w-64">الصنف في النظام</TableHead>
+                  <TableHead className="text-start">{t("المنتج (أمازون)")}</TableHead>
+                  <TableHead className="text-start min-w-64">{t("الصنف في النظام")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -157,7 +160,7 @@ export function SkuLinker({ amazonCode }: { amazonCode?: string } = {}) {
                     <TableCell className="font-mono text-xs text-muted-foreground" dir="ltr">{r.asin}</TableCell>
                     <TableCell className="max-w-xs">
                       <div className="truncate" title={r.productName}>{r.productName}</div>
-                      {r.sellPrice > 0 && <div className="text-[11px] text-muted-foreground">سعر مقترح: {r.sellPrice.toLocaleString("ar-EG-u-nu-latn")}</div>}
+                      {r.sellPrice > 0 && <div className="text-[11px] text-muted-foreground">{t("سعر مقترح:")} {r.sellPrice.toLocaleString("ar-EG-u-nu-latn")}</div>}
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-1">
@@ -165,16 +168,16 @@ export function SkuLinker({ amazonCode }: { amazonCode?: string } = {}) {
                           selectedLabel={chosen[r.sku] ? labelById.get(chosen[r.sku]) ?? "" : ""}
                           options={preview.items}
                           onSelect={(id) => setChosen((c) => ({ ...c, [r.sku]: id }))}
-                          placeholder="ابحث عن الصنف…"
+                          placeholder={t("ابحث عن الصنف…")}
                         />
-                        {r.autoItemId && chosen[r.sku] === r.autoItemId && <Badge variant="outline" className="shrink-0 text-[10px]">تلقائي</Badge>}
+                        {r.autoItemId && chosen[r.sku] === r.autoItemId && <Badge variant="outline" className="shrink-0 text-[10px]">{t("تلقائي")}</Badge>}
                         {chosen[r.sku] ? (
-                          <Button variant="ghost" size="icon" className="size-7 shrink-0" onClick={() => setChosen((c) => { const n = { ...c }; delete n[r.sku]; return n; })} aria-label="مسح">
+                          <Button variant="ghost" size="icon" className="size-7 shrink-0" onClick={() => setChosen((c) => { const n = { ...c }; delete n[r.sku]; return n; })} aria-label={t("مسح")}>
                             <Icon name="X" className="size-3.5" />
                           </Button>
                         ) : (
                           <Button variant="outline" size="sm" className="shrink-0 whitespace-nowrap" disabled={busy} onClick={() => createNew([r.sku])}>
-                            <Icon name="PackagePlus" className="size-3.5" />صنف جديد
+                            <Icon name="PackagePlus" className="size-3.5" />{t("صنف جديد")}
                           </Button>
                         )}
                       </div>

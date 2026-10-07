@@ -1,9 +1,10 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useT } from "@/lib/i18n/client";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { toast } from "sonner";
+import { toast } from "@/lib/i18n/toast";
 import { postDraftEntryAction, reverseEntryAction, deleteDraftEntryAction } from "@/app/actions/erp/journal";
 import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/icon";
@@ -25,6 +26,7 @@ export function JournalEntryActions({
   canDelete: boolean;
   editHref?: string; // set by the detail page only for an editable (DRAFT, manual) entry
 }) {
+  const t = useT();
   const router = useRouter();
   const [pending, start] = useTransition();
   const [confirmReverse, setConfirmReverse] = useState(false);
@@ -37,7 +39,7 @@ export function JournalEntryActions({
         if (after) router.push(after);
         router.refresh();
       } else {
-        toast.error(r.error ?? "تعذّر تنفيذ الإجراء");
+        toast.error(r.error ?? t("تعذّر تنفيذ الإجراء"));
       }
     });
 
@@ -45,12 +47,12 @@ export function JournalEntryActions({
     <div className="flex flex-wrap gap-2">
       {status === "DRAFT" && canPost && (
         <Button disabled={pending} onClick={() => run(() => postDraftEntryAction(entryId), "تم ترحيل القيد")}>
-          <Icon name="Check" className="size-4" />ترحيل
+          <Icon name="Check" className="size-4" />{t("ترحيل")}
         </Button>
       )}
       {status === "DRAFT" && canDelete && editHref && (
         <Button variant="outline" asChild>
-          <Link href={editHref}><Icon name="Pencil" className="size-4" />تعديل</Link>
+          <Link href={editHref}><Icon name="Pencil" className="size-4" />{t("تعديل")}</Link>
         </Button>
       )}
       {status === "DRAFT" && canDelete && (
@@ -59,7 +61,7 @@ export function JournalEntryActions({
           disabled={pending}
           onClick={() => run(() => deleteDraftEntryAction(entryId), "تم حذف المسودة", "/accounting/journal")}
         >
-          <Icon name="Trash2" className="size-4" />حذف
+          <Icon name="Trash2" className="size-4" />{t("حذف")}
         </Button>
       )}
       {status === "POSTED" && !isReversal && canReverse && (
@@ -70,15 +72,15 @@ export function JournalEntryActions({
               disabled={pending}
               onClick={() => run(() => reverseEntryAction(entryId), "تم عكس القيد")}
             >
-              <Icon name="Undo2" className="size-4" />تأكيد العكس
+              <Icon name="Undo2" className="size-4" />{t("تأكيد العكس")}
             </Button>
             <Button variant="outline" disabled={pending} onClick={() => setConfirmReverse(false)}>
-              إلغاء
+              {t("إلغاء")}
             </Button>
           </>
         ) : (
           <Button variant="outline" disabled={pending} onClick={() => setConfirmReverse(true)}>
-            <Icon name="Undo2" className="size-4" />عكس القيد
+            <Icon name="Undo2" className="size-4" />{t("عكس القيد")}
           </Button>
         )
       )}

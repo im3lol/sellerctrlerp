@@ -1,4 +1,5 @@
 import { and, eq, sql } from "drizzle-orm";
+import { getT } from "@/lib/i18n/server";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
 import { accounts, journalEntries, salesInvoices, purchaseInvoices } from "@/db/schema";
@@ -15,6 +16,7 @@ import { cn } from "@/lib/utils";
 const money = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 export default async function AccountingDashboardPage() {
+  const t = await getT();
   return loadErpPage("accounting.view", async ({ orgId, permissions }) => {
     const [balances, [acc], [je], [si], [pi], [jeDraft], [siDraft], [piDraft]] = await Promise.all([
       accountBalances({ orgId }),
@@ -64,7 +66,7 @@ export default async function AccountingDashboardPage() {
 
     return (
       <div className="space-y-6">
-        <ErpPageHeader icon="Calculator" title="المحاسبة" subtitle="نظرة عامة على الأداء المالي"
+        <ErpPageHeader icon="Calculator" title={t("المحاسبة")} subtitle={t("نظرة عامة على الأداء المالي")}
           action={<AcademyLink module="accounting" />} />
 
         <NeedsAttention tiles={todos} />
@@ -73,8 +75,8 @@ export default async function AccountingDashboardPage() {
           {/* Profit & Loss chart */}
           <Card className="lg:col-span-2">
             <CardHeader>
-              <CardTitle>الأرباح والخسائر</CardTitle>
-              <CardDescription>الإيرادات مقابل المصروفات وصافي الربح (من القيود المُرحّلة).</CardDescription>
+              <CardTitle>{t("الأرباح والخسائر")}</CardTitle>
+              <CardDescription>{t("الإيرادات مقابل المصروفات وصافي الربح (من القيود المُرحّلة).")}</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="flex h-56 items-end justify-around gap-6 border-b pb-2">
@@ -89,7 +91,7 @@ export default async function AccountingDashboardPage() {
                 ))}
               </div>
               <div className="mt-3 flex justify-around text-sm text-muted-foreground">
-                {bars.map((b) => <span key={b.label}>{b.label}</span>)}
+                {bars.map((b) => <span key={b.label}>{t(b.label)}</span>)}
               </div>
             </CardContent>
           </Card>
@@ -97,11 +99,11 @@ export default async function AccountingDashboardPage() {
           {/* Net summary card */}
           <Card className="flex flex-col justify-center">
             <CardContent className="space-y-4 py-8 text-center">
-              <div className="text-sm text-muted-foreground">صافي الربح / الخسارة</div>
+              <div className="text-sm text-muted-foreground">{t("صافي الربح / الخسارة")}</div>
               <div className={cn("text-4xl font-bold tabular-nums", net >= 0 ? "text-emerald-600" : "text-destructive")}>{money(net)}</div>
               <div className="flex justify-center gap-6 pt-2 text-sm">
-                <div><div className="text-muted-foreground">إجمالي الأصول</div><div className="font-semibold tabular-nums">{money(assets)}</div></div>
-                <div><div className="text-muted-foreground">النقدية</div><div className="font-semibold tabular-nums">{money(cash)}</div></div>
+                <div><div className="text-muted-foreground">{t("إجمالي الأصول")}</div><div className="font-semibold tabular-nums">{money(assets)}</div></div>
+                <div><div className="text-muted-foreground">{t("النقدية")}</div><div className="font-semibold tabular-nums">{money(cash)}</div></div>
               </div>
             </CardContent>
           </Card>
@@ -113,7 +115,7 @@ export default async function AccountingDashboardPage() {
             <Card key={k.label}>
               <CardContent className="flex items-center justify-between py-5">
                 <div>
-                  <div className="text-sm text-muted-foreground">{k.label}</div>
+                  <div className="text-sm text-muted-foreground">{t(k.label)}</div>
                   <div className={cn("mt-1 text-2xl font-bold tabular-nums", k.tone)}>{money(k.value)}</div>
                 </div>
                 <div className="flex size-11 items-center justify-center rounded-2xl bg-primary/10 text-primary">
@@ -127,7 +129,7 @@ export default async function AccountingDashboardPage() {
         {/* Shortcuts */}
         {/* Every page in this module, straight from the sidebar config — see
             ModuleWorkspace for why this is derived and not another hand-kept list. */}
-        <ModuleWorkspace heading="المحاسبة" permissions={permissions} counts={counts}
+        <ModuleWorkspace heading={t("المحاسبة")} permissions={permissions} counts={counts}
           actions={[{ label: "قيد يومية جديد", href: "/accounting/journal/new", icon: "Plus" }, { label: "مصروف جديد", href: "/accounting/expenses/new", icon: "Plus" }]} />
       </div>
     );

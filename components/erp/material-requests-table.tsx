@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useT } from "@/lib/i18n/client";
 import { bulkMaterialRequestsAction } from "@/app/actions/erp/material-requests";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -15,6 +16,7 @@ const ST: Record<string, { label: string; variant: "default" | "secondary" | "ou
 };
 
 export function MaterialRequestsTable({ rows, canApprove, canCreate }: { rows: Row[]; canApprove: boolean; canCreate: boolean }) {
+  const t = useT();
   const sel = useSelection();
   const ids = rows.map((r) => r.id);
   const showSelect = canApprove || canCreate;
@@ -26,22 +28,22 @@ export function MaterialRequestsTable({ rows, canApprove, canCreate }: { rows: R
   return (
     <div>
       {showSelect && (
-        <BulkBar ids={sel.ids} ops={ops} action={bulkMaterialRequestsAction} onDone={sel.clear} entity="طلب" />
+        <BulkBar ids={sel.ids} ops={ops} action={bulkMaterialRequestsAction} onDone={sel.clear} entity={t("طلب")} />
       )}
       <Table>
         <TableHeader>
           <TableRow>
             {showSelect && (
               <TableHead className="w-10">
-                <SelectBox checked={sel.allOf(ids)} indeterminate={sel.someOf(ids)} onChange={() => sel.togglePage(ids)} label="تحديد الكل" />
+                <SelectBox checked={sel.allOf(ids)} indeterminate={sel.someOf(ids)} onChange={() => sel.togglePage(ids)} label={t("تحديد الكل")} />
               </TableHead>
             )}
-            <TableHead className="text-start">الرقم</TableHead>
-            <TableHead className="text-start">التاريخ</TableHead>
-            <TableHead className="text-start">مقدّم الطلب</TableHead>
-            <TableHead className="text-start">البنود</TableHead>
-            <TableHead className="text-start">الحالة</TableHead>
-            {showSelect && <TableHead className="text-start">إجراءات</TableHead>}
+            <TableHead className="text-start">{t("الرقم")}</TableHead>
+            <TableHead className="text-start">{t("التاريخ")}</TableHead>
+            <TableHead className="text-start">{t("مقدّم الطلب")}</TableHead>
+            <TableHead className="text-start">{t("البنود")}</TableHead>
+            <TableHead className="text-start">{t("الحالة")}</TableHead>
+            {showSelect && <TableHead className="text-start">{t("إجراءات")}</TableHead>}
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -52,14 +54,14 @@ export function MaterialRequestsTable({ rows, canApprove, canCreate }: { rows: R
               <TableRow key={r.id} data-state={checked ? "selected" : undefined}>
                 {showSelect && (
                   <TableCell>
-                    <SelectBox checked={checked} onChange={() => sel.toggle(r.id)} label="تحديد" />
+                    <SelectBox checked={checked} onChange={() => sel.toggle(r.id)} label={t("تحديد")} />
                   </TableCell>
                 )}
                 <TableCell><Link href={`/purchases/requisitions/${encodeURIComponent(r.number)}`} className="font-mono hover:text-primary">{r.number}</Link></TableCell>
                 <TableCell>{dt(r.date)}</TableCell>
                 <TableCell>{r.requester ?? "—"}</TableCell>
                 <TableCell className="tabular-nums">{Number(r.lineCount)}</TableCell>
-                <TableCell><Badge variant={st.variant}>{st.label}</Badge></TableCell>
+                <TableCell><Badge variant={st.variant}>{t(st.label)}</Badge></TableCell>
                 {showSelect && <TableCell><RequisitionRowActions id={r.id} number={r.number} status={r.status} canManage={showSelect} /></TableCell>}
               </TableRow>
             );

@@ -1,4 +1,5 @@
 import { and, asc, eq } from "drizzle-orm";
+import { getT } from "@/lib/i18n/server";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
 import { items, organizations } from "@/db/schema";
@@ -6,6 +7,7 @@ import { ErpPageHeader } from "@/components/erp/page-header";
 import { MaterialRequestForm } from "@/components/erp/material-request-form";
 
 export default async function NewRequisitionPage() {
+  const t = await getT();
   return loadErpPage("purchases.view", async ({ orgId }) => {
     const [itemList, org] = await Promise.all([
       db.select({ id: items.id, nameAr: items.nameAr }).from(items)
@@ -14,7 +16,7 @@ export default async function NewRequisitionPage() {
     ]);
     return (
       <div className="space-y-6">
-        <ErpPageHeader icon="ClipboardList" title="طلب مواد جديد" subtitle="طلب داخلي بالأصناف المطلوبة — يُحوّل لأمر شراء بعد الاعتماد" backHref="/purchases/requisitions" />
+        <ErpPageHeader icon="ClipboardList" title={t("طلب مواد جديد")} subtitle={t("طلب داخلي بالأصناف المطلوبة — يُحوّل لأمر شراء بعد الاعتماد")} backHref="/purchases/requisitions" />
         <MaterialRequestForm items={itemList} orgName={org[0]?.nameAr ?? "—"} />
       </div>
     );

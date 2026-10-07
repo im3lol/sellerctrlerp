@@ -1,4 +1,5 @@
 import { asc, eq } from "drizzle-orm";
+import { getT } from "@/lib/i18n/server";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
 import { suppliers } from "@/db/schema";
@@ -16,6 +17,7 @@ const intl = (n: number) => n.toLocaleString("ar-EG-u-nu-latn");
  * entry of its own. A supplier is one record inside المشتريات, not the module.
  */
 export default async function SuppliersPage() {
+  const t = await getT();
   return loadErpPage("purchases.view", async ({ orgId, can }) => {
     const rows = await db.select({
       id: suppliers.id,
@@ -31,12 +33,12 @@ export default async function SuppliersPage() {
 
     const kpis = (
       <div className="grid gap-4 grid-cols-2 lg:grid-cols-3">
-        <Card><CardContent className="pt-6"><div className="text-sm text-muted-foreground">عدد الموردين</div><div className="text-2xl font-bold tabular-nums">{intl(rows.length)}</div></CardContent></Card>
-        <Card><CardContent className="pt-6"><div className="text-sm text-muted-foreground">إجمالي المستحقات (ذمم دائنة)</div><div className="text-2xl font-bold tabular-nums">{money(totalAp)}</div></CardContent></Card>
-        <Card><CardContent className="pt-6"><div className="text-sm text-muted-foreground">موردون لهم رصيد</div><div className="text-2xl font-bold tabular-nums">{intl(withBalance)}</div></CardContent></Card>
+        <Card><CardContent className="pt-6"><div className="text-sm text-muted-foreground">{t("عدد الموردين")}</div><div className="text-2xl font-bold tabular-nums">{intl(rows.length)}</div></CardContent></Card>
+        <Card><CardContent className="pt-6"><div className="text-sm text-muted-foreground">{t("إجمالي المستحقات (ذمم دائنة)")}</div><div className="text-2xl font-bold tabular-nums">{money(totalAp)}</div></CardContent></Card>
+        <Card><CardContent className="pt-6"><div className="text-sm text-muted-foreground">{t("موردون لهم رصيد")}</div><div className="text-2xl font-bold tabular-nums">{intl(withBalance)}</div></CardContent></Card>
       </div>
     );
 
-    return <SuppliersManager suppliers={rows} canManage={can("purchases.edit")} title="الموردون" kpis={kpis} />;
+    return <SuppliersManager suppliers={rows} canManage={can("purchases.edit")} title={t("الموردون")} kpis={kpis} />;
   });
 }
