@@ -114,7 +114,7 @@ export default async function ErpSalesPage() {
                   {top.map((r) => (
                     <div key={r.code} className="space-y-1">
                       <div className="flex justify-between text-sm">
-                        <span>{r.name}</span>
+                        <span>{t(r.name)}</span>
                         <span className="tabular-nums text-muted-foreground">{money(r.amount)} · {intf(r.count)} {t("فاتورة")}</span>
                       </div>
                       <div className="h-2 w-full rounded-full bg-muted">

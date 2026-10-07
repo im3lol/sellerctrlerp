@@ -53,7 +53,7 @@ export function SalesReturnConfirm({ id, defaultDisposition, warehouses, dest }:
       {cond === "DAMAGED" && (
         <select value={dest2} onChange={(e) => setDest2(e.target.value)} className={`${selectCls} h-9 w-44`} aria-label={t("وجهة البضاعة التالفة")}>
           <option value="">{t("شطب (خسارة)")}</option>
-          {warehouses.map((w) => <option key={w.id} value={w.id}>{t("مخزن:")} {w.name}</option>)}
+          {warehouses.map((w) => <option key={w.id} value={w.id}>{t("مخزن:")} {t(w.name)}</option>)}
         </select>
       )}
       <Button size="sm" disabled={pending} onClick={doConfirm}><Icon name="Check" className="size-4" />{t("تأكيد المرتجع")}</Button>

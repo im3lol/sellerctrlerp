@@ -125,7 +125,7 @@ export function RecurringExpensesManager({ items, expenseAccounts, cashAccounts 
             ) : items.map((r) => (
               <TableRow key={r.id} data-state={sel.has(r.id) ? "selected" : undefined}>
                 <TableCell><SelectBox label={t("تحديد")} checked={sel.has(r.id)} onChange={() => sel.toggle(r.id)} /></TableCell>
-                <TableCell className="font-medium">{r.category}{r.payee ? <span className="text-xs text-muted-foreground"> — {r.payee}</span> : ""}</TableCell>
+                <TableCell className="font-medium">{t(r.category)}{r.payee ? <span className="text-xs text-muted-foreground"> — {r.payee}</span> : ""}</TableCell>
                 <TableCell className="tabular-nums">{egp(r.amount)}</TableCell>
                 <TableCell>{t(FREQUENCY_LABELS[r.frequency as Frequency] ?? r.frequency)}</TableCell>
                 <TableCell className="tabular-nums">{r.nextRunDate}</TableCell>

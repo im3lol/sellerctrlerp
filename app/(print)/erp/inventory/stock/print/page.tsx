@@ -63,7 +63,7 @@ export default async function PrintStockBalancePage({ searchParams }: { searchPa
           ],
           rows: lines.map((l) => [
             <span key="c" dir="ltr" style={{ display: "block", textAlign: "start" }}>{l.code}</span>,
-            <span key="n" dir="ltr" style={{ display: "block", textAlign: "start" }}>{l.name}</span>,
+            <span key="n" dir="ltr" style={{ display: "block", textAlign: "start" }}>{t(l.name)}</span>,
             l.warehouse,
             qty(l.quantity),
             fmt(l.avgCost),

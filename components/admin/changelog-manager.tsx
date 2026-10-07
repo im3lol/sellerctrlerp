@@ -153,7 +153,7 @@ export function ChangelogManager({ entries, today }: { entries: AdminEntry[]; to
               )}
               {entries.map((e) => (
                 <TableRow key={e.id} className={e.isPublished ? "" : "opacity-50"}>
-                  <TableCell className="font-medium">{e.title}</TableCell>
+                  <TableCell className="font-medium">{t(e.title)}</TableCell>
                   <TableCell>{t(KIND_LABELS[e.kind] ?? e.kind)}</TableCell>
                   <TableCell className="text-muted-foreground">
                     {e.module ? t(MODULE_LABELS[e.module] ?? e.module) : t("النظام كله")}
@@ -188,7 +188,7 @@ export function ChangelogManager({ entries, today }: { entries: AdminEntry[]; to
       {confirmDel && (
         <Dialog open onOpenChange={() => setConfirmDel(null)}>
           <DialogContent>
-            <DialogHeader><DialogTitle>{t("حذف «")}{confirmDel.title}{t("»؟")}</DialogTitle></DialogHeader>
+            <DialogHeader><DialogTitle>{t("حذف «")}{t(confirmDel.title)}{t("»؟")}</DialogTitle></DialogHeader>
             <p className="text-sm text-muted-foreground">
               {t("لو عايز تشيله من عين العملاء بس، «إخفاء» بيرجّعه مسودة من غير ما تفقده.")}
             </p>

@@ -128,7 +128,7 @@ export function NotificationBell() {
               <div className="p-2">
                 {rows.map((r) => (
                   <Link key={r.href} href={r.href} className="flex items-center gap-3 rounded-lg px-2.5 py-2.5 text-sm transition-colors hover:bg-accent">
-                    <span className={`grid size-8 shrink-0 place-items-center rounded-lg ${toneCls[r.tone]}`}>{r.icon}</span>
+                    <span className={`grid size-8 shrink-0 place-items-center rounded-lg ${t(toneCls[r.tone])}`}>{r.icon}</span>
                     <span className="flex-1 leading-tight">{t(r.label)}</span>
                     <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-xs font-bold tabular-nums">{int(r.count)}</span>
                   </Link>

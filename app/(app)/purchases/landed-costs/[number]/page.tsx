@@ -104,7 +104,7 @@ export default async function LandedCostDetailPage({ params }: { params: Promise
                   <TableRow key={l.id}>
                     <TableCell className="font-mono text-xs">{l.receipt ?? "—"}</TableCell>
                     <TableCell className="max-w-[320px] whitespace-normal">
-                      <div className="line-clamp-2 leading-snug" title={l.name ?? undefined}>{l.name}</div>
+                      <div className="line-clamp-2 leading-snug" title={l.name ?? undefined}>{t(l.name ?? "")}</div>
                       <div className="font-mono text-xs text-muted-foreground" dir="ltr">{l.code}</div>
                     </TableCell>
                     <TableCell>{l.wh ?? "—"}</TableCell>

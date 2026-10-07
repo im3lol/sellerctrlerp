@@ -97,7 +97,7 @@ export default async function PrintDeadStockPage({ searchParams }: { searchParam
           ],
           rows: shown.map((r) => [
             <span key="n">
-              <span dir="ltr" style={{ display: "block", textAlign: "start" }}>{r.name}</span>
+              <span dir="ltr" style={{ display: "block", textAlign: "start" }}>{t(r.name ?? "")}</span>
               <span dir="ltr" style={{ color: "#8a93a6", fontSize: 9.5 }}>{r.code}</span>
             </span>,
             qty(r.qty),

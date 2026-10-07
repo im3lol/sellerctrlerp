@@ -68,11 +68,11 @@ async function StepCard({ step, done, isNext, manual = true }: { step: Step; don
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
             <Icon name={step.icon} className="size-4 text-muted-foreground" />
-            <span className="font-semibold">{step.title}</span>
+            <span className="font-semibold">{t(step.title)}</span>
             {step.optional && <Badge variant="secondary">{t("اختياري")}</Badge>}
             {isNext && <Badge>{t("الخطوة التالية")}</Badge>}
           </div>
-          <p className="mt-1 text-sm text-muted-foreground">{step.desc}</p>
+          <p className="mt-1 text-sm text-muted-foreground">{t(step.desc)}</p>
           <div className="mt-3 flex flex-wrap items-center gap-2">
             {step.ctas.map((c, i) => (
               <Button key={c.href} asChild size="sm" variant={!done && isNext && i === 0 ? "default" : "outline"}>

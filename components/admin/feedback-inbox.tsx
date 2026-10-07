@@ -57,7 +57,7 @@ function ReplyDialog({ item, onClose }: { item: InboxItem; onClose: () => void }
             <div className="mb-1 text-xs text-muted-foreground">
               {item.orgName}{item.userName ? ` · ${item.userName}` : ""}
             </div>
-            <p className="whitespace-pre-wrap">{item.message}</p>
+            <p className="whitespace-pre-wrap">{t(item.message)}</p>
           </div>
 
           <div className="space-y-1">
@@ -133,7 +133,7 @@ export function FeedbackInbox({ items }: { items: InboxItem[] }) {
                       <Badge variant={s.variant}>{t(s.label)}</Badge>
                     </div>
                   </div>
-                  <p className="line-clamp-2 text-sm text-muted-foreground">{i.message}</p>
+                  <p className="line-clamp-2 text-sm text-muted-foreground">{t(i.message)}</p>
                   <div className="text-xs text-muted-foreground">
                     {i.orgName}{i.userName ? ` · ${i.userName}` : ""} · {i.createdAt}
                   </div>

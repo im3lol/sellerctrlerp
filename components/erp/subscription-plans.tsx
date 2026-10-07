@@ -78,7 +78,7 @@ function SubscribeDialog({ plan, account, interval, xpayEnabled, onClose }: { pl
   return (
     <DialogContent>
       <DialogHeader>
-        <DialogTitle>{t("الاشتراك في باقة")} {plan.name}</DialogTitle>
+        <DialogTitle>{t("الاشتراك في باقة")} {t(plan.name)}</DialogTitle>
         <DialogDescription>{isXpay ? t("ادفع أونلاين ويُفعَّل اشتراكك فور نجاح الدفع.") : t("حوّل قيمة الباقة على الرقم، ثم تابع مع الدعم على واتساب لتفعيل اشتراكك.")}</DialogDescription>
       </DialogHeader>
       <div className="space-y-4">
@@ -169,7 +169,7 @@ export function SubscriptionPlans({ plans, currentPlanId, canSubscribe, hasPendi
             <Card key={p.id} className={isCurrent ? "border-primary ring-1 ring-primary" : ""}>
               <CardContent className="space-y-3 pt-6">
                 <div className="flex items-center justify-between">
-                  <h3 className="text-lg font-bold">{p.name}</h3>
+                  <h3 className="text-lg font-bold">{t(p.name)}</h3>
                   {isCurrent && <Badge>{t("باقتك الحالية")}</Badge>}
                 </div>
                 <div className="text-2xl font-bold tabular-nums">{egp(eff, locale)}<span className="text-sm font-normal text-muted-foreground"> {t("/ شهر")}</span></div>

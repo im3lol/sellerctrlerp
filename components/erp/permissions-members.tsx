@@ -54,7 +54,7 @@ function OverridesDialog({
   return (
     <DialogContent className="max-h-[85vh] max-w-3xl overflow-y-auto">
       <DialogHeader>
-        <DialogTitle>{t("صلاحيات مخصّصة —")} {member.name}</DialogTitle>
+        <DialogTitle>{t("صلاحيات مخصّصة —")} {t(member.name)}</DialogTitle>
         <DialogDescription>
           {t("الدور:")} <b>{t(roleLabels[member.role] ?? member.role)}</b>{t(". «موروث» يتبع الدور؛ «سماح» يمنح الصلاحية فوق الدور؛ «منع» يسحبها.")} {overrideCount > 0 && <span>({overrideCount} {t("تخصيص)")}</span>}
         </DialogDescription>
@@ -158,7 +158,7 @@ export function PermissionsMembers({
               <select className={`${selectCls} w-full`} value={inv.role} onChange={(e) => setInv({ ...inv, role: e.target.value })}>
                 {roleOptions.map((r) => <option key={r.value} value={r.value}>{t(r.label)}</option>)}
               </select>
-              <input className={`${selectCls} w-full`} placeholder={fill(t("كلمة مرور مبدئية — {0}"), [PASSWORD_RULE_AR])} type="text" dir="ltr" value={inv.password} onChange={(e) => setInv({ ...inv, password: e.target.value })} />
+              <input className={`${selectCls} w-full`} placeholder={fill(t("كلمة مرور مبدئية — {0}"), [t(PASSWORD_RULE_AR)])} type="text" dir="ltr" value={inv.password} onChange={(e) => setInv({ ...inv, password: e.target.value })} />
             </div>
             <div className="flex flex-wrap items-center gap-3">
               <Button onClick={invite} disabled={pending}>{pending ? <Loader2 className="size-4 animate-spin" /> : <Plus className="size-4" />}{t("إضافة العضو")}</Button>
@@ -173,7 +173,7 @@ export function PermissionsMembers({
               <label className="text-xs text-muted-foreground">{t("إضافة مستخدم للمؤسسة")}</label>
               <select value={addUser} onChange={(e) => setAddUser(e.target.value)} className={`${selectCls} min-w-56`}>
                 <option value="">{t("اختر مستخدماً…")}</option>
-                {nonMembers.map((u) => <option key={u.id} value={u.id}>{u.name} — {u.email}</option>)}
+                {nonMembers.map((u) => <option key={u.id} value={u.id}>{t(u.name)} — {u.email}</option>)}
               </select>
             </div>
             <div className="space-y-1">
@@ -201,7 +201,7 @@ export function PermissionsMembers({
               return (
                 <TableRow key={m.userId}>
                   <TableCell>
-                    <div className="font-medium">{m.name}</div>
+                    <div className="font-medium">{t(m.name)}</div>
                     <div className="text-xs text-muted-foreground" dir="ltr">{m.email}</div>
                   </TableCell>
                   <TableCell>

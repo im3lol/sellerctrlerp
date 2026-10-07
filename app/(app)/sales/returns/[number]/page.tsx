@@ -97,7 +97,7 @@ export default async function SalesReturnDetailPage({ params }: { params: Promis
               </Badge>
             </Field>
           )}
-          {ret.reason && <Field label={t("سبب الإرجاع")}>{ret.reason}</Field>}
+          {ret.reason && <Field label={t("سبب الإرجاع")}>{t(ret.reason)}</Field>}
           {ret.externalReturnId && <Field label={t("رقم الطلب بالمنصّة")}>{ret.externalReturnId}</Field>}
         </div>
         {ret.status === "DRAFT" && ret.disposition && ret.disposition !== "SELLABLE" && (
@@ -121,7 +121,7 @@ export default async function SalesReturnDetailPage({ params }: { params: Promis
               <TableBody>
                 {lines.map((l) => (
                   <TableRow key={l.id}>
-                    <TableCell className="max-w-[320px] whitespace-normal"><div className="line-clamp-2 leading-snug" title={l.name ?? undefined}><span className="font-mono text-muted-foreground">{l.code}</span> {l.name}</div></TableCell>
+                    <TableCell className="max-w-[320px] whitespace-normal"><div className="line-clamp-2 leading-snug" title={l.name ?? undefined}><span className="font-mono text-muted-foreground">{l.code}</span> {t(l.name ?? "")}</div></TableCell>
                     <TableCell>{qty(l.qty)}</TableCell>
                     <TableCell>{fmt(l.unitPrice)}</TableCell>
                     <TableCell>{fmt(l.total)}</TableCell>

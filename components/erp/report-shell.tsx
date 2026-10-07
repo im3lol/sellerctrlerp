@@ -158,7 +158,7 @@ export async function ReportKpis({ items }: { items: ReportKpi[] }) {
             <div key={i} className="min-w-0 flex-1 text-center">
               <div className="truncate text-sm text-muted-foreground">{t(k.label)}</div>
               <div className={cn("mt-1 text-2xl font-bold tabular-nums sm:text-3xl", k.tone && TONE[k.tone])}>{k.value}</div>
-              {k.hint && <div className="mt-0.5 truncate text-xs text-muted-foreground">{k.hint}</div>}
+              {k.hint && <div className="mt-0.5 truncate text-xs text-muted-foreground">{t(k.hint)}</div>}
             </div>
           ),
         )}

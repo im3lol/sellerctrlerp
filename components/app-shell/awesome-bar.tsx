@@ -152,12 +152,12 @@ export function AwesomeBar({
                 </div>
               )}
               {hits.map((h) => (
-                <Row key={`${h.kind}-${h.id}`} onClick={() => go(h.href)}>
+                <Row key={`${t(h.kind)}-${h.id}`} onClick={() => go(h.href)}>
                   <span className="min-w-0 flex-1 truncate">
                     {h.name ?? h.code}
                     {h.code && h.name && <span className="ms-2 font-mono text-xs text-muted-foreground" dir="ltr">{h.code}</span>}
                   </span>
-                  <span className="shrink-0 text-xs text-muted-foreground">{KIND_LABEL[h.kind]}</span>
+                  <span className="shrink-0 text-xs text-muted-foreground">{t(KIND_LABEL[h.kind])}</span>
                 </Row>
               ))}
             </Section>

@@ -105,7 +105,7 @@ export function IntegrationSettingsForm({ code, label, fields, hasOAuth, appUrl,
               placeholder={f.secret && initial.has[f.key as "clientSecret" | "webhookSecret"] ? t("••••••••  (محفوظ — اترك فارغًا للإبقاء عليه)") : (f.placeholder ?? "")}
               dir="ltr" autoComplete="off"
             />
-            {f.help && <p className="text-xs text-muted-foreground">{f.help}</p>}
+            {f.help && <p className="text-xs text-muted-foreground">{t(f.help)}</p>}
           </div>
         ))}
 

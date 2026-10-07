@@ -236,7 +236,7 @@ export function RfqManager({ items, suppliers, warehouses, canManage }: {
                   {open.lines.map((l) => (
                     <TableRow key={l.id}>
                       <TableCell>
-                        <div className="font-medium">{l.name}</div>
+                        <div className="font-medium">{t(l.name)}</div>
                         <div className="font-mono text-xs text-muted-foreground" dir="ltr">{l.code}</div>
                       </TableCell>
                       <TableCell className="tabular-nums">{l.quantity}</TableCell>
@@ -332,7 +332,7 @@ export function RfqManager({ items, suppliers, warehouses, canManage }: {
                   <TableBody>
                     {open.lines.map((l) => (
                       <TableRow key={l.id}>
-                        <TableCell>{l.name}</TableCell>
+                        <TableCell>{t(l.name)}</TableCell>
                         <TableCell className="tabular-nums">{l.quantity}</TableCell>
                         <TableCell>
                           <Input type="number" step="0.01" min="0" className="w-32 tabular-nums"

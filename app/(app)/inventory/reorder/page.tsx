@@ -72,7 +72,7 @@ export default async function ReorderPage({ searchParams }: { searchParams: Prom
               {[...bySupplier].map(([key, g], idx) => (
                 <Button key={key} asChild variant={idx === 0 ? "default" : "outline"}>
                   <Link href={`/purchases/orders/new?reorder=1&${qs}&supplier=${encodeURIComponent(key)}`}>
-                    <Icon name="ClipboardList" className="size-4" />{t("أمر شراء —")} {g.name} ({q(g.count)})
+                    <Icon name="ClipboardList" className="size-4" />{t("أمر شراء —")} {t(g.name)} ({q(g.count)})
                   </Link>
                 </Button>
               ))}
@@ -134,7 +134,7 @@ export default async function ReorderPage({ searchParams }: { searchParams: Prom
                       return (
                         <TableRow key={r.itemId}>
                           <TableCell className="font-mono whitespace-nowrap">{r.code}</TableCell>
-                          <TableCell className="max-w-[300px] whitespace-normal"><div className="line-clamp-2 leading-snug" title={r.name ?? undefined}>{r.name}</div></TableCell>
+                          <TableCell className="max-w-[300px] whitespace-normal"><div className="line-clamp-2 leading-snug" title={r.name ?? undefined}>{t(r.name)}</div></TableCell>
                           <TableCell className="whitespace-nowrap text-muted-foreground">{r.supplierName ?? "—"}</TableCell>
                           <TableCell>{q(r.onHand)}</TableCell>
                           <TableCell className="tabular-nums text-muted-foreground">{r.inbound > 0 ? q(r.inbound) : "—"}</TableCell>

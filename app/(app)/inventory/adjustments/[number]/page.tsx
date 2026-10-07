@@ -125,7 +125,7 @@ export default async function AdjustmentDetailPage({ params }: { params: Promise
           <CardContent className="grid gap-4 sm:grid-cols-4 text-sm">
             <div><div className="text-muted-foreground">{t("الرقم")}</div><div className="font-mono font-medium">{adj.number}</div></div>
             <div><div className="text-muted-foreground">{t("التاريخ")}</div><div className="font-medium">{dt(adj.date)}</div></div>
-            <div><div className="text-muted-foreground">{t("الوصف / السبب")}</div><div className="font-medium">{adj.reason}</div></div>
+            <div><div className="text-muted-foreground">{t("الوصف / السبب")}</div><div className="font-medium">{t(adj.reason)}</div></div>
             <div><div className="text-muted-foreground">{t("الحالة")}</div><Badge variant={adj.status === "POSTED" ? "default" : "secondary"}>{adj.status === "POSTED" ? t("مرحّل") : t("مسودة")}</Badge></div>
           </CardContent>
         </Card>

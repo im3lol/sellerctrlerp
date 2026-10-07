@@ -113,7 +113,7 @@ export default async function ItemSalesReportPage({ searchParams }: { searchPara
                         <TableCell className="max-w-[320px] whitespace-normal">
                           <div className="line-clamp-2 leading-snug" title={r.name ?? undefined}>
                             <span className="font-mono text-xs text-muted-foreground">{r.code}</span>{" "}
-                            {r.name}
+                            {t(r.name ?? "")}
                           </div>
                         </TableCell>
                         <TableCell className="text-end tabular-nums">{qtyf(r.totalQty)}</TableCell>

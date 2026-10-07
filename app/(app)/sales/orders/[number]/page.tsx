@@ -179,12 +179,12 @@ export default async function SalesOrderDetailPage({ params }: { params: Promise
                             : <div className="flex size-full items-center justify-center text-muted-foreground"><Icon name="Image" className="size-4" /></div>}
                         </div>
                         <div className="min-w-0">
-                          <div className="truncate text-start font-medium" dir="ltr" title={l.name ?? ""}>{l.name}</div>
+                          <div className="truncate text-start font-medium" dir="ltr" title={l.name ?? ""}>{t(l.name ?? "")}</div>
                           <div className="mt-1 flex flex-wrap items-center gap-1">
                             <span className="font-mono text-[11px] text-muted-foreground">{l.code}</span>
                             {codesByItem.get(l.itemId ?? "")?.map((c) => (
                               <Badge key={c.type + c.code} variant="outline" className="gap-1 text-[10px]">
-                                <span className="text-muted-foreground">{c.type}</span>
+                                <span className="text-muted-foreground">{t(c.type)}</span>
                                 <span className="font-mono" dir="ltr">{c.code}</span>
                               </Badge>
                             ))}

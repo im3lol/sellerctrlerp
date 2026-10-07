@@ -73,7 +73,7 @@ export function ItemPickerField({
                 }}
               >
                 <span>{t(o.label)}</span>
-                {o.hint && <span className="text-xs text-muted-foreground">{o.hint}</span>}
+                {o.hint && <span className="text-xs text-muted-foreground">{t(o.hint)}</span>}
               </button>
             </li>
           ))}

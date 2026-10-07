@@ -108,7 +108,7 @@ async function LessonCard({ lesson }: { lesson: Lesson }) {
         <div className="flex items-center gap-2">
           <Icon name={live ? KIND_ICONS[lesson.kind] : "Clock"}
             className={cn("size-4 shrink-0", live ? "text-primary" : "text-muted-foreground")} />
-          <span className="font-medium">{lesson.title}</span>
+          <span className="font-medium">{t(lesson.title)}</span>
         </div>
         {!live && <Badge variant="secondary" className="shrink-0">{t("قريباً")}</Badge>}
       </div>

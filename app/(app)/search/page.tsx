@@ -63,7 +63,7 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
           {groups.filter((g) => g.rows.length > 0).map((g) => (
             <section key={g.key}>
               <h2 className="mb-2 flex items-center gap-2 text-sm font-semibold text-muted-foreground">
-                <g.icon className="size-4" />{g.title}
+                <g.icon className="size-4" />{t(g.title)}
                 <span className="tabular-nums">({g.rows.length}{g.rows.length === 25 ? "+" : ""})</span>
               </h2>
               <div className="overflow-hidden rounded-xl border">

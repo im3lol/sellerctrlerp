@@ -208,7 +208,7 @@ export function CycleCountManager({ warehouses, canManage, canPost: mayPost }: {
                       <TableRow key={l.itemId}>
                         <TableCell className="font-mono text-xs" dir="ltr">{l.binCode ?? "—"}</TableCell>
                         <TableCell>
-                          <div className="font-medium">{l.name}</div>
+                          <div className="font-medium">{t(l.name)}</div>
                           <div className="font-mono text-xs text-muted-foreground" dir="ltr">{l.code}</div>
                         </TableCell>
                         {!blind && <TableCell className="tabular-nums text-muted-foreground">{qf(l.systemQty)}</TableCell>}

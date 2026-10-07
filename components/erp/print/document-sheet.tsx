@@ -201,7 +201,7 @@ export async function DocumentSheet({
             {parties.map((p) => (
               <div key={p.label}>
                 <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: "1px", color: T.muted }}>{t(p.label)}</div>
-                <div style={{ fontWeight: 800, fontSize: 14, marginTop: 6 }}>{p.name}</div>
+                <div style={{ fontWeight: 800, fontSize: 14, marginTop: 6 }}>{t(p.name)}</div>
                 <div style={{ fontSize: 11.5, color: T.body, marginTop: 4, lineHeight: 1.6 }}>
                   {p.lines.filter(Boolean).map((l, i) => <div key={i}>{l}</div>)}
                 </div>

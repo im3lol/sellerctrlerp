@@ -152,7 +152,7 @@ export function DeliveryForm({
                   return (
                     <TableRow key={l.itemId}>
                       <TableCell className="w-[22rem] max-w-[22rem] whitespace-normal">
-                        <div dir="ltr" className="line-clamp-2 text-start leading-snug" title={l.name}>{l.name}</div>
+                        <div dir="ltr" className="line-clamp-2 text-start leading-snug" title={l.name}>{t(l.name)}</div>
                         <div className="mt-0.5 flex flex-wrap items-center gap-x-2 font-mono text-xs text-muted-foreground">
                           <span>{l.code}</span>
                           {l.marketplaceCode && <span dir="ltr">{mktLabel}: {l.marketplaceCode}</span>}

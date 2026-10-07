@@ -74,7 +74,7 @@ export function ApprovalBanner({ approval, canDecide, currentUserId, isAdmin }: 
           <Icon name="Clock" className="mt-0.5 size-4 shrink-0" />
           <div>
             <div className="font-semibold">{t("مستني اعتماد المدير")}</div>
-            <div>{approval.reason}</div>
+            <div>{t(approval.reason)}</div>
             <div className="text-xs opacity-80">
               {approval.requestedByName ? fill(t("طلبه {0} · "), [approval.requestedByName]) : ""}{ago(approval.requestedAt)}
             </div>
@@ -100,7 +100,7 @@ export function ApprovalBanner({ approval, canDecide, currentUserId, isAdmin }: 
           {approval.decidedByName ? ` — ${approval.decidedByName}` : ""}
           {approval.decidedAt ? ` · ${ago(approval.decidedAt)}` : ""}
         </div>
-        <div className="opacity-90">{approval.reason}</div>
+        <div className="opacity-90">{t(approval.reason)}</div>
         {approval.comment && <div className="mt-1">{approved ? approval.comment : fill(t("السبب: {0}"), [approval.comment])}</div>}
         {!approved && <div className="mt-1 text-xs opacity-80">{t("عدّل المستند وأكّده تاني — هيتبعت للمدير من جديد.")}</div>}
       </div>

@@ -63,7 +63,7 @@ function YearClosingDialog({
   return (
     <DialogContent className="max-w-2xl">
       <DialogHeader>
-        <DialogTitle>{t("إقفال السنة المالية —")} {period.name}</DialogTitle>
+        <DialogTitle>{t("إقفال السنة المالية —")} {t(period.name)}</DialogTitle>
       </DialogHeader>
 
       {loading && <p className="py-6 text-center text-sm text-muted-foreground">{t("جارٍ تحميل معاينة القيود…")}</p>}
@@ -183,7 +183,7 @@ export function PeriodsManager({ periods, canManage }: { periods: Period[]; canM
                   const st = STATUS[p.status] ?? { label: p.status, variant: "secondary" as const };
                   return (
                     <TableRow key={p.id}>
-                      <TableCell className="font-medium">{p.name}</TableCell>
+                      <TableCell className="font-medium">{t(p.name)}</TableCell>
                       <TableCell>{dt(p.startDate)}</TableCell>
                       <TableCell>{dt(p.endDate)}</TableCell>
                       <TableCell><Badge variant={st.variant}>{t(st.label)}</Badge></TableCell>

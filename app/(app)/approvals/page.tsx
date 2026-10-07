@@ -89,7 +89,7 @@ export default async function ApprovalsPage({ searchParams }: { searchParams: Pr
         <Card>
           <CardContent className="p-0">
             {rows.length === 0 && stuck.length === 0 && tasks.length === 0 ? (
-              <div className="py-14 text-center text-muted-foreground">{empty[tab]}</div>
+              <div className="py-14 text-center text-muted-foreground">{t(empty[tab])}</div>
             ) : tab === "tasks" ? (
               <div className="divide-y">
                 {tasks.map((it) => {
@@ -142,7 +142,7 @@ export default async function ApprovalsPage({ searchParams }: { searchParams: Pr
                           {r.amount != null && <span className="text-sm tabular-nums text-muted-foreground">{fmt(r.amount)}</span>}
                           <span className={cn("rounded-md px-2 py-0.5 text-xs font-medium", st.cls)}>{t(st.label)}</span>
                         </div>
-                        <div className="text-sm">{r.reason}</div>
+                        <div className="text-sm">{t(r.reason)}</div>
                         <div className="text-xs text-muted-foreground">
                           {r.requestedByName ? fill(t("طلبه {0}"), [r.requestedByName]) : t("اعتماد مباشر")} · {timeAgo(r.requestedAt)}
                           {r.decidedByName ? fill(t(" · قرّره {0}{1}"), [r.decidedByName, r.decidedAt ? ` ${timeAgo(r.decidedAt)}` : ""]) : ""}

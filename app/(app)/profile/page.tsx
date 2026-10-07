@@ -42,11 +42,11 @@ export default async function ProfilePage() {
             <AvatarFallback className="bg-primary/10 text-2xl font-bold text-primary">{init}</AvatarFallback>
           </Avatar>
           <div>
-            <p className="text-lg font-bold">{user.name}</p>
+            <p className="text-lg font-bold">{t(user.name)}</p>
             <p className="text-sm text-muted-foreground" dir="ltr">{user.email}</p>
           </div>
           <Badge variant="secondary">{t(ROLE_LABELS_AR[user.role as Role])}</Badge>
-          {user.title && <p className="text-sm text-muted-foreground">{user.title}</p>}
+          {user.title && <p className="text-sm text-muted-foreground">{t(user.title)}</p>}
 
           <ClockButton />
 

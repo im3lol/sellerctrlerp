@@ -71,7 +71,7 @@ export default async function PrintSupplierRankingPage({ searchParams }: { searc
           ],
           rows: list.map((r, i) => [
             <span key="i" style={{ color: "#8a93a6" }}>{i + 1}</span>,
-            <span key="n"><span dir="ltr" style={{ color: "#8a93a6", fontSize: 10 }}>{r.code}</span> {r.name}</span>,
+            <span key="n"><span dir="ltr" style={{ color: "#8a93a6", fontSize: 10 }}>{r.code}</span> {t(r.name)}</span>,
             <b key="s">{fmt(r.spend)}</b>,
             String(r.invoices),
             fmt(r.balance),

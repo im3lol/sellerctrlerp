@@ -84,7 +84,7 @@ export function WarehousePicker({
           ) : (
             filtered.map((o) => (
               <button type="button" key={o.warehouseId} onClick={() => pick(o)} className="flex w-full items-center justify-between gap-3 px-3 py-2 text-start hover:bg-accent">
-                <span className="truncate text-sm">{o.name}</span>
+                <span className="truncate text-sm">{t(o.name)}</span>
                 <span className={`shrink-0 text-xs tabular-nums ${o.qty > 0 ? "text-muted-foreground" : "text-destructive"}`}>{fmt(o.qty)}</span>
               </button>
             ))

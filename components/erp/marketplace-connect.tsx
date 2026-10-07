@@ -201,7 +201,7 @@ export function MarketplaceConnect({
           <div className="space-y-1.5">
             <label className="text-sm font-medium">{t("السوق")}</label>
             <select value={mp} onChange={(e) => setMp(e.target.value)} className="block h-9 rounded-md border bg-background px-3 text-sm">
-              {marketplaces.map((m) => <option key={m.code} value={m.code}>{m.name} ({m.code})</option>)}
+              {marketplaces.map((m) => <option key={m.code} value={m.code}>{t(m.name)} ({m.code})</option>)}
             </select>
           </div>
           <Button asChild>

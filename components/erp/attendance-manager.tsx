@@ -200,7 +200,7 @@ export function AttendanceManager({ staff, canEdit }: { staff: StaffOption[]; ca
                   {rows.map((r) => (
                     <TableRow key={`${r.userId}-${r.workDate}`}>
                       <TableCell className="font-medium">
-                        {r.name}
+                        {t(r.name)}
                         {r.employeeCode && <span className="block font-mono text-xs text-muted-foreground">{r.employeeCode}</span>}
                       </TableCell>
                       <TableCell className="text-xs" dir="ltr">{r.workDate}</TableCell>

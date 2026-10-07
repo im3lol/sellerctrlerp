@@ -87,7 +87,7 @@ export default async function PrintItemSalesReportPage({ searchParams }: { searc
               <span key="i" style={{ color: "#8a93a6" }}>{i + 1}</span>,
               <span key="n">
                 {r.code && <span dir="ltr" style={{ color: "#8a93a6", fontSize: 10, marginInlineEnd: 6 }}>{r.code}</span>}
-                {r.name}
+                {t(r.name ?? "")}
               </span>,
               qty(r.totalQty),
               fmt(r.avgPrice),

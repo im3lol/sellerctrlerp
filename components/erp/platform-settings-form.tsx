@@ -148,7 +148,7 @@ export function PlatformSettingsForm({
             <div key={s.key} className="flex items-center justify-between gap-4 rounded-lg px-2 py-2.5 hover:bg-muted/40">
               <div>
                 <div className="text-sm font-medium">{t(s.label)}</div>
-                <div className="text-xs text-muted-foreground">{s.desc}</div>
+                <div className="text-xs text-muted-foreground">{t(s.desc)}</div>
               </div>
               <Switch checked={sources[s.key]} onCheckedChange={(v) => setSources((p) => ({ ...p, [s.key]: v }))} />
             </div>
@@ -179,8 +179,8 @@ export function PlatformSettingsForm({
                   className={`flex items-start gap-3 rounded-xl border p-3 text-start transition-colors ${on ? "border-primary bg-primary/5 ring-1 ring-primary" : "hover:border-primary/50"}`}>
                   <m.icon className={`mt-0.5 size-5 shrink-0 ${on ? "text-primary" : "text-muted-foreground"}`} />
                   <span>
-                    <span className="block text-sm font-semibold">{m.title}</span>
-                    <span className="block text-xs text-muted-foreground">{m.desc}</span>
+                    <span className="block text-sm font-semibold">{t(m.title)}</span>
+                    <span className="block text-xs text-muted-foreground">{t(m.desc)}</span>
                   </span>
                 </button>
               );

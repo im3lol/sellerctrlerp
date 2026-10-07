@@ -48,7 +48,7 @@ export function FeedbackForm() {
                   kind === k.value ? "border-primary bg-primary/5" : "border-border hover:bg-muted",
                 )}>
                 <div className="text-sm font-medium">{t(k.label)}</div>
-                <div className="text-xs text-muted-foreground">{k.hint}</div>
+                <div className="text-xs text-muted-foreground">{t(k.hint)}</div>
               </button>
             ))}
           </div>

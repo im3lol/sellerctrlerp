@@ -51,7 +51,7 @@ export function MarketplaceReimbursementsClient({ initial }: { initial: Reimburs
                   <span className="font-mono text-sm" dir="ltr">{o.reimbursementId}</span>
                   {o.orderId && <span className="text-xs text-muted-foreground" dir="ltr">{t("طلب")} {o.orderId}</span>}
                   <span className="text-xs text-muted-foreground">· {dt(o.approvalDate)}</span>
-                  {o.reason && <Badge variant="outline">{o.reason}</Badge>}
+                  {o.reason && <Badge variant="outline">{t(o.reason)}</Badge>}
                   {o.matchedLoss && <Badge variant="secondary" className="gap-1"><Link2 className="size-3" />{o.matchedLoss}</Badge>}
                 </div>
                 <div className="text-sm">

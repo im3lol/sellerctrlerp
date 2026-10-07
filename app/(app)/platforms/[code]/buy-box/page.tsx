@@ -79,7 +79,7 @@ export default async function BuyBoxPage({ params }: { params: Promise<{ code: s
                     return (
                       <TableRow key={r.itemId}>
                         <TableCell className="max-w-[260px]">
-                          <div className="truncate font-medium" title={r.name ?? undefined}>{r.name}</div>
+                          <div className="truncate font-medium" title={r.name ?? undefined}>{t(r.name ?? "")}</div>
                           <div className="font-mono text-[11px] text-muted-foreground">{r.sku}</div>
                         </TableCell>
                         <TableCell className="tabular-nums">{money(r.myPrice)}</TableCell>

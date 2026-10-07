@@ -82,7 +82,7 @@ export function CollectionsManager({ orgs, rows }: { orgs: { id: string; name: s
               <Label>{t("المؤسسة")}</Label>
               <select value={form.organizationId} onChange={(e) => set("organizationId", e.target.value)} className="h-9 w-full rounded-md border bg-background px-3 text-sm">
                 <option value="">{t("— اختر —")}</option>
-                {orgs.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}
+                {orgs.map((o) => <option key={o.id} value={o.id}>{t(o.name)}</option>)}
               </select>
             </div>
             <div className="grid grid-cols-2 gap-3">

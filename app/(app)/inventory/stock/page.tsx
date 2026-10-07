@@ -114,7 +114,7 @@ export default async function StockBalancePage({ searchParams }: { searchParams:
                   {lines.map((l, i) => (
                     <TableRow key={i}>
                       <TableCell className="font-mono whitespace-nowrap"><Link href={`/inventory/items/${l.itemId}`} className="text-primary hover:underline">{l.code}</Link></TableCell>
-                      <TableCell className="max-w-[300px] whitespace-normal"><div dir="ltr" className="line-clamp-2 text-start leading-snug" title={l.name ?? undefined}>{l.name}</div></TableCell>
+                      <TableCell className="max-w-[300px] whitespace-normal"><div dir="ltr" className="line-clamp-2 text-start leading-snug" title={l.name ?? undefined}>{t(l.name)}</div></TableCell>
                       <TableCell className="whitespace-nowrap">{l.warehouse}</TableCell>
                       <TableCell>{qty(l.quantity)}</TableCell>
                       <TableCell>{fmt(l.avgCost)}</TableCell>

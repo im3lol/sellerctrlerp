@@ -230,7 +230,7 @@ export default async function ItemDetailPage({ params }: { params: Promise<{ id:
                 <TableBody>
                   {linkedDocs.map((d, i) => (
                     <TableRow key={i}>
-                      <TableCell><Badge variant="secondary">{d.kind}</Badge></TableCell>
+                      <TableCell><Badge variant="secondary">{t(d.kind)}</Badge></TableCell>
                       <TableCell className="font-mono"><Link href={d.href} className="text-primary hover:underline">{d.number}</Link></TableCell>
                       <TableCell>{ldt(d.date)}</TableCell>
                       <TableCell className="tabular-nums">{qf(d.qty)}</TableCell>

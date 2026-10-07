@@ -106,7 +106,7 @@ export default async function ErpHrPage() {
                   {depts.map((d) => (
                     <div key={d.name} className="space-y-1">
                       <div className="flex justify-between text-sm">
-                        <span>{d.name}</span>
+                        <span>{t(d.name)}</span>
                         <span className="tabular-nums text-muted-foreground">{intf(d.n)}</span>
                       </div>
                       <div className="h-2 w-full rounded-full bg-muted">

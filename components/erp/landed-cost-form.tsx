@@ -275,7 +275,7 @@ export function LandedCostForm({ suppliers, receipts }: { suppliers: Supplier[];
                         ) : null}
                       </TableCell>
                       <TableCell className="max-w-[22rem] whitespace-normal">
-                        <div dir="ltr" className="line-clamp-2 text-start leading-snug" title={l.name}>{l.name}</div>
+                        <div dir="ltr" className="line-clamp-2 text-start leading-snug" title={l.name}>{t(l.name)}</div>
                         <div className="mt-0.5 font-mono text-xs text-muted-foreground">{l.code}</div>
                       </TableCell>
                       <TableCell>{t(l.warehouseName)}</TableCell>

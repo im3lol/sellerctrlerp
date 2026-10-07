@@ -40,7 +40,7 @@ function ResultBadge({ result }: { result: ImportResult }) {
       </div>
       {result.errors.length > 0 && (
         <ul className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-xs text-destructive space-y-1 max-h-40 overflow-y-auto">
-          {result.errors.map((e) => <li key={e.row}>{t("صف")} {e.row}: {e.message}</li>)}
+          {result.errors.map((e) => <li key={e.row}>{t("صف")} {e.row}: {t(e.message)}</li>)}
         </ul>
       )}
     </div>
@@ -58,7 +58,7 @@ function DocResultBadge({ result }: { result: DocImportResult }) {
       </div>
       {result.errors.length > 0 && (
         <ul className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-xs text-destructive space-y-1 max-h-40 overflow-y-auto">
-          {result.errors.map((e, i) => <li key={i}>{t("مرجع")} {e.ref}: {e.message}</li>)}
+          {result.errors.map((e, i) => <li key={i}>{t("مرجع")} {e.ref}: {t(e.message)}</li>)}
         </ul>
       )}
     </div>

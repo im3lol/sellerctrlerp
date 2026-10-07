@@ -50,7 +50,7 @@ export default async function RequisitionDetailPage({ params }: { params: Promis
               <TableHeader><TableRow><TableHead className="text-start">{t("الصنف")}</TableHead><TableHead className="text-end">{t("الكمية")}</TableHead></TableRow></TableHeader>
               <TableBody>
                 <PaginatedTableRows rows={lines.map((l, i) => (
-                  <TableRow key={i}><TableCell className="max-w-[320px] whitespace-normal"><div className="line-clamp-2 leading-snug" title={l.name ?? undefined}><span className="font-mono text-xs text-muted-foreground">{l.code}</span> {l.name}</div></TableCell><TableCell className="text-end tabular-nums">{q(Number(l.quantity))}</TableCell></TableRow>
+                  <TableRow key={i}><TableCell className="max-w-[320px] whitespace-normal"><div className="line-clamp-2 leading-snug" title={l.name ?? undefined}><span className="font-mono text-xs text-muted-foreground">{l.code}</span> {t(l.name ?? "")}</div></TableCell><TableCell className="text-end tabular-nums">{q(Number(l.quantity))}</TableCell></TableRow>
                 ))} />
               </TableBody>
             </Table>

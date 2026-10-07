@@ -131,7 +131,7 @@ export function FbaPlanTable({ rows, fromWarehouseId, toWarehouseId, sourceName,
               return (
                 <TableRow key={r.itemId}>
                   <TableCell className="max-w-[240px]">
-                    <div className="truncate font-medium" title={r.name}>{r.name}</div>
+                    <div className="truncate font-medium" title={r.name}>{t(r.name)}</div>
                     <div className="font-mono text-[11px] text-muted-foreground">{r.sku ?? r.code}{r.asin ? ` · ${r.asin}` : ""}</div>
                   </TableCell>
                   <TableCell className="tabular-nums">{int(r.soldAtAmazon)}</TableCell>

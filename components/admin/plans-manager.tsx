@@ -121,7 +121,7 @@ export function PlansManager({ plans }: { plans: Plan[] }) {
               <TableRow><TableCell colSpan={8} className="py-10 text-center text-muted-foreground">{t("لا توجد باقات — أنشئ أول باقة.")}</TableCell></TableRow>
             ) : plans.map((p) => (
               <TableRow key={p.id}>
-                <TableCell className="font-medium">{p.name}</TableCell>
+                <TableCell className="font-medium">{t(p.name)}</TableCell>
                 <TableCell className="text-sm tabular-nums">{int(p.priceMonthly)} / {int(p.priceAnnual)}</TableCell>
                 <TableCell className="text-sm">{cap(p.maxUsers)}</TableCell>
                 <TableCell className="text-sm">{p.storageGb == null ? "∞" : fill(t("{0} جيجا"), [int(p.storageGb)])}</TableCell>
@@ -147,7 +147,7 @@ export function PlansManager({ plans }: { plans: Plan[] }) {
       <Dialog open={!!confirmDel} onOpenChange={(o) => !o && setConfirmDel(null)}>
         {confirmDel && (
           <DialogContent>
-            <DialogHeader><DialogTitle>{t("حذف الباقة «")}{confirmDel.name}{t("»؟")}</DialogTitle></DialogHeader>
+            <DialogHeader><DialogTitle>{t("حذف الباقة «")}{t(confirmDel.name)}{t("»؟")}</DialogTitle></DialogHeader>
             <p className="text-sm text-muted-foreground">{t("المؤسسات المشتركة تحتفظ بحدودها الحالية (لقطة)، لكن لن تظهر الباقة عند التفعيل بعد الآن.")}</p>
             <DialogFooter>
               <Button variant="outline" onClick={() => setConfirmDel(null)}>{t("إلغاء")}</Button>

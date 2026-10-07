@@ -167,7 +167,7 @@ export default async function ProfitabilityReportPage({ searchParams }: { search
                   {list.map((r, i) => (
                     <TableRow key={r.code ?? i}>
                       <TableCell className="text-muted-foreground">{i + 1}</TableCell>
-                      <TableCell className="max-w-[320px] whitespace-normal"><div className="line-clamp-2 leading-snug" title={r.name ?? undefined}><span className="font-mono text-xs text-muted-foreground">{r.code}</span> {r.name}</div></TableCell>
+                      <TableCell className="max-w-[320px] whitespace-normal"><div className="line-clamp-2 leading-snug" title={r.name ?? undefined}><span className="font-mono text-xs text-muted-foreground">{r.code}</span> {t(r.name ?? "")}</div></TableCell>
                       <TableCell className="text-end tabular-nums">{qtyf(r.qty)}</TableCell>
                       <TableCell className="text-end tabular-nums">{fmt(r.revenue)}</TableCell>
                       <TableCell className="text-end tabular-nums text-muted-foreground">{fmt(r.cogs)}</TableCell>
@@ -212,7 +212,7 @@ export default async function ProfitabilityReportPage({ searchParams }: { search
                 <TableBody>
                   {list.map((r, i) => (
                     <TableRow key={`u-${r.code ?? i}`}>
-                      <TableCell className="max-w-[300px] whitespace-normal"><div className="line-clamp-2 leading-snug" title={r.name ?? undefined}><span className="font-mono text-xs text-muted-foreground">{r.code}</span> {r.name}</div></TableCell>
+                      <TableCell className="max-w-[300px] whitespace-normal"><div className="line-clamp-2 leading-snug" title={r.name ?? undefined}><span className="font-mono text-xs text-muted-foreground">{r.code}</span> {t(r.name ?? "")}</div></TableCell>
                       <TableCell className="text-end tabular-nums">{qtyf(r.qty)}</TableCell>
                       <TableCell className="text-end tabular-nums font-medium">{fmt(r.avgSellPrice)}</TableCell>
                       <TableCell className="text-end tabular-nums text-muted-foreground">{fmt(r.unitCost)}</TableCell>

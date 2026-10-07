@@ -77,7 +77,7 @@ export default async function MarketplacePnlPage({ searchParams }: { searchParam
             {platforms.map((p) => (
               <a key={p.id} href={`?channel=${p.code}&from=${from}&to=${to}`}
                 className={`rounded-lg border px-3 py-1.5 text-sm ${p.code === chosen?.code ? "bg-primary text-primary-foreground" : "hover:bg-muted"}`}>
-                {p.name}
+                {t(p.name)}
               </a>
             ))}
           </div>
@@ -192,7 +192,7 @@ export default async function MarketplacePnlPage({ searchParams }: { searchParam
                         <TableCell className="max-w-[280px] whitespace-normal">
                           {r.itemId ? (
                             <Link href={`/inventory/items/${r.itemId}`} className="line-clamp-2 leading-snug text-primary hover:underline" title={r.name ?? undefined}>
-                              <span className="font-mono text-xs text-muted-foreground">{r.code}</span> {r.name}
+                              <span className="font-mono text-xs text-muted-foreground">{r.code}</span> {t(r.name ?? "")}
                             </Link>
                           ) : (
                             // The SKU is right there in the previous column — say what to do

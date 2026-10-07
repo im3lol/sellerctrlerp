@@ -90,7 +90,7 @@ export default async function AdminHome() {
               <CardContent className="pt-6">
                 <div className="flex items-center gap-2 text-sm text-muted-foreground"><Icon name={s.icon} className="size-4" />{t(s.label)}</div>
                 <div className="mt-1 text-2xl font-bold tabular-nums">{s.value}</div>
-                {s.hint && <div className="text-xs text-muted-foreground">{s.hint}</div>}
+                {s.hint && <div className="text-xs text-muted-foreground">{t(s.hint)}</div>}
               </CardContent>
             </Card>
           ))}

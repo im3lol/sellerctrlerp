@@ -150,7 +150,7 @@ export function SignupWizard({ plans }: { plans: PlanCard[] }) {
                 return (
                   <button type="button" key={p.id} onClick={() => setPlanId(on ? null : p.id)}
                     className={cn("rounded-xl border bg-card p-4 text-center transition-colors", on ? "border-primary ring-2 ring-primary/30" : "hover:border-primary/50")}>
-                    <div className="font-bold">{p.name}</div>
+                    <div className="font-bold">{t(p.name)}</div>
                     <div className="mt-1 text-lg font-black tabular-nums">{p.priceMonthly > 0 ? `${egp(p.priceMonthly, locale)} ${t("ج.م")}` : t("مجاناً")}</div>
                     <div className="text-[11px] text-muted-foreground">{p.priceMonthly > 0 ? t("/ شهر") : ""}</div>
                     <div className="mt-2 text-[11px] text-muted-foreground">{p.maxUsers == null ? t("مستخدمون بلا حد") : fill(t("{0} مستخدم"), [egp(p.maxUsers, locale)])} · {p.storageGb == null ? t("تخزين بلا حد") : fill(t("{0} جيجا تخزين"), [egp(p.storageGb, locale)])}</div>
@@ -164,7 +164,7 @@ export function SignupWizard({ plans }: { plans: PlanCard[] }) {
           {selectedPlan ? (
             <div className="space-y-3 rounded-xl border p-4">
               <div className="flex items-center justify-between">
-                <span className="font-semibold">{t("الاشتراك في باقة")} {selectedPlan.name}</span>
+                <span className="font-semibold">{t("الاشتراك في باقة")} {t(selectedPlan.name)}</span>
                 <button type="button" onClick={() => setPlanId(null)} className="text-xs text-muted-foreground hover:underline">{t("أو ابدأ بتجربة مجانية")}</button>
               </div>
               <div className="grid grid-cols-2 gap-3">

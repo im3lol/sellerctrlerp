@@ -174,7 +174,7 @@ export default async function Home() {
           <div className="mt-6 flex flex-wrap items-center justify-center gap-x-12 gap-y-4">
             {MARKETPLACES.map((m) => (
               <span key={m.name} className="flex items-center gap-2 text-xl font-bold text-muted-foreground/70" dir="ltr">
-                {m.name}
+                {t(m.name)}
                 {m.soon && <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-semibold text-muted-foreground">{t("قريبًا")}</span>}
               </span>
             ))}

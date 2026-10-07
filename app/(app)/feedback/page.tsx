@@ -66,7 +66,7 @@ export default async function FeedbackPage() {
                       <span className="text-xs text-muted-foreground">{fmt(f.createdAt, locale)}</span>
                     </div>
                   </div>
-                  <p className="whitespace-pre-wrap text-sm text-muted-foreground">{f.message}</p>
+                  <p className="whitespace-pre-wrap text-sm text-muted-foreground">{t(f.message)}</p>
                   {f.reply && (
                     <div className="rounded-lg border-r-2 border-primary bg-muted/50 p-3">
                       <div className="mb-1 text-xs font-medium text-primary">{t("ردّنا")}</div>

@@ -119,7 +119,7 @@ export default async function PrintProfitabilityReportPage({ searchParams }: { s
             <span key="i" style={{ color: "#8a93a6" }}>{i + 1}</span>,
             <span key="n">
               {r.code && <span dir="ltr" style={{ color: "#8a93a6", fontSize: 10, marginInlineEnd: 6 }}>{r.code}</span>}
-              {r.name}
+              {t(r.name ?? "")}
             </span>,
             qty(r.qty),
             fmt(r.revenue),
@@ -150,7 +150,7 @@ export default async function PrintProfitabilityReportPage({ searchParams }: { s
           rows: list.map((r) => [
             <span key="n">
               {r.code && <span dir="ltr" style={{ color: "#8a93a6", fontSize: 10, marginInlineEnd: 6 }}>{r.code}</span>}
-              {r.name}
+              {t(r.name ?? "")}
             </span>,
             qty(r.qty),
             <b key="s">{fmt(r.avgSellPrice)}</b>,

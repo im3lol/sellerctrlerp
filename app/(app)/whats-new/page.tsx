@@ -64,7 +64,7 @@ async function Entry({ entry }: { entry: ChangelogEntry }) {
           {entry.module && <Badge variant="outline">{t(MODULE_LABELS[entry.module] ?? entry.module)}</Badge>}
           <span className="text-xs text-muted-foreground">{fmt(entry.releasedAt, locale)}</span>
         </div>
-        <h2 className="text-lg font-semibold">{entry.title}</h2>
+        <h2 className="text-lg font-semibold">{t(entry.title)}</h2>
         <DocBody body={entry.body} />
       </CardContent>
     </Card>

@@ -49,7 +49,7 @@ export default async function RequisitionPrintPage({ params }: { params: Promise
         ]}
         rows={lines.map((l, i) => [
           i + 1,
-          <span key="n"><span style={{ fontFamily: "monospace", fontSize: 10 }}>{l.code}</span> {l.name}</span>,
+          <span key="n"><span style={{ fontFamily: "monospace", fontSize: 10 }}>{l.code}</span> {t(l.name ?? "")}</span>,
           qty(l.quantity),
         ])}
         note={mr.notes}

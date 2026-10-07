@@ -74,7 +74,7 @@ export function ItemCombobox({
                 className="flex w-full items-center gap-3 px-3 py-2 text-start hover:bg-accent"
               >
                 <div className="min-w-0 flex-1">
-                  <div className="truncate text-sm font-medium">{it.name}</div>
+                  <div className="truncate text-sm font-medium">{t(it.name)}</div>
                   <div className="truncate text-xs text-muted-foreground">
                     <span className="font-mono">{it.code}</span>
                     {it.codes.length ? " · " + it.codes.slice(0, 3).map((c) => c.code).join(" · ") : ""}

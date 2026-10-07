@@ -349,7 +349,7 @@ export function PosTerminal({ warehouses, cashAccounts, customers, defaultCustom
                     {cart.map((l, i) => (
                       <TableRow key={l.itemId}>
                         <TableCell>
-                          <div className="font-medium">{l.name}</div>
+                          <div className="font-medium">{t(l.name)}</div>
                           <div className="font-mono text-xs text-muted-foreground" dir="ltr">{l.code}</div>
                         </TableCell>
                         <TableCell>

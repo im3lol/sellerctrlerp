@@ -292,7 +292,7 @@ export function AcademyManager({ lessons }: { lessons: AdminLesson[] }) {
       {confirmDel && (
         <Dialog open onOpenChange={() => setConfirmDel(null)}>
           <DialogContent>
-            <DialogHeader><DialogTitle>{t("حذف «")}{confirmDel.title}{t("»؟")}</DialogTitle></DialogHeader>
+            <DialogHeader><DialogTitle>{t("حذف «")}{t(confirmDel.title)}{t("»؟")}</DialogTitle></DialogHeader>
             <p className="text-sm text-muted-foreground">
               {t("لو الدرس هيرجع تاني، «إخفاء» أفضل — بيحتفظ بالمعرّف فالروابط المتشاركة ماتكسرش.")}
             </p>
@@ -355,7 +355,7 @@ export function AcademyManager({ lessons }: { lessons: AdminLesson[] }) {
                 {c.rows.map((l) => (
                   <TableRow key={l.id} className={l.isActive ? "" : "opacity-50"}>
                     <TableCell>
-                      <div className="font-medium">{l.title}</div>
+                      <div className="font-medium">{t(l.title)}</div>
                       <div className="text-xs text-muted-foreground" dir="ltr">{l.slug}</div>
                     </TableCell>
                     <TableCell>
@@ -461,7 +461,7 @@ export function AcademyManager({ lessons }: { lessons: AdminLesson[] }) {
                 {orphans.map((l) => (
                   <TableRow key={l.id}>
                     <TableCell>
-                      <div className="font-medium">{l.title}</div>
+                      <div className="font-medium">{t(l.title)}</div>
                       <div className="text-xs text-muted-foreground" dir="ltr">{l.slug} · {l.module}</div>
                     </TableCell>
                     <TableCell className="w-28">

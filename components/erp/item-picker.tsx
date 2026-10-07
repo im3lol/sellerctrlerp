@@ -91,7 +91,7 @@ export function ItemPicker({
                 <button type="button" key={it.id} onClick={() => pick(it)} className="flex w-full items-center gap-3 px-3 py-2 text-start hover:bg-accent">
                   <ItemThumb src={it.image} />
                   <div className="min-w-0 flex-1">
-                    <div className="truncate text-sm font-medium">{it.name}</div>
+                    <div className="truncate text-sm font-medium">{t(it.name)}</div>
                     <div className="truncate text-xs text-muted-foreground">
                       <span className="font-mono">{it.code}</span>
                       {it.codes.length ? " · " + it.codes.slice(0, 2).map((c) => c.code).join(" · ") : ""}
@@ -130,7 +130,7 @@ export function ItemPicker({
           <span className="min-w-0 flex-1">
             {/* dir="auto" per line: an English name reads from its start (left), an Arabic
                 one from its start (right) — never truncated from the middle. */}
-            <span className="block truncate text-sm font-medium" dir="auto">{resting.name}</span>
+            <span className="block truncate text-sm font-medium" dir="auto">{t(resting.name)}</span>
             {resting.code && <span className="block truncate font-mono text-xs text-muted-foreground" dir="ltr">{resting.code}</span>}
           </span>
         </button>

@@ -43,7 +43,7 @@ export default async function ImportExportPage() {
                   const ds = EXPORT_DATASETS[k];
                   return (
                     <div key={k} className="flex items-center gap-3 px-4 py-3">
-                      <span className="flex-1 text-sm font-medium">{ds.title}</span>
+                      <span className="flex-1 text-sm font-medium">{t(ds.title)}</span>
                       <a
                         href={`/api/erp/exports/${k}`}
                         className="inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors hover:border-emerald-500 hover:bg-emerald-50 hover:text-emerald-700 dark:hover:bg-emerald-500/10"

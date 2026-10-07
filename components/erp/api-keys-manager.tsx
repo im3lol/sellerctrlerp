@@ -52,8 +52,8 @@ export function ApiKeysManager({ keys }: { keys: ApiKey[] }) {
               <TableRow><TableCell colSpan={7} className="py-10 text-center text-muted-foreground">{t("لا توجد مفاتيح.")}</TableCell></TableRow>
             ) : keys.map((k) => (
               <TableRow key={k.id}>
-                <TableCell className="font-medium">{k.name}</TableCell>
-                <TableCell className="font-mono text-sm text-muted-foreground" dir="ltr">{k.hint}</TableCell>
+                <TableCell className="font-medium">{t(k.name)}</TableCell>
+                <TableCell className="font-mono text-sm text-muted-foreground" dir="ltr">{t(k.hint)}</TableCell>
                 <TableCell><Badge variant={k.scope === "write" ? "default" : "secondary"}>{k.scope === "write" ? t("قراءة/كتابة") : t("قراءة فقط")}</Badge></TableCell>
                 <TableCell className="text-sm text-muted-foreground">{k.expires ? <span className={k.expired ? "text-destructive" : ""}>{k.expires}</span> : "دائم"}</TableCell>
                 <TableCell className="text-sm text-muted-foreground">{k.lastUsed || "—"}</TableCell>

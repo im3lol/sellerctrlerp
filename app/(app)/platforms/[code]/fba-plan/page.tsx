@@ -81,7 +81,7 @@ export default async function FbaPlanPage({ params, searchParams }: {
               <div className="space-y-2">
                 <Label htmlFor="source">{t("هتبعت من")}</Label>
                 <select id="source" name="source" defaultValue={source.id} className={`${selectCls} w-48`}>
-                  {sources.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
+                  {sources.map((w) => <option key={w.id} value={w.id}>{t(w.name)}</option>)}
                 </select>
               </div>
               <div className="space-y-2">

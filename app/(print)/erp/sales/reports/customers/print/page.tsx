@@ -80,7 +80,7 @@ export default async function PrintCustomerRankingPage({ searchParams }: { searc
               <span key="i" style={{ color: "#8a93a6" }}>{i + 1}</span>,
               <span key="n">
                 {r.code && <span dir="ltr" style={{ color: "#8a93a6", fontSize: 10, marginInlineEnd: 6 }}>{r.code}</span>}
-                {r.name}
+                {t(r.name)}
               </span>,
               <b key="rev">{fmt(r.revenue)}</b>,
               r.invoices,

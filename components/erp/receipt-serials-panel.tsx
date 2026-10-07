@@ -87,7 +87,7 @@ export function ReceiptSerialsPanel({ receiptId, lines, canEdit }: {
           return (
             <div key={l.itemId} className="space-y-2">
               <div className="flex flex-wrap items-center gap-2">
-                <Label className="font-medium">{l.name}</Label>
+                <Label className="font-medium">{t(l.name)}</Label>
                 <span className="font-mono text-xs text-muted-foreground" dir="ltr">{l.code}</span>
                 <Badge variant={matched ? "secondary" : "outline"} className={matched ? "" : "text-amber-600"}>
                   {count} / {l.quantity}

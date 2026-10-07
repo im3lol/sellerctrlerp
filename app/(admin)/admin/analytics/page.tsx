@@ -57,7 +57,7 @@ export default async function AnalyticsPage() {
             <Card key={k.label} className={k.accent ? "border-primary/40 bg-primary/5" : undefined}><CardContent className="pt-6">
               <div className="flex items-center gap-2 text-sm text-muted-foreground"><Icon name={k.icon} className="size-4" />{t(k.label)}</div>
               <div className="mt-1 text-2xl font-bold tabular-nums">{k.value}</div>
-              {k.hint && <div className="text-xs text-muted-foreground">{k.hint}</div>}
+              {k.hint && <div className="text-xs text-muted-foreground">{t(k.hint)}</div>}
             </CardContent></Card>
           ))}
         </div>

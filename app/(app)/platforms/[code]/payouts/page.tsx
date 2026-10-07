@@ -135,7 +135,7 @@ export default async function PlatformPayoutsPage({ params, searchParams }: { pa
             <CardContent className="pt-6">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
-                  <div className="text-base font-semibold">{t("مطابقة الرصيد مع")} {platform.name}</div>
+                  <div className="text-base font-semibold">{t("مطابقة الرصيد مع")} {t(platform.name)}</div>
                   <div className="text-xs text-muted-foreground">
                     {lastFetched ? fill(t("آخر قراءة: {0}"), [dtt(lastFetched)]) : t("لم يُقرأ الرصيد بعد — شغّل مزامنة المدفوعات أو حدّث الآن")}
                   </div>
@@ -155,7 +155,7 @@ export default async function PlatformPayoutsPage({ params, searchParams }: { pa
                       <div className="mt-1 text-2xl font-bold tabular-nums">{money(walletBalance)}</div>
                     </div>
                     <div className="rounded-xl border p-4">
-                      <div className="text-sm text-muted-foreground">{t("حسب")} {platform.name}</div>
+                      <div className="text-sm text-muted-foreground">{t("حسب")} {t(platform.name)}</div>
                       <div className="mt-1 text-2xl font-bold tabular-nums">{money(reportedTotal)}</div>
                       <div className="text-xs text-muted-foreground" dir="ltr">
                         {reported.map((r) => `${r.currency}${r.accountTail ? ` ****${r.accountTail}` : ""}`).join(" · ")}

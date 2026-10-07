@@ -211,7 +211,7 @@ export function EmployeesManager({ members }: { members: Member[]; orgId: string
               return (
                 <tr key={m.userId} className="border-t [&>td]:p-3 [&>td]:align-middle">
                   <td>
-                    <div className="font-medium">{m.name}</div>
+                    <div className="font-medium">{t(m.name)}</div>
                     <div className="text-xs text-muted-foreground">{m.title ?? m.email}</div>
                   </td>
                   <td className="text-xs">

@@ -138,7 +138,7 @@ export function ReportBuilderUI({ datasets, saved, initialId }: { datasets: Data
             <div className="space-y-2">
               <Label>{t("البيانات")}</Label>
               <select className={`${selectCls} w-56`} value={dataset} onChange={(e) => pickDataset(e.target.value)}>
-                {datasets.map((d) => <option key={d.key} value={d.key}>{d.title}</option>)}
+                {datasets.map((d) => <option key={d.key} value={d.key}>{t(d.title)}</option>)}
               </select>
             </div>
             <div className="space-y-2">

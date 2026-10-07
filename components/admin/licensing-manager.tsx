@@ -75,7 +75,7 @@ function EditDialog({ org, plans, onClose }: { org: OrgSub; plans: PlanOpt[]; on
   return (
     <DialogContent>
       <DialogHeader>
-        <DialogTitle>{t("ترخيص —")} {org.name}</DialogTitle>
+        <DialogTitle>{t("ترخيص —")} {t(org.name)}</DialogTitle>
         <DialogDescription>{t("اختر باقة لملء الحدود تلقائياً، أو عدّلها يدوياً. «مفعّل» بلا تاريخ انتهاء = دائم.")}</DialogDescription>
       </DialogHeader>
       <div className="space-y-4">
@@ -84,7 +84,7 @@ function EditDialog({ org, plans, onClose }: { org: OrgSub; plans: PlanOpt[]; on
             <Label>{t("الباقة")}</Label>
             <select className={selectCls} value={planId} onChange={(e) => pickPlan(e.target.value)}>
               <option value="">{t("— مخصّص —")}</option>
-              {plans.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+              {plans.map((p) => <option key={p.id} value={p.id}>{t(p.name)}</option>)}
             </select>
           </div>
         )}
@@ -212,7 +212,7 @@ export function LicensingManager({ orgs, plans }: { orgs: OrgSub[]; plans: PlanO
               const st = STATUS[o.status] ?? STATUS.NONE;
               return (
                 <TableRow key={o.id}>
-                  <TableCell className="font-medium"><Link href={`/admin/tenants/${o.slug || o.id}`} className="hover:text-primary hover:underline">{o.name}</Link></TableCell>
+                  <TableCell className="font-medium"><Link href={`/admin/tenants/${o.slug || o.id}`} className="hover:text-primary hover:underline">{t(o.name)}</Link></TableCell>
                   <TableCell><Badge variant={st.variant}>{t(st.label)}</Badge></TableCell>
                   <TableCell>{o.planName || <span className="text-muted-foreground">—</span>}</TableCell>
                   <TableCell className="text-sm tabular-nums">{o.members.toLocaleString("ar-EG-u-nu-latn")}{o.maxUsers != null ? ` / ${o.maxUsers}` : ""}</TableCell>

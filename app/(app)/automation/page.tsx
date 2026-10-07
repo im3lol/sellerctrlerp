@@ -60,7 +60,7 @@ export default async function AutomationPage() {
                 <Card key={r.id} className={r.enabled ? "" : "opacity-70"}>
                   <CardContent className="space-y-2 pt-5">
                     <div className="flex items-start justify-between gap-2">
-                      <Link href={`/automation/${encodeURIComponent(r.number)}`} className="font-medium hover:text-primary">{r.name}</Link>
+                      <Link href={`/automation/${encodeURIComponent(r.number)}`} className="font-medium hover:text-primary">{t(r.name)}</Link>
                       <div className="flex shrink-0 items-center gap-1">
                         <RuleToggle id={r.id} enabled={r.enabled} />
                         <RuleDelete id={r.id} name={r.name} />

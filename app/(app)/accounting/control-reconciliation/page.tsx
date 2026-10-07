@@ -65,7 +65,7 @@ export default async function ControlReconciliationPage() {
               <TableBody>
                 {rows.map((r) => (
                   <TableRow key={r.name}>
-                    <TableCell>{r.name}</TableCell>
+                    <TableCell>{t(r.name)}</TableCell>
                     <TableCell className="text-muted-foreground">{t(r.gl.label)}</TableCell>
                     <TableCell className="text-end tabular-nums">{fmt(r.sub)}</TableCell>
                     <TableCell className="text-end tabular-nums">{fmt(r.gl.value)}</TableCell>

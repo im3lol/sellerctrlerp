@@ -91,9 +91,9 @@ export function ItemFamilyManager({
                         <div className="min-w-0">
                           {m.isHead && <Badge variant="secondary" className="mb-0.5 block w-fit">{t("أب")}</Badge>}
                           {isCurrent ? (
-                            <span className="font-medium"><span className="font-mono text-xs text-muted-foreground">{m.code}</span> {m.name}</span>
+                            <span className="font-medium"><span className="font-mono text-xs text-muted-foreground">{m.code}</span> {t(m.name)}</span>
                           ) : (
-                            <Link href={`/inventory/items/${encodeURIComponent(m.code)}`} className="hover:text-primary"><span className="font-mono text-xs text-muted-foreground">{m.code}</span> {m.name}</Link>
+                            <Link href={`/inventory/items/${encodeURIComponent(m.code)}`} className="hover:text-primary"><span className="font-mono text-xs text-muted-foreground">{m.code}</span> {t(m.name)}</Link>
                           )}
                         </div>
                       </div>
@@ -104,7 +104,7 @@ export function ItemFamilyManager({
                         <div className="flex flex-wrap gap-1">
                           {m.codes.map((c, i) => (
                             <span key={i} className="inline-flex items-center gap-1 rounded border bg-muted/40 px-1.5 py-0.5">
-                              <Badge variant="secondary" className="px-1 py-0 text-[10px]">{c.type}</Badge>
+                              <Badge variant="secondary" className="px-1 py-0 text-[10px]">{t(c.type)}</Badge>
                               <span className="font-mono">{c.value}</span>
                             </span>
                           ))}

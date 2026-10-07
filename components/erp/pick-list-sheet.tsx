@@ -114,7 +114,7 @@ export function PickListSheet({ pickListId, open, groups, deliveries, canConfirm
                   <TableCell className="font-mono text-sm font-semibold">{g.binCode ?? "—"}</TableCell>
                   <TableCell className="max-w-[320px] whitespace-normal">
                     <div className="font-mono text-xs text-muted-foreground">{g.code}</div>
-                    <div className="line-clamp-2 leading-snug">{g.name}</div>
+                    <div className="line-clamp-2 leading-snug">{t(g.name)}</div>
                   </TableCell>
                   <TableCell className="text-lg font-bold tabular-nums">{q(g.required)}</TableCell>
                   <TableCell className="w-32">

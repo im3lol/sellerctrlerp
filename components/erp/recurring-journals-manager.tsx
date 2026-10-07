@@ -128,7 +128,7 @@ export function RecurringJournalsManager({ items, accounts }: { items: RJ[]; acc
             ) : items.map((r) => (
               <TableRow key={r.id} data-state={sel.has(r.id) ? "selected" : undefined}>
                 <TableCell><SelectBox label={t("تحديد")} checked={sel.has(r.id)} onChange={() => sel.toggle(r.id)} /></TableCell>
-                <TableCell className="font-medium">{r.name}</TableCell>
+                <TableCell className="font-medium">{t(r.name)}</TableCell>
                 <TableCell>{t(FREQUENCY_LABELS[r.frequency as Frequency] ?? r.frequency)}</TableCell>
                 <TableCell className="tabular-nums">{r.nextRunDate}</TableCell>
                 <TableCell className="tabular-nums">{r.lines.length}</TableCell>
@@ -153,7 +153,7 @@ export function RecurringJournalsManager({ items, accounts }: { items: RJ[]; acc
       <Dialog open={!!confirmDel} onOpenChange={(o) => !o && setConfirmDel(null)}>
         {confirmDel && (
           <DialogContent>
-            <DialogHeader><DialogTitle>{t("حذف القالب «")}{confirmDel.name}{t("»؟")}</DialogTitle></DialogHeader>
+            <DialogHeader><DialogTitle>{t("حذف القالب «")}{t(confirmDel.name)}{t("»؟")}</DialogTitle></DialogHeader>
             <p className="text-sm text-muted-foreground">{t("القيود التي وُلّدت بالفعل لا تتأثر.")}</p>
             <DialogFooter><Button variant="outline" onClick={() => setConfirmDel(null)}>{t("إلغاء")}</Button><Button variant="destructive" disabled={pending} onClick={() => del(confirmDel)}>{t("حذف")}</Button></DialogFooter>
           </DialogContent>

@@ -64,7 +64,7 @@ async function render() {
           <Card key={c.label}><CardContent className="pt-6">
             <div className="flex items-center gap-2 text-sm text-muted-foreground"><Icon name={c.icon} className="size-4" />{t(c.label)}</div>
             <div className="mt-1 text-2xl font-bold tabular-nums">{c.value}</div>
-            {c.hint && <div className="text-xs text-muted-foreground">{c.hint}</div>}
+            {c.hint && <div className="text-xs text-muted-foreground">{t(c.hint)}</div>}
           </CardContent></Card>
         ))}
       </div>
@@ -88,7 +88,7 @@ async function render() {
               <TableHeader><TableRow><TableHead className="text-start">{t("المؤسسة")}</TableHead><TableHead className="text-start">{t("الملفات")}</TableHead><TableHead className="text-start">{t("الحجم")}</TableHead></TableRow></TableHeader>
               <TableBody>
                 {perOrg.map((o) => (
-                  <TableRow key={o.name}><TableCell className="font-medium">{o.name}</TableCell><TableCell className="tabular-nums">{int(Number(o.files))}</TableCell><TableCell className="tabular-nums">{fmtBytes(Number(o.bytes), locale)}</TableCell></TableRow>
+                  <TableRow key={o.name}><TableCell className="font-medium">{t(o.name)}</TableCell><TableCell className="tabular-nums">{int(Number(o.files))}</TableCell><TableCell className="tabular-nums">{fmtBytes(Number(o.bytes), locale)}</TableCell></TableRow>
                 ))}
               </TableBody>
             </Table>

@@ -213,7 +213,7 @@ export function AutomationEditor({ rule, members, roles }: {
                           <label key={m.id} className="flex items-center gap-2">
                             <input type="checkbox" className="size-4" checked={(a.to.users ?? []).includes(m.id)}
                               onChange={() => setAction(i, { ...a, to: { ...a.to, users: toggleIn(a.to.users, m.id) } })} />
-                            {m.name} <span className="text-xs text-muted-foreground">({m.role})</span>
+                            {t(m.name)} <span className="text-xs text-muted-foreground">({m.role})</span>
                           </label>
                         ))}
                       </div>
@@ -231,7 +231,7 @@ export function AutomationEditor({ rule, members, roles }: {
                     <Label>{t("المسؤول")}</Label>
                     <select className={`${selectCls} w-52`} value={a.assignee} onChange={(e) => setAction(i, { ...a, assignee: e.target.value })}>
                       <option value="creator">{t("صاحب المستند")}</option>
-                      {members.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
+                      {members.map((m) => <option key={m.id} value={m.id}>{t(m.name)}</option>)}
                     </select>
                   </div>
                   <div className="space-y-1">

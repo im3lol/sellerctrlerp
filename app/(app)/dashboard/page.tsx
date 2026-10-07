@@ -59,7 +59,7 @@ async function StatCard({ s }: { s: Stat }) {
         <CardContent className="pt-6">
           <div className="text-xs text-muted-foreground">{t(s.label)}</div>
           <div className="mt-1 text-xl font-bold tabular-nums">{s.value}</div>
-          {s.note && <div className={cn("mt-1 text-xs text-muted-foreground", s.tone && TONE[s.tone])}>{s.note}</div>}
+          {s.note && <div className={cn("mt-1 text-xs text-muted-foreground", s.tone && TONE[s.tone])}>{t(s.note)}</div>}
         </CardContent>
       </Card>
     </Link>
@@ -73,7 +73,7 @@ async function MiniStat({ s }: { s: Stat }) {
     <Link href={s.href} className="rounded-xl border p-3 transition-colors hover:border-primary/50 hover:bg-accent/40">
       <div className="text-xs text-muted-foreground">{t(s.label)}</div>
       <div className={cn("mt-1 text-lg font-bold tabular-nums", s.tone && TONE[s.tone])}>{s.value}</div>
-      {s.note && <div className="text-xs text-muted-foreground">{s.note}</div>}
+      {s.note && <div className="text-xs text-muted-foreground">{t(s.note)}</div>}
     </Link>
   );
 }
@@ -222,7 +222,7 @@ export default async function DashboardPage() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold">{t("مرحباً،")} {user.name}</h1>
+          <h1 className="text-2xl font-bold">{t("مرحباً،")} {t(user.name)}</h1>
           <p className="text-muted-foreground">{org?.nameAr ?? t("الإدارة")} {t("— نظرة على")} {monthLabel}</p>
         </div>
         <Link href="/apps" className="text-sm text-primary hover:underline">{t("كل التطبيقات ←")}</Link>

@@ -85,7 +85,7 @@ export default async function PrintSalesOrderPage({ params }: Params) {
         rows={lines.map((l, i) => [
           <span key="i" style={{ color: "#8a93a6" }}>{i + 1}</span>,
           <span key="n">
-            <b>{l.name}</b>
+            <b>{t(l.name ?? "")}</b>
             {l.code && <span dir="ltr" style={{ color: "#8a93a6", fontSize: 10.5, marginInlineStart: 6 }}>{l.code}</span>}
           </span>,
           qty(l.qty),

@@ -150,7 +150,7 @@ function CreatePlatformDialog({
             {FULFILLMENTS.map((f) => (
               <button key={f.code} type="button" disabled={!f.active || pending} onClick={() => f.active && provision(f.code)} className={`${tileCls} ${f.active ? "hover:border-primary" : "cursor-not-allowed opacity-50"}`}>
                 <span className="font-mono text-base font-bold">{t(f.label)}</span>
-                <span className="flex-1 text-sm text-muted-foreground">{f.hint}</span>
+                <span className="flex-1 text-sm text-muted-foreground">{t(f.hint)}</span>
                 {!f.active && <Badge variant="secondary">{t("قريبًا")}</Badge>}
                 {f.active && pending && <Loader2 className="size-4 animate-spin" />}
               </button>
@@ -284,7 +284,7 @@ export function PlatformsManager({
                         )}
                       </div>
                       <div>
-                        {available ? <Link href={detail} className="font-semibold hover:text-primary">{p.name}</Link> : <span className="font-semibold">{p.name}</span>}
+                        {available ? <Link href={detail} className="font-semibold hover:text-primary">{t(p.name)}</Link> : <span className="font-semibold">{t(p.name)}</span>}
                         <div className="text-xs text-muted-foreground"><span className="font-mono">{p.code}</span> · {t(TYPE_LABEL[p.integrationType] ?? p.integrationType)}</div>
                       </div>
                     </div>

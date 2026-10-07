@@ -60,7 +60,7 @@ function BomDialog({ bundle, onClose }: { bundle: Bundle | null; onClose: () => 
         <div className="space-y-1.5">
           <Label>{t("صنف الحزمة (المنتج النهائي)")}</Label>
           {bundle ? (
-            <div className="flex h-9 items-center rounded-md border bg-muted/40 px-3 text-sm font-medium">{bundle.code} — {bundle.name}</div>
+            <div className="flex h-9 items-center rounded-md border bg-muted/40 px-3 text-sm font-medium">{bundle.code} — {t(bundle.name)}</div>
           ) : (
             <ItemPicker selectedLabel={parentLabel} placeholder={t("ابحث بالاسم أو أي كود…")}
               onSelect={(it) => { setParentItemId(it.id); setParentLabel(label(it.code, it.name)); }} />
@@ -113,7 +113,7 @@ function AssembleDialog({ bundle, warehouses, onClose }: { bundle: Bundle; wareh
 
   return (
     <DialogContent>
-      <DialogHeader><DialogTitle>{t("تجميع حزمة «")}{bundle.name}»</DialogTitle></DialogHeader>
+      <DialogHeader><DialogTitle>{t("تجميع حزمة «")}{t(bundle.name)}»</DialogTitle></DialogHeader>
       <div className="space-y-4">
         <p className="text-sm text-muted-foreground">{t("سيتم خصم المكوّنات من المستودع وإنتاج الحزمة كمخزون قابل للبيع بتكلفة مكوّناتها.")}</p>
         <div className="grid grid-cols-2 gap-3">
@@ -123,13 +123,13 @@ function AssembleDialog({ bundle, warehouses, onClose }: { bundle: Bundle; wareh
         <div className="space-y-1.5">
           <Label>{t("المستودع")}</Label>
           <select className={selectCls} value={warehouseId} onChange={(e) => setWarehouseId(e.target.value)}>
-            {warehouses.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
+            {warehouses.map((w) => <option key={w.id} value={w.id}>{t(w.name)}</option>)}
           </select>
         </div>
         <div className="rounded-lg border bg-muted/30 p-3 text-sm">
           <div className="mb-1 font-medium">{t("لكل وحدة حزمة يُستهلك:")}</div>
           <ul className="space-y-0.5 text-muted-foreground">
-            {bundle.components.map((c) => <li key={c.id}>• {c.name} × {c.quantity}</li>)}
+            {bundle.components.map((c) => <li key={c.id}>• {t(c.name ?? "")} × {c.quantity}</li>)}
           </ul>
         </div>
       </div>
@@ -177,8 +177,8 @@ export function BundlesManager({ bundles, warehouses, assemblies, canManage }: {
               ) : bundles.map((b) => (
                 <TableRow key={b.parentItemId} data-state={sel.has(b.parentItemId) ? "selected" : undefined}>
                   {canManage && <TableCell><SelectBox label={t("تحديد")} checked={sel.has(b.parentItemId)} onChange={() => sel.toggle(b.parentItemId)} /></TableCell>}
-                  <TableCell className="max-w-[320px] whitespace-normal font-medium"><div className="line-clamp-2 leading-snug" title={b.name}><span className="font-mono text-xs text-muted-foreground">{b.code}</span> {b.name}</div></TableCell>
-                  <TableCell><div className="flex flex-wrap gap-1">{b.components.map((c) => <Badge key={c.id} variant="secondary" className="font-normal">{c.name} ×{c.quantity}</Badge>)}</div></TableCell>
+                  <TableCell className="max-w-[320px] whitespace-normal font-medium"><div className="line-clamp-2 leading-snug" title={b.name}><span className="font-mono text-xs text-muted-foreground">{b.code}</span> {t(b.name)}</div></TableCell>
+                  <TableCell><div className="flex flex-wrap gap-1">{b.components.map((c) => <Badge key={c.id} variant="secondary" className="font-normal">{t(c.name ?? "")} ×{c.quantity}</Badge>)}</div></TableCell>
                   {canManage && (
                     <TableCell>
                       <div className="flex gap-1">
@@ -229,7 +229,7 @@ export function BundlesManager({ bundles, warehouses, assemblies, canManage }: {
       <Dialog open={!!confirmDel} onOpenChange={(o) => !o && setConfirmDel(null)}>
         {confirmDel && (
           <DialogContent>
-            <DialogHeader><DialogTitle>{t("حذف حزمة «")}{confirmDel.name}{t("»؟")}</DialogTitle></DialogHeader>
+            <DialogHeader><DialogTitle>{t("حذف حزمة «")}{t(confirmDel.name)}{t("»؟")}</DialogTitle></DialogHeader>
             <p className="text-sm text-muted-foreground">{t("سيُحذف تعريف المكوّنات فقط؛ عمليات التجميع السابقة ومخزونها لا تتأثر.")}</p>
             <DialogFooter>
               <Button variant="outline" onClick={() => setConfirmDel(null)}>{t("إلغاء")}</Button>

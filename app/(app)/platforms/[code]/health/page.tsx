@@ -106,7 +106,7 @@ export default async function AmazonHealthPage({ params }: { params: Promise<{ c
                   bad && (c.tone === "warn" ? "border-amber-500/40" : "border-destructive/40"))}>
                 <div className="flex items-center gap-2">
                   <Icon name={c.icon} className="size-4 text-muted-foreground" />
-                  <span className="font-semibold">{c.title}</span>
+                  <span className="font-semibold">{t(c.title)}</span>
                   <span className={cn("ms-auto text-2xl font-bold tabular-nums",
                     !bad ? "text-emerald-600" : c.tone === "warn" ? "text-amber-600" : "text-destructive")}>
                     {bad ? int(c.count) : <Icon name="CircleCheck" className="size-6" />}

@@ -111,7 +111,7 @@ export default async function CostCenterReportPage({ searchParams }: { searchPar
                 <TableBody>
                   {list.map((r, i) => (
                     <TableRow key={r.code ?? i}>
-                      <TableCell>{r.code && <span className="font-mono text-xs text-muted-foreground">{r.code} </span>}{r.name}</TableCell>
+                      <TableCell>{r.code && <span className="font-mono text-xs text-muted-foreground">{r.code} </span>}{t(r.name)}</TableCell>
                       <TableCell className="text-end tabular-nums text-emerald-600">{fmt(r.revenue)}</TableCell>
                       <TableCell className="text-end tabular-nums text-destructive">{fmt(r.expense)}</TableCell>
                       <TableCell className={`text-end tabular-nums font-medium ${r.net >= 0 ? "text-emerald-600" : "text-destructive"}`}>{fmt(r.net)}</TableCell>

@@ -63,7 +63,7 @@ export function AccountSecurity({ mfaEnabled, passwordChangedAt }: { mfaEnabled:
       <Card>
         <CardHeader>
           <CardTitle>{t("تغيير كلمة المرور")}</CardTitle>
-          <CardDescription>{PASSWORD_RULE_AR}. {daysSinceChange != null && <span className={expiringSoon ? "text-amber-600" : ""}>{t("آخر تغيير قبل")} {daysSinceChange} {t("يوم")}{expiringSoon ? t(" — يُنصح بالتغيير (تنتهي كل 365 يوم)") : ""}.</span>}</CardDescription>
+          <CardDescription>{t(PASSWORD_RULE_AR)}. {daysSinceChange != null && <span className={expiringSoon ? "text-amber-600" : ""}>{t("آخر تغيير قبل")} {daysSinceChange} {t("يوم")}{expiringSoon ? t(" — يُنصح بالتغيير (تنتهي كل 365 يوم)") : ""}.</span>}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
           <div className="space-y-1.5"><Label>{t("كلمة المرور الحالية")}</Label><Input type="password" dir="ltr" value={cur} onChange={(e) => setCur(e.target.value)} /></div>

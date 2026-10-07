@@ -1,6 +1,7 @@
 "use client";
 
 import { useTransition } from "react";
+import { useT } from "@/lib/i18n/client";
 import { toast } from "@/lib/i18n/toast";
 import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/icon";
@@ -9,6 +10,7 @@ import type { ExportResult } from "@/app/actions/erp/exports";
 /** Calls a server export action, then downloads the returned CSV (UTF-8 + BOM so
  *  Excel reads Arabic correctly). Works for any entity — pass its export action. */
 export function ExportCsvButton({ action, label = "تصدير CSV" }: { action: () => Promise<ExportResult>; label?: string }) {
+  const t = useT();
   const [pending, start] = useTransition();
   const run = () =>
     start(async () => {
@@ -24,7 +26,7 @@ export function ExportCsvButton({ action, label = "تصدير CSV" }: { action: 
   return (
     <Button variant="outline" size="sm" onClick={run} disabled={pending}>
       {pending ? <Icon name="Loader2" className="size-4 animate-spin" /> : <Icon name="Download" className="size-4" />}
-      {label}
+      {t(label)}
     </Button>
   );
 }

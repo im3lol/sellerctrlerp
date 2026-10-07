@@ -92,7 +92,7 @@ export function ComboboxBase({
               className="flex w-full flex-col items-start gap-0.5 rounded-sm px-3 py-1.5 text-start text-sm hover:bg-accent hover:text-accent-foreground"
             >
               <span>{t(o.label)}</span>
-              {o.hint && <span className="font-mono text-xs text-muted-foreground">{o.hint}</span>}
+              {o.hint && <span className="font-mono text-xs text-muted-foreground">{t(o.hint)}</span>}
             </button>
           ))}
           {onCreate && (

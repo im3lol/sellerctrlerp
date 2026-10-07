@@ -58,7 +58,7 @@ export default async function SubscriptionPage({ searchParams }: { searchParams:
         <ErpPageHeader icon="CreditCard" title={t("الاشتراك والباقة")} subtitle={t("حالة اشتراكك والباقات المتاحة")} />
 
         <div className={`rounded-2xl border p-4 ${banner.cls}`}>
-          <div className="font-semibold">{banner.title}</div>
+          <div className="font-semibold">{t(banner.title)}</div>
           <p className="text-sm opacity-90">{banner.body}</p>
         </div>
 

@@ -188,7 +188,7 @@ export function MarketplaceReturnsClient({ initial, warehouses }: { initial: Mar
                             onChange={(e) => setDest((d) => ({ ...d, [o.id]: e.target.value }))}
                           >
                             <option value="">{t("الوجهة: الافتراضي (مخزن التوالف أو إعدام)")}</option>
-                            {warehouses.map((w) => <option key={w.id} value={w.id}>→ {w.name}</option>)}
+                            {warehouses.map((w) => <option key={w.id} value={w.id}>→ {t(w.name)}</option>)}
                           </select>
                         )}
 

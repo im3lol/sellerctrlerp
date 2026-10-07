@@ -79,7 +79,7 @@ export function UserMenu({
         {LOCALES.filter((l) => l !== locale).map((l) => (
           <DropdownMenuItem key={l} className="cursor-pointer" onSelect={() => { void setLocaleAction(l); }}>
             <Languages className="size-4" />
-            {LOCALE_LABEL[l]}
+            {t(LOCALE_LABEL[l])}
           </DropdownMenuItem>
         ))}
         <DropdownMenuSeparator />

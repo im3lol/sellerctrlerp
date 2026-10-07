@@ -129,7 +129,7 @@ export default async function SalesOrdersPage({ searchParams }: { searchParams: 
           .orderBy(desc(salesOrders.date), desc(salesOrders.number)).limit(BOARD_LIMIT))
           .map((r) => ({
             id: r.id, column: r.status, title: r.number, subtitle: r.customer, amount: money(Number(r.total ?? 0)),
-            meta: `${day(r.date, locale)}${r.channel !== "MANUAL" && channelLabel[r.channel] ? ` · ${channelLabel[r.channel]}` : ""}`,
+            meta: `${day(r.date, locale)}${r.channel !== "MANUAL" && channelLabel[r.channel] ? ` · ${t(channelLabel[r.channel])}` : ""}`,
             href: `/sales/orders/${encodeURIComponent(r.number)}`,
           }))
       : [];

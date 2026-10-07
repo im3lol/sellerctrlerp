@@ -52,7 +52,7 @@ export function Pricing({ plans }: { plans: PlanCard[] }) {
           return (
             <div key={p.name} className={cn("relative flex flex-col rounded-2xl border bg-card p-6", i === popular && "border-primary shadow-lg ring-1 ring-primary")}>
               {i === popular && <span className="absolute -top-3 right-6 rounded-full bg-primary px-3 py-0.5 text-xs font-semibold text-primary-foreground">{t("الأكثر شيوعاً")}</span>}
-              <h3 className="text-lg font-bold">{p.name}</h3>
+              <h3 className="text-lg font-bold">{t(p.name)}</h3>
               <div className="mt-3 flex items-end gap-1">
                 <span className="text-3xl font-black tabular-nums">{eff > 0 ? egp(eff, locale) : t("مجاناً")}</span>
                 {eff > 0 && <span className="pb-1 text-sm text-muted-foreground">{t("ج.م / شهر")}</span>}
