@@ -174,6 +174,22 @@ Returns reverse the chain: a **credit note** (مرتجع فاتورة) reverses 
 quantity. Purchases mirror this (PO → GRN → purchase invoice; GRNI account 2103 clears on
 invoicing).
 
+**PO origin-country charges:** `purchase_orders.origin_cost_input` keeps the original
+document-currency lines and order-level charges/discounts. `allocateOriginCosts` distributes
+by net goods value, base quantity, or explicit item amounts. Stored PO `unitPrice` is the
+base-currency price **after** this allocation, so GRN, partial receipts, invoice and GRNI
+share the same cost even when receipt freight is overridden. Editing must use the original
+snapshot, never reapply costs to stored loaded prices. Supplier catalog/next-order defaults
+use the original price, excluding these one-off charges. Origin tax here is non-recoverable;
+recoverable VAT remains the existing separate tax flow. International landed-cost vouchers
+are unchanged and must not duplicate these charges. Legacy orders have a null snapshot.
+The PO editor applies charges only through its explicit Distribution button: draft charge
+inputs are separate from the last applied shares, and stale allocations block saving.
+`allocateOriginShares` / `originDisplayLines` project the snapshot into shipping, discount,
+non-recoverable origin tax and other-cost cells for the form, detail and print views. These
+display amounts must not be sent back as original inputs (that would double-load costs),
+nor posted as recoverable VAT. The stored valuation representation above is unchanged.
+
 Every lifecycle action writes to the append-only **audit log** (`lib/erp/audit.ts`,
 `audit_logs`), visible at `/erp/audit`.
 

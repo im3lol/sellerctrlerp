@@ -42,10 +42,14 @@ export async function recordSupplierPrices(
 
 /** A purchase order was confirmed: its supplier sells these items at these prices, as of its date. */
 export async function catalogFromOrder(orgId: string, purchaseOrderId: string): Promise<void> {
-  const [po] = await db.select({ supplierId: purchaseOrders.supplierId, date: purchaseOrders.date }).from(purchaseOrders)
+  const [po] = await db.select({ supplierId: purchaseOrders.supplierId, date: purchaseOrders.date, originCostInput: purchaseOrders.originCostInput, exchangeRate: purchaseOrders.exchangeRate }).from(purchaseOrders)
     .where(and(eq(purchaseOrders.id, purchaseOrderId), eq(purchaseOrders.organizationId, orgId))).limit(1);
   if (!po?.supplierId) return;
   const lines = await db.select({ itemId: purchaseOrderLines.itemId, unitPrice: purchaseOrderLines.unitPrice })
     .from(purchaseOrderLines).where(eq(purchaseOrderLines.purchaseOrderId, purchaseOrderId));
-  await recordSupplierPrices(orgId, po.supplierId, lines.map((l) => ({ itemId: l.itemId, unitPrice: Number(l.unitPrice) })), { orderedAt: new Date(po.date) });
+  // Suggested supplier prices exclude the one-off charges allocated to this order.
+  const prices = po.originCostInput
+    ? po.originCostInput.lines.map(l => ({ itemId: l.itemId, unitPrice: l.unitPrice * Number(po.exchangeRate) }))
+    : lines.map(l => ({ itemId: l.itemId, unitPrice: Number(l.unitPrice) }));
+  await recordSupplierPrices(orgId, po.supplierId, prices, { orderedAt: new Date(po.date) });
 }

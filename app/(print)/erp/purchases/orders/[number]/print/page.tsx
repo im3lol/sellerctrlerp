@@ -1,3 +1,4 @@
+import { originDisplayLines } from "@/lib/erp/purchase-origin-costs";
 import { notFound } from "next/navigation";
 import { fill } from "@/lib/i18n";
 import { getLocale, getT } from "@/lib/i18n/server";
@@ -32,7 +33,7 @@ export default async function PrintPurchaseOrderPage({ params }: Params) {
       .limit(1);
     if (!po) notFound();
 
-    const [{ org, hiddenFor, footerText }, supp, wh, lines] = await Promise.all([
+    const [{ org, hiddenFor, footerText }, supp, wh, storedLines] = await Promise.all([
       loadPrintHeader(orgId),
       po.supplierId
         ? db.select({ nameAr: suppliers.nameAr, phone: suppliers.phone, address: suppliers.address })
@@ -44,6 +45,7 @@ export default async function PrintPurchaseOrderPage({ params }: Params) {
         : undefined,
       db
         .select({
+          itemId: purchaseOrderLines.itemId,
           qty: purchaseOrderLines.quantity,
           unitPrice: purchaseOrderLines.unitPrice,
           shippingPerUnit: purchaseOrderLines.shippingPerUnit,
@@ -59,6 +61,13 @@ export default async function PrintPurchaseOrderPage({ params }: Params) {
         .where(eq(purchaseOrderLines.purchaseOrderId, po.id)),
     ]);
 
+    const breakdown = new Map(po.originCostInput ? originDisplayLines(po.originCostInput, Number(po.exchangeRate) || 1).map(l => [l.itemId, l]) : []);
+    const lines = storedLines.map(l => {
+      const d = breakdown.get(l.itemId);
+      return d ? { ...l, unitPrice: String(d.unitPrice), shippingPerUnit: String(d.shippingPerUnit), discount: String(d.discountAmount), tax: String(d.taxAmount), total: String(d.totalAmount), other: d.otherAmount }
+        : { ...l, other: 0 };
+    });
+    const other = lines.reduce((s, l) => s + l.other, 0);
     // Everything is stored in base (EGP). A foreign order was entered in its own currency,
     // so the printed sheet has to show BOTH: the figure the buyer agreed with the supplier,
     // and the figure the books carry — with the rate that connects them. Printing one
@@ -70,10 +79,10 @@ export default async function PrintPurchaseOrderPage({ params }: Params) {
     /** base → the order's own currency */
     const d = (v: string | number | null) => Number(v ?? 0) / docRate;
     const b = (v: string | number | null) => Number(v ?? 0);
-    const subtotal = Number(po.subtotal ?? 0);
-    const shipping = Number(po.shippingAmount ?? 0);
-    const discount = Number(po.discountAmount ?? 0);
-    const tax = Number(po.taxAmount ?? 0);
+    const subtotal = lines.reduce((s, l) => s + Number(l.unitPrice) * Number(l.qty), 0);
+    const shipping = lines.reduce((s, l) => s + Number(l.shippingPerUnit) * Number(l.qty), 0);
+    const discount = lines.reduce((s, l) => s + Number(l.discount), 0);
+    const tax = lines.reduce((s, l) => s + Number(l.tax), 0);
     // Column labels are the key the org's print-column settings hide by, so a domestic
     // order keeps EXACTLY the labels it had — the currency suffix only appears where it
     // resolves a real ambiguity, on a foreign order showing two currencies at once.
@@ -116,6 +125,8 @@ export default async function PrintPurchaseOrderPage({ params }: Params) {
           { label: cx("السعر"), align: "end", width: isForeign ? "13%" : "18%" },
           ...(anyShipping ? [{ label: cx("شحن/وحدة"), align: "end" as const, width: "12%" }] : []),
           ...(anyDiscount ? [{ label: cx("الخصم"), align: "end" as const, width: "10%" }] : []),
+          ...(tax > 0 ? [{ label: cx("الضريبة"), align: "end" as const, width: "10%" }] : []),
+          ...(other > 0 ? [{ label: cx("مصاريف أخرى"), align: "end" as const, width: "10%" }] : []),
           { label: cx("الإجمالي"), align: "end", width: isForeign ? "13%" : "16%" },
           // The same line in pounds — shipping included, because that is what the books
           // and the stock valuation will carry.
@@ -141,6 +152,8 @@ export default async function PrintPurchaseOrderPage({ params }: Params) {
           fmt(d(l.unitPrice)),
           ...(anyShipping ? [Number(l.shippingPerUnit ?? 0) > 0 ? fmt(d(l.shippingPerUnit)) : "—"] : []),
           ...(anyDiscount ? [Number(l.discount ?? 0) > 0 ? fmt(d(l.discount)) : "—"] : []),
+          ...(tax > 0 ? [fmt(d(l.tax))] : []),
+          ...(other > 0 ? [fmt(d(l.other))] : []),
           <b key="t">{fmt(d(l.total))}</b>,
           ...(isForeign ? [<b key="tb">{fmt(b(l.total))}</b>] : []),
         ])}
@@ -152,6 +165,7 @@ export default async function PrintPurchaseOrderPage({ params }: Params) {
           { label: "الإجمالي الفرعي", value: `${fmt(d(subtotal))} ${cur}` },
           ...(shipping > 0 ? [{ label: "الشحن الداخلي", value: `${fmt(d(shipping))} ${cur}` }] : []),
           ...(discount > 0 ? [{ label: "الخصم", value: `− ${fmt(d(discount))} ${cur}`, tone: "danger" as const }] : []),
+          ...(other > 0 ? [{ label: t("مصاريف أخرى"), value: `${fmt(d(other))} ${cur}` }] : []),
           ...(tax > 0 ? [{ label: fill(t("الضريبة ({0}%)"), [po.taxPercent]), value: `${fmt(d(tax))} ${cur}` }] : []),
           ...(isForeign ? [
             { label: fill(t("الإجمالي شامل الشحن ({0})"), [cur]), value: `${fmt(d(po.totalAmount))} ${cur}` },
@@ -161,7 +175,13 @@ export default async function PrintPurchaseOrderPage({ params }: Params) {
         balance={isForeign
           ? { label: fill(t("الإجمالي بالـ{0} (شامل الشحن)"), [baseCode]), value: `${fmt(b(po.totalAmount))} ${baseCode}` }
           : { label: fill(t("الإجمالي ({0})"), [cur]), value: `${fmt(d(po.totalAmount))} ${cur}` }}
-        note={po.notes}
+        // The allocation note explains where each unit cost came from, so the sheet can be
+        // checked against the supplier's own invoice line by line.
+        note={[po.notes, ...(po.originCostInput?.costs.length ? [
+          t("تفاصيل توزيع مصاريف وخصومات أمر الشراء:"),
+          ...po.originCostInput.costs.map(c => `${t(({ MARKETPLACE_TAX: "ضريبة بلد الشراء", DOMESTIC_FREIGHT: "شحن محلي", PREP: "تجهيز", OTHER: "مصروف آخر", DISCOUNT: "خصم الطلب" })[c.kind])}: ${c.kind === "DISCOUNT" ? "−" : "+"}${fmt(c.amount)} ${cur} — ${t(({ VALUE: "حسب القيمة", QUANTITY: "حسب الكمية", MANUAL: "يدويًا" })[c.allocationMethod])}${c.description ? ` — ${c.description}` : ""}`),
+          t("تكاليف الاستيراد والشحن الدولي والجمارك منفصلة."),
+        ] : [])].filter(Boolean).join("\n")}
         signatures={["إعداد", "اعتماد", "المورّد"]}
       />
     );

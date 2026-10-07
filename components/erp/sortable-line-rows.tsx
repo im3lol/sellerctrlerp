@@ -28,6 +28,7 @@ export function SortableLineRows<T extends { id: string }>({
   /** The form's own <TableCell>s for this row (item picker, qty, price, …). */
   renderCells: (item: T, index: number) => ReactNode;
 }) {
+  const t = useT();
   const [page, setPage] = useState(0);
   const pages = Math.max(1, Math.ceil(items.length / pageSize));
   const safePage = Math.min(page, pages - 1);
