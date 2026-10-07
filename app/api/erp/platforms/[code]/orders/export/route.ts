@@ -4,6 +4,8 @@ import { requireErpModule } from "@/lib/erp/org";
 import { db } from "@/lib/db";
 import { salesPlatforms, salesOrders } from "@/db/schema";
 import { xlsxResponse, xlsxDate } from "@/lib/erp/xlsx";
+import { fill } from "@/lib/i18n";
+import { getT } from "@/lib/i18n/server";
 
 export const runtime = "nodejs";
 
@@ -33,8 +35,9 @@ export async function GET(req: Request, { params }: { params: Promise<{ code: st
 
     const total = rows.reduce((s, r) => s + Number(r.total), 0);
 
+    const t = await getT();
     return xlsxResponse({
-      sheet: `أوامر ${platform.name}`.slice(0, 31),
+      sheet: fill(t("أوامر {0}"), [platform.name]).slice(0, 31),
       filename: `orders-${platform.code}`,
       headers: ["الرقم", "التاريخ", "رقم الطلب الخارجي", "الإجمالي", "الحالة"],
       rows: rows.map((r) => [r.number, xlsxDate(r.date), r.externalOrderId ?? "", Number(r.total), STATUS[r.status] ?? r.status]),

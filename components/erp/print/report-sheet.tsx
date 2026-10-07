@@ -1,4 +1,6 @@
 import type { ReactNode } from "react";
+import { fill } from "@/lib/i18n";
+import { getLocale, getT } from "@/lib/i18n/server";
 import { PrintNowButton } from "@/components/erp/print-now-button";
 import type { PrintOrg, PrintColumn } from "@/components/erp/print/document-sheet";
 
@@ -43,11 +45,14 @@ export type ReportSheetProps = {
   backHref: string;
 };
 
+/** Shown when the company has no name yet. */
+const NO_NAME = "؟";
 const initials = (name: string | null | undefined) =>
-  (name ?? "؟").trim().split(/\s+/).slice(0, 2).map((w) => w[0]).join("");
+  (name ?? NO_NAME).trim().split(/\s+/).slice(0, 2).map((w) => w[0]).join("");
 
-export function ReportSheet({ org, title, period, filters = [], kpis = [], sections, note, backHref }: ReportSheetProps) {
-  const printedAt = new Date().toLocaleString("ar-EG-u-nu-latn", { dateStyle: "long", timeStyle: "short" });
+export async function ReportSheet({ org, title, period, filters = [], kpis = [], sections, note, backHref }: ReportSheetProps) {
+  const t = await getT();
+  const printedAt = new Date().toLocaleString((await getLocale()) === "en" ? "en-GB" : "ar-EG-u-nu-latn", { dateStyle: "long", timeStyle: "short" });
   return (
     <>
       <style>{`
@@ -78,7 +83,7 @@ export function ReportSheet({ org, title, period, filters = [], kpis = [], secti
       <div className="no-print fixed top-4 start-4 z-50 flex gap-2">
         <PrintNowButton />
         <a href={backHref} className="rounded border bg-white px-4 py-2 text-sm font-medium shadow hover:bg-muted">
-          رجوع
+          {t("رجوع")}
         </a>
       </div>
 
@@ -97,22 +102,22 @@ export function ReportSheet({ org, title, period, filters = [], kpis = [], secti
               }}>{initials(org?.nameAr)}</div>
             )}
             <div>
-              <div style={{ fontWeight: 800, fontSize: 17 }}>{org?.nameAr}</div>
+              <div style={{ fontWeight: 800, fontSize: 17 }}>{t(org?.nameAr ?? "")}</div>
               <div style={{ fontSize: 11, color: T.muted, marginTop: 3, lineHeight: 1.5 }}>
                 {org?.address && <div>{org.address}</div>}
                 {org?.phone && <div dir="ltr" style={{ textAlign: "start" }}>{org.phone}</div>}
-                {org?.taxNumber && <div>الرقم الضريبي: <span dir="ltr">{org.taxNumber}</span></div>}
+                {org?.taxNumber && <div>{t("الرقم الضريبي:")} <span dir="ltr">{org.taxNumber}</span></div>}
               </div>
             </div>
           </div>
 
           <div style={{ textAlign: "end" }}>
-            <div style={{ fontSize: 20, fontWeight: 800, letterSpacing: ".5px", color: T.primary }}>{title}</div>
+            <div style={{ fontSize: 20, fontWeight: 800, letterSpacing: ".5px", color: T.primary }}>{t(title)}</div>
             <div style={{ marginTop: 6, fontSize: 11, color: T.muted, lineHeight: 1.8 }}>
               {period && <div>{period}</div>}
-              <div>طُبع في <b style={{ color: T.ink }}>{printedAt}</b></div>
+              <div>{t("طُبع في")} <b style={{ color: T.ink }}>{printedAt}</b></div>
               {filters.map((f) => (
-                <div key={f.label}>{f.label}: <b style={{ color: T.ink }}>{f.value}</b></div>
+                <div key={f.label}>{t(f.label)}: <b style={{ color: T.ink }}>{f.value}</b></div>
               ))}
             </div>
           </div>
@@ -123,7 +128,7 @@ export function ReportSheet({ org, title, period, filters = [], kpis = [], secti
           <div className="mb-6 grid gap-2" style={{ gridTemplateColumns: `repeat(${Math.min(kpis.length, 4)}, 1fr)` }}>
             {kpis.map((k) => (
               <div key={k.label} style={{ border: `1px solid ${T.line}`, borderRadius: 8, padding: "8px 12px" }}>
-                <div style={{ fontSize: 9.5, color: T.muted }}>{k.label}</div>
+                <div style={{ fontSize: 9.5, color: T.muted }}>{t(k.label)}</div>
                 <div style={{
                   fontSize: 14, fontWeight: 800, marginTop: 2,
                   color: k.tone === "danger" ? T.danger : k.tone === "success" ? T.success : T.ink,
@@ -137,13 +142,13 @@ export function ReportSheet({ org, title, period, filters = [], kpis = [], secti
         {sections.map((s, si) => (
           <div key={si} style={{ marginBottom: 22 }}>
             {s.title && (
-              <div style={{ fontSize: 13, fontWeight: 800, color: T.primary, margin: "0 0 8px" }}>{s.title}</div>
+              <div style={{ fontSize: 13, fontWeight: 800, color: T.primary, margin: "0 0 8px" }}>{t(s.title)}</div>
             )}
             <table>
               <thead>
                 <tr>
                   {s.columns.map((c) => (
-                    <th key={c.label} style={{ textAlign: c.align ?? "start", width: c.width }}>{c.label}</th>
+                    <th key={c.label} style={{ textAlign: c.align ?? "start", width: c.width }}>{t(c.label)}</th>
                   ))}
                 </tr>
               </thead>
@@ -170,11 +175,11 @@ export function ReportSheet({ org, title, period, filters = [], kpis = [], secti
         ))}
 
         {note && (
-          <div style={{ marginTop: 8, fontSize: 10.5, color: T.body }}>{note}</div>
+          <div style={{ marginTop: 8, fontSize: 10.5, color: T.body }}>{t(note)}</div>
         )}
 
         <div style={{ marginTop: 28, paddingTop: 12, borderTop: `1px solid ${T.line}`, textAlign: "center", fontSize: 10, color: T.muted }}>
-          {[org?.nameAr, org?.phone, org?.taxNumber && `الرقم الضريبي: ${org.taxNumber}`].filter(Boolean).join(" · ")}
+          {[org?.nameAr, org?.phone, org?.taxNumber && fill(t("الرقم الضريبي: {0}"), [org.taxNumber])].filter(Boolean).join(" · ")}
         </div>
       </div>
     </>

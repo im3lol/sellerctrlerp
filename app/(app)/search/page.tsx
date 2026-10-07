@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { fill } from "@/lib/i18n";
+import { getT } from "@/lib/i18n/server";
 import { redirect } from "next/navigation";
 import { and, eq, ilike, or } from "drizzle-orm";
 import { db } from "@/lib/db";
@@ -15,6 +17,7 @@ type Row = { id: string; code: string | null; name: string | null };
 type Group = { key: string; title: string; icon: LucideIcon; href: (r: Row) => string; rows: Row[] };
 
 export default async function SearchPage({ searchParams }: { searchParams: Promise<{ q?: string }> }) {
+  const t = await getT();
   const { q } = await searchParams;
   const { user, org } = await getActiveOrg();
   if (!user || !org) redirect("/login?callbackUrl=/search");
@@ -44,23 +47,23 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
 
   return (
     <div className="space-y-6">
-      <ErpPageHeader icon="Search" title="البحث" subtitle={query ? `نتائج البحث عن «${query}»` : "ابحث عن صنف أو عميل أو مورّد"} />
+      <ErpPageHeader icon="Search" title={t("البحث")} subtitle={query ? fill(t("نتائج البحث عن «{0}»"), [query]) : t("ابحث عن صنف أو عميل أو مورّد")} />
 
       {!query ? (
         <div className="rounded-xl border border-dashed py-16 text-center text-muted-foreground">
           <SearchIcon className="mx-auto mb-3 size-8 opacity-40" />
-          اكتب كلمة في خانة البحث بالأعلى — بنبحث في الأصناف والعملاء والموردين بالاسم أو الكود.
+          {t("اكتب كلمة في خانة البحث بالأعلى — بنبحث في الأصناف والعملاء والموردين بالاسم أو الكود.")}
         </div>
       ) : total === 0 ? (
         <div className="rounded-xl border border-dashed py-16 text-center text-muted-foreground">
-          لا نتائج مطابقة لـ «{query}». جرّب كلمة أو كودًا مختلفًا.
+          {fill(t("لا نتائج مطابقة لـ «{0}». جرّب كلمة أو كودًا مختلفًا."), [query])}
         </div>
       ) : (
         <div className="space-y-6">
           {groups.filter((g) => g.rows.length > 0).map((g) => (
             <section key={g.key}>
               <h2 className="mb-2 flex items-center gap-2 text-sm font-semibold text-muted-foreground">
-                <g.icon className="size-4" />{g.title}
+                <g.icon className="size-4" />{t(g.title)}
                 <span className="tabular-nums">({g.rows.length}{g.rows.length === 25 ? "+" : ""})</span>
               </h2>
               <div className="overflow-hidden rounded-xl border">

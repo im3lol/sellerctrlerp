@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { getT } from "@/lib/i18n/server";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Icon } from "@/components/icon";
@@ -41,7 +42,7 @@ export function ReportField({ label, children }: { label: string; children: Reac
   );
 }
 
-export function ReportShell({
+export async function ReportShell({
   /** Catalogue key — the Excel and print links come from it, so no page hand-writes them. */
   reportKey,
   icon,
@@ -83,6 +84,7 @@ export function ReportShell({
   actions?: ReactNode;
   children: ReactNode;
 }) {
+  const t = await getT();
   const entry = REPORT_MODULES.flatMap((m) => m.reports).find((r) => r.key === reportKey);
   const view = current ?? entry?.view ?? "";
   // Export and print must show what the screen shows, so both carry the live filters.
@@ -116,7 +118,7 @@ export function ReportShell({
               {filters}
               <Button type="submit" className="h-9">
                 <Icon name="Search" className="size-4" />
-                عرض
+                {t("عرض")}
               </Button>
             </form>
           </CardContent>
@@ -142,7 +144,8 @@ export function ReportShell({
  * "Income − Expense = Net" tells a reader where the last number came from, which a row
  * of three unrelated cards never does.
  */
-export function ReportKpis({ items }: { items: ReportKpi[] }) {
+export async function ReportKpis({ items }: { items: ReportKpi[] }) {
+  const t = await getT();
   return (
     <Card>
       <CardContent className="flex flex-wrap items-center justify-center gap-x-4 gap-y-6 py-6 sm:justify-between sm:px-8">
@@ -153,9 +156,9 @@ export function ReportKpis({ items }: { items: ReportKpi[] }) {
             </span>
           ) : (
             <div key={i} className="min-w-0 flex-1 text-center">
-              <div className="truncate text-sm text-muted-foreground">{k.label}</div>
+              <div className="truncate text-sm text-muted-foreground">{t(k.label)}</div>
               <div className={cn("mt-1 text-2xl font-bold tabular-nums sm:text-3xl", k.tone && TONE[k.tone])}>{k.value}</div>
-              {k.hint && <div className="mt-0.5 truncate text-xs text-muted-foreground">{k.hint}</div>}
+              {k.hint && <div className="mt-0.5 truncate text-xs text-muted-foreground">{t(k.hint)}</div>}
             </div>
           ),
         )}

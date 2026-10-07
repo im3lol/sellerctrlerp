@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { fill } from "@/lib/i18n";
+import { getT } from "@/lib/i18n/server";
 import { and, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { salesPlatforms, warehouses } from "@/db/schema";
@@ -24,6 +26,7 @@ export default async function FbaPlanPage({ params, searchParams }: {
   params: Promise<{ code: string }>;
   searchParams: Promise<{ source?: string; cover?: string; transit?: string; window?: string }>;
 }) {
+  const t = await getT();
   const { code } = await params;
   const sp = await searchParams;
   const windowDays = days(sp.window, 30, 7, 180);
@@ -43,14 +46,14 @@ export default async function FbaPlanPage({ params, searchParams }: {
       .limit(1);
     const isAmazon = platform?.integrationType === "amazon";
     const header = (
-      <ErpPageHeader icon="Truck" title="خطة شحن FBA" backHref={isAmazon ? back : "/platforms"}
-        subtitle={`${isAmazon ? platform.name : "أمازون"} — تبعت إيه لأمازون قبل ما يخلص عندهم`} />
+      <ErpPageHeader icon="Truck" title={t("خطة شحن FBA")} backHref={isAmazon ? back : "/platforms"}
+        subtitle={fill(t("{0} — تبعت إيه لأمازون قبل ما يخلص عندهم"), [isAmazon ? platform.name : "أمازون"])} />
     );
     const note = (text: string, cta?: { label: string; href: string }) => (
       <div className="space-y-6">{header}
         <div className="space-y-3 rounded-2xl border border-dashed p-8 text-center text-sm text-muted-foreground">
           <p>{text}</p>
-          {cta && <Button asChild size="sm"><Link href={cta.href}>{cta.label}</Link></Button>}
+          {cta && <Button asChild size="sm"><Link href={cta.href}>{t(cta.label)}</Link></Button>}
         </div>
       </div>
     );
@@ -76,40 +79,40 @@ export default async function FbaPlanPage({ params, searchParams }: {
           <CardContent className="space-y-3 pt-6">
             <form className="flex flex-wrap items-end gap-3" method="get">
               <div className="space-y-2">
-                <Label htmlFor="source">هتبعت من</Label>
+                <Label htmlFor="source">{t("هتبعت من")}</Label>
                 <select id="source" name="source" defaultValue={source.id} className={`${selectCls} w-48`}>
-                  {sources.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
+                  {sources.map((w) => <option key={w.id} value={w.id}>{t(w.name)}</option>)}
                 </select>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="transit">أيام الشحن والاستلام</Label>
+                <Label htmlFor="transit">{t("أيام الشحن والاستلام")}</Label>
                 <Input id="transit" name="transit" type="number" min={0} max={90} defaultValue={transitDays} className="w-28 tabular-nums" />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="cover">يكفّي كام يوم بعد ما يوصل</Label>
+                <Label htmlFor="cover">{t("يكفّي كام يوم بعد ما يوصل")}</Label>
                 <Input id="cover" name="cover" type="number" min={7} max={180} defaultValue={coverDays} className="w-28 tabular-nums" />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="window">البيع محسوب على آخر</Label>
+                <Label htmlFor="window">{t("البيع محسوب على آخر")}</Label>
                 <select id="window" name="window" defaultValue={String(windowDays)} className={`${selectCls} w-32`}>
-                  {[14, 30, 60, 90].map((d) => <option key={d} value={d}>{d} يوم</option>)}
+                  {[14, 30, 60, 90].map((d) => <option key={d} value={d}>{d} {t("يوم")}</option>)}
                 </select>
               </div>
-              <Button type="submit">احسب</Button>
+              <Button type="submit">{t("احسب")}</Button>
             </form>
             <p className="text-xs text-muted-foreground">
-              المطلوب = بيع أمازون اليومي × ({transitDays} يوم شحن + {coverDays} يوم تغطية) − المتاح في أمازون − اللي في الطريق،
-              وبحد أقصى اللي عندك في «{source.name}». البيع = اللي خرج من مخزن «{platform.fbaWarehouseName}».{" "}
+              {fill(t("المطلوب = بيع أمازون اليومي × ({0} يوم شحن + {1} يوم تغطية) − المتاح في أمازون − اللي في الطريق، وبحد أقصى اللي عندك في «{2}». البيع = اللي خرج من مخزن «{3}»."),
+                [transitDays, coverDays, source.name, platform.fbaWarehouseName])}{" "}
               {auditAt
-                ? `المتاح والوارد من تدقيق مخزون أمازون (${when(auditAt)}) — بيتحدّث لوحده كل يوم.`
-                : <>مفيش تدقيق مخزون لسه، فالمتاح من رصيد النظام والوارد مش محسوب — شغّل «تدقيق المخزون» من <Link href={back} className="text-primary underline">صفحة المنصة</Link>.</>}
+                ? fill(t("المتاح والوارد من تدقيق مخزون أمازون ({0}) — بيتحدّث لوحده كل يوم."), [when(auditAt)])
+                : <>{t("مفيش تدقيق مخزون لسه، فالمتاح من رصيد النظام والوارد مش محسوب — شغّل «تدقيق المخزون» من")} <Link href={back} className="text-primary underline">{t("صفحة المنصة")}</Link>.</>}
             </p>
           </CardContent>
         </Card>
 
         {plan.length === 0 ? (
           <p className="rounded-2xl border border-dashed p-8 text-center text-sm text-muted-foreground">
-            كل اللي بيتباع في أمازون مغطّي — مفيش حاجة محتاجة تتبعت دلوقتي.
+            {t("كل اللي بيتباع في أمازون مغطّي — مفيش حاجة محتاجة تتبعت دلوقتي.")}
           </p>
         ) : (
           <FbaPlanTable

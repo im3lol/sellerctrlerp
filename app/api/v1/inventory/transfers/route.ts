@@ -21,5 +21,7 @@ export async function POST(req: Request) {
   const r = await runAsErp(auth, () => createStockTransferAction(body));
   if (r.error) return Response.json({ error: r.error }, { status: 400 });
   emitErpEvent(auth.orgId, { action: "CREATE", entity: "STOCK_TRANSFER", id: r.id });
-  return Response.json({ data: { ok: true, id: r.id } });
+  // Keep the mobile write contract consistent with the rest of /api/v1 writes.
+  // The Android client reads OkResp at the root, not a nested data object.
+  return Response.json({ ok: true, id: r.id });
 }

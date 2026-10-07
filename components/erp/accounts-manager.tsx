@@ -1,9 +1,10 @@
 "use client";
 
 import { useActionState, useEffect, useState, useTransition } from "react";
+import { useT } from "@/lib/i18n/client";
 import { useFormStatus } from "react-dom";
 import { Plus, Pencil, Trash2, Loader2 } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "@/lib/i18n/toast";
 import { saveAccountAction, deleteAccountAction } from "@/app/actions/erp/accounts";
 import type { ActionState } from "@/lib/erp/action-auth";
 import { Button } from "@/components/ui/button";
@@ -30,11 +31,13 @@ const TYPE_LABELS: Record<string, string> = {
 
 
 function SubmitBtn() {
+  const t = useT();
   const { pending } = useFormStatus();
-  return <Button type="submit" disabled={pending}>{pending && <Loader2 className="size-4 animate-spin" />}حفظ</Button>;
+  return <Button type="submit" disabled={pending}>{pending && <Loader2 className="size-4 animate-spin" />}{t("حفظ")}</Button>;
 }
 
 function AccountDialog({ open, onOpenChange, editing }: { open: boolean; onOpenChange: (o: boolean) => void; editing: Account | null }) {
+  const t = useT();
   const [state, formAction] = useActionState<ActionState, FormData>(saveAccountAction, {});
   useEffect(() => {
     if (state.ok) { toast.success("تم الحفظ"); onOpenChange(false); }
@@ -45,34 +48,34 @@ function AccountDialog({ open, onOpenChange, editing }: { open: boolean; onOpenC
       <DialogContent>
         <form action={formAction} className="space-y-4">
           <DialogHeader>
-            <DialogTitle>{editing ? "تعديل حساب" : "حساب جديد"}</DialogTitle>
-            <DialogDescription>حساب ضمن دليل حسابات المؤسسة النشطة.</DialogDescription>
+            <DialogTitle>{editing ? t("تعديل حساب") : t("حساب جديد")}</DialogTitle>
+            <DialogDescription>{t("حساب ضمن دليل حسابات المؤسسة النشطة.")}</DialogDescription>
           </DialogHeader>
           {editing && <input type="hidden" name="id" value={editing.id} />}
           <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-2"><Label htmlFor="a-code">الكود</Label><Input id="a-code" name="code" defaultValue={editing?.code} required /></div>
-            <div className="space-y-2"><Label htmlFor="a-name">الاسم</Label><Input id="a-name" name="nameAr" defaultValue={editing?.nameAr} required /></div>
+            <div className="space-y-2"><Label htmlFor="a-code">{t("الكود")}</Label><Input id="a-code" name="code" defaultValue={editing?.code} required /></div>
+            <div className="space-y-2"><Label htmlFor="a-name">{t("الاسم")}</Label><Input id="a-name" name="nameAr" defaultValue={editing?.nameAr} required /></div>
             <div className="space-y-2">
-              <Label htmlFor="a-type">النوع</Label>
+              <Label htmlFor="a-type">{t("النوع")}</Label>
               <select id="a-type" name="type" defaultValue={editing?.type ?? "ASSET"} className={selectCls}>
-                <option value="ASSET">أصول</option>
-                <option value="LIABILITY">خصوم</option>
-                <option value="EQUITY">حقوق ملكية</option>
-                <option value="REVENUE">إيرادات</option>
-                <option value="EXPENSE">مصروفات</option>
+                <option value="ASSET">{t("أصول")}</option>
+                <option value="LIABILITY">{t("خصوم")}</option>
+                <option value="EQUITY">{t("حقوق ملكية")}</option>
+                <option value="REVENUE">{t("إيرادات")}</option>
+                <option value="EXPENSE">{t("مصروفات")}</option>
               </select>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="a-nb">الطبيعة</Label>
+              <Label htmlFor="a-nb">{t("الطبيعة")}</Label>
               <select id="a-nb" name="normalBalance" defaultValue={editing?.normalBalance ?? "DEBIT"} className={selectCls}>
-                <option value="DEBIT">مدين</option>
-                <option value="CREDIT">دائن</option>
+                <option value="DEBIT">{t("مدين")}</option>
+                <option value="CREDIT">{t("دائن")}</option>
               </select>
             </div>
           </div>
           <div className="flex gap-6">
-            <label className="flex items-center gap-2 text-sm"><input type="checkbox" name="isLeaf" defaultChecked={editing ? editing.isLeaf : true} />حساب تفصيلي</label>
-            <label className="flex items-center gap-2 text-sm"><input type="checkbox" name="isActive" defaultChecked={editing ? editing.isActive : true} />نشط</label>
+            <label className="flex items-center gap-2 text-sm"><input type="checkbox" name="isLeaf" defaultChecked={editing ? editing.isLeaf : true} />{t("حساب تفصيلي")}</label>
+            <label className="flex items-center gap-2 text-sm"><input type="checkbox" name="isActive" defaultChecked={editing ? editing.isActive : true} />{t("نشط")}</label>
           </div>
           <DialogFooter><SubmitBtn /></DialogFooter>
         </form>
@@ -82,53 +85,54 @@ function AccountDialog({ open, onOpenChange, editing }: { open: boolean; onOpenC
 }
 
 export function AccountsManager({ accounts, canManage }: { accounts: Account[]; canManage: boolean }) {
+  const t = useT();
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Account | null>(null);
   const [pending, startTransition] = useTransition();
 
   const remove = (a: Account) => startTransition(async () => {
     const r = await deleteAccountAction(a.id);
-    if (r.ok) toast.success("تم الحذف"); else toast.error(r.error ?? "تعذّر الحذف");
+    if (r.ok) toast.success("تم الحذف"); else toast.error(r.error ?? t("تعذّر الحذف"));
   });
 
   return (
     <Card>
       <CardHeader className="flex-row items-center justify-between">
-        <div><CardTitle>دليل الحسابات</CardTitle><CardDescription>الحسابات المالية للمؤسسة النشطة.</CardDescription></div>
-        {canManage && <Button onClick={() => { setEditing(null); setOpen(true); }}><Plus className="size-4" />حساب جديد</Button>}
+        <div><CardTitle>{t("دليل الحسابات")}</CardTitle><CardDescription>{t("الحسابات المالية للمؤسسة النشطة.")}</CardDescription></div>
+        {canManage && <Button onClick={() => { setEditing(null); setOpen(true); }}><Plus className="size-4" />{t("حساب جديد")}</Button>}
       </CardHeader>
       <CardContent>
         {accounts.length === 0 ? (
-          <div className="rounded-xl border border-dashed py-12 text-center text-muted-foreground">لا توجد حسابات بعد.</div>
+          <div className="rounded-xl border border-dashed py-12 text-center text-muted-foreground">{t("لا توجد حسابات بعد.")}</div>
         ) : (
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="text-start">الكود</TableHead>
-                <TableHead className="text-start">اسم الحساب</TableHead>
-                <TableHead className="text-start">النوع</TableHead>
-                <TableHead className="text-start">الطبيعة</TableHead>
-                <TableHead className="text-start">الحالة</TableHead>
-                {canManage && <TableHead className="text-start">إجراءات</TableHead>}
+                <TableHead className="text-start">{t("الكود")}</TableHead>
+                <TableHead className="text-start">{t("اسم الحساب")}</TableHead>
+                <TableHead className="text-start">{t("النوع")}</TableHead>
+                <TableHead className="text-start">{t("الطبيعة")}</TableHead>
+                <TableHead className="text-start">{t("الحالة")}</TableHead>
+                {canManage && <TableHead className="text-start">{t("إجراءات")}</TableHead>}
               </TableRow>
             </TableHeader>
             <TableBody>
               {accounts.map((a) => (
                 <TableRow key={a.id} className={a.isLeaf ? "" : "bg-muted/30 font-semibold"}>
                   <TableCell className="font-mono">{a.code}</TableCell>
-                  <TableCell>{a.nameAr}</TableCell>
-                  <TableCell><Badge variant="secondary">{TYPE_LABELS[a.type] ?? a.type}</Badge></TableCell>
-                  <TableCell>{a.normalBalance === "DEBIT" ? "مدين" : "دائن"}</TableCell>
-                  <TableCell>{a.isActive ? <span className="text-primary">نشط</span> : <span className="text-muted-foreground">معطّل</span>}</TableCell>
+                  <TableCell>{t(a.nameAr)}</TableCell>
+                  <TableCell><Badge variant="secondary">{t(TYPE_LABELS[a.type] ?? a.type)}</Badge></TableCell>
+                  <TableCell>{a.normalBalance === "DEBIT" ? t("مدين") : t("دائن")}</TableCell>
+                  <TableCell>{a.isActive ? <span className="text-primary">{t("نشط")}</span> : <span className="text-muted-foreground">{t("معطّل")}</span>}</TableCell>
                   {canManage && (
                     <TableCell>
                       <div className="flex gap-1">
-                        <Button variant="ghost" size="icon" onClick={() => { setEditing(a); setOpen(true); }} aria-label="تعديل"><Pencil className="size-4" /></Button>
+                        <Button variant="ghost" size="icon" onClick={() => { setEditing(a); setOpen(true); }} aria-label={t("تعديل")}><Pencil className="size-4" /></Button>
                         <AlertDialog>
-                          <AlertDialogTrigger asChild><Button variant="ghost" size="icon" disabled={pending} aria-label="حذف"><Trash2 className="size-4 text-destructive" /></Button></AlertDialogTrigger>
+                          <AlertDialogTrigger asChild><Button variant="ghost" size="icon" disabled={pending} aria-label={t("حذف")}><Trash2 className="size-4 text-destructive" /></Button></AlertDialogTrigger>
                           <AlertDialogContent>
-                            <AlertDialogHeader><AlertDialogTitle>حذف الحساب «{a.nameAr}»؟</AlertDialogTitle><AlertDialogDescription>لا يمكن التراجع.</AlertDialogDescription></AlertDialogHeader>
-                            <AlertDialogFooter><AlertDialogCancel>إلغاء</AlertDialogCancel><AlertDialogAction onClick={() => remove(a)}>حذف</AlertDialogAction></AlertDialogFooter>
+                            <AlertDialogHeader><AlertDialogTitle>{t("حذف الحساب «")}{t(a.nameAr)}{t("»؟")}</AlertDialogTitle><AlertDialogDescription>{t("لا يمكن التراجع.")}</AlertDialogDescription></AlertDialogHeader>
+                            <AlertDialogFooter><AlertDialogCancel>{t("إلغاء")}</AlertDialogCancel><AlertDialogAction onClick={() => remove(a)}>{t("حذف")}</AlertDialogAction></AlertDialogFooter>
                           </AlertDialogContent>
                         </AlertDialog>
                       </div>

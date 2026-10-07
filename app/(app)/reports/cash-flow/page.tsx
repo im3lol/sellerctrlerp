@@ -1,4 +1,6 @@
 import { loadErpPage } from "@/lib/erp/org";
+import { fill } from "@/lib/i18n";
+import { getT } from "@/lib/i18n/server";
 import { orgFiscalYearStartISO } from "@/lib/erp/fiscal";
 import { getCashFlow } from "@/lib/erp/cashflow";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -14,6 +16,7 @@ export default async function CashFlowPage({
 }: {
   searchParams: Promise<{ from?: string; to?: string }>;
 }) {
+  const t = await getT();
   return loadErpPage("reports.view", async ({ orgId, permissions }) => {
     const sp = await searchParams;
 
@@ -31,14 +34,14 @@ export default async function CashFlowPage({
       <ReportShell
         reportKey="cash-flow"
         icon="ArrowLeftRight"
-        title="التدفق النقدي"
-        subtitle={`من ${from} إلى ${to} — الطريقة غير المباشرة`}
+        title={t("التدفق النقدي")}
+        subtitle={fill(t("من {0} إلى {1} — الطريقة غير المباشرة"), [from, to])}
         query={query}
         permissions={permissions}
         filters={
           <>
-            <ReportField label="من تاريخ"><input name="from" type="date" defaultValue={from} className={inp} /></ReportField>
-            <ReportField label="إلى تاريخ"><input name="to" type="date" defaultValue={to} className={inp} /></ReportField>
+            <ReportField label={t("من تاريخ")}><input name="from" type="date" defaultValue={from} className={inp} /></ReportField>
+            <ReportField label={t("إلى تاريخ")}><input name="to" type="date" defaultValue={to} className={inp} /></ReportField>
           </>
         }
         kpis={[
@@ -48,55 +51,55 @@ export default async function CashFlowPage({
           { op: "=" },
           { label: "رصيد آخر الفترة", value: fmt(cashEnd) },
         ]}
-        chartTitle={hasActivity ? "التدفق حسب النشاط" : undefined}
+        chartTitle={hasActivity ? t("التدفق حسب النشاط") : undefined}
         chart={hasActivity ? (
           <BarChart
             data={[{ label: "تشغيلية", value: opTotal }, { label: "استثمارية", value: invTotal }, { label: "تمويلية", value: finTotal }]}
-            valueLabel="صافي التدفق" money height={220}
+            valueLabel={t("صافي التدفق")} money height={220}
             colors={[opTotal, invTotal, finTotal].map((v) => (v >= 0 ? "#008300" : "#e34948"))}
           />
         ) : undefined}
       >
         {/* Operating */}
-        <CashSection title="الأنشطة التشغيلية" total={opTotal}>
-          <CashRow label="صافي الربح / (الخسارة)" amount={netIncome} />
-          <SubLabel>التغيرات في رأس المال العامل</SubLabel>
-          {operating.map((l) => <CashRow key={l.code} label={`${l.code} — ${l.nameAr}`} amount={l.sign * l.amount} />)}
+        <CashSection title={t("الأنشطة التشغيلية")} total={opTotal}>
+          <CashRow label={t("صافي الربح / (الخسارة)")} amount={netIncome} />
+          <SubLabel>{t("التغيرات في رأس المال العامل")}</SubLabel>
+          {operating.map((l) => <CashRow key={l.code} label={`${l.code} — ${t(l.nameAr)}`} amount={l.sign * l.amount} />)}
         </CashSection>
 
         {/* Investing */}
-        <CashSection title="الأنشطة الاستثمارية" total={invTotal}>
+        <CashSection title={t("الأنشطة الاستثمارية")} total={invTotal}>
           {investing.length === 0
-            ? <p className="text-sm text-muted-foreground">لا توجد أنشطة استثمارية في الفترة.</p>
-            : investing.map((l) => <CashRow key={l.code} label={`${l.code} — ${l.nameAr}`} amount={l.sign * l.amount} />)}
+            ? <p className="text-sm text-muted-foreground">{t("لا توجد أنشطة استثمارية في الفترة.")}</p>
+            : investing.map((l) => <CashRow key={l.code} label={`${l.code} — ${t(l.nameAr)}`} amount={l.sign * l.amount} />)}
         </CashSection>
 
         {/* Financing */}
-        <CashSection title="الأنشطة التمويلية" total={finTotal}>
+        <CashSection title={t("الأنشطة التمويلية")} total={finTotal}>
           {financing.length === 0
-            ? <p className="text-sm text-muted-foreground">لا توجد أنشطة تمويلية في الفترة.</p>
-            : financing.map((l) => <CashRow key={l.code} label={`${l.code} — ${l.nameAr}`} amount={l.sign * l.amount} />)}
+            ? <p className="text-sm text-muted-foreground">{t("لا توجد أنشطة تمويلية في الفترة.")}</p>
+            : financing.map((l) => <CashRow key={l.code} label={`${l.code} — ${t(l.nameAr)}`} amount={l.sign * l.amount} />)}
         </CashSection>
 
         {/* Summary */}
         <Card>
           <CardContent className="pt-5 space-y-3">
             <div className="flex justify-between border-b pb-2 text-sm">
-              <span>صافي التغير في النقدية</span>
+              <span>{t("صافي التغير في النقدية")}</span>
               <span className={`font-semibold tabular-nums ${netCashChange >= 0 ? "text-emerald-600" : "text-destructive"}`}>
                 {netCashChange >= 0 ? "+" : ""}{fmt(netCashChange)}
               </span>
             </div>
             <div className="flex justify-between text-sm text-muted-foreground">
-              <span>رصيد النقدية أول الفترة</span>
+              <span>{t("رصيد النقدية أول الفترة")}</span>
               <span className="tabular-nums">{fmt(cashBegin)}</span>
             </div>
             <div className="flex justify-between font-bold">
-              <span>رصيد النقدية آخر الفترة</span>
+              <span>{t("رصيد النقدية آخر الفترة")}</span>
               <span className="tabular-nums text-lg">{fmt(cashEnd)}</span>
             </div>
             <p className="text-xs text-muted-foreground">
-              * النقدية تشمل حسابات الكود 110x فقط. الطريقة غير المباشرة — التغيرات مستخرجة من قيود الأستاذ العام.
+              {t("* النقدية تشمل حسابات الكود 110x فقط. الطريقة غير المباشرة — التغيرات مستخرجة من قيود الأستاذ العام.")}
             </p>
           </CardContent>
         </Card>
@@ -105,7 +108,7 @@ export default async function CashFlowPage({
   });
 }
 
-function CashSection({
+async function CashSection({
   title,
   total,
   children,
@@ -114,6 +117,7 @@ function CashSection({
   total: number;
   children: React.ReactNode;
 }) {
+  const t = await getT();
   return (
     <Card>
       <CardHeader className="pb-2">
@@ -122,7 +126,7 @@ function CashSection({
       <CardContent className="space-y-1">
         {children}
         <div className="mt-3 flex justify-between border-t pt-2 font-semibold">
-          <span>صافي {title}</span>
+          <span>{t("صافي")} {title}</span>
           <span className={`tabular-nums ${total >= 0 ? "text-emerald-600" : "text-destructive"}`}>
             {total >= 0 ? "+" : ""}{(total < 0 ? "(" + `${(-total).toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2 })}` + ")" : total.toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2 }))}
           </span>

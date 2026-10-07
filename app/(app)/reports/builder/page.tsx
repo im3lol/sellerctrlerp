@@ -1,4 +1,5 @@
 import { loadErpPage } from "@/lib/erp/org";
+import { getT } from "@/lib/i18n/server";
 import { EXPORT_DATASETS } from "@/lib/erp/export-datasets";
 import { ErpPageHeader } from "@/components/erp/page-header";
 import { ReportBuilderUI } from "@/components/erp/report-builder-ui";
@@ -7,6 +8,7 @@ import { listSavedReportsAction } from "@/app/actions/erp/report-builder";
 export const dynamic = "force-dynamic";
 
 export default async function ReportBuilderPage({ searchParams }: { searchParams: Promise<{ r?: string }> }) {
+  const t = await getT();
   // ?r=<saved report id> — a dashboard tile opening its report here.
   const { r } = await searchParams;
   return loadErpPage("reports.view", async ({ can }) => {
@@ -21,12 +23,12 @@ export default async function ReportBuilderPage({ searchParams }: { searchParams
       <div className="space-y-6">
         <ErpPageHeader
           icon="Table2"
-          title="باني التقارير"
-          subtitle="اختار بيانات، فلتر، جمّع، واحفظ السؤال — الأرقام بتتقرا من جديد كل مرة"
+          title={t("باني التقارير")}
+          subtitle={t("اختار بيانات، فلتر، جمّع، واحفظ السؤال — الأرقام بتتقرا من جديد كل مرة")}
           backHref="/reports/center"
         />
         {datasets.length === 0 ? (
-          <p className="text-sm text-muted-foreground">مفيش بيانات متاحة لصلاحياتك.</p>
+          <p className="text-sm text-muted-foreground">{t("مفيش بيانات متاحة لصلاحياتك.")}</p>
         ) : (
           <ReportBuilderUI
             key={r ?? ""}

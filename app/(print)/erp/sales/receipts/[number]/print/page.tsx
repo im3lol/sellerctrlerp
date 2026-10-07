@@ -1,9 +1,11 @@
 import { notFound } from "next/navigation";
+import { fill } from "@/lib/i18n";
+import { getLocale, getT } from "@/lib/i18n/server";
 import { and, eq } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
 import { receiptVouchers, receiptLines, customers, salesInvoices } from "@/db/schema";
-import { fmt, dt, money, toArabicWords } from "@/lib/erp/print-format";
+import { fmt, dt, money, amountInWords } from "@/lib/erp/print-format";
 import { loadPrintHeader } from "@/lib/erp/print-org";
 import { DocumentSheet } from "@/components/erp/print/document-sheet";
 
@@ -14,6 +16,8 @@ const METHODS: Record<string, string> = {
 type Params = { params: Promise<{ number: string }> };
 
 export default async function PrintReceiptVoucherPage({ params }: Params) {
+  const t = await getT();
+  const locale = await getLocale();
   const raw = decodeURIComponent((await params).number);
   return loadErpPage("sales.view", async ({ orgId }) => {
     const [rv] = await db
@@ -40,10 +44,10 @@ export default async function PrintReceiptVoucherPage({ params }: Params) {
       <DocumentSheet
         org={org}
         footerText={footerText}
-        title="سند قبض"
+        title={t("سند قبض")}
         number={rv.number}
         backHref={`/sales/receipts/${encodeURIComponent(raw)}`}
-        meta={[{ label: "التاريخ", value: dt(rv.date) }]}
+        meta={[{ label: "التاريخ", value: dt(rv.date, locale) }]}
         parties={[
           {
             label: "استُلم من",
@@ -52,8 +56,8 @@ export default async function PrintReceiptVoucherPage({ params }: Params) {
           },
           {
             label: "طريقة السداد",
-            name: METHODS[rv.paymentMethod] ?? rv.paymentMethod,
-            lines: [rv.reference ? `المرجع: ${rv.reference}` : null],
+            name: t(METHODS[rv.paymentMethod] ?? rv.paymentMethod),
+            lines: [rv.reference ? fill(t("المرجع: {0}"), [rv.reference]) : null],
           },
         ]}
         columns={lines.length > 0 ? [
@@ -61,14 +65,14 @@ export default async function PrintReceiptVoucherPage({ params }: Params) {
           { label: "المبلغ", align: "end", width: "40%" },
         ] : []}
         rows={lines.map((l) => [
-          <span key="n" dir="ltr" style={{ textAlign: "start", display: "block" }}>{l.invoiceNumber ?? "تحت الحساب"}</span>,
+          <span key="n" dir="ltr" style={{ textAlign: "start", display: "block" }}>{l.invoiceNumber ?? t("تحت الحساب")}</span>,
           fmt(l.amount),
         ])}
         // The amount received IS the document — it gets the highlight, not a total row.
-        balance={{ label: "المبلغ المستلم", value: money(rv.amount, currency) }}
+        balance={{ label: "المبلغ المستلم", value: money(rv.amount, currency, locale) }}
         // Same «فقط وقدره» line the payment voucher already had — both are vouchers
         // someone signs, and only one of them said the amount in words.
-        note={`فقط وقدره ${toArabicWords(Number(rv.amount))} لا غير.${rv.notes ? `\n${rv.notes}` : ""}`}
+        note={`${amountInWords(Number(rv.amount), locale)}.${rv.notes ? `\n${rv.notes}` : ""}`}
         signatures={["التوقيع", "المستلم", "المحاسب"]}
       />
     );

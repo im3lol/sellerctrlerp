@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { fill } from "@/lib/i18n";
+import { getT } from "@/lib/i18n/server";
 import { notFound } from "next/navigation";
 import { requireUser } from "@/lib/session";
 import {
@@ -18,7 +20,8 @@ const intf = (n: number) => n.toLocaleString("ar-EG-u-nu-latn");
 export async function generateMetadata({ params }: { params: Promise<{ module: string }> }) {
   const { module } = await params;
   const label = MODULE_LABELS[module];
-  return { title: label ? `الأكاديمية — ${label}` : "الأكاديمية" };
+  const t = await getT();
+  return { title: label ? fill(t("الأكاديمية — {0}"), [t(label)]) : t("الأكاديمية") };
 }
 
 /**
@@ -28,6 +31,7 @@ export async function generateMetadata({ params }: { params: Promise<{ module: s
  * a mixed list makes them filter it in their head.
  */
 export default async function AcademyModulePage({ params }: { params: Promise<{ module: string }> }) {
+  const t = await getT();
   await requireUser();
   await requireAcademyAccess();
   const { module } = await params;
@@ -39,20 +43,20 @@ export default async function AcademyModulePage({ params }: { params: Promise<{ 
   const p = progress(lessons);
 
   return (
-    <div className="space-y-6" dir="rtl">
+    <div className="space-y-6">
       <ErpPageHeader
         icon={MODULE_ICONS[module] ?? "GraduationCap"}
-        title={`الأكاديمية — ${MODULE_LABELS[module] ?? module}`}
+        title={fill(t("الأكاديمية — {0}"), [t(MODULE_LABELS[module] ?? module)])}
         subtitle={lessons.length === 0
-          ? "لا توجد دروس بعد"
-          : `${intf(p.videos.live)} فيديو · ${intf(p.docs.live)} دليل · ${intf(p.soon)} قريباً`}
+          ? t("لا توجد دروس بعد")
+          : fill(t("{0} فيديو · {1} دليل · {2} قريباً"), [intf(p.videos.live), intf(p.docs.live), intf(p.soon)])}
         backHref="/academy"
       />
 
       {lessons.length === 0 ? (
         <Card>
           <CardContent className="py-12 text-center text-sm text-muted-foreground">
-            لسه مافيش دروس للموديول ده — بنجهّزها.
+            {t("لسه مافيش دروس للموديول ده — بنجهّزها.")}
           </CardContent>
         </Card>
       ) : (
@@ -64,7 +68,8 @@ export default async function AcademyModulePage({ params }: { params: Promise<{ 
   );
 }
 
-function Section({ kind, lessons }: { kind: LessonKind; lessons: Lesson[] }) {
+async function Section({ kind, lessons }: { kind: LessonKind; lessons: Lesson[] }) {
+  const t = await getT();
   // An empty catalogue keeps its heading: «لا توجد أدلة» is information, a missing
   // section just looks like the feature doesn't exist.
   const live = lessons.filter(isLive).length;
@@ -73,15 +78,15 @@ function Section({ kind, lessons }: { kind: LessonKind; lessons: Lesson[] }) {
     <section className="space-y-3">
       <div className="flex items-center gap-2">
         <Icon name={KIND_ICONS[kind]} className="size-[18px] text-muted-foreground" />
-        <h2 className="font-semibold">{KIND_PLURAL[kind]}</h2>
+        <h2 className="font-semibold">{t(KIND_PLURAL[kind])}</h2>
         <span className="text-xs text-muted-foreground">
-          {lessons.length === 0 ? "لا يوجد بعد" : `${intf(live)} متاح · ${intf(lessons.length - live)} قريباً`}
+          {lessons.length === 0 ? t("لا يوجد بعد") : fill(t("{0} متاح · {1} قريباً"), [intf(live), intf(lessons.length - live)])}
         </span>
       </div>
 
       {lessons.length === 0 ? (
         <Card><CardContent className="py-8 text-center text-sm text-muted-foreground">
-          {kind === "video" ? "لسه مافيش فيديوهات هنا." : "لسه مافيش أدلة مكتوبة هنا."}
+          {kind === "video" ? t("لسه مافيش فيديوهات هنا.") : t("لسه مافيش أدلة مكتوبة هنا.")}
         </CardContent></Card>
       ) : (
         <div className="grid gap-3 md:grid-cols-2">
@@ -92,7 +97,8 @@ function Section({ kind, lessons }: { kind: LessonKind; lessons: Lesson[] }) {
   );
 }
 
-function LessonCard({ lesson }: { lesson: Lesson }) {
+async function LessonCard({ lesson }: { lesson: Lesson }) {
+  const t = await getT();
   const live = isLive(lesson);
   const href = lessonHref(lesson);
 
@@ -102,14 +108,14 @@ function LessonCard({ lesson }: { lesson: Lesson }) {
         <div className="flex items-center gap-2">
           <Icon name={live ? KIND_ICONS[lesson.kind] : "Clock"}
             className={cn("size-4 shrink-0", live ? "text-primary" : "text-muted-foreground")} />
-          <span className="font-medium">{lesson.title}</span>
+          <span className="font-medium">{t(lesson.title)}</span>
         </div>
-        {!live && <Badge variant="secondary" className="shrink-0">قريباً</Badge>}
+        {!live && <Badge variant="secondary" className="shrink-0">{t("قريباً")}</Badge>}
       </div>
       {lesson.outcome && <p className="pr-6 text-sm text-muted-foreground">{lesson.outcome}</p>}
       <div className="flex gap-2 pr-6 text-xs text-muted-foreground">
-        {lesson.minutes && <span>{intf(lesson.minutes)} دقيقة</span>}
-        {lesson.level && <span>· {lesson.level === "basic" ? "أساسي" : "متقدّم"}</span>}
+        {lesson.minutes && <span>{intf(lesson.minutes)} {t("دقيقة")}</span>}
+        {lesson.level && <span>· {lesson.level === "basic" ? t("أساسي") : t("متقدّم")}</span>}
       </div>
     </>
   );

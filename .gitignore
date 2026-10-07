@@ -56,3 +56,7 @@ build-log.txt
 # Build output that got committed once by accident. Never track a build: a future
 # NEXT_PUBLIC_* value baked into a client chunk would land in git history for good.
 docker/.next/
+
+# Local database dumps — never in git (see docs/BACKUPS.md)
+dbbackups/
+*.dump

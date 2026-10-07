@@ -1,8 +1,10 @@
 import "server-only";
 import nodemailer from "nodemailer";
 import { db } from "@/lib/db";
-import { platformSettings } from "@/db/schema";
+import { eq, sql } from "drizzle-orm";
+import { platformSettings, users } from "@/db/schema";
 import { decryptSecret } from "@/lib/crypto";
+import { DEFAULT_LOCALE, isLocale, type Locale } from "@/lib/i18n";
 
 /**
  * Platform-level SMTP config (one mailbox for the whole platform, e.g.
@@ -45,5 +47,19 @@ export async function sendViaSmtp(cfg: SmtpConfig, msg: { to: string; subject: s
   } catch (e) {
     console.error("[smtp] send failed:", e);
     return false;
+  }
+}
+
+/** The language to write to an address in: the chosen language of the user who signs in
+ *  with it (an organization's email is usually its owner's), else the default (Arabic).
+ *  Never throws — a lookup failure just means Arabic. */
+export async function localeForEmail(email: string | null | undefined): Promise<Locale> {
+  if (!email) return DEFAULT_LOCALE;
+  try {
+    const [u] = await db.select({ locale: users.locale }).from(users)
+      .where(eq(sql`lower(${users.email})`, email.trim().toLowerCase())).limit(1);
+    return isLocale(u?.locale) ? u.locale : DEFAULT_LOCALE;
+  } catch {
+    return DEFAULT_LOCALE;
   }
 }

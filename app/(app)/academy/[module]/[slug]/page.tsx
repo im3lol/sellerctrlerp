@@ -1,4 +1,6 @@
 import { notFound } from "next/navigation";
+import { fill } from "@/lib/i18n";
+import { getT } from "@/lib/i18n/server";
 import { requireUser } from "@/lib/session";
 import { getLesson, isModuleKey, opensInApp, requireAcademyAccess, KIND_LABELS, MODULE_ICONS } from "@/lib/erp/academy";
 import { MODULE_LABELS } from "@/lib/erp/module-list";
@@ -14,7 +16,8 @@ const intf = (n: number) => n.toLocaleString("ar-EG-u-nu-latn");
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   const lesson = await getLesson(slug);
-  return { title: lesson ? `الأكاديمية — ${lesson.title}` : "الأكاديمية" };
+  const t = await getT();
+  return { title: lesson ? fill(t("الأكاديمية — {0}"), [t(lesson.title)]) : t("الأكاديمية") };
 }
 
 /**
@@ -24,6 +27,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
  * host), since then the page really would be one outbound link.
  */
 export default async function LessonPage({ params }: { params: Promise<{ module: string; slug: string }> }) {
+  const t = await getT();
   await requireUser();
   await requireAcademyAccess();
   const { module, slug } = await params;
@@ -39,7 +43,7 @@ export default async function LessonPage({ params }: { params: Promise<{ module:
   const videoId = lesson.kind === "video" ? youtubeId(lesson.url) : null;
 
   return (
-    <div className="mx-auto max-w-3xl space-y-6" dir="rtl">
+    <div className="mx-auto max-w-3xl space-y-6">
       <ErpPageHeader
         icon={MODULE_ICONS[module] ?? "GraduationCap"}
         title={lesson.title}
@@ -48,12 +52,12 @@ export default async function LessonPage({ params }: { params: Promise<{ module:
       />
 
       <div className="flex flex-wrap items-center gap-2">
-        <Badge variant="secondary">{MODULE_LABELS[module]}</Badge>
-        <Badge variant="outline">{KIND_LABELS[lesson.kind]}</Badge>
-        <Badge variant="outline">{lesson.level === "basic" ? "أساسي" : "متقدّم"}</Badge>
+        <Badge variant="secondary">{t(MODULE_LABELS[module])}</Badge>
+        <Badge variant="outline">{t(KIND_LABELS[lesson.kind])}</Badge>
+        <Badge variant="outline">{lesson.level === "basic" ? t("أساسي") : t("متقدّم")}</Badge>
         {lesson.minutes && (
           <span className="text-xs text-muted-foreground">
-            {intf(lesson.minutes)} دقيقة {lesson.kind === "doc" ? "قراءة" : ""}
+            {fill(t("{0} دقيقة"), [intf(lesson.minutes)])} {lesson.kind === "doc" ? t("قراءة") : ""}
           </span>
         )}
       </div>
@@ -80,8 +84,8 @@ export default async function LessonPage({ params }: { params: Promise<{ module:
           className="flex items-center gap-3 rounded-xl border border-border p-4 transition-colors hover:bg-muted">
           <Icon name="PlayCircle" className="size-5 shrink-0 text-primary" />
           <div>
-            <div className="text-sm font-medium">شغّل الفيديو</div>
-            <div className="text-xs text-muted-foreground">هيفتح في تاب جديد</div>
+            <div className="text-sm font-medium">{t("شغّل الفيديو")}</div>
+            <div className="text-xs text-muted-foreground">{t("هيفتح في تاب جديد")}</div>
           </div>
         </a>
       )}

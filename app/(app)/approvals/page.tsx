@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { fill } from "@/lib/i18n";
+import { getT } from "@/lib/i18n/server";
 import { loadErpPage } from "@/lib/erp/org";
 import { requireUser } from "@/lib/session";
 import { listApprovals, approvalEntityHref, APPROVAL_DOC_LABEL, type ApprovalRow } from "@/lib/erp/approvals";
@@ -32,6 +34,7 @@ type Tab = "pending" | "mine" | "done" | "late" | "tasks";
  * requests they filed, so a buyer can see their order is waiting rather than wondering.
  */
 export default async function ApprovalsPage({ searchParams }: { searchParams: Promise<{ tab?: string }> }) {
+  const t = await getT();
   return loadErpPage("settings.view", async ({ orgId, role, can }) => {
     const user = await requireUser();
     const canDecide = can("approvals.decide");
@@ -71,14 +74,14 @@ export default async function ApprovalsPage({ searchParams }: { searchParams: Pr
 
     return (
       <div className="space-y-5">
-        <ErpPageHeader icon="ClipboardCheck" title="الموافقات" subtitle="المستندات اللي عدّت حد الاعتماد ومستنية قرار مدير" />
+        <ErpPageHeader icon="ClipboardCheck" title={t("الموافقات")} subtitle={t("المستندات اللي عدّت حد الاعتماد ومستنية قرار مدير")} />
 
         <div className="flex flex-wrap gap-2">
-          {tabs.filter((t) => t.show).map((t) => (
-            <Link key={t.key} href={`/approvals?tab=${t.key}`}
+          {tabs.filter((it) => it.show).map((it) => (
+            <Link key={it.key} href={`/approvals?tab=${it.key}`}
               className={cn("rounded-lg border px-3 py-1.5 text-sm transition-colors",
-                tab === t.key ? "border-primary bg-primary text-primary-foreground" : "hover:bg-accent")}>
-              {t.label}
+                tab === it.key ? "border-primary bg-primary text-primary-foreground" : "hover:bg-accent")}>
+              {t(it.label)}
             </Link>
           ))}
         </div>
@@ -86,24 +89,24 @@ export default async function ApprovalsPage({ searchParams }: { searchParams: Pr
         <Card>
           <CardContent className="p-0">
             {rows.length === 0 && stuck.length === 0 && tasks.length === 0 ? (
-              <div className="py-14 text-center text-muted-foreground">{empty[tab]}</div>
+              <div className="py-14 text-center text-muted-foreground">{t(empty[tab])}</div>
             ) : tab === "tasks" ? (
               <div className="divide-y">
-                {tasks.map((t) => {
-                  const k = isChatterKind(t.kind) ? t.kind : null;
-                  const st = followUpState(String(t.dueDate), null, today);
+                {tasks.map((it) => {
+                  const k = isChatterKind(it.kind) ? it.kind : null;
+                  const st = followUpState(String(it.dueDate), null, today);
                   return (
-                    <div key={t.id} className="flex flex-wrap items-center gap-3 p-4">
-                      {k && <Badge variant="secondary">{CHATTER_DOCS[k].label}</Badge>}
-                      {k && t.entityNumber && (
-                        <Link href={docHref(k, t.entityNumber)} className="font-mono text-sm font-medium hover:text-primary hover:underline">{t.entityNumber}</Link>
+                    <div key={it.id} className="flex flex-wrap items-center gap-3 p-4">
+                      {k && <Badge variant="secondary">{t(CHATTER_DOCS[k].label)}</Badge>}
+                      {k && it.entityNumber && (
+                        <Link href={docHref(k, it.entityNumber)} className="font-mono text-sm font-medium hover:text-primary hover:underline">{it.entityNumber}</Link>
                       )}
-                      <span className="text-sm">{t.summary}</span>
+                      <span className="text-sm">{t(it.summary)}</span>
                       <span className={cn("ms-auto rounded-md px-2 py-0.5 text-xs font-medium",
                         st === "overdue" ? "bg-destructive/10 text-destructive"
                         : st === "today" ? "bg-amber-100 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300"
                         : "bg-muted text-muted-foreground")}>
-                        {st === "overdue" ? "متأخرة" : st === "today" ? "النهارده" : "جاية"} · {String(t.dueDate)}
+                        {st === "overdue" ? t("متأخرة") : st === "today" ? t("النهارده") : t("جاية")} · {String(it.dueDate)}
                       </span>
                     </div>
                   );
@@ -113,12 +116,12 @@ export default async function ApprovalsPage({ searchParams }: { searchParams: Pr
               <div className="divide-y">
                 {stuck.map((s) => (
                   <div key={s.id} className="flex flex-wrap items-center gap-3 p-4">
-                    <Badge variant="secondary">{s.label}</Badge>
+                    <Badge variant="secondary">{t(s.label)}</Badge>
                     <Link href={s.href} className="font-mono text-sm font-medium hover:text-primary hover:underline">{s.number}</Link>
                     <span className="text-sm text-muted-foreground">{s.why}</span>
                     <span className={cn("ms-auto rounded-md px-2 py-0.5 text-xs font-medium tabular-nums",
                       s.days >= 14 ? "bg-destructive/10 text-destructive" : "bg-amber-100 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300")}>
-                      من {s.days} يوم
+                      {fill(t("من {0} يوم"), [s.days])}
                     </span>
                   </div>
                 ))}
@@ -132,24 +135,24 @@ export default async function ApprovalsPage({ searchParams }: { searchParams: Pr
                     <div key={r.id} className="flex flex-wrap items-center gap-3 p-4">
                       <div className="min-w-0 flex-1 space-y-1">
                         <div className="flex flex-wrap items-center gap-2">
-                          <Badge variant="secondary">{APPROVAL_DOC_LABEL[r.entityType as ApprovalDocType] ?? r.entityType}</Badge>
+                          <Badge variant="secondary">{t(APPROVAL_DOC_LABEL[r.entityType as ApprovalDocType] ?? r.entityType)}</Badge>
                           <Link href={approvalEntityHref(r.entityType, r.entityNumber, r.entityId)} className="font-mono text-sm font-medium hover:text-primary hover:underline">
                             {r.entityNumber ?? "—"}
                           </Link>
                           {r.amount != null && <span className="text-sm tabular-nums text-muted-foreground">{fmt(r.amount)}</span>}
-                          <span className={cn("rounded-md px-2 py-0.5 text-xs font-medium", st.cls)}>{st.label}</span>
+                          <span className={cn("rounded-md px-2 py-0.5 text-xs font-medium", st.cls)}>{t(st.label)}</span>
                         </div>
-                        <div className="text-sm">{r.reason}</div>
+                        <div className="text-sm">{t(r.reason)}</div>
                         <div className="text-xs text-muted-foreground">
-                          {r.requestedByName ? `طلبه ${r.requestedByName}` : "اعتماد مباشر"} · {timeAgo(r.requestedAt)}
-                          {r.decidedByName ? ` · قرّره ${r.decidedByName}${r.decidedAt ? ` ${timeAgo(r.decidedAt)}` : ""}` : ""}
+                          {r.requestedByName ? fill(t("طلبه {0}"), [r.requestedByName]) : t("اعتماد مباشر")} · {timeAgo(r.requestedAt)}
+                          {r.decidedByName ? fill(t(" · قرّره {0}{1}"), [r.decidedByName, r.decidedAt ? ` ${timeAgo(r.decidedAt)}` : ""]) : ""}
                         </div>
-                        {r.comment && <div className="text-xs">{r.status === "REJECTED" ? `سبب الرفض: ${r.comment}` : r.comment}</div>}
+                        {r.comment && <div className="text-xs">{r.status === "REJECTED" ? fill(t("سبب الرفض: {0}"), [r.comment]) : r.comment}</div>}
                       </div>
                       {tab === "pending" && r.status === "PENDING" && (
                         canDecide && (!mine || isAdmin)
                           ? <ApprovalDecision requestId={r.id} compact />
-                          : <span className="text-xs text-muted-foreground">طلبك — مستني مدير تاني</span>
+                          : <span className="text-xs text-muted-foreground">{t("طلبك — مستني مدير تاني")}</span>
                       )}
                     </div>
                   );

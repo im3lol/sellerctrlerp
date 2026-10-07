@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { getLocale, getT } from "@/lib/i18n/server";
 import { and, eq } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
@@ -22,6 +23,8 @@ const SOURCE: Record<string, string> = {
 type Params = { params: Promise<{ number: string }> };
 
 export default async function PrintJournalEntryPage({ params }: Params) {
+  const t = await getT();
+  const locale = await getLocale();
   const raw = decodeURIComponent((await params).number);
   return loadErpPage("accounting.view", async ({ orgId }) => {
     const [entry] = await db
@@ -54,13 +57,13 @@ export default async function PrintJournalEntryPage({ params }: Params) {
         org={org}
         hiddenColumns={hiddenFor("journal")}
         footerText={footerText}
-        title="قيد يومية"
+        title={t("قيد يومية")}
         number={entry.number}
         backHref={`/accounting/journal/${encodeURIComponent(raw)}`}
-        watermark={entry.status === "DRAFT" ? "مسودة" : undefined}
+        watermark={entry.status === "DRAFT" ? t("مسودة") : undefined}
         meta={[
-          { label: "التاريخ", value: dt(entry.date) },
-          { label: "المصدر", value: SOURCE[entry.sourceType ?? ""] ?? "قيد محاسبي" },
+          { label: "التاريخ", value: dt(entry.date, locale) },
+          { label: "المصدر", value: SOURCE[entry.sourceType ?? ""] ?? t("قيد محاسبي") },
           { label: "الحالة", value: STATUS[entry.status] ?? entry.status },
           ...(entry.reference ? [{ label: "المرجع", value: entry.reference }] : []),
         ]}
@@ -73,15 +76,15 @@ export default async function PrintJournalEntryPage({ params }: Params) {
         rows={lines.map((l, i) => [
           <span key={i}>
             <span dir="ltr" style={{ color: "#8a93a6", fontSize: 10.5, marginInlineEnd: 6 }}>{l.accountCode}</span>
-            <b>{l.accountName}</b>
+            <b>{t(l.accountName)}</b>
           </span>,
           l.description || "—",
           Number(l.debit) ? fmt(l.debit) : "—",
           Number(l.credit) ? fmt(l.credit) : "—",
         ])}
         totals={[
-          { label: "إجمالي المدين", value: money(totalDebit, currency), tone: "strong" },
-          { label: "إجمالي الدائن", value: money(totalCredit, currency), tone: "strong" },
+          { label: "إجمالي المدين", value: money(totalDebit, currency, locale), tone: "strong" },
+          { label: "إجمالي الدائن", value: money(totalCredit, currency, locale), tone: "strong" },
         ]}
         note={entry.description}
         signatures={["المحاسب", "المدير المالي"]}

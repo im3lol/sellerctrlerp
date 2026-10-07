@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { fill } from "@/lib/i18n";
+import { getT } from "@/lib/i18n/server";
 import { and, eq } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
@@ -23,6 +25,7 @@ const round2 = (n: number) => Math.round(n * 100) / 100;
  * monthly for the same reason. Read-only.
  */
 export default async function GrniReconciliationPage() {
+  const t = await getT();
   return loadErpPage("purchases.view", async ({ orgId }) => {
     // Confirmed receipts still awaiting an invoice — these are what 2103 should hold.
     const openReceipts = await db
@@ -58,32 +61,32 @@ export default async function GrniReconciliationPage() {
 
     return (
       <div className="space-y-6">
-        <ErpPageHeader icon="Scale" title="مطابقة بضاعة لم تُفوتر" subtitle="رصيد حساب ٢١٠٣ مقابل إذون الاستلام غير المفوترة" backHref="/purchases" />
+        <ErpPageHeader icon="Scale" title={t("مطابقة بضاعة لم تُفوتر")} subtitle={t("رصيد حساب ٢١٠٣ مقابل إذون الاستلام غير المفوترة")} backHref="/purchases" />
 
         <div className="grid gap-4 sm:grid-cols-3">
-          <Card><CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">قيمة الإذون غير المفوترة</CardTitle></CardHeader><CardContent><p className="text-2xl font-bold tabular-nums">{fmt(expected)}</p></CardContent></Card>
-          <Card><CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">رصيد الحساب (GL)</CardTitle></CardHeader><CardContent><p className="text-2xl font-bold tabular-nums">{fmt(glValue)}</p></CardContent></Card>
-          <Card><CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">الفرق</CardTitle></CardHeader><CardContent><p className={`text-2xl font-bold tabular-nums ${matched ? "text-emerald-600" : "text-destructive"}`}>{fmt(diff)}</p></CardContent></Card>
+          <Card><CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">{t("قيمة الإذون غير المفوترة")}</CardTitle></CardHeader><CardContent><p className="text-2xl font-bold tabular-nums">{fmt(expected)}</p></CardContent></Card>
+          <Card><CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">{t("رصيد الحساب (GL)")}</CardTitle></CardHeader><CardContent><p className="text-2xl font-bold tabular-nums">{fmt(glValue)}</p></CardContent></Card>
+          <Card><CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">{t("الفرق")}</CardTitle></CardHeader><CardContent><p className={`text-2xl font-bold tabular-nums ${matched ? "text-emerald-600" : "text-destructive"}`}>{fmt(diff)}</p></CardContent></Card>
         </div>
 
         <Card>
           <CardHeader className="flex-row items-center justify-between">
             <div>
-              <CardTitle>النتيجة</CardTitle>
+              <CardTitle>{t("النتيجة")}</CardTitle>
               <CardDescription>
                 {grniAccount
-                  ? `حساب ${grniAccount.code} — ${grniAccount.nameAr}. الاستلام يدائن الحساب والفاتورة تمدينه، فالرصيد يجب أن يساوي قيمة الإذون التي لم تُفوتر بعد.`
-                  : "لم يُضبط حساب «بضاعة لم تُفوتر» (2103) في دليل الحسابات."}
+                  ? fill(t("حساب {0} — {1}. الاستلام يدائن الحساب والفاتورة تمدينه، فالرصيد يجب أن يساوي قيمة الإذون التي لم تُفوتر بعد."), [grniAccount.code, t(grniAccount.nameAr)])
+                  : t("لم يُضبط حساب «بضاعة لم تُفوتر» (2103) في دليل الحسابات.")}
               </CardDescription>
             </div>
-            <Badge variant={matched ? "default" : "destructive"} className="text-sm">{matched ? "مطابَق" : "غير مطابَق"}</Badge>
+            <Badge variant={matched ? "default" : "destructive"} className="text-sm">{matched ? t("مطابَق") : t("غير مطابَق")}</Badge>
           </CardHeader>
           <CardContent>
             {matched ? (
-              <p className="text-sm text-muted-foreground">الحساب مطابق تماماً لإذون الاستلام المعلّقة.</p>
+              <p className="text-sm text-muted-foreground">{t("الحساب مطابق تماماً لإذون الاستلام المعلّقة.")}</p>
             ) : (
               <p className="text-sm text-destructive">
-                يوجد فرق قدره {fmt(Math.abs(diff))}. الأسباب المعتادة: إشعار مدين على فاتورة بدون مرتجع فعلي للبضاعة (أو العكس)، أو قيد يدوي على الحساب.
+                {fill(t("يوجد فرق قدره {0}. الأسباب المعتادة: إشعار مدين على فاتورة بدون مرتجع فعلي للبضاعة (أو العكس)، أو قيد يدوي على الحساب."), [fmt(Math.abs(diff))])}
               </p>
             )}
           </CardContent>
@@ -91,20 +94,20 @@ export default async function GrniReconciliationPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle>إذون استلام بانتظار الفوترة</CardTitle>
-            <CardDescription>بضاعة دخلت المخزون ولم تصل فاتورتها بعد — هذه هي مكوّنات الرصيد.</CardDescription>
+            <CardTitle>{t("إذون استلام بانتظار الفوترة")}</CardTitle>
+            <CardDescription>{t("بضاعة دخلت المخزون ولم تصل فاتورتها بعد — هذه هي مكوّنات الرصيد.")}</CardDescription>
           </CardHeader>
           <CardContent>
             {rows.length === 0 ? (
-              <div className="rounded-xl border border-dashed py-12 text-center text-muted-foreground">كل إذون الاستلام مفوترة.</div>
+              <div className="rounded-xl border border-dashed py-12 text-center text-muted-foreground">{t("كل إذون الاستلام مفوترة.")}</div>
             ) : (
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="text-start">الإذن</TableHead>
-                    <TableHead className="text-start">التاريخ</TableHead>
-                    <TableHead className="text-start">المورد</TableHead>
-                    <TableHead className="text-start">القيمة</TableHead>
+                    <TableHead className="text-start">{t("الإذن")}</TableHead>
+                    <TableHead className="text-start">{t("التاريخ")}</TableHead>
+                    <TableHead className="text-start">{t("المورد")}</TableHead>
+                    <TableHead className="text-start">{t("القيمة")}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>

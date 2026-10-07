@@ -1,4 +1,7 @@
 import { and, eq, gte, lte, ne, sql } from "drizzle-orm";
+import { fill } from "@/lib/i18n";
+import { getLocale, getT } from "@/lib/i18n/server";
+import type { Locale } from "@/lib/i18n";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
 import { salesInvoices, purchaseInvoices } from "@/db/schema";
@@ -20,14 +23,14 @@ const DETAIL_COLUMNS = [
   { label: "مبلغ الضريبة", align: "end" as const, width: "14%" },
 ];
 
-function detailSection(title: string, lines: VatLine[]): ReportSection {
+function detailSection(title: string, lines: VatLine[], locale: Locale): ReportSection {
   const shown = lines.slice(0, MAX_ROWS);
   return {
     title,
     columns: DETAIL_COLUMNS,
     rows: shown.map((l) => [
       <span key="n" dir="ltr">{l.number}</span>,
-      dt(l.date),
+      dt(l.date, locale),
       l.counterparty,
       fmt(l.netAmount),
       l.taxRate > 0 ? `${l.taxRate}%` : "—",
@@ -49,6 +52,8 @@ export default async function PrintVatReportPage({
 }: {
   searchParams: Promise<{ from?: string; to?: string }>;
 }) {
+  const t = await getT();
+  const locale = await getLocale();
   return loadErpPage("reports.view", async ({ orgId }) => {
     const sp = await searchParams;
 
@@ -129,21 +134,21 @@ export default async function PrintVatReportPage({
 
     const truncated =
       salesLines.length > MAX_ROWS || purchaseLines.length > MAX_ROWS
-        ? `عُرضت أول ${MAX_ROWS} صف من كل جدول (${salesLines.length} مبيعات · ${purchaseLines.length} مشتريات) — الإجماليات تشمل كل الفواتير.`
+        ? fill(t("عُرضت أول {0} صف من كل جدول ({1} مبيعات · {2} مشتريات) — الإجماليات تشمل كل الفواتير."), [MAX_ROWS, salesLines.length, purchaseLines.length])
         : null;
 
     return (
       <ReportSheet
         org={org}
-        title="تقرير ضريبة القيمة المضافة"
-        period={`من ${dt(fromISO)} إلى ${dt(toISO)}`}
+        title={t("تقرير ضريبة القيمة المضافة")}
+        period={fill(t("من {0} إلى {1}"), [dt(fromISO, locale), dt(toISO, locale)])}
         backHref={`/reports/vat?${new URLSearchParams({ from: fromISO, to: toISO }).toString()}`}
         kpis={[
-          { label: "الضريبة المحصّلة (مخرجات)", value: money(outputVat, currency), tone: "success" },
-          { label: "الضريبة المدفوعة (مدخلات)", value: money(inputVat, currency) },
+          { label: "الضريبة المحصّلة (مخرجات)", value: money(outputVat, currency, locale), tone: "success" },
+          { label: "الضريبة المدفوعة (مدخلات)", value: money(inputVat, currency, locale) },
           {
-            label: netVat >= 0 ? "صافي الضريبة المستحقة" : "ضريبة مستردّة",
-            value: money(Math.abs(netVat), currency),
+            label: netVat >= 0 ? t("صافي الضريبة المستحقة") : t("ضريبة مستردّة"),
+            value: money(Math.abs(netVat), currency, locale),
             tone: netVat >= 0 ? "danger" : "success",
           },
           { label: "عدد الفواتير الخاضعة", value: `${salesLines.length + purchaseLines.length}` },
@@ -153,18 +158,18 @@ export default async function PrintVatReportPage({
             title: "ملخّص الإقرار الضريبي",
             columns: [{ label: "البند" }, { label: "المبلغ", align: "end" as const, width: "26%" }],
             rows: [
-              ["إجمالي المبيعات الخاضعة للضريبة", money(outputBase, currency)],
-              ["ضريبة القيمة المضافة المحصّلة (مخرجات)", money(outputVat, currency)],
-              ["إجمالي المشتريات الخاضعة للضريبة", money(inputBase, currency)],
-              ["ضريبة القيمة المضافة المدفوعة (مدخلات)", money(inputVat, currency)],
+              ["إجمالي المبيعات الخاضعة للضريبة", money(outputBase, currency, locale)],
+              ["ضريبة القيمة المضافة المحصّلة (مخرجات)", money(outputVat, currency, locale)],
+              ["إجمالي المشتريات الخاضعة للضريبة", money(inputBase, currency, locale)],
+              ["ضريبة القيمة المضافة المدفوعة (مدخلات)", money(inputVat, currency, locale)],
             ],
             footerRow: [
-              netVat >= 0 ? "صافي الضريبة المستحقة للهيئة" : "ضريبة مستردّة من الهيئة",
-              money(Math.abs(netVat), currency),
+              netVat >= 0 ? t("صافي الضريبة المستحقة للهيئة") : t("ضريبة مستردّة من الهيئة"),
+              money(Math.abs(netVat), currency, locale),
             ],
           },
-          detailSection("تفاصيل الضريبة المحصّلة (فواتير البيع)", salesLines),
-          detailSection("تفاصيل الضريبة المدفوعة (فواتير الشراء)", purchaseLines),
+          detailSection("تفاصيل الضريبة المحصّلة (فواتير البيع)", salesLines, locale),
+          detailSection("تفاصيل الضريبة المدفوعة (فواتير الشراء)", purchaseLines, locale),
         ]}
         note={truncated}
       />

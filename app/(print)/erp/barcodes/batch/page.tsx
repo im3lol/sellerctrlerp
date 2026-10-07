@@ -1,4 +1,5 @@
 import { and, eq, inArray } from "drizzle-orm";
+import { getT } from "@/lib/i18n/server";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
 import { items, itemCodes } from "@/db/schema";
@@ -6,6 +7,7 @@ import { BarcodeLabelSheet, type LabelRow } from "@/components/erp/barcode-label
 
 /** Ad-hoc barcode labels for arbitrary items. ?items=<id>:<qty>,<id>:<qty>… */
 export default async function BatchBarcodePage({ searchParams }: { searchParams: Promise<{ items?: string }> }) {
+  const t = await getT();
   return loadErpPage("inventory.view", async ({ orgId }) => {
     const raw = (await searchParams).items ?? "";
 
@@ -32,6 +34,6 @@ export default async function BatchBarcodePage({ searchParams }: { searchParams:
       }
     }
 
-    return <BarcodeLabelSheet labels={labels} title="ملصقات باركود" />;
+    return <BarcodeLabelSheet labels={labels} title={t("ملصقات باركود")} />;
   });
 }

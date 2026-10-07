@@ -59,7 +59,7 @@ export function LedgerCombobox({
             <li key={`${o.value}-${i}`}>
               <button
                 type="button"
-                className="flex w-full flex-col items-start gap-0.5 rounded-sm px-3 py-1.5 text-right text-sm hover:bg-accent hover:text-accent-foreground"
+                className="flex w-full flex-col items-start gap-0.5 rounded-sm px-3 py-1.5 text-start text-sm hover:bg-accent hover:text-accent-foreground"
                 onClick={() => {
                   setQ(o.value);
                   setOpen(false);

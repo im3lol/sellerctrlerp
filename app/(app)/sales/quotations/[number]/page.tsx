@@ -1,4 +1,6 @@
 import { notFound } from "next/navigation";
+import { fill } from "@/lib/i18n";
+import { getT } from "@/lib/i18n/server";
 import { and, asc, eq } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
@@ -25,6 +27,7 @@ const ST: Record<string, { label: string; variant: "default" | "secondary" | "ou
 };
 
 export default async function QuotationDetailPage({ params }: { params: Promise<{ number: string }> }) {
+  const t = await getT();
   const raw = (await params).number;
   return loadErpPage("sales.view", async ({ orgId, can }) => {
     const number = await docNumberParam(raw, orgId, salesQuotations,
@@ -50,7 +53,7 @@ export default async function QuotationDetailPage({ params }: { params: Promise<
 
     return (
       <div className="space-y-6">
-        <ErpPageHeader icon="FileText" title={`عرض سعر ${qt.number}`} subtitle={`${qt.customer ?? "—"} · ${dt(qt.date)}${qt.validUntil ? ` · صالح حتى ${dt(qt.validUntil)}` : ""}`} backHref="/sales/quotations"
+        <ErpPageHeader icon="FileText" title={fill(t("عرض سعر {0}"), [qt.number])} subtitle={`${qt.customer ?? "—"} · ${dt(qt.date)}${qt.validUntil ? ` · ${fill(t("صالح حتى {0}"), [dt(qt.validUntil)])}` : ""}`} backHref="/sales/quotations"
           action={
             <QuotationDetailActions
               id={qt.id} number={qt.number} status={qt.status} canManage={can("sales.create")}
@@ -58,18 +61,18 @@ export default async function QuotationDetailPage({ params }: { params: Promise<
             />
           } />
         <Card>
-          <CardHeader className="flex-row items-center justify-between"><CardTitle>بنود العرض</CardTitle><Badge variant={st.variant}>{st.label}</Badge></CardHeader>
+          <CardHeader className="flex-row items-center justify-between"><CardTitle>{t("بنود العرض")}</CardTitle><Badge variant={st.variant}>{t(st.label)}</Badge></CardHeader>
           <CardContent>
             <Table>
               <TableHeader><TableRow>
-                <TableHead className="text-start">الصنف</TableHead><TableHead className="text-end">الكمية</TableHead>
-                <TableHead className="text-end">السعر</TableHead><TableHead className="text-end">خصم</TableHead>
-                <TableHead className="text-end">ضريبة</TableHead><TableHead className="text-end">الإجمالي</TableHead>
+                <TableHead className="text-start">{t("الصنف")}</TableHead><TableHead className="text-end">{t("الكمية")}</TableHead>
+                <TableHead className="text-end">{t("السعر")}</TableHead><TableHead className="text-end">{t("خصم")}</TableHead>
+                <TableHead className="text-end">{t("ضريبة")}</TableHead><TableHead className="text-end">{t("الإجمالي")}</TableHead>
               </TableRow></TableHeader>
               <TableBody>
                 <PaginatedTableRows rows={lines.map((l, i) => (
                   <TableRow key={i}>
-                    <TableCell className="max-w-[320px] whitespace-normal"><div className="line-clamp-2 leading-snug" title={l.name ?? undefined}><span className="font-mono text-xs text-muted-foreground">{l.code}</span> {l.name}</div></TableCell>
+                    <TableCell className="max-w-[320px] whitespace-normal"><div className="line-clamp-2 leading-snug" title={l.name ?? undefined}><span className="font-mono text-xs text-muted-foreground">{l.code}</span> {t(l.name ?? "")}</div></TableCell>
                     <TableCell className="text-end tabular-nums">{q(Number(l.quantity))}</TableCell>
                     <TableCell className="text-end tabular-nums">{fmt(Number(l.unitPrice))}</TableCell>
                     <TableCell className="text-end tabular-nums text-muted-foreground">{fmt(Number(l.discountAmount))}</TableCell>
@@ -82,15 +85,15 @@ export default async function QuotationDetailPage({ params }: { params: Promise<
             <div className="mt-4 flex flex-col items-end gap-1 text-sm">
               {headerDiscount > 0 && (
                 <>
-                  <div className="text-muted-foreground">الإجمالي قبل الخصم: <span className="font-medium">{fmt(gross)}</span></div>
-                  <div className="text-muted-foreground">خصم على الإجمالي: <span className="font-medium">{fmt(headerDiscount)}</span></div>
+                  <div className="text-muted-foreground">{t("الإجمالي قبل الخصم:")} <span className="font-medium">{fmt(gross)}</span></div>
+                  <div className="text-muted-foreground">{t("خصم على الإجمالي:")} <span className="font-medium">{fmt(headerDiscount)}</span></div>
                 </>
               )}
-              <div className="text-base font-bold text-primary">الإجمالي: {fmt(total)}</div>
+              <div className="text-base font-bold text-primary">{t("الإجمالي:")} {fmt(total)}</div>
             </div>
             {qt.notes && (
               <div className="mt-3 text-sm text-muted-foreground">
-                <span className="font-medium">ملاحظات:</span>
+                <span className="font-medium">{t("ملاحظات:")}</span>
                 <div className="mt-1">{renderRichText(qt.notes)}</div>
               </div>
             )}

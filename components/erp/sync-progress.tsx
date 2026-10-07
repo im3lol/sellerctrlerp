@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { fill, type T } from "@/lib/i18n";
+import { useT } from "@/lib/i18n/client";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Boxes, ShoppingCart, Warehouse, Check, X, Loader2, RefreshCw } from "lucide-react";
@@ -9,8 +11,8 @@ import { startInventoryAuditAction, inventoryAuditStatusAction } from "@/app/act
 import type { ProductSyncStatus } from "@/lib/erp/marketplace/sync-core";
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
-const productsDetail = (s: ProductSyncStatus) =>
-  `${s.total ?? 0} منتج · ${s.created ?? 0} جديد · ${s.linked ?? 0} مربوط`;
+const productsDetail = (s: ProductSyncStatus, t: T) =>
+  fill(t("{0} منتج · {1} جديد · {2} مربوط"), [s.total ?? 0, s.created ?? 0, s.linked ?? 0]);
 
 type Status = "pending" | "running" | "done" | "error";
 type Step = { key: string; label: string; icon: React.ReactNode; status: Status; detail: string; href?: string; hrefLabel?: string };
@@ -23,6 +25,7 @@ const initial = (flags: Flags): Step[] => [
 ].filter(Boolean) as Step[];
 
 export function SyncProgress({ code, label = "المنصة", flags, auditInventory = false, open, onClose }: { code: string; label?: string; flags: Flags; auditInventory?: boolean; open: boolean; onClose: () => void }) {
+  const t = useT();
   const router = useRouter();
   const [steps, setSteps] = useState<Step[]>(() => initial(flags));
   const [running, setRunning] = useState(false);
@@ -44,10 +47,10 @@ export function SyncProgress({ code, label = "المنصة", flags, auditInvento
   // Amazon report, so we fire them concurrently — the reports generate in
   // parallel instead of back-to-back (roughly 3× faster wall time).
   async function step<T extends { ok: boolean; error?: string }>(key: string, fn: () => Promise<T>, ok: (r: Extract<T, { ok: true }>) => string) {
-    set(key, "running", `جاري السحب من ${label}…`);
+    set(key, "running", fill(t("جاري السحب من {0}…"), [label]));
     try {
       const r = await fn();
-      set(key, r.ok ? "done" : "error", r.ok ? ok(r as Extract<T, { ok: true }>) : (r.error ?? "فشل"));
+      set(key, r.ok ? "done" : "error", r.ok ? ok(r as Extract<T, { ok: true }>) : (r.error ?? t("فشل")));
     } catch {
       set(key, "error", "انقطع الاتصال — التقرير قد يكون كبيرًا ويحتاج وقتًا. جرّب مرة أخرى.");
     }
@@ -66,15 +69,15 @@ export function SyncProgress({ code, label = "المنصة", flags, auditInvento
     const cur = await productsSyncStatusAction(code).catch(() => null);
     if (cur?.phase !== "running") { // done/error/idle/unreachable → start a fresh import
       const s = await syncProductsAction(code);
-      if (!s.ok) { set("products", "error", s.error ?? "فشل"); return; }
+      if (!s.ok) { set("products", "error", s.error ?? t("فشل")); return; }
     }
     for (let i = 0; i < 450; i++) { // ~30 min ceiling at 4s
-      set("products", "running", `جاري السحب من ${label}… (السحب الكامل قد يستغرق عدة دقائق)`);
+      set("products", "running", fill(t("جاري السحب من {0}… (السحب الكامل قد يستغرق عدة دقائق)"), [label]));
       await sleep(4000);
       let st: ProductSyncStatus;
       try { st = await productsSyncStatusAction(code); } catch { continue; }
-      if (st.phase === "done") { set("products", "done", productsDetail(st)); return; }
-      if (st.phase === "error") { set("products", "error", st.error ?? "فشل السحب"); return; }
+      if (st.phase === "done") { set("products", "done", productsDetail(st, t)); return; }
+      if (st.phase === "error") { set("products", "error", st.error ?? t("فشل السحب")); return; }
       // running/idle → keep polling
     }
     set("products", "running", "لا تزال المزامنة شغّالة في الخلفية — حدّث الصفحة بعد قليل لرؤية النتيجة.");
@@ -85,20 +88,20 @@ export function SyncProgress({ code, label = "المنصة", flags, auditInvento
   // the ephemeral compare-toast. Read-only by design: never writes stock; the trader
   // turns the result into an opening balance / DRAFT adjustment from the audit card.
   async function runAudit() {
-    set("inventory", "running", `تدقيق مخزون FBA…`);
+    set("inventory", "running", t("تدقيق مخزون FBA…"));
     const s = await startInventoryAuditAction(code).catch(() => null);
-    if (!s?.ok) { set("inventory", "error", s?.error ?? "فشل بدء التدقيق"); return; }
+    if (!s?.ok) { set("inventory", "error", s?.error ?? t("فشل بدء التدقيق")); return; }
     if (!s.started) { set("inventory", "done", "اكتمل التدقيق — راجع كارت تدقيق المخزون"); return; } // inline fallback already ran
     await sleep(5000); // let the worker write its RUN row so we don't read a stale older audit
     for (let i = 0; i < 150; i++) { // ~10 min ceiling at 4s
       let st; try { st = await inventoryAuditStatusAction(code); } catch { await sleep(4000); continue; }
       if (st.phase === "done") {
         // Answer «الفرق أشوفه منين؟» in place: the diffs live in the reconciliation report.
-        set("inventory", "done", `${st.totalSkus ?? 0} صنف · ${st.withDiff ?? 0} فرق`,
+        set("inventory", "done", fill(t("{0} صنف · {1} فرق"), [st.totalSkus ?? 0, st.withDiff ?? 0]),
           (st.withDiff ?? 0) > 0 ? "/inventory/reconciliation" : undefined, "عرض الفروقات ←");
         return;
       }
-      if (st.phase === "error") { set("inventory", "error", st.error ?? "فشل التدقيق"); return; }
+      if (st.phase === "error") { set("inventory", "error", st.error ?? t("فشل التدقيق")); return; }
       await sleep(4000);
     }
     set("inventory", "running", "التدقيق لا يزال يعمل في الخلفية — حدّث الصفحة لاحقًا.");
@@ -108,10 +111,12 @@ export function SyncProgress({ code, label = "المنصة", flags, auditInvento
     const jobs: Promise<unknown>[] = [];
     if (flags.products) jobs.push(runProducts());
     if (flags.orders) jobs.push(step("orders", () => syncOrdersAction(code), (r) =>
-      `${r.created} أمر · ${r.fulfilled} دورة كاملة${r.cancelled ? ` · ${r.cancelled} ملغى` : ""}${r.skippedPreGoLive ? `\nتم تخطّي ${r.skippedPreGoLive} أمر أقدم من تاريخ البدء` : ""}`));
+      fill(t("{0} أمر · {1} دورة كاملة"), [r.created, r.fulfilled])
+      + (r.cancelled ? fill(t(" · {0} ملغى"), [r.cancelled]) : "")
+      + (r.skippedPreGoLive ? "\n" + fill(t("تم تخطّي {0} أمر أقدم من تاريخ البدء"), [r.skippedPreGoLive]) : "")));
     if (flags.inventory) jobs.push(auditInventory
       ? runAudit()
-      : step("inventory", () => syncInventoryAction(code), (r) => `${r.matched} مطابَق · ${r.withDiff} فرق`));
+      : step("inventory", () => syncInventoryAction(code), (r) => fill(t("{0} مطابَق · {1} فرق"), [r.matched, r.withDiff])));
     await Promise.allSettled(jobs);
     setRunning(false);
     router.refresh(); // one refresh at the end → updates the product-count card
@@ -123,14 +128,14 @@ export function SyncProgress({ code, label = "المنصة", flags, auditInvento
   const done = steps.filter((s) => s.status === "done" || s.status === "error").length;
 
   return (
-    <div className="w-80 rounded-2xl border bg-background p-4 shadow-xl" dir="rtl">
+    <div className="w-80 rounded-2xl border bg-background p-4 shadow-xl">
       <div className="mb-3 flex items-center justify-between">
         <div className="flex items-center gap-2 font-semibold">
-          <RefreshCw className={`size-4 ${running ? "animate-spin" : ""}`} />مزامنة {label}
+          <RefreshCw className={`size-4 ${running ? "animate-spin" : ""}`} />{fill(t("مزامنة {0}"), [label])}
         </div>
         {/* Always closable: the full product sync runs server-side and keeps
             going after the popup closes. */}
-        <button onClick={close} className="text-muted-foreground hover:text-foreground" aria-label="إغلاق"><X className="size-4" /></button>
+        <button onClick={close} className="text-muted-foreground hover:text-foreground" aria-label={t("إغلاق")}><X className="size-4" /></button>
       </div>
 
       <div className="mb-3 h-1.5 overflow-hidden rounded-full bg-muted">
@@ -147,15 +152,15 @@ export function SyncProgress({ code, label = "المنصة", flags, auditInvento
                 : s.icon}
             </span>
             <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-1.5">{s.label}</div>
+              <div className="flex items-center gap-1.5">{t(s.label)}</div>
               {s.detail && <div className={`whitespace-pre-line text-xs ${s.status === "error" ? "text-destructive" : "text-muted-foreground"}`}>{s.detail}</div>}
-              {s.href && <Link href={s.href} className="text-xs text-primary hover:underline">{s.hrefLabel ?? "التفاصيل ←"}</Link>}
+              {s.href && <Link href={s.href} className="text-xs text-primary hover:underline">{s.hrefLabel ?? t("التفاصيل ←")}</Link>}
             </div>
           </li>
         ))}
       </ul>
 
-      {!running && <div className="mt-3 text-center text-xs text-muted-foreground">اكتملت المزامنة — راجع النتائج بالأعلى.</div>}
+      {!running && <div className="mt-3 text-center text-xs text-muted-foreground">{t("اكتملت المزامنة — راجع النتائج بالأعلى.")}</div>}
     </div>
   );
 }

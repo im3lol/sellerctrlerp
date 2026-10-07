@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { fill } from "@/lib/i18n";
+import { getT } from "@/lib/i18n/server";
 import { eq, sql } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
@@ -11,6 +13,7 @@ import { Icon } from "@/components/icon";
 const fmt = (v: number) => v.toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 export default async function BudgetIndexPage() {
+  const t = await getT();
   return loadErpPage("accounting.view", async ({ orgId }) => {
     const years = await db
       .select({
@@ -29,12 +32,12 @@ export default async function BudgetIndexPage() {
       <div className="space-y-6">
         <ErpPageHeader
           icon="Target"
-          title="الميزانية التقديرية"
-          subtitle="إدخال الميزانية السنوية لكل حساب ومقارنتها بالفعلي"
+          title={t("الميزانية التقديرية")}
+          subtitle={t("إدخال الميزانية السنوية لكل حساب ومقارنتها بالفعلي")}
           action={
             <Button asChild>
               <Link href={`/accounting/budget/${currentYear}`}>
-                <Icon name="Plus" className="size-4" />ميزانية {currentYear}
+                <Icon name="Plus" className="size-4" />{t("ميزانية")} {currentYear}
               </Link>
             </Button>
           }
@@ -44,9 +47,9 @@ export default async function BudgetIndexPage() {
           <Card>
             <CardContent className="py-16 text-center text-muted-foreground">
               <Icon name="Target" className="mx-auto mb-3 size-10 opacity-30" />
-              <p>لا توجد ميزانيات بعد.</p>
+              <p>{t("لا توجد ميزانيات بعد.")}</p>
               <Button asChild className="mt-4">
-                <Link href={`/accounting/budget/${currentYear}`}>إنشاء ميزانية {currentYear}</Link>
+                <Link href={`/accounting/budget/${currentYear}`}>{fill(t("إنشاء ميزانية {0}"), [currentYear])}</Link>
               </Button>
             </CardContent>
           </Card>
@@ -57,16 +60,16 @@ export default async function BudgetIndexPage() {
                 <CardContent className="p-5">
                   <div className="mb-3 flex items-center justify-between">
                     <span className="text-2xl font-bold tabular-nums">{y.year}</span>
-                    <span className="rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary">{y.count} حساب</span>
+                    <span className="rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary">{y.count} {t("حساب")}</span>
                   </div>
-                  <p className="text-sm text-muted-foreground">إجمالي الميزانية</p>
+                  <p className="text-sm text-muted-foreground">{t("إجمالي الميزانية")}</p>
                   <p className="text-xl font-semibold tabular-nums">{fmt(Number(y.total))}</p>
                   <div className="mt-4 flex gap-2">
                     <Button size="sm" variant="outline" className="flex-1" asChild>
-                      <Link href={`/accounting/budget/${y.year}`}><Icon name="Edit" className="size-3.5" />تعديل</Link>
+                      <Link href={`/accounting/budget/${y.year}`}><Icon name="Edit" className="size-3.5" />{t("تعديل")}</Link>
                     </Button>
                     <Button size="sm" className="flex-1" asChild>
-                      <Link href={`/accounting/budget/${y.year}/report`}><Icon name="BarChart2" className="size-3.5" />التقرير</Link>
+                      <Link href={`/accounting/budget/${y.year}/report`}><Icon name="BarChart2" className="size-3.5" />{t("التقرير")}</Link>
                     </Button>
                   </div>
                 </CardContent>

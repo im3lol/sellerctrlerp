@@ -1,9 +1,11 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
+import { fill } from "@/lib/i18n";
+import { useT } from "@/lib/i18n/client";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "@/lib/i18n/toast";
 import { updatePurchaseInvoiceAction } from "@/app/actions/erp/purchase-invoices";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -32,6 +34,7 @@ export function PurchaseInvoiceEditForm({
   invoiceId: string; number: string; receiptNumber: string | null;
   initialLines: EditLine[]; initialNotes: string; grniAmount: number;
 }) {
+  const t = useT();
   const router = useRouter();
   const [pending, start] = useTransition();
   const [lines, setLines] = useState(initialLines);
@@ -59,7 +62,7 @@ export function PurchaseInvoiceEditForm({
         toast.success("تم حفظ التعديلات");
         router.push(`/purchases/invoices/${encodeURIComponent(number)}`);
         router.refresh();
-      } else toast.error(r.error ?? "تعذّر الحفظ");
+      } else toast.error(r.error ?? t("تعذّر الحفظ"));
     });
 
   return (
@@ -67,15 +70,14 @@ export function PurchaseInvoiceEditForm({
       <CardHeader>
         <div className="flex w-full items-center justify-between gap-3">
           <div>
-            <CardTitle>تعديل فاتورة {number}</CardTitle>
+            <CardTitle>{t("تعديل فاتورة")} {number}</CardTitle>
             <CardDescription>
-              طابِق الفاتورة على ما أرسله المورّد فعلياً. الكمية والشحن مقفولان — جايين من إذن الاستلام
-              {receiptNumber ? ` ${receiptNumber}` : ""}.
+              {fill(t("طابِق الفاتورة على ما أرسله المورّد فعلياً. الكمية والشحن مقفولان — جايين من إذن الاستلام{0}."), [receiptNumber ? ` ${receiptNumber}` : ""])}
             </CardDescription>
           </div>
           <div className="flex gap-2">
-            <Button size="sm" onClick={submit} disabled={pending}>{pending && <Loader2 className="size-4 animate-spin" />}حفظ التعديلات</Button>
-            <Button variant="outline" size="sm" onClick={() => router.push(`/purchases/invoices/${encodeURIComponent(number)}`)}>إلغاء</Button>
+            <Button size="sm" onClick={submit} disabled={pending}>{pending && <Loader2 className="size-4 animate-spin" />}{t("حفظ التعديلات")}</Button>
+            <Button variant="outline" size="sm" onClick={() => router.push(`/purchases/invoices/${encodeURIComponent(number)}`)}>{t("إلغاء")}</Button>
           </div>
         </div>
       </CardHeader>
@@ -84,20 +86,20 @@ export function PurchaseInvoiceEditForm({
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="text-start">الصنف</TableHead>
-                <TableHead className="w-24 text-start">الكمية</TableHead>
-                <TableHead className="w-32 text-start">سعر الوحدة</TableHead>
-                <TableHead className="w-24 text-start">شحن/وحدة</TableHead>
-                <TableHead className="w-24 text-start">الخصم</TableHead>
-                <TableHead className="w-32 text-start">الضريبة</TableHead>
-                <TableHead className="w-28 text-start">الإجمالي</TableHead>
+                <TableHead className="text-start">{t("الصنف")}</TableHead>
+                <TableHead className="w-24 text-start">{t("الكمية")}</TableHead>
+                <TableHead className="w-32 text-start">{t("سعر الوحدة")}</TableHead>
+                <TableHead className="w-24 text-start">{t("شحن/وحدة")}</TableHead>
+                <TableHead className="w-24 text-start">{t("الخصم")}</TableHead>
+                <TableHead className="w-32 text-start">{t("الضريبة")}</TableHead>
+                <TableHead className="w-28 text-start">{t("الإجمالي")}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               <PaginatedTableRows rows={lines.map((l) => (
                 <TableRow key={l.itemId}>
                   <TableCell className="max-w-[22rem] whitespace-normal">
-                    <div dir="ltr" className="line-clamp-2 text-start leading-snug" title={l.name}>{l.name}</div>
+                    <div dir="ltr" className="line-clamp-2 text-start leading-snug" title={l.name}>{t(l.name)}</div>
                     <div className="mt-0.5 font-mono text-xs text-muted-foreground">{l.code}</div>
                   </TableCell>
                   <TableCell className="tabular-nums">{qtyf(l.quantity)}</TableCell>
@@ -120,19 +122,19 @@ export function PurchaseInvoiceEditForm({
           </Table>
         </div>
 
-        <div className="space-y-2"><Label>ملاحظات</Label><Input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="اختياري" /></div>
+        <div className="space-y-2"><Label>{t("ملاحظات")}</Label><Input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder={t("اختياري")} /></div>
 
         <div className="flex flex-col items-end gap-1 text-sm">
-          <div>الإجمالي الفرعي: <span className="font-medium">{fmt(totals.subtotal)}</span></div>
-          <div>الشحن: <span className="font-medium">{fmt(totals.shipping)}</span></div>
-          <div>الخصم: <span className="font-medium">{fmt(totals.discount)}</span></div>
-          <div>الضريبة: <span className="font-medium">{fmt(totals.tax)}</span></div>
-          <div className="text-base font-bold text-primary">الإجمالي: {fmt(totals.total)}</div>
+          <div>{t("الإجمالي الفرعي:")} <span className="font-medium">{fmt(totals.subtotal)}</span></div>
+          <div>{t("الشحن:")} <span className="font-medium">{fmt(totals.shipping)}</span></div>
+          <div>{t("الخصم:")} <span className="font-medium">{fmt(totals.discount)}</span></div>
+          <div>{t("الضريبة:")} <span className="font-medium">{fmt(totals.tax)}</span></div>
+          <div className="text-base font-bold text-primary">{t("الإجمالي:")} {fmt(totals.total)}</div>
           <div className="mt-2 rounded-lg border bg-muted/30 px-3 py-2">
-            <div>قيمة البضاعة عند الاستلام: <span className="font-medium">{fmt(grniAmount)}</span></div>
+            <div>{t("قيمة البضاعة عند الاستلام:")} <span className="font-medium">{fmt(grniAmount)}</span></div>
             <div className={Math.abs(totals.variance) > 0.004 ? "font-medium text-amber-600" : "text-muted-foreground"}>
-              فرق السعر: {fmt(totals.variance)}
-              {Math.abs(totals.variance) > 0.004 && <span className="block text-xs">سيُحمَّل على تكلفة المخزون المتاح، والمُباع منه على تكلفة المبيعات.</span>}
+              {fill(t("فرق السعر: {0}"), [fmt(totals.variance)])}
+              {Math.abs(totals.variance) > 0.004 && <span className="block text-xs">{t("سيُحمَّل على تكلفة المخزون المتاح، والمُباع منه على تكلفة المبيعات.")}</span>}
             </div>
           </div>
         </div>

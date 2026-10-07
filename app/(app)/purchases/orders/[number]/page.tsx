@@ -1,4 +1,6 @@
 import { notFound, redirect } from "next/navigation";
+import { fill } from "@/lib/i18n";
+import { getT } from "@/lib/i18n/server";
 import { and, eq, inArray } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
@@ -34,6 +36,7 @@ const STATUS: Record<string, { label: string; variant: "default" | "secondary" |
 };
 
 export default async function PurchaseOrderDetailPage({ params }: { params: Promise<{ number: string }> }) {
+  const t = await getT();
   const raw = decodeURIComponent((await params).number);
   return loadErpPage("purchases.view", async ({ orgId, role, can }) => {
     if (UUID_RE.test(raw)) {
@@ -91,7 +94,7 @@ export default async function PurchaseOrderDetailPage({ params }: { params: Prom
       <div className="space-y-6">
         <ErpPageHeader
           icon="ClipboardList"
-          title={`أمر شراء ${po.number}`}
+          title={fill(t("أمر شراء {0}"), [po.number])}
           subtitle={sup ? `${sup.code} — ${sup.name}` : "أمر شراء"}
           backHref="/purchases/orders"
           action={
@@ -105,32 +108,32 @@ export default async function PurchaseOrderDetailPage({ params }: { params: Prom
           isAdmin={role === "admin" || role === "super_admin"} />
 
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <Field label="الحالة"><Badge variant={st.variant}>{st.label}</Badge></Field>
-          <Field label="التاريخ">{dt(po.date)}</Field>
-          <Field label="الشحن">{dfmt(po.shippingAmount)}</Field>
-          <Field label="الضريبة">{dfmt(po.taxAmount)}</Field>
-          <Field label={`الإجمالي (${cur})`}>{dfmt(po.totalAmount)}</Field>
+          <Field label={t("الحالة")}><Badge variant={st.variant}>{t(st.label)}</Badge></Field>
+          <Field label={t("التاريخ")}>{dt(po.date)}</Field>
+          <Field label={t("الشحن")}>{dfmt(po.shippingAmount)}</Field>
+          <Field label={t("الضريبة")}>{dfmt(po.taxAmount)}</Field>
+          <Field label={fill(t("الإجمالي ({0})"), [cur])}>{dfmt(po.totalAmount)}</Field>
           {isForeignDoc && (
-            <Field label="الإجمالي بالحسابات (EGP)">
+            <Field label={t("الإجمالي بالحسابات (EGP)")}>
               {fmt(po.totalAmount)} <span className="text-xs text-muted-foreground">@ {Number(po.exchangeRate).toLocaleString("ar-EG-u-nu-latn", { maximumFractionDigits: 6 })}</span>
             </Field>
           )}
         </div>
 
         <Card>
-          <CardHeader><CardTitle>البنود</CardTitle><CardDescription>أصناف الأمر.</CardDescription></CardHeader>
+          <CardHeader><CardTitle>{t("البنود")}</CardTitle><CardDescription>{t("أصناف الأمر.")}</CardDescription></CardHeader>
           <CardContent>
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="w-14 text-start">صورة</TableHead>
-                  <TableHead className="text-start">الصنف</TableHead>
-                  <TableHead className="text-start">الكمية</TableHead>
-                  <TableHead className="text-start">السعر</TableHead>
-                  <TableHead className="text-start">الخصم</TableHead>
-                  <TableHead className="text-start">الضريبة</TableHead>
-                  <TableHead className="text-start">شحن/وحدة</TableHead>
-                  <TableHead className="text-start">الإجمالي</TableHead>
+                  <TableHead className="w-14 text-start">{t("صورة")}</TableHead>
+                  <TableHead className="text-start">{t("الصنف")}</TableHead>
+                  <TableHead className="text-start">{t("الكمية")}</TableHead>
+                  <TableHead className="text-start">{t("السعر")}</TableHead>
+                  <TableHead className="text-start">{t("الخصم")}</TableHead>
+                  <TableHead className="text-start">{t("الضريبة")}</TableHead>
+                  <TableHead className="text-start">{t("شحن/وحدة")}</TableHead>
+                  <TableHead className="text-start">{t("الإجمالي")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -138,7 +141,7 @@ export default async function PurchaseOrderDetailPage({ params }: { params: Prom
                   <TableRow key={l.id}>
                     <TableCell className="w-14"><ItemThumb src={l.image} /></TableCell>
                     <TableCell className="max-w-[320px] whitespace-normal">
-                      <div className="line-clamp-2 leading-snug" title={l.name ?? undefined}>{l.name}</div>
+                      <div className="line-clamp-2 leading-snug" title={l.name ?? undefined}>{t(l.name ?? "")}</div>
                       <div className="font-mono text-xs text-muted-foreground" dir="ltr">{l.code}</div>
                     </TableCell>
                     <TableCell>
@@ -161,12 +164,12 @@ export default async function PurchaseOrderDetailPage({ params }: { params: Prom
               </TableBody>
               <TableFooter>
                 <TableRow className="font-bold">
-                  <TableCell colSpan={6}>الإجمالي ({cur})</TableCell>
+                  <TableCell colSpan={6}>{t("الإجمالي (")}{cur})</TableCell>
                   <TableCell>{dfmt(po.totalAmount)}</TableCell>
                 </TableRow>
               </TableFooter>
             </Table>
-            {po.notes && <p className="mt-4 text-sm text-muted-foreground">ملاحظات: {po.notes}</p>}
+            {po.notes && <p className="mt-4 text-sm text-muted-foreground">{t("ملاحظات:")} {po.notes}</p>}
           </CardContent>
         </Card>
 

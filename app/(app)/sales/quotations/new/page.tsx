@@ -1,4 +1,5 @@
 import { and, asc, eq } from "drizzle-orm";
+import { getT } from "@/lib/i18n/server";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
 import { customers, items, organizations } from "@/db/schema";
@@ -6,6 +7,7 @@ import { ErpPageHeader } from "@/components/erp/page-header";
 import { QuotationForm } from "@/components/erp/quotation-form";
 
 export default async function NewQuotationPage() {
+  const t = await getT();
   return loadErpPage("sales.view", async ({ orgId }) => {
     const [custList, itemList, org] = await Promise.all([
       db.select({ id: customers.id, nameAr: customers.nameAr }).from(customers)
@@ -16,7 +18,7 @@ export default async function NewQuotationPage() {
     ]);
     return (
       <div className="space-y-6">
-        <ErpPageHeader icon="FileText" title="عرض سعر جديد" subtitle="عرض أسعار للعميل — يُحوّل لأمر بيع عند القبول" backHref="/sales/quotations" />
+        <ErpPageHeader icon="FileText" title={t("عرض سعر جديد")} subtitle={t("عرض أسعار للعميل — يُحوّل لأمر بيع عند القبول")} backHref="/sales/quotations" />
         <QuotationForm customers={custList} items={itemList} orgName={org[0]?.nameAr ?? "—"} vatRate={Number(org[0]?.vatRate ?? 0)} />
       </div>
     );

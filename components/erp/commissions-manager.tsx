@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
-import { toast } from "sonner";
+import { fill } from "@/lib/i18n";
+import { useT } from "@/lib/i18n/client";
+import { toast } from "@/lib/i18n/toast";
 import {
   getCommissionReportAction, saveCommissionRuleAction, deleteCommissionRuleAction,
   type CommissionReport,
@@ -34,6 +36,7 @@ const monthStart = () => {
  * on the payroll run.
  */
 export function CommissionsManager({ reps, canManage }: { reps: Rep[]; canManage: boolean }) {
+  const t = useT();
   const [from, setFrom] = useState(monthStart);
   const [to, setTo] = useState(() => new Date().toISOString().slice(0, 10));
   const [report, setReport] = useState<CommissionReport | null>(null);
@@ -48,7 +51,7 @@ export function CommissionsManager({ reps, canManage }: { reps: Rep[]; canManage
     setLoading(true);
     void getCommissionReportAction(from, to).then((r) => {
       setLoading(false);
-      if (!r.ok || !r.report) { toast.error(r.error ?? "تعذّر التحميل"); return; }
+      if (!r.ok || !r.report) { toast.error(r.error ?? t("تعذّر التحميل")); return; }
       setReport(r.report);
     });
   };
@@ -63,14 +66,14 @@ export function CommissionsManager({ reps, canManage }: { reps: Rep[]; canManage
         validFrom: form.validFrom || null, validTo: form.validTo || null, isActive: true,
       });
       if (r.ok) { toast.success("تم حفظ القاعدة"); setForm({ ...form, percent: "" }); load(); }
-      else toast.error(r.error ?? "تعذّر الحفظ");
+      else toast.error(r.error ?? t("تعذّر الحفظ"));
     });
   };
 
   const removeRule = (id: string, label: string) =>
     void (async () => {
       const go = await confirm({
-        danger: true, title: `حذف قاعدة ${label}؟`,
+        danger: true, title: fill(t("حذف قاعدة {0}؟"), [label]),
         description: "العمولات المحسوبة قبل كده مش هتتغيّر — الحساب بيتعمل وقت العرض.",
         confirmText: "احذف", cancelText: "رجوع",
       });
@@ -78,7 +81,7 @@ export function CommissionsManager({ reps, canManage }: { reps: Rep[]; canManage
       start(async () => {
         const r = await deleteCommissionRuleAction(id);
         if (r.ok) { toast.success("تم الحذف"); load(); }
-        else toast.error(r.error ?? "تعذّر الحذف");
+        else toast.error(r.error ?? t("تعذّر الحذف"));
       });
     })();
 
@@ -89,41 +92,40 @@ export function CommissionsManager({ reps, canManage }: { reps: Rep[]; canManage
       {canManage && (
         <Card>
           <CardHeader>
-            <CardTitle>قواعد العمولة</CardTitle>
+            <CardTitle>{t("قواعد العمولة")}</CardTitle>
             <CardDescription>
-              «على المُحصَّل» بتحسب العمولة لما العميل يدفع فعلاً — وده الصح تجارياً، لأن عمولة على
-              فاتورة مش متحصّلة فلوس خارجة على بيعة ما تمّتش. سيب المندوب فاضي عشان تعمل قاعدة افتراضية للكل.
+              {t("«على المُحصَّل» بتحسب العمولة لما العميل يدفع فعلاً — وده الصح تجارياً، لأن عمولة على فاتورة مش متحصّلة فلوس خارجة على بيعة ما تمّتش. سيب المندوب فاضي عشان تعمل قاعدة افتراضية للكل.")}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-5">
               <div className="space-y-2 sm:col-span-2">
-                <Label>المندوب</Label>
+                <Label>{t("المندوب")}</Label>
                 <CellCombobox
                   selectedLabel={reps.find((r) => r.id === form.employeeId)?.label ?? ""}
                   options={reps} onSelect={(id) => setForm((f) => ({ ...f, employeeId: id }))}
-                  placeholder="الكل (قاعدة افتراضية)"
+                  placeholder={t("الكل (قاعدة افتراضية)")}
                 />
               </div>
               <div className="space-y-2">
-                <Label>الأساس</Label>
+                <Label>{t("الأساس")}</Label>
                 <select className={selectCls} value={form.basis} onChange={(e) => setForm((f) => ({ ...f, basis: e.target.value as Basis }))}>
-                  <option value="COLLECTED">على المُحصَّل</option>
-                  <option value="INVOICED">على المفوتر</option>
+                  <option value="COLLECTED">{t("على المُحصَّل")}</option>
+                  <option value="INVOICED">{t("على المفوتر")}</option>
                 </select>
               </div>
-              <div className="space-y-2"><Label>النسبة %</Label>
+              <div className="space-y-2"><Label>{t("النسبة %")}</Label>
                 <Input type="number" step="0.01" min="0" max="100" value={form.percent}
                   onChange={(e) => setForm((f) => ({ ...f, percent: e.target.value }))} placeholder="5" /></div>
               <div className="flex items-end">
                 <Button onClick={saveRule} disabled={pending} className="w-full">
-                  <Icon name="Check" className="size-4" />احفظ
+                  <Icon name="Check" className="size-4" />{t("احفظ")}
                 </Button>
               </div>
             </div>
             {form.employeeId && (
               <Button size="sm" variant="ghost" onClick={() => setForm((f) => ({ ...f, employeeId: "" }))}>
-                رجوع للقاعدة الافتراضية
+                {t("رجوع للقاعدة الافتراضية")}
               </Button>
             )}
 
@@ -132,10 +134,10 @@ export function CommissionsManager({ reps, canManage }: { reps: Rep[]; canManage
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead className="text-start">المندوب</TableHead>
-                      <TableHead className="text-start">الأساس</TableHead>
-                      <TableHead className="text-start">النسبة</TableHead>
-                      <TableHead className="text-start">السريان</TableHead>
+                      <TableHead className="text-start">{t("المندوب")}</TableHead>
+                      <TableHead className="text-start">{t("الأساس")}</TableHead>
+                      <TableHead className="text-start">{t("النسبة")}</TableHead>
+                      <TableHead className="text-start">{t("السريان")}</TableHead>
                       <TableHead className="w-10" />
                     </TableRow>
                   </TableHeader>
@@ -144,16 +146,16 @@ export function CommissionsManager({ reps, canManage }: { reps: Rep[]; canManage
                       <TableRow key={r.id}>
                         <TableCell className="font-medium">
                           {r.repName}
-                          {!r.employeeId && <Badge className="ms-2" variant="secondary">افتراضية</Badge>}
-                          {!r.isActive && <Badge className="ms-2" variant="outline">موقوفة</Badge>}
+                          {!r.employeeId && <Badge className="ms-2" variant="secondary">{t("افتراضية")}</Badge>}
+                          {!r.isActive && <Badge className="ms-2" variant="outline">{t("موقوفة")}</Badge>}
                         </TableCell>
-                        <TableCell>{BASIS_LABEL[r.basis as Basis] ?? r.basis}</TableCell>
+                        <TableCell>{t(BASIS_LABEL[r.basis as Basis] ?? r.basis)}</TableCell>
                         <TableCell className="tabular-nums">{r.percent}%</TableCell>
                         <TableCell className="text-xs text-muted-foreground">
                           {r.validFrom || r.validTo ? `${r.validFrom ?? "—"} ← ${r.validTo ?? "—"}` : "دائمة"}
                         </TableCell>
                         <TableCell>
-                          <Button size="icon" variant="ghost" aria-label="حذف" onClick={() => removeRule(r.id, r.repName)}>
+                          <Button size="icon" variant="ghost" aria-label={t("حذف")} onClick={() => removeRule(r.id, r.repName)}>
                             <Icon name="Trash2" className="size-4 text-destructive" />
                           </Button>
                         </TableCell>
@@ -171,9 +173,9 @@ export function CommissionsManager({ reps, canManage }: { reps: Rep[]; canManage
         <CardHeader>
           <div className="flex w-full flex-wrap items-center justify-between gap-3">
             <div>
-              <CardTitle>المستحق</CardTitle>
+              <CardTitle>{t("المستحق")}</CardTitle>
               <CardDescription>
-                {loading ? "جارٍ الحساب…" : `${report?.rows.length ?? 0} حركة · إجمالي ${money(grand)}`}
+                {loading ? t("جارٍ الحساب…") : fill(t("{0} حركة · إجمالي {1}"), [report?.rows.length ?? 0, money(grand)])}
               </CardDescription>
             </div>
             <div className="flex flex-wrap gap-2">
@@ -185,7 +187,7 @@ export function CommissionsManager({ reps, canManage }: { reps: Rep[]; canManage
         <CardContent className="space-y-5">
           {(report?.totals.length ?? 0) === 0 ? (
             <p className="text-sm text-muted-foreground">
-              مفيش عمولات في الفترة دي. اتأكد إن العملاء متوزّعين على مناديب (من صفحة العملاء) وإن في قاعدة عمولة سارية.
+              {t("مفيش عمولات في الفترة دي. اتأكد إن العملاء متوزّعين على مناديب (من صفحة العملاء) وإن في قاعدة عمولة سارية.")}
             </p>
           ) : (
             <>
@@ -193,10 +195,10 @@ export function CommissionsManager({ reps, canManage }: { reps: Rep[]; canManage
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead className="text-start">المندوب</TableHead>
-                      <TableHead className="text-start">الأساس المحسوب عليه</TableHead>
-                      <TableHead className="text-start">عدد الحركات</TableHead>
-                      <TableHead className="text-start">العمولة</TableHead>
+                      <TableHead className="text-start">{t("المندوب")}</TableHead>
+                      <TableHead className="text-start">{t("الأساس المحسوب عليه")}</TableHead>
+                      <TableHead className="text-start">{t("عدد الحركات")}</TableHead>
+                      <TableHead className="text-start">{t("العمولة")}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -211,7 +213,7 @@ export function CommissionsManager({ reps, canManage }: { reps: Rep[]; canManage
                   </TableBody>
                   <TableFooter>
                     <TableRow className="font-bold">
-                      <TableCell colSpan={3}>الإجمالي</TableCell>
+                      <TableCell colSpan={3}>{t("الإجمالي")}</TableCell>
                       <TableCell className="tabular-nums">{money(grand)}</TableCell>
                     </TableRow>
                   </TableFooter>
@@ -222,13 +224,13 @@ export function CommissionsManager({ reps, canManage }: { reps: Rep[]; canManage
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead className="text-start">التاريخ</TableHead>
-                      <TableHead className="text-start">المندوب</TableHead>
-                      <TableHead className="text-start">المستند</TableHead>
-                      <TableHead className="text-start">العميل</TableHead>
-                      <TableHead className="text-start">الأساس</TableHead>
-                      <TableHead className="text-start">النسبة</TableHead>
-                      <TableHead className="text-start">العمولة</TableHead>
+                      <TableHead className="text-start">{t("التاريخ")}</TableHead>
+                      <TableHead className="text-start">{t("المندوب")}</TableHead>
+                      <TableHead className="text-start">{t("المستند")}</TableHead>
+                      <TableHead className="text-start">{t("العميل")}</TableHead>
+                      <TableHead className="text-start">{t("الأساس")}</TableHead>
+                      <TableHead className="text-start">{t("النسبة")}</TableHead>
+                      <TableHead className="text-start">{t("العمولة")}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -239,7 +241,7 @@ export function CommissionsManager({ reps, canManage }: { reps: Rep[]; canManage
                         <TableCell className="font-mono text-xs">
                           {r.sourceNumber}
                           <span className="block text-[11px] text-muted-foreground">
-                            {r.sourceType === "RECEIPT" ? "تحصيل" : "فاتورة"}
+                            {r.sourceType === "RECEIPT" ? t("تحصيل") : t("فاتورة")}
                           </span>
                         </TableCell>
                         <TableCell>{r.customerName}</TableCell>
@@ -253,7 +255,7 @@ export function CommissionsManager({ reps, canManage }: { reps: Rep[]; canManage
               </div>
 
               <p className="text-xs text-muted-foreground">
-                الصرف بيتم كبدل على مسير الرواتب — الشاشة دي بتحسب المستحق وما بترحّلش أي قيد.
+                {t("الصرف بيتم كبدل على مسير الرواتب — الشاشة دي بتحسب المستحق وما بترحّلش أي قيد.")}
               </p>
             </>
           )}

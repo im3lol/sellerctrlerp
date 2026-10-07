@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { fill } from "@/lib/i18n";
+import { getT } from "@/lib/i18n/server";
 import { and, eq, inArray, sql } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
@@ -14,6 +16,7 @@ const intl = (n: number) => n.toLocaleString("ar-EG-u-nu-latn");
 const day = (d: Date | string | null) => (d ? new Date(d).toISOString().slice(0, 10) : "—");
 
 export default async function PaymentPlanPage() {
+  const t = await getT();
   return loadErpPage("purchases.view", async ({ orgId }) => {
     const [bills, cashRows] = await Promise.all([
       db.select({
@@ -72,57 +75,55 @@ export default async function PaymentPlanPage() {
       <div className="space-y-6">
         <ErpPageHeader
           icon="CalendarClock"
-          title="خطة السداد"
-          subtitle="فواتير الموردين المستحقة مقابل السيولة المتاحة — الأقدم استحقاقاً الأول"
+          title={t("خطة السداد")}
+          subtitle={t("فواتير الموردين المستحقة مقابل السيولة المتاحة — الأقدم استحقاقاً الأول")}
           backHref="/purchases"
         />
 
         <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
           <Card><CardContent className="pt-6">
-            <div className="text-sm text-muted-foreground">النقدية المتاحة</div>
+            <div className="text-sm text-muted-foreground">{t("النقدية المتاحة")}</div>
             <div className="text-2xl font-bold tabular-nums">{money(cash)}</div>
           </CardContent></Card>
           <Card><CardContent className="pt-6">
-            <div className="text-sm text-muted-foreground">إجمالي المستحق</div>
+            <div className="text-sm text-muted-foreground">{t("إجمالي المستحق")}</div>
             <div className="text-2xl font-bold tabular-nums">{money(s.total)}</div>
-            <div className="text-xs text-muted-foreground">{intl(s.count)} فاتورة</div>
+            <div className="text-xs text-muted-foreground">{intl(s.count)} {t("فاتورة")}</div>
           </CardContent></Card>
           <Card><CardContent className="pt-6">
-            <div className="text-sm text-muted-foreground">متأخّر عن موعده</div>
+            <div className="text-sm text-muted-foreground">{t("متأخّر عن موعده")}</div>
             <div className={`text-2xl font-bold tabular-nums ${s.overdue > 0 ? "text-destructive" : ""}`}>{money(s.overdue)}</div>
           </CardContent></Card>
           <Card><CardContent className="pt-6">
-            <div className="text-sm text-muted-foreground">العجز عن السداد الكامل</div>
+            <div className="text-sm text-muted-foreground">{t("العجز عن السداد الكامل")}</div>
             <div className={`text-2xl font-bold tabular-nums ${s.shortfall > 0 ? "text-amber-600" : "text-emerald-600"}`}>{money(s.shortfall)}</div>
-            <div className="text-xs text-muted-foreground">{s.unaffordable > 0 ? `${intl(s.unaffordable)} فاتورة مش مغطّاة` : "السيولة تكفي الكل"}</div>
+            <div className="text-xs text-muted-foreground">{s.unaffordable > 0 ? fill(t("{0} فاتورة مش مغطّاة"), [intl(s.unaffordable)]) : t("السيولة تكفي الكل")}</div>
           </CardContent></Card>
         </div>
 
         <Card>
           <CardHeader>
-            <CardTitle>الترتيب المقترح</CardTitle>
+            <CardTitle>{t("الترتيب المقترح")}</CardTitle>
             <CardDescription>
-              الأقدم استحقاقاً الأول، والنقدية بتتنزّل مع كل فاتورة لحد ما تخلص. الفواتير اللي بعد كده
-              بتفضل ظاهرة ومعلَّمة «مش مغطّاة» — دي نص فايدة الشاشة. الفاتورة من غير تاريخ استحقاق
-              بتاخد تاريخ من مدة سداد المورّد.
+              {t("الأقدم استحقاقاً الأول، والنقدية بتتنزّل مع كل فاتورة لحد ما تخلص. الفواتير اللي بعد كده بتفضل ظاهرة ومعلَّمة «مش مغطّاة» — دي نص فايدة الشاشة. الفاتورة من غير تاريخ استحقاق بتاخد تاريخ من مدة سداد المورّد.")}
             </CardDescription>
           </CardHeader>
           <CardContent>
             {planned.length === 0 ? (
-              <p className="text-sm text-muted-foreground">مفيش فواتير موردين مستحقة — كله مسدّد.</p>
+              <p className="text-sm text-muted-foreground">{t("مفيش فواتير موردين مستحقة — كله مسدّد.")}</p>
             ) : (
               <div className="rounded-xl border overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow>
                       <TableHead className="w-10 text-start">#</TableHead>
-                      <TableHead className="text-start">الفاتورة</TableHead>
-                      <TableHead className="text-start">المورّد</TableHead>
-                      <TableHead className="text-start">الاستحقاق</TableHead>
-                      <TableHead className="text-start">التأخير</TableHead>
-                      <TableHead className="text-start">المتبقّي</TableHead>
-                      <TableHead className="text-start">النقدية بعدها</TableHead>
-                      <TableHead className="text-start">الحالة</TableHead>
+                      <TableHead className="text-start">{t("الفاتورة")}</TableHead>
+                      <TableHead className="text-start">{t("المورّد")}</TableHead>
+                      <TableHead className="text-start">{t("الاستحقاق")}</TableHead>
+                      <TableHead className="text-start">{t("التأخير")}</TableHead>
+                      <TableHead className="text-start">{t("المتبقّي")}</TableHead>
+                      <TableHead className="text-start">{t("النقدية بعدها")}</TableHead>
+                      <TableHead className="text-start">{t("الحالة")}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -135,21 +136,21 @@ export default async function PaymentPlanPage() {
                         <TableCell className="font-medium">{p.supplierName}</TableCell>
                         <TableCell className="text-xs">{day(p.dueDate)}</TableCell>
                         <TableCell className={`tabular-nums ${p.daysOverdue > 0 ? "text-destructive font-medium" : "text-muted-foreground"}`}>
-                          {!Number.isFinite(p.daysOverdue) ? "—" : p.daysOverdue > 0 ? `${intl(p.daysOverdue)} يوم` : `بعد ${intl(-p.daysOverdue)} يوم`}
+                          {!Number.isFinite(p.daysOverdue) ? "—" : p.daysOverdue > 0 ? fill(t("{0} يوم"), [intl(p.daysOverdue)]) : fill(t("بعد {0} يوم"), [intl(-p.daysOverdue)])}
                         </TableCell>
                         <TableCell className="font-medium tabular-nums">{money(p.outstanding)}</TableCell>
                         <TableCell className="tabular-nums text-muted-foreground">{p.affordable ? money(p.cashAfter) : "—"}</TableCell>
                         <TableCell>
                           {p.affordable
-                            ? <Badge variant="secondary">اسدّدها</Badge>
-                            : <Badge variant="outline">مش مغطّاة</Badge>}
+                            ? <Badge variant="secondary">{t("اسدّدها")}</Badge>
+                            : <Badge variant="outline">{t("مش مغطّاة")}</Badge>}
                         </TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
                   <TableFooter>
                     <TableRow className="font-bold">
-                      <TableCell colSpan={5}>الإجمالي</TableCell>
+                      <TableCell colSpan={5}>{t("الإجمالي")}</TableCell>
                       <TableCell className="tabular-nums">{money(s.total)}</TableCell>
                       <TableCell colSpan={2} />
                     </TableRow>

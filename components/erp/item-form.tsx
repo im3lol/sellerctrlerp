@@ -1,8 +1,9 @@
 "use client";
 
 import { useRef, useState, useTransition } from "react";
+import { useT } from "@/lib/i18n/client";
 import { useRouter } from "next/navigation";
-import { toast } from "sonner";
+import { toast } from "@/lib/i18n/toast";
 import { saveItemAction, uploadItemImageAction } from "@/app/actions/erp/items";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -24,6 +25,7 @@ export type ItemFormInitial = {
 };
 
 export function ItemForm({ initial }: { initial?: ItemFormInitial }) {
+  const t = useT();
   const router = useRouter();
   const [pending, start] = useTransition();
   const [uploading, setUploading] = useState(false);
@@ -62,7 +64,7 @@ export function ItemForm({ initial }: { initial?: ItemFormInitial }) {
     const r = await uploadItemImageAction(fd);
     setUploading(false);
     if (r.ok && r.url) { setImage(r.url); toast.success("تم رفع الصورة"); }
-    else toast.error(r.error ?? "تعذّر رفع الصورة");
+    else toast.error(r.error ?? t("تعذّر رفع الصورة"));
     if (fileRef.current) fileRef.current.value = "";
   };
 
@@ -83,62 +85,61 @@ export function ItemForm({ initial }: { initial?: ItemFormInitial }) {
         toast.success("تم حفظ الصنف");
         router.push(r.id ? `/inventory/items/${r.id}` : "/inventory/items");
         router.refresh();
-      } else toast.error(r.error ?? "تعذّر الحفظ");
+      } else toast.error(r.error ?? t("تعذّر الحفظ"));
     });
 
   return (
     <div className="space-y-6">
       <Card>
-        <CardHeader><CardTitle>بيانات الصنف</CardTitle></CardHeader>
+        <CardHeader><CardTitle>{t("بيانات الصنف")}</CardTitle></CardHeader>
         <CardContent className="grid gap-4 sm:grid-cols-2">
-          <div className="space-y-2"><Label>الكود الداخلي</Label><Input value={code} onChange={(e) => setCode(e.target.value)} placeholder="ITM-1001" /></div>
-          <div className="space-y-2"><Label>الاسم</Label><Input value={nameAr} onChange={(e) => setNameAr(e.target.value)} placeholder="اسم الصنف (عربي أو إنجليزي)" /></div>
-          <div className="space-y-2"><Label>سعر البيع</Label><Input type="number" step="0.01" min="0" value={sellPrice} onChange={(e) => setSellPrice(e.target.value)} /></div>
-          <div className="space-y-2"><Label>حد إعادة الطلب</Label><Input type="number" step="0.001" min="0" value={minStock} onChange={(e) => setMinStock(e.target.value)} /></div>
-          <div className="space-y-2"><Label>العلامة التجارية</Label><Input value={brand} onChange={(e) => setBrand(e.target.value)} placeholder="مثال: Logitech" /></div>
+          <div className="space-y-2"><Label>{t("الكود الداخلي")}</Label><Input value={code} onChange={(e) => setCode(e.target.value)} placeholder="ITM-1001" /></div>
+          <div className="space-y-2"><Label>{t("الاسم")}</Label><Input value={nameAr} onChange={(e) => setNameAr(e.target.value)} placeholder={t("اسم الصنف (عربي أو إنجليزي)")} /></div>
+          <div className="space-y-2"><Label>{t("سعر البيع")}</Label><Input type="number" step="0.01" min="0" value={sellPrice} onChange={(e) => setSellPrice(e.target.value)} /></div>
+          <div className="space-y-2"><Label>{t("حد إعادة الطلب")}</Label><Input type="number" step="0.001" min="0" value={minStock} onChange={(e) => setMinStock(e.target.value)} /></div>
+          <div className="space-y-2"><Label>{t("العلامة التجارية")}</Label><Input value={brand} onChange={(e) => setBrand(e.target.value)} placeholder={t("مثال: Logitech")} /></div>
           {/* One weight field, not two. There used to be a free-text one beside this that
               the marketplace catalogue filled — two places to say the same thing, and the
               text one was never the number anything used. The weight that matters is the
               one the shipment is actually charged on, and only the seller knows it. */}
           <div className="grid grid-cols-2 gap-2">
             <div className="space-y-2">
-              <Label>الوزن بالكيلوجرام <span className="font-normal text-muted-foreground">(يوزّع تكلفة الشحن)</span></Label>
+              <Label>{t("الوزن بالكيلوجرام")} <span className="font-normal text-muted-foreground">{t("(يوزّع تكلفة الشحن)")}</span></Label>
               <Input type="number" step="0.001" min="0" value={weightKg} onChange={(e) => setWeightKg(e.target.value)} placeholder="0.500" dir="ltr" />
               <p className="text-xs text-muted-foreground">
-                اكتب وزن الشحن الفعلي. لو سِبته فاضي، الصنف ده مش هياخد نصيبه من مصاريف الشحن الموزّعة بالوزن.
+                {t("اكتب وزن الشحن الفعلي. لو سِبته فاضي، الصنف ده مش هياخد نصيبه من مصاريف الشحن الموزّعة بالوزن.")}
               </p>
             </div>
-            <div className="space-y-2"><Label>الأبعاد</Label><Input value={dimensions} onChange={(e) => setDimensions(e.target.value)} placeholder="10 × 5 × 3 سم" /></div>
+            <div className="space-y-2"><Label>{t("الأبعاد")}</Label><Input value={dimensions} onChange={(e) => setDimensions(e.target.value)} placeholder={t("10 × 5 × 3 سم")} /></div>
           </div>
-          <div className="space-y-2 sm:col-span-2"><Label>الوصف</Label>
-            <textarea className="min-h-20 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="وصف الصنف…" />
+          <div className="space-y-2 sm:col-span-2"><Label>{t("الوصف")}</Label>
+            <textarea className="min-h-20 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm" value={description} onChange={(e) => setDescription(e.target.value)} placeholder={t("وصف الصنف…")} />
           </div>
           <div className="space-y-2 sm:col-span-2">
-            <Label htmlFor="tracking">تتبّع الوحدات</Label>
+            <Label htmlFor="tracking">{t("تتبّع الوحدات")}</Label>
             <select id="tracking" className={selectCls} value={tracking} onChange={(e) => setTracking(e.target.value)}>
-              <option value="NONE">بالكمية فقط</option>
-              <option value="SERIAL">برقم تسلسلي لكل قطعة</option>
+              <option value="NONE">{t("بالكمية فقط")}</option>
+              <option value="SERIAL">{t("برقم تسلسلي لكل قطعة")}</option>
             </select>
             <p className="text-xs text-muted-foreground">
-              التتبّع بالرقم التسلسلي بيطلب رقم لكل قطعة عند الاستلام، ويجاوب على «القطعة دي راحت فين ومين اشتراها».
-              مناسب للأجهزة والإلكترونيات، مش للأصناف اللي بتتباع بالكيلو أو الكرتونة.
+              {t("التتبّع بالرقم التسلسلي بيطلب رقم لكل قطعة عند الاستلام، ويجاوب على «القطعة دي راحت فين ومين اشتراها». مناسب للأجهزة والإلكترونيات، مش للأصناف اللي بتتباع بالكيلو أو الكرتونة.")}
             </p>
           </div>
           <div className="flex items-center gap-2 sm:col-span-2">
             <input id="perishable" type="checkbox" className="size-4 rounded border-input" checked={isPerishable} onChange={(e) => setIsPerishable(e.target.checked)} />
-            <Label htmlFor="perishable" className="cursor-pointer">صنف له تاريخ صلاحية (يُتتبَّع بالدفعات/FEFO)</Label>
+            <Label htmlFor="perishable" className="cursor-pointer">{t("صنف له تاريخ صلاحية (يُتتبَّع بالدفعات/FEFO)")}</Label>
           </div>
           {isPerishable && (
             <div className="space-y-2">
-              <Label>مدة الصلاحية (أيام) — اختياري</Label>
-              <Input type="number" min="0" step="1" value={shelfLifeDays} onChange={(e) => setShelfLifeDays(e.target.value)} placeholder="مثال: 365 — لاقتراح تاريخ الانتهاء عند الاستلام" />
+              <Label>{t("مدة الصلاحية (أيام) — اختياري")}</Label>
+              <Input type="number" min="0" step="1" value={shelfLifeDays} onChange={(e) => setShelfLifeDays(e.target.value)} placeholder={t("مثال: 365 — لاقتراح تاريخ الانتهاء عند الاستلام")} />
             </div>
           )}
         </CardContent>
       </Card>
 
       <Card>
-        <CardHeader><CardTitle>صورة الصنف</CardTitle></CardHeader>
+        <CardHeader><CardTitle>{t("صورة الصنف")}</CardTitle></CardHeader>
         <CardContent className="flex flex-col gap-4 sm:flex-row sm:items-start">
           <div className="size-32 shrink-0 overflow-hidden rounded-xl border bg-muted/40">
             {image
@@ -147,14 +148,14 @@ export function ItemForm({ initial }: { initial?: ItemFormInitial }) {
               : <div className="flex size-full items-center justify-center text-muted-foreground"><Icon name="Image" className="size-8" /></div>}
           </div>
           <div className="flex-1 space-y-2">
-            <Label>رابط الصورة</Label>
-            <Input value={image} onChange={(e) => setImage(e.target.value)} placeholder="https://… أو ارفع صورة" />
+            <Label>{t("رابط الصورة")}</Label>
+            <Input value={image} onChange={(e) => setImage(e.target.value)} placeholder={t("https://… أو ارفع صورة")} />
             <div className="flex items-center gap-2">
               <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={onFile} />
               <Button type="button" variant="outline" size="sm" disabled={uploading} onClick={() => fileRef.current?.click()}>
-                <Icon name={uploading ? "Loader2" : "Upload"} className={`size-4 ${uploading ? "animate-spin" : ""}`} />{uploading ? "جارٍ الرفع…" : "رفع صورة"}
+                <Icon name={uploading ? "Loader2" : "Upload"} className={`size-4 ${uploading ? "animate-spin" : ""}`} />{uploading ? t("جارٍ الرفع…") : t("رفع صورة")}
               </Button>
-              {image && <Button type="button" variant="ghost" size="sm" onClick={() => setImage("")}>إزالة</Button>}
+              {image && <Button type="button" variant="ghost" size="sm" onClick={() => setImage("")}>{t("إزالة")}</Button>}
             </div>
           </div>
         </CardContent>
@@ -162,23 +163,23 @@ export function ItemForm({ initial }: { initial?: ItemFormInitial }) {
 
       <Card>
         <CardHeader>
-          <CardTitle>عائلة التنويعات (اختياري)</CardTitle>
-          <CardDescription>اربط هذا الصنف كتنويعة تحت منتج أب — يعمل مع أي منصة (أمازون/نون/جوميا) أو بدون منصة.</CardDescription>
+          <CardTitle>{t("عائلة التنويعات (اختياري)")}</CardTitle>
+          <CardDescription>{t("اربط هذا الصنف كتنويعة تحت منتج أب — يعمل مع أي منصة (أمازون/نون/جوميا) أو بدون منصة.")}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
           {parentItemId ? (
             <div className="flex items-center gap-3 rounded-lg border bg-muted/30 px-3 py-2">
               <Icon name="Boxes" className="size-4 text-primary" />
-              <span className="flex-1 text-sm">المنتج الأب: <span className="font-medium">{parentLabel || parentItemId}</span></span>
+              <span className="flex-1 text-sm">{t("المنتج الأب:")} <span className="font-medium">{parentLabel || parentItemId}</span></span>
               <Button type="button" variant="ghost" size="sm" onClick={() => { setParentItemId(""); setParentLabel(""); setVariationValue(""); }}>
-                <Icon name="X" className="size-4" />فك الربط
+                <Icon name="X" className="size-4" />{t("فك الربط")}
               </Button>
             </div>
           ) : (
             <div className="space-y-1">
-              <Label>المنتج الأب</Label>
+              <Label>{t("المنتج الأب")}</Label>
               <ItemCombobox
-                placeholder="ابحث عن المنتج الأب بالاسم أو الكود…"
+                placeholder={t("ابحث عن المنتج الأب بالاسم أو الكود…")}
                 onSelect={(it) => {
                   if (it.id === initial?.id) { toast.error("لا يمكن ربط الصنف بنفسه"); return; }
                   setParentItemId(it.id);
@@ -189,32 +190,32 @@ export function ItemForm({ initial }: { initial?: ItemFormInitial }) {
           )}
           {parentItemId && (
             <div className="space-y-2">
-              <Label>قيمة التنويعة</Label>
-              <Input value={variationValue} onChange={(e) => setVariationValue(e.target.value)} placeholder="مثال: أحمر - L" />
+              <Label>{t("قيمة التنويعة")}</Label>
+              <Input value={variationValue} onChange={(e) => setVariationValue(e.target.value)} placeholder={t("مثال: أحمر - L")} />
             </div>
           )}
         </CardContent>
       </Card>
 
       <Card>
-        <CardHeader><CardTitle>الأكواد (باركود / SKU / ASIN …)</CardTitle></CardHeader>
+        <CardHeader><CardTitle>{t("الأكواد (باركود / SKU / ASIN …)")}</CardTitle></CardHeader>
         <CardContent className="space-y-3">
           {codes.map((c, i) => (
             <div key={i} className="flex gap-2">
               <select className={`${selectCls} w-32`} value={c.codeType} onChange={(e) => setCodeRow(i, { codeType: e.target.value })}>
-                {CODE_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
+                {CODE_TYPES.map((it) => <option key={it} value={it}>{t(it)}</option>)}
               </select>
-              <Input value={c.code} onChange={(e) => setCodeRow(i, { code: e.target.value })} placeholder="القيمة" />
-              <Button type="button" variant="ghost" size="icon" aria-label="حذف" onClick={() => removeCode(i)}><Icon name="Trash2" className="size-4 text-destructive" /></Button>
+              <Input value={c.code} onChange={(e) => setCodeRow(i, { code: e.target.value })} placeholder={t("القيمة")} />
+              <Button type="button" variant="ghost" size="icon" aria-label={t("حذف")} onClick={() => removeCode(i)}><Icon name="Trash2" className="size-4 text-destructive" /></Button>
             </div>
           ))}
-          <Button type="button" variant="outline" size="sm" onClick={addCode}><Icon name="Plus" className="size-4" />إضافة كود</Button>
+          <Button type="button" variant="outline" size="sm" onClick={addCode}><Icon name="Plus" className="size-4" />{t("إضافة كود")}</Button>
         </CardContent>
       </Card>
 
       <div className="flex justify-end gap-2">
-        <Button variant="outline" onClick={() => router.push("/inventory/items")}>إلغاء</Button>
-        <Button onClick={submit} disabled={pending}>{pending && <Icon name="Loader2" className="size-4 animate-spin" />}حفظ الصنف</Button>
+        <Button variant="outline" onClick={() => router.push("/inventory/items")}>{t("إلغاء")}</Button>
+        <Button onClick={submit} disabled={pending}>{pending && <Icon name="Loader2" className="size-4 animate-spin" />}{t("حفظ الصنف")}</Button>
       </div>
     </div>
   );

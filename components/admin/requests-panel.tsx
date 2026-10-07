@@ -1,8 +1,9 @@
 "use client";
 
 import { useTransition } from "react";
+import { useT } from "@/lib/i18n/client";
 import { useRouter } from "next/navigation";
-import { toast } from "sonner";
+import { toast } from "@/lib/i18n/toast";
 import { Loader2 } from "lucide-react";
 import { approveRequestAction, rejectRequestAction } from "@/app/actions/admin/subscription-requests";
 import { Button } from "@/components/ui/button";
@@ -15,6 +16,7 @@ export type SubRequest = { id: string; orgName: string; planName: string; interv
 const METHOD: Record<string, string> = { INSTAPAY: "إنستا باي / محفظة", BANK: "تحويل بنكي", VISA: "فيزا" };
 
 export function RequestsPanel({ requests }: { requests: SubRequest[] }) {
+  const t = useT();
   const router = useRouter();
   const [pending, start] = useTransition();
   if (requests.length === 0) return null;
@@ -24,31 +26,31 @@ export function RequestsPanel({ requests }: { requests: SubRequest[] }) {
 
   return (
     <Card className="border-amber-500/40">
-      <CardHeader className="pb-2"><CardTitle className="flex items-center gap-2 text-base">طلبات اشتراك قيد المراجعة <Badge variant="secondary">{requests.length}</Badge></CardTitle></CardHeader>
+      <CardHeader className="pb-2"><CardTitle className="flex items-center gap-2 text-base">{t("طلبات اشتراك قيد المراجعة")} <Badge variant="secondary">{requests.length}</Badge></CardTitle></CardHeader>
       <CardContent className="p-0">
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="text-start">المؤسسة</TableHead>
-              <TableHead className="text-start">الباقة</TableHead>
-              <TableHead className="text-start">المبلغ</TableHead>
-              <TableHead className="text-start">الدفع</TableHead>
-              <TableHead className="text-start">المرجع</TableHead>
-              <TableHead className="text-start">إجراءات</TableHead>
+              <TableHead className="text-start">{t("المؤسسة")}</TableHead>
+              <TableHead className="text-start">{t("الباقة")}</TableHead>
+              <TableHead className="text-start">{t("المبلغ")}</TableHead>
+              <TableHead className="text-start">{t("الدفع")}</TableHead>
+              <TableHead className="text-start">{t("المرجع")}</TableHead>
+              <TableHead className="text-start">{t("إجراءات")}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {requests.map((r) => (
               <TableRow key={r.id}>
                 <TableCell className="font-medium">{r.orgName}</TableCell>
-                <TableCell>{r.planName} <span className="text-xs text-muted-foreground">({r.interval === "ANNUAL" ? "سنوي" : "شهري"})</span></TableCell>
-                <TableCell className="tabular-nums">{r.price.toLocaleString("ar-EG")} ج.م</TableCell>
-                <TableCell className="text-sm">{METHOD[r.paymentMethod] ?? r.paymentMethod}</TableCell>
+                <TableCell>{r.planName} <span className="text-xs text-muted-foreground">({r.interval === "ANNUAL" ? t("سنوي") : t("شهري")})</span></TableCell>
+                <TableCell className="tabular-nums">{r.price.toLocaleString("ar-EG-u-nu-latn")} {t("ج.م")}</TableCell>
+                <TableCell className="text-sm">{t(METHOD[r.paymentMethod] ?? r.paymentMethod)}</TableCell>
                 <TableCell className="text-sm font-mono" dir="ltr">{r.paymentReference || "—"}</TableCell>
                 <TableCell>
                   <div className="flex gap-1">
-                    <Button size="sm" disabled={pending} onClick={() => approve(r.id)}>{pending && <Loader2 className="size-4 animate-spin" />}تفعيل</Button>
-                    <Button size="sm" variant="ghost" disabled={pending} onClick={() => reject(r.id)} className="text-destructive">رفض</Button>
+                    <Button size="sm" disabled={pending} onClick={() => approve(r.id)}>{pending && <Loader2 className="size-4 animate-spin" />}{t("تفعيل")}</Button>
+                    <Button size="sm" variant="ghost" disabled={pending} onClick={() => reject(r.id)} className="text-destructive">{t("رفض")}</Button>
                   </div>
                 </TableCell>
               </TableRow>

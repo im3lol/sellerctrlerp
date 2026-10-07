@@ -1,6 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
+import { useT } from "@/lib/i18n/client";
 import { Label } from "@/components/ui/label";
 import { selectCls } from "@/lib/utils";
 
@@ -26,14 +27,15 @@ export function ColumnMapSelect({
   colOptions: ReactNode;
   onChange: (value: string) => void;
 }) {
+  const t = useT();
   return (
     <div className="space-y-1.5">
       <Label>
         {label}
-        {optional && <span className="text-muted-foreground"> (اختياري)</span>}
+        {optional && <span className="text-muted-foreground"> {t("(اختياري)")}</span>}
       </Label>
       <select className={selectCls} value={value} onChange={(e) => onChange(e.target.value)}>
-        <option value="">— اختر العمود —</option>
+        <option value="">{t("— اختر العمود —")}</option>
         {colOptions}
       </select>
     </div>

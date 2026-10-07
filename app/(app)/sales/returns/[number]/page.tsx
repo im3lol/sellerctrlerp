@@ -1,4 +1,6 @@
 import { notFound, redirect } from "next/navigation";
+import { fill } from "@/lib/i18n";
+import { getT } from "@/lib/i18n/server";
 import { and, eq } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
@@ -25,6 +27,7 @@ const STATUS: Record<string, { label: string; variant: "default" | "secondary" |
 };
 
 export default async function SalesReturnDetailPage({ params }: { params: Promise<{ number: string }> }) {
+  const t = await getT();
   const raw = decodeURIComponent((await params).number);
   return loadErpPage("sales.view", async ({ orgId, can }) => {
     if (UUID_RE.test(raw)) {
@@ -69,7 +72,7 @@ export default async function SalesReturnDetailPage({ params }: { params: Promis
       <div className="space-y-6">
         <ErpPageHeader
           icon="Undo2"
-          title={`مرتجع مبيعات ${ret.number}`}
+          title={fill(t("مرتجع مبيعات {0}"), [ret.number])}
           subtitle={cust ? `${cust.code} — ${cust.name}` : "مرتجع مبيعات"}
           backHref={backHref}
           action={
@@ -83,42 +86,42 @@ export default async function SalesReturnDetailPage({ params }: { params: Promis
         />
 
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <Field label="الحالة"><Badge variant={st.variant}>{st.label}</Badge></Field>
-          <Field label="التاريخ">{dt(ret.date)}</Field>
-          <Field label="الإجمالي">{fmt(ret.totalAmount)}</Field>
-          <Field label="المصدر">{ret.channel ? ({ AMAZON: "أمازون", NOON: "نون", SHOPIFY: "شوبيفاي" } as Record<string, string>)[ret.channel] ?? ret.channel : "يدوي"}</Field>
+          <Field label={t("الحالة")}><Badge variant={st.variant}>{t(st.label)}</Badge></Field>
+          <Field label={t("التاريخ")}>{dt(ret.date)}</Field>
+          <Field label={t("الإجمالي")}>{fmt(ret.totalAmount)}</Field>
+          <Field label={t("المصدر")}>{ret.channel ? ({ AMAZON: "أمازون", NOON: "نون", SHOPIFY: "شوبيفاي" } as Record<string, string>)[ret.channel] ?? ret.channel : "يدوي"}</Field>
           {ret.disposition && (
-            <Field label="حالة البضاعة">
+            <Field label={t("حالة البضاعة")}>
               <Badge variant="outline" className={ret.disposition !== "SELLABLE" ? "border-destructive/40 text-destructive" : "border-emerald-500/40 text-emerald-600"}>
-                {ret.disposition !== "SELLABLE" ? "تالف / غير قابل للبيع" : "قابل للبيع"}
+                {ret.disposition !== "SELLABLE" ? t("تالف / غير قابل للبيع") : t("قابل للبيع")}
               </Badge>
             </Field>
           )}
-          {ret.reason && <Field label="سبب الإرجاع">{ret.reason}</Field>}
-          {ret.externalReturnId && <Field label="رقم الطلب بالمنصّة">{ret.externalReturnId}</Field>}
+          {ret.reason && <Field label={t("سبب الإرجاع")}>{t(ret.reason)}</Field>}
+          {ret.externalReturnId && <Field label={t("رقم الطلب بالمنصّة")}>{ret.externalReturnId}</Field>}
         </div>
         {ret.status === "DRAFT" && ret.disposition && ret.disposition !== "SELLABLE" && (
           <div className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-2 text-sm text-amber-800 dark:bg-amber-950/20">
-            بضاعة تالفة/غير قابلة للبيع — عند التأكيد لن تُعاد للمخزون القابل للبيع؛ تُقيَّد تكلفتها كخسارة (عجز وتالف).
+            {t("بضاعة تالفة/غير قابلة للبيع — عند التأكيد لن تُعاد للمخزون القابل للبيع؛ تُقيَّد تكلفتها كخسارة (عجز وتالف).")}
           </div>
         )}
 
         <Card>
-          <CardHeader><CardTitle>البنود المرتجعة</CardTitle><CardDescription>الأصناف والكميات المرتجعة.</CardDescription></CardHeader>
+          <CardHeader><CardTitle>{t("البنود المرتجعة")}</CardTitle><CardDescription>{t("الأصناف والكميات المرتجعة.")}</CardDescription></CardHeader>
           <CardContent>
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="text-start">الصنف</TableHead>
-                  <TableHead className="text-start">الكمية</TableHead>
-                  <TableHead className="text-start">السعر</TableHead>
-                  <TableHead className="text-start">الإجمالي</TableHead>
+                  <TableHead className="text-start">{t("الصنف")}</TableHead>
+                  <TableHead className="text-start">{t("الكمية")}</TableHead>
+                  <TableHead className="text-start">{t("السعر")}</TableHead>
+                  <TableHead className="text-start">{t("الإجمالي")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {lines.map((l) => (
                   <TableRow key={l.id}>
-                    <TableCell className="max-w-[320px] whitespace-normal"><div className="line-clamp-2 leading-snug" title={l.name ?? undefined}><span className="font-mono text-muted-foreground">{l.code}</span> {l.name}</div></TableCell>
+                    <TableCell className="max-w-[320px] whitespace-normal"><div className="line-clamp-2 leading-snug" title={l.name ?? undefined}><span className="font-mono text-muted-foreground">{l.code}</span> {t(l.name ?? "")}</div></TableCell>
                     <TableCell>{qty(l.qty)}</TableCell>
                     <TableCell>{fmt(l.unitPrice)}</TableCell>
                     <TableCell>{fmt(l.total)}</TableCell>
@@ -126,10 +129,10 @@ export default async function SalesReturnDetailPage({ params }: { params: Promis
                 ))}
               </TableBody>
               <TableFooter>
-                <TableRow className="font-bold"><TableCell colSpan={3}>إجمالي المرتجع</TableCell><TableCell>{fmt(ret.totalAmount)}</TableCell></TableRow>
+                <TableRow className="font-bold"><TableCell colSpan={3}>{t("إجمالي المرتجع")}</TableCell><TableCell>{fmt(ret.totalAmount)}</TableCell></TableRow>
               </TableFooter>
             </Table>
-            {ret.notes && <p className="mt-4 text-sm text-muted-foreground">ملاحظات: {ret.notes}</p>}
+            {ret.notes && <p className="mt-4 text-sm text-muted-foreground">{t("ملاحظات:")} {ret.notes}</p>}
           </CardContent>
         </Card>
 

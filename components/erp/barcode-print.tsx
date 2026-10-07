@@ -1,8 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { fill } from "@/lib/i18n";
+import { useT } from "@/lib/i18n/client";
 import JsBarcode from "jsbarcode";
-import { toast } from "sonner";
+import { toast } from "@/lib/i18n/toast";
 import { Printer, Loader2, Trash2, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
@@ -99,15 +101,16 @@ export async function qzPrint(printer: string, jobs: { itemName: string; value: 
 }
 
 export function PrinterField({ qzOk, printers, printer, setPrinter }: { qzOk: boolean | null; printers: string[]; printer: string; setPrinter: (p: string) => void }) {
+  const t = useT();
   return (
     <div className="space-y-1.5">
-      <label className="text-sm font-medium">الطابعة</label>
+      <label className="text-sm font-medium">{t("الطابعة")}</label>
       {qzOk === false ? (
-        <p className="rounded-md border border-destructive/40 bg-destructive/5 p-2 text-xs text-destructive">تعذّر الاتصال بـ QZ Tray — تأكد أن البرنامج يعمل على هذا الجهاز ثم أعد تحميل الصفحة.</p>
+        <p className="rounded-md border border-destructive/40 bg-destructive/5 p-2 text-xs text-destructive">{t("تعذّر الاتصال بـ QZ Tray — تأكد أن البرنامج يعمل على هذا الجهاز ثم أعد تحميل الصفحة.")}</p>
       ) : (
         <select className={selectCls} value={printer} onChange={(e) => setPrinter(e.target.value)} disabled={qzOk === null}>
-          {qzOk === null && <option>جاري الاتصال بـ QZ Tray…</option>}
-          {printers.map((p) => <option key={p} value={p}>{p}</option>)}
+          {qzOk === null && <option>{t("جاري الاتصال بـ QZ Tray…")}</option>}
+          {printers.map((p) => <option key={p} value={p}>{t(p)}</option>)}
         </select>
       )}
     </div>
@@ -136,6 +139,7 @@ function LabelPreview({ itemName, value }: { itemName: string; value: string }) 
  * via QZ Tray. Used on the item detail page.
  */
 export function BarcodePrintButton({ itemName, codes }: { itemName: string; codes: PrintCode[] }) {
+  const t = useT();
   const [open, setOpen] = useState(false);
   const [sel, setSel] = useState(0);
   const [copies, setCopies] = useState(1);
@@ -150,7 +154,7 @@ export function BarcodePrintButton({ itemName, codes }: { itemName: string; code
     try {
       const n = Math.max(1, Math.min(100, copies));
       await qzPrint(printer, Array.from({ length: n }, () => ({ itemName, value })));
-      toast.success(`أُرسلت ${n} ملصق للطابعة`);
+      toast.success(fill(t("أُرسلت {0} ملصق للطابعة"), [n]));
       setOpen(false);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "فشلت الطباعة — تأكد أن QZ Tray يعمل");
@@ -162,24 +166,24 @@ export function BarcodePrintButton({ itemName, codes }: { itemName: string; code
   return (
     <>
       <Button variant="outline" onClick={() => setOpen(true)}>
-        <Printer className="size-4" />طباعة الباركود
+        <Printer className="size-4" />{t("طباعة الباركود")}
       </Button>
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent dir="rtl">
+        <DialogContent>
           <DialogHeader>
-            <DialogTitle>طباعة باركود — {itemName}</DialogTitle>
-            <DialogDescription>ملصق 50×25 مم عبر QZ Tray — اختر الكود وشاهد المعاينة قبل الطباعة.</DialogDescription>
+            <DialogTitle>{t("طباعة باركود —")} {itemName}</DialogTitle>
+            <DialogDescription>{t("ملصق 50×25 مم عبر QZ Tray — اختر الكود وشاهد المعاينة قبل الطباعة.")}</DialogDescription>
           </DialogHeader>
 
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="space-y-1.5">
-              <label className="text-sm font-medium">الكود</label>
+              <label className="text-sm font-medium">{t("الكود")}</label>
               <select className={selectCls} value={sel} onChange={(e) => setSel(Number(e.target.value))}>
-                {codes.map((c, i) => <option key={i} value={i}>{c.label} — {c.value}</option>)}
+                {codes.map((c, i) => <option key={i} value={i}>{t(c.label)} — {c.value}</option>)}
               </select>
             </div>
             <div className="space-y-1.5">
-              <label className="text-sm font-medium">عدد الملصقات</label>
+              <label className="text-sm font-medium">{t("عدد الملصقات")}</label>
               <input type="number" min={1} max={100} value={copies} onChange={(e) => setCopies(Math.max(1, Math.trunc(Number(e.target.value) || 1)))} className="block h-9 w-full rounded-md border bg-background px-3 text-sm" dir="ltr" />
             </div>
           </div>
@@ -187,13 +191,13 @@ export function BarcodePrintButton({ itemName, codes }: { itemName: string; code
           <PrinterField qzOk={qzOk} printers={printers} printer={printer} setPrinter={setPrinter} />
 
           <div className="space-y-1.5">
-            <label className="text-sm font-medium">معاينة الملصق</label>
+            <label className="text-sm font-medium">{t("معاينة الملصق")}</label>
             <LabelPreview itemName={itemName} value={value} />
           </div>
 
           <DialogFooter>
             <Button onClick={print} disabled={busy || qzOk !== true}>
-              {busy ? <Loader2 className="size-4 animate-spin" /> : <Printer className="size-4" />}طباعة
+              {busy ? <Loader2 className="size-4 animate-spin" /> : <Printer className="size-4" />}{t("طباعة")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -225,6 +229,7 @@ export function BulkBarcodePrintButton({
   onOpenChange?: (v: boolean) => void;
   hideTrigger?: boolean;
 }) {
+  const t = useT();
   const [openSelf, setOpenSelf] = useState(false);
   const open = openProp ?? openSelf;
   const setOpen = onOpenChange ?? setOpenSelf;
@@ -254,7 +259,7 @@ export function BulkBarcodePrintButton({
     try {
       const jobs = included.flatMap((r) => Array.from({ length: r.qty }, () => ({ itemName: r.itemName, value: r.codes[r.sel].value })));
       await qzPrint(printer, jobs);
-      toast.success(`أُرسل ${totalLabels} ملصق للطابعة`);
+      toast.success(fill(t("أُرسل {0} ملصق للطابعة"), [totalLabels]));
       setOpen(false);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "فشلت الطباعة — تأكد أن QZ Tray يعمل");
@@ -267,22 +272,22 @@ export function BulkBarcodePrintButton({
     <>
       {!hideTrigger && (
         <Button size="sm" variant="outline" onClick={() => setOpen(true)}>
-          <Printer className="size-4" />طباعة باركود
+          <Printer className="size-4" />{t("طباعة باركود")}
         </Button>
       )}
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent dir="rtl" className="max-w-2xl">
+        <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle>طباعة باركود — {docTitle}</DialogTitle>
-            <DialogDescription>ملصق لكل قطعة حسب الكمية. عدّل الكمية أو استبعد صنفاً، واختر الكود للكل ثم عدّل أي صنف. 50×25 مم عبر QZ Tray.</DialogDescription>
+            <DialogTitle>{t("طباعة باركود —")} {docTitle}</DialogTitle>
+            <DialogDescription>{t("ملصق لكل قطعة حسب الكمية. عدّل الكمية أو استبعد صنفاً، واختر الكود للكل ثم عدّل أي صنف. 50×25 مم عبر QZ Tray.")}</DialogDescription>
           </DialogHeader>
 
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="space-y-1.5">
-              <label className="text-sm font-medium">الكود لكل الأصناف</label>
+              <label className="text-sm font-medium">{t("الكود لكل الأصناف")}</label>
               <select className={selectCls} defaultValue="" onChange={(e) => { if (e.target.value) applyGlobal(e.target.value); }}>
-                <option value="">— اختر ثم عدّل أي صنف —</option>
-                {codeLabels.map((l) => <option key={l} value={l}>{l}</option>)}
+                <option value="">{t("— اختر ثم عدّل أي صنف —")}</option>
+                {codeLabels.map((l) => <option key={l} value={l}>{t(l)}</option>)}
               </select>
             </div>
             <PrinterField qzOk={qzOk} printers={printers} printer={printer} setPrinter={setPrinter} />
@@ -292,9 +297,9 @@ export function BulkBarcodePrintButton({
             <table className="w-full text-sm">
               <thead className="sticky top-0 bg-muted/60 text-xs">
                 <tr>
-                  <th className="p-2 text-start font-medium">الصنف</th>
-                  <th className="p-2 text-start font-medium">الكود</th>
-                  <th className="w-24 p-2 text-start font-medium">عدد الملصقات</th>
+                  <th className="p-2 text-start font-medium">{t("الصنف")}</th>
+                  <th className="p-2 text-start font-medium">{t("الكود")}</th>
+                  <th className="w-24 p-2 text-start font-medium">{t("عدد الملصقات")}</th>
                   <th className="w-10" />
                 </tr>
               </thead>
@@ -304,7 +309,7 @@ export function BulkBarcodePrintButton({
                     <td className="max-w-[200px] p-2"><div className="line-clamp-2 leading-snug" title={r.itemName}>{r.itemName}</div></td>
                     <td className="p-2">
                       <select className={selectCls} value={r.sel} disabled={!r.include} onChange={(e) => patch(i, { sel: Number(e.target.value) })}>
-                        {r.codes.map((c, ci) => <option key={ci} value={ci}>{c.label} — {c.value}</option>)}
+                        {r.codes.map((c, ci) => <option key={ci} value={ci}>{t(c.label)} — {c.value}</option>)}
                       </select>
                     </td>
                     <td className="p-2">
@@ -313,7 +318,7 @@ export function BulkBarcodePrintButton({
                         className="h-8 w-20 rounded-md border bg-background px-2 text-sm" />
                     </td>
                     <td className="p-2">
-                      <Button variant="ghost" size="icon" onClick={() => patch(i, { include: !r.include })} aria-label={r.include ? "استبعاد" : "إرجاع"}>
+                      <Button variant="ghost" size="icon" onClick={() => patch(i, { include: !r.include })} aria-label={r.include ? t("استبعاد") : t("إرجاع")}>
                         {r.include ? <Trash2 className="size-4 text-destructive" /> : <RotateCcw className="size-4 text-muted-foreground" />}
                       </Button>
                     </td>
@@ -325,15 +330,15 @@ export function BulkBarcodePrintButton({
 
           {preview && (
             <div className="space-y-1.5">
-              <label className="text-sm font-medium">معاينة (أول صنف)</label>
+              <label className="text-sm font-medium">{t("معاينة (أول صنف)")}</label>
               <LabelPreview itemName={preview.itemName} value={preview.codes[preview.sel].value} />
             </div>
           )}
 
           <DialogFooter className="sm:items-center sm:justify-between">
-            <span className="text-sm text-muted-foreground">{totalLabels} ملصق · {included.length} صنف</span>
+            <span className="text-sm text-muted-foreground">{totalLabels} {t("ملصق ·")} {included.length} {t("صنف")}</span>
             <Button onClick={print} disabled={busy || qzOk !== true || !totalLabels}>
-              {busy ? <Loader2 className="size-4 animate-spin" /> : <Printer className="size-4" />}طباعة
+              {busy ? <Loader2 className="size-4 animate-spin" /> : <Printer className="size-4" />}{t("طباعة")}
             </Button>
           </DialogFooter>
         </DialogContent>

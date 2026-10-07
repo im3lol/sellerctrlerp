@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { fill } from "@/lib/i18n";
+import { getT } from "@/lib/i18n/server";
 import { and, desc, eq, gte, ilike, isNotNull, lte, or, sql } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
@@ -36,6 +38,7 @@ const money = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { minimumFracti
 type SP = { q?: string; status?: string; source?: string; from?: string; to?: string; page?: string };
 
 export default async function JournalPage({ searchParams }: { searchParams: Promise<SP> }) {
+  const t = await getT();
   return loadErpPage("accounting.view", async ({ orgId, can }) => {
     const sp = await searchParams;
     const q = (sp.q ?? "").trim();
@@ -105,8 +108,8 @@ export default async function JournalPage({ searchParams }: { searchParams: Prom
       <div className="space-y-6">
         <ErpPageHeader
           icon="BookText"
-          title="القيود اليومية"
-          subtitle={`${num(total)} قيد`}
+          title={t("القيود اليومية")}
+          subtitle={fill(t("{0} قيد"), [num(total)])}
           action={
             <div className="flex gap-2">
               {total > 0 && (
@@ -116,7 +119,7 @@ export default async function JournalPage({ searchParams }: { searchParams: Prom
               )}
               {can("accounting.create") && (
                 <Button asChild>
-                  <Link href="/accounting/journal/new"><Icon name="Plus" className="size-4" />قيد جديد</Link>
+                  <Link href="/accounting/journal/new"><Icon name="Plus" className="size-4" />{t("قيد جديد")}</Link>
                 </Button>
               )}
             </div>
@@ -124,9 +127,9 @@ export default async function JournalPage({ searchParams }: { searchParams: Prom
         />
 
         <div className="grid gap-4 sm:grid-cols-3">
-          <Card><CardContent className="pt-6"><div className="text-sm text-muted-foreground">إجمالي القيمة المُرحّلة</div><p className="mt-1 text-2xl font-bold tabular-nums">{money(Number(sum?.postedValue ?? 0))}</p></CardContent></Card>
-          <Card><CardContent className="pt-6"><div className="text-sm text-muted-foreground">قيود مُرحّلة</div><p className="mt-1 text-2xl font-bold tabular-nums text-emerald-600">{num(Number(sum?.postedCount ?? 0))}</p></CardContent></Card>
-          <Card><CardContent className="pt-6"><div className="text-sm text-muted-foreground">مسودة (غير مُرحّلة)</div><p className={`mt-1 text-2xl font-bold tabular-nums ${Number(sum?.draftCount ?? 0) > 0 ? "text-amber-600" : ""}`}>{num(Number(sum?.draftCount ?? 0))}</p></CardContent></Card>
+          <Card><CardContent className="pt-6"><div className="text-sm text-muted-foreground">{t("إجمالي القيمة المُرحّلة")}</div><p className="mt-1 text-2xl font-bold tabular-nums">{money(Number(sum?.postedValue ?? 0))}</p></CardContent></Card>
+          <Card><CardContent className="pt-6"><div className="text-sm text-muted-foreground">{t("قيود مُرحّلة")}</div><p className="mt-1 text-2xl font-bold tabular-nums text-emerald-600">{num(Number(sum?.postedCount ?? 0))}</p></CardContent></Card>
+          <Card><CardContent className="pt-6"><div className="text-sm text-muted-foreground">{t("مسودة (غير مُرحّلة)")}</div><p className={`mt-1 text-2xl font-bold tabular-nums ${Number(sum?.draftCount ?? 0) > 0 ? "text-amber-600" : ""}`}>{num(Number(sum?.draftCount ?? 0))}</p></CardContent></Card>
         </div>
 
         <Card>
@@ -134,44 +137,44 @@ export default async function JournalPage({ searchParams }: { searchParams: Prom
             <summary className="flex cursor-pointer list-none items-center justify-between gap-2 p-6 [&::-webkit-details-marker]:hidden">
               <div className="flex items-center gap-2">
                 <Icon name="ListFilter" className="size-4 text-muted-foreground" />
-                <span className="font-semibold">تصفية</span>
-                {hasFilters && <Badge variant="secondary">مُفعّلة</Badge>}
+                <span className="font-semibold">{t("تصفية")}</span>
+                {hasFilters && <Badge variant="secondary">{t("مُفعّلة")}</Badge>}
               </div>
               <Icon name="ChevronDown" className="size-4 text-muted-foreground transition-transform group-open:rotate-180" />
             </summary>
             <div className="px-6 pb-6">
               <form className="flex flex-wrap items-end gap-3">
               <div className="space-y-2">
-                <Label htmlFor="q">بحث</Label>
-                <Input id="q" name="q" defaultValue={q} placeholder="رقم القيد أو البيان" className="min-w-56" />
+                <Label htmlFor="q">{t("بحث")}</Label>
+                <Input id="q" name="q" defaultValue={q} placeholder={t("رقم القيد أو البيان")} className="min-w-56" />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="status">الحالة</Label>
+                <Label htmlFor="status">{t("الحالة")}</Label>
                 <select id="status" name="status" defaultValue={status} className={`${selectCls} min-w-32`}>
-                  <option value="">الكل</option>
-                  <option value="POSTED">مرحّل</option>
-                  <option value="DRAFT">مسودة</option>
-                  <option value="REVERSED">معكوس</option>
+                  <option value="">{t("الكل")}</option>
+                  <option value="POSTED">{t("مرحّل")}</option>
+                  <option value="DRAFT">{t("مسودة")}</option>
+                  <option value="REVERSED">{t("معكوس")}</option>
                 </select>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="source">المصدر</Label>
+                <Label htmlFor="source">{t("المصدر")}</Label>
                 <select id="source" name="source" defaultValue={source} className={`${selectCls} min-w-40`}>
-                  <option value="">الكل</option>
-                  {SOURCE_FILTER.map((s) => <option key={s} value={s}>{SOURCE[s] ?? s}</option>)}
+                  <option value="">{t("الكل")}</option>
+                  {SOURCE_FILTER.map((s) => <option key={s} value={s}>{t(SOURCE[s] ?? s)}</option>)}
                 </select>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="from">من</Label>
+                <Label htmlFor="from">{t("من")}</Label>
                 <input id="from" name="from" type="date" defaultValue={from} className={selectCls} />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="to">إلى</Label>
+                <Label htmlFor="to">{t("إلى")}</Label>
                 <input id="to" name="to" type="date" defaultValue={to} className={selectCls} />
               </div>
-              <Button type="submit"><Icon name="Search" className="size-4" />تصفية</Button>
+              <Button type="submit"><Icon name="Search" className="size-4" />{t("تصفية")}</Button>
               {hasFilters && (
-                <Button asChild variant="ghost"><Link href="/accounting/journal">مسح</Link></Button>
+                <Button asChild variant="ghost"><Link href="/accounting/journal">{t("مسح")}</Link></Button>
               )}
               </form>
             </div>
@@ -180,26 +183,26 @@ export default async function JournalPage({ searchParams }: { searchParams: Prom
 
         <Card>
           <CardHeader>
-            <CardTitle>دفتر اليومية</CardTitle>
-            <CardDescription>القيود المحاسبية للمؤسسة النشطة (تشمل المُرحّلة تلقائياً من المستندات).</CardDescription>
+            <CardTitle>{t("دفتر اليومية")}</CardTitle>
+            <CardDescription>{t("القيود المحاسبية للمؤسسة النشطة (تشمل المُرحّلة تلقائياً من المستندات).")}</CardDescription>
           </CardHeader>
           <CardContent>
             {rows.length === 0 ? (
               <div className="rounded-xl border border-dashed py-12 text-center text-muted-foreground">
-                {hasFilters ? "لا توجد قيود مطابقة للتصفية." : "لا توجد قيود بعد."}
+                {hasFilters ? t("لا توجد قيود مطابقة للتصفية.") : t("لا توجد قيود بعد.")}
               </div>
             ) : (
               <>
                 <JournalTable rows={rows} canPost={can("accounting.post")} canCreate={can("accounting.create")} total={total} filter={{ q, status, source, from, to }} />
 
                 <div className="mt-4 flex items-center justify-between text-sm text-muted-foreground">
-                  <span>صفحة {num(page)} من {num(pages)} · {num(total)} قيد</span>
+                  <span>{t("صفحة")} {num(page)} {t("من")} {num(pages)} · {num(total)} {t("قيد")}</span>
                   <div className="flex gap-2">
                     <Button asChild variant="outline" size="sm" disabled={page <= 1} className={page <= 1 ? "pointer-events-none opacity-50" : ""}>
-                      <Link href={pageHref(page - 1)}><Icon name="ChevronRight" className="size-4" />السابق</Link>
+                      <Link href={pageHref(page - 1)}><Icon name="ChevronRight" className="size-4" />{t("السابق")}</Link>
                     </Button>
                     <Button asChild variant="outline" size="sm" disabled={page >= pages} className={page >= pages ? "pointer-events-none opacity-50" : ""}>
-                      <Link href={pageHref(page + 1)}>التالي<Icon name="ChevronLeft" className="size-4" /></Link>
+                      <Link href={pageHref(page + 1)}>{t("التالي")}<Icon name="ChevronLeft" className="size-4" /></Link>
                     </Button>
                   </div>
                 </div>

@@ -1,4 +1,5 @@
 import { and, eq, gte, inArray, lte, sql } from "drizzle-orm";
+import { getT } from "@/lib/i18n/server";
 import { loadErpPage } from "@/lib/erp/org";
 import { orgFiscalYearStartISO } from "@/lib/erp/fiscal";
 import { db } from "@/lib/db";
@@ -16,6 +17,7 @@ type SP = { [k: string]: string | string[] | undefined };
 const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) ?? "";
 
 export default async function CostCenterReportPage({ searchParams }: { searchParams: Promise<SP> }) {
+  const t = await getT();
   return loadErpPage("reports.view", async ({ orgId , permissions }) => {
     const sp = await searchParams;
     const from = one(sp.from) || (await orgFiscalYearStartISO(orgId));
@@ -43,7 +45,7 @@ export default async function CostCenterReportPage({ searchParams }: { searchPar
     let list = rows.map((r) => {
       const revenue = Number(r.revenue ?? 0), expense = Number(r.expense ?? 0);
       const net = revenue - expense;
-      return { code: r.code, name: r.name ?? "غير محدّد", revenue, expense, net, margin: revenue > 0 ? (net / revenue) * 100 : 0 };
+      return { code: r.code, name: r.name ?? t("غير محدّد"), revenue, expense, net, margin: revenue > 0 ? (net / revenue) * 100 : 0 };
     });
     if (search) list = list.filter((r) => r.code?.toLowerCase().includes(search) || r.name.toLowerCase().includes(search));
     list.sort((a, b) => b.net - a.net);
@@ -58,8 +60,8 @@ export default async function CostCenterReportPage({ searchParams }: { searchPar
       <ReportShell
         reportKey="cost-centers"
         icon="Target"
-        title="الأرباح حسب مركز التكلفة"
-        subtitle="الإيراد والمصروف والصافي لكل مركز تكلفة"
+        title={t("الأرباح حسب مركز التكلفة")}
+        subtitle={t("الإيراد والمصروف والصافي لكل مركز تكلفة")}
         query={qs}
         permissions={permissions}
         filtersRaw={<ItemSalesFilters from={from} to={to} q={search} />}
@@ -74,8 +76,8 @@ export default async function CostCenterReportPage({ searchParams }: { searchPar
         {list.some((r) => r.revenue > 0 || r.expense > 0) && (
           <Card>
             <CardHeader>
-              <CardTitle>الإيراد مقابل المصروف حسب المركز</CardTitle>
-              <CardDescription>أبرز ٨ مراكز تكلفة (حسب الصافي).</CardDescription>
+              <CardTitle>{t("الإيراد مقابل المصروف حسب المركز")}</CardTitle>
+              <CardDescription>{t("أبرز ٨ مراكز تكلفة (حسب الصافي).")}</CardDescription>
             </CardHeader>
             <CardContent>
               <GroupedBarChart
@@ -91,25 +93,25 @@ export default async function CostCenterReportPage({ searchParams }: { searchPar
 
         <Card>
           <CardHeader>
-            <CardTitle>حسب مركز التكلفة</CardTitle>
-            <CardDescription>الفترة {from} إلى {to} — من القيود المرحّلة. «غير محدّد» = بنود بلا مركز تكلفة.</CardDescription>
+            <CardTitle>{t("حسب مركز التكلفة")}</CardTitle>
+            <CardDescription>{t("الفترة")} {from} {t("إلى")} {to} {t("— من القيود المرحّلة. «غير محدّد» = بنود بلا مركز تكلفة.")}</CardDescription>
           </CardHeader>
           <CardContent>
             {list.length === 0 ? (
-              <div className="rounded-xl border border-dashed py-12 text-center text-muted-foreground">لا توجد حركة إيراد/مصروف في هذه الفترة.</div>
+              <div className="rounded-xl border border-dashed py-12 text-center text-muted-foreground">{t("لا توجد حركة إيراد/مصروف في هذه الفترة.")}</div>
             ) : (
               <Table>
                 <TableHeader><TableRow>
-                  <TableHead className="text-start">مركز التكلفة</TableHead>
-                  <TableHead className="text-end">الإيراد</TableHead>
-                  <TableHead className="text-end">المصروف</TableHead>
-                  <TableHead className="text-end">الصافي</TableHead>
-                  <TableHead className="text-end">الهامش</TableHead>
+                  <TableHead className="text-start">{t("مركز التكلفة")}</TableHead>
+                  <TableHead className="text-end">{t("الإيراد")}</TableHead>
+                  <TableHead className="text-end">{t("المصروف")}</TableHead>
+                  <TableHead className="text-end">{t("الصافي")}</TableHead>
+                  <TableHead className="text-end">{t("الهامش")}</TableHead>
                 </TableRow></TableHeader>
                 <TableBody>
                   {list.map((r, i) => (
                     <TableRow key={r.code ?? i}>
-                      <TableCell>{r.code && <span className="font-mono text-xs text-muted-foreground">{r.code} </span>}{r.name}</TableCell>
+                      <TableCell>{r.code && <span className="font-mono text-xs text-muted-foreground">{r.code} </span>}{t(r.name)}</TableCell>
                       <TableCell className="text-end tabular-nums text-emerald-600">{fmt(r.revenue)}</TableCell>
                       <TableCell className="text-end tabular-nums text-destructive">{fmt(r.expense)}</TableCell>
                       <TableCell className={`text-end tabular-nums font-medium ${r.net >= 0 ? "text-emerald-600" : "text-destructive"}`}>{fmt(r.net)}</TableCell>

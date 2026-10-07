@@ -1,9 +1,10 @@
 "use client";
 
 import { useActionState, useEffect, useState } from "react";
+import { useT } from "@/lib/i18n/client";
 import { useFormStatus } from "react-dom";
 import { Loader2 } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "@/lib/i18n/toast";
 import { saveDocumentPrefixesAction } from "@/app/actions/erp/numbering";
 import { DOC_TYPES } from "@/lib/erp/doc-types";
 import type { ActionState } from "@/lib/erp/action-auth";
@@ -12,8 +13,9 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 function SaveBtn() {
+  const t = useT();
   const { pending } = useFormStatus();
-  return <Button type="submit" disabled={pending}>{pending && <Loader2 className="size-4 animate-spin" />}حفظ البادئات</Button>;
+  return <Button type="submit" disabled={pending}>{pending && <Loader2 className="size-4 animate-spin" />}{t("حفظ البادئات")}</Button>;
 }
 
 const YEAR = new Date().getFullYear();
@@ -43,6 +45,7 @@ function Row({ docKey, label, initial, canEdit }: { docKey: string; label: strin
 }
 
 export function NumberingForm({ overrides, canEdit }: { overrides: Record<string, string>; canEdit: boolean }) {
+  const t = useT();
   const [state, action] = useActionState<ActionState, FormData>(saveDocumentPrefixesAction, {});
   useEffect(() => {
     if (state.ok) toast.success("تم حفظ بادئات الترقيم");
@@ -53,16 +56,16 @@ export function NumberingForm({ overrides, canEdit }: { overrides: Record<string
     <form action={action}>
       <Card>
         <CardHeader>
-          <CardTitle>بادئات ترقيم المستندات</CardTitle>
+          <CardTitle>{t("بادئات ترقيم المستندات")}</CardTitle>
           <CardDescription>
-            كل مستند رقمه <span dir="ltr" className="tabular-nums">البادئة-السنة-الرقم</span>. اترك الخانة فارغة لاستخدام الافتراضي.
-            تغيير البادئة يبدأ ترقيمًا جديدًا لها ولا يغيّر أرقام المستندات القديمة.
+            {t("كل مستند رقمه")} <span dir="ltr" className="tabular-nums">{t("البادئة-السنة-الرقم")}</span>
+            {t(". اترك الخانة فارغة لاستخدام الافتراضي. تغيير البادئة يبدأ ترقيمًا جديدًا لها ولا يغيّر أرقام المستندات القديمة.")}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {DOC_TYPES.map((d) => (
-              <Row key={d.key} docKey={d.key} label={d.label} initial={overrides[d.key] ?? ""} canEdit={canEdit} />
+              <Row key={d.key} docKey={d.key} label={t(d.label)} initial={overrides[d.key] ?? ""} canEdit={canEdit} />
             ))}
           </div>
           {canEdit && <SaveBtn />}

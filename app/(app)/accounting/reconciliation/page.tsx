@@ -1,4 +1,5 @@
 import { and, asc, desc, eq, sql } from "drizzle-orm";
+import { getT } from "@/lib/i18n/server";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
 import { journalEntryLines, journalEntries, accounts } from "@/db/schema";
@@ -8,6 +9,7 @@ import { ReconciliationClient } from "@/components/erp/reconciliation-client";
 const dt = (d: unknown) => new Date(d as string).toLocaleDateString("en-GB", { year: "numeric", month: "2-digit", day: "2-digit" });
 
 export default async function ReconciliationPage({ searchParams }: { searchParams: Promise<{ account?: string }> }) {
+  const t = await getT();
   return loadErpPage("accounting.view", async ({ orgId }) => {
     const accountId = (await searchParams).account ?? "";
 
@@ -15,7 +17,7 @@ export default async function ReconciliationPage({ searchParams }: { searchParam
       .where(and(eq(accounts.organizationId, orgId), eq(accounts.isLeaf, true), eq(accounts.isActive, true),
         sql`(${accounts.code} LIKE '1101%' OR ${accounts.code} LIKE '1102%')`))
       .orderBy(asc(accounts.code));
-    const accounts_opt = bankAccs.map((a) => ({ id: a.id, label: `${a.code} — ${a.name}` }));
+    const accounts_opt = bankAccs.map((a) => ({ id: a.id, label: `${a.code} — ${t(a.name)}` }));
 
     let lines: { id: string; date: string; number: string; description: string; debit: number; credit: number; reconciled: boolean }[] = [];
     if (accountId && bankAccs.some((a) => a.id === accountId)) {
@@ -32,7 +34,7 @@ export default async function ReconciliationPage({ searchParams }: { searchParam
 
     return (
       <div className="space-y-6">
-        <ErpPageHeader icon="Landmark" title="مطابقة الحساب البنكي" subtitle="طابِق حركات الدفاتر مع كشف حساب البنك" backHref="/accounting" />
+        <ErpPageHeader icon="Landmark" title={t("مطابقة الحساب البنكي")} subtitle={t("طابِق حركات الدفاتر مع كشف حساب البنك")} backHref="/accounting" />
         <ReconciliationClient accounts={accounts_opt} selectedAccountId={accountId} lines={lines} />
       </div>
     );

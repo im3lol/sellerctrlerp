@@ -1,8 +1,9 @@
 "use client";
 
 import { useTransition } from "react";
+import { useT } from "@/lib/i18n/client";
 import { useRouter } from "next/navigation";
-import { toast } from "sonner";
+import { toast } from "@/lib/i18n/toast";
 import { confirmDeliveryAction, deleteDeliveryAction, convertDeliveryToInvoiceAction } from "@/app/actions/erp/deliveries";
 import { DocumentActions, type DocAction } from "@/components/erp/document-actions";
 import { confirm } from "@/components/erp/confirm";
@@ -10,6 +11,7 @@ import { confirm } from "@/components/erp/confirm";
 /** Per-row "⋮" quick actions for the deliveries (إذن صرف) list — same action set
  *  as DeliveryDetailActions, compacted into a row menu (no barcode print here). */
 export function DeliveryRowMenu({ id, number, status, canManage }: { id: string; number: string; status: string; canManage: boolean }) {
+  const t = useT();
   const router = useRouter();
   const [pending, start] = useTransition();
 
@@ -19,7 +21,7 @@ export function DeliveryRowMenu({ id, number, status, canManage }: { id: string;
       start(async () => {
         const r = await fn();
         if (r.ok) { toast.success(ok); if (dest) router.push(dest); router.refresh(); }
-        else toast.error(r.error ?? "تعذّر التنفيذ");
+        else toast.error(r.error ?? t("تعذّر التنفيذ"));
       });
     })();
   };
@@ -30,7 +32,7 @@ export function DeliveryRowMenu({ id, number, status, canManage }: { id: string;
       start(async () => {
         const r = await convertDeliveryToInvoiceAction(id);
         if (r.ok) { toast.success("تم إنشاء مسودة فاتورة — راجِعها وأكّدها"); router.push(r.invoiceId ? `/sales/invoices/${r.invoiceId}` : "/sales/invoices"); router.refresh(); }
-        else toast.error(r.error ?? "تعذّر التحويل");
+        else toast.error(r.error ?? t("تعذّر التحويل"));
       });
     })();
 

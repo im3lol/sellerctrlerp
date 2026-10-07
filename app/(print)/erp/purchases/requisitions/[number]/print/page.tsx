@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { getLocale, getT } from "@/lib/i18n/server";
 import { and, asc, eq, sql } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
@@ -10,6 +11,8 @@ import { docNumberParam } from "@/lib/erp/doc-route";
 
 /** طلب شراء داخلي (طلب مواد) — نسخة الطباعة. */
 export default async function RequisitionPrintPage({ params }: { params: Promise<{ number: string }> }) {
+  const t = await getT();
+  const locale = await getLocale();
   const raw = (await params).number;
   return loadErpPage("purchases.view", async ({ orgId }) => {
     const number = await docNumberParam(raw, orgId, materialRequests,
@@ -32,12 +35,12 @@ export default async function RequisitionPrintPage({ params }: { params: Promise
         org={org}
         hiddenColumns={hiddenFor("purchase-requisition")}
         footerText={footerText}
-        title="طلب شراء"
+        title={t("طلب شراء")}
         number={mr.number}
         meta={[
-          { label: "التاريخ", value: dt(mr.date) },
+          { label: "التاريخ", value: dt(mr.date, locale) },
           { label: "مقدم الطلب", value: mr.requester ?? "—" },
-          { label: "الحالة", value: mr.status === "APPROVED" ? "معتمد" : "مسودة" },
+          { label: "الحالة", value: mr.status === "APPROVED" ? t("معتمد") : t("مسودة") },
         ]}
         columns={[
           { label: "#", align: "center", width: "6%" },
@@ -46,12 +49,12 @@ export default async function RequisitionPrintPage({ params }: { params: Promise
         ]}
         rows={lines.map((l, i) => [
           i + 1,
-          <span key="n"><span style={{ fontFamily: "monospace", fontSize: 10 }}>{l.code}</span> {l.name}</span>,
+          <span key="n"><span style={{ fontFamily: "monospace", fontSize: 10 }}>{l.code}</span> {t(l.name ?? "")}</span>,
           qty(l.quantity),
         ])}
         note={mr.notes}
         signatures={["مقدم الطلب", "المعتمد"]}
-        watermark={mr.status !== "APPROVED" ? "مسودة" : undefined}
+        watermark={mr.status !== "APPROVED" ? t("مسودة") : undefined}
         backHref={`/purchases/requisitions/${encodeURIComponent(mr.number)}`}
       />
     );

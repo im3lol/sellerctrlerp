@@ -1,4 +1,6 @@
 import { and, eq, inArray, isNull, lt, sql } from "drizzle-orm";
+import { fill } from "@/lib/i18n";
+import { getT } from "@/lib/i18n/server";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
 import { suppliers, purchaseOrders, purchaseInvoices, purchaseReceipts, materialRequests } from "@/db/schema";
@@ -28,6 +30,7 @@ const cnt = (v: { n: number }[]) => Number(v[0]?.n ?? 0);
  * period looks like, and where to go.
  */
 export default async function ErpPurchasesPage() {
+  const t = await getT();
   return loadErpPage("purchases.view", async ({ orgId, permissions }) => {
     const today = new Date();
 
@@ -70,15 +73,15 @@ export default async function ErpPurchasesPage() {
     };
 
     const kpis = [
-      { label: `مشتريات ${new Date().getUTCFullYear()}`, value: ranked.total, icon: "ShoppingCart", tone: "text-foreground" },
+      { label: fill(t("مشتريات {0}"), [new Date().getUTCFullYear()]), value: ranked.total, icon: "ShoppingCart", tone: "text-foreground" },
       { label: "الذمم الدائنة (موردون)", value: ap, icon: "Truck", tone: "text-foreground" },
       { label: "عدد الموردين", value: cnt(supCount), icon: "Users", tone: "text-foreground", int: true },
       { label: "أوامر شراء مفتوحة", value: cnt(poOpen), icon: "ClipboardList", tone: "text-foreground", int: true },
     ];
 
     return (
-      <div className="space-y-6" dir="rtl">
-        <ErpPageHeader icon="Truck" title="المشتريات" subtitle="نظرة عامة على دورة الشراء والموردين"
+      <div className="space-y-6">
+        <ErpPageHeader icon="Truck" title={t("المشتريات")} subtitle={t("نظرة عامة على دورة الشراء والموردين")}
           action={<AcademyLink module="purchases" />} />
 
         <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
@@ -86,7 +89,7 @@ export default async function ErpPurchasesPage() {
             <Card key={k.label}>
               <CardContent className="pt-6">
                 <div className="flex items-center justify-between">
-                  <div className="text-sm text-muted-foreground">{k.label}</div>
+                  <div className="text-sm text-muted-foreground">{t(k.label)}</div>
                   <Icon name={k.icon} className="size-4 text-muted-foreground" />
                 </div>
                 <div className={cn("mt-1 text-2xl font-bold tabular-nums", k.tone)}>
@@ -102,19 +105,19 @@ export default async function ErpPurchasesPage() {
         <div className="grid gap-6 lg:grid-cols-3">
           <Card className="lg:col-span-2">
             <CardHeader>
-              <CardTitle>أكبر الموردين</CardTitle>
-              <CardDescription>صافي المشتريات (بدون ضريبة) من الفواتير المُرحّلة — {ranked.from} → {ranked.to}.</CardDescription>
+              <CardTitle>{t("أكبر الموردين")}</CardTitle>
+              <CardDescription>{t("صافي المشتريات (بدون ضريبة) من الفواتير المُرحّلة —")} {ranked.from} → {ranked.to}.</CardDescription>
             </CardHeader>
             <CardContent>
               {top.length === 0 ? (
-                <p className="py-8 text-center text-sm text-muted-foreground">لا توجد مشتريات مُرحّلة في الفترة.</p>
+                <p className="py-8 text-center text-sm text-muted-foreground">{t("لا توجد مشتريات مُرحّلة في الفترة.")}</p>
               ) : (
                 <div className="space-y-3">
                   {top.map((r) => (
                     <div key={r.code} className="space-y-1">
                       <div className="flex justify-between text-sm">
-                        <span>{r.name}</span>
-                        <span className="tabular-nums text-muted-foreground">{money(r.amount)} · {intf(r.count)} فاتورة</span>
+                        <span>{t(r.name)}</span>
+                        <span className="tabular-nums text-muted-foreground">{money(r.amount)} · {intf(r.count)} {t("فاتورة")}</span>
                       </div>
                       <div className="h-2 w-full rounded-full bg-muted">
                         <div className="h-2 rounded-full bg-primary" style={{ width: `${Math.max((r.amount / max) * 100, 2)}%` }} />
@@ -128,15 +131,15 @@ export default async function ErpPurchasesPage() {
 
           <Card className="flex flex-col justify-center">
             <CardContent className="space-y-4 py-8 text-center">
-              <div className="text-sm text-muted-foreground">إجمالي مشتريات السنة</div>
+              <div className="text-sm text-muted-foreground">{t("إجمالي مشتريات السنة")}</div>
               <div className="text-4xl font-bold tabular-nums">{money(ranked.total)}</div>
               <div className="flex justify-center gap-6 pt-2 text-sm">
                 <div>
-                  <div className="text-muted-foreground">مستحق للموردين</div>
+                  <div className="text-muted-foreground">{t("مستحق للموردين")}</div>
                   <div className="font-semibold tabular-nums">{money(ap)}</div>
                 </div>
                 <div>
-                  <div className="text-muted-foreground">موردون</div>
+                  <div className="text-muted-foreground">{t("موردون")}</div>
                   <div className="font-semibold tabular-nums">{intf(cnt(supCount))}</div>
                 </div>
               </div>
@@ -146,7 +149,7 @@ export default async function ErpPurchasesPage() {
 
         {/* Every page in this module, straight from the sidebar config — see
             ModuleWorkspace for why this is derived and not another hand-kept list. */}
-        <ModuleWorkspace heading="المشتريات" permissions={permissions} counts={counts}
+        <ModuleWorkspace heading={t("المشتريات")} permissions={permissions} counts={counts}
           actions={[{ label: "أمر شراء جديد", href: "/purchases/orders/new", icon: "Plus" }, { label: "فاتورة شراء جديدة", href: "/purchases/invoices/new", icon: "Plus" }]} />
       </div>
     );

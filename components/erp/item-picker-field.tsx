@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { useT } from "@/lib/i18n/client";
 import { Input } from "@/components/ui/input";
 
 export type ItemFieldOption = { id: string; label: string; hint?: string };
@@ -23,6 +24,7 @@ export function ItemPickerField({
   placeholder?: string;
   options: ItemFieldOption[];
 }) {
+  const t = useT();
   const [q, setQ] = useState(defaultLabel);
   const [id, setId] = useState(defaultId);
   const [open, setOpen] = useState(false);
@@ -63,15 +65,15 @@ export function ItemPickerField({
             <li key={o.id}>
               <button
                 type="button"
-                className="flex w-full flex-col items-start gap-0.5 rounded-sm px-3 py-1.5 text-right text-sm hover:bg-accent hover:text-accent-foreground"
+                className="flex w-full flex-col items-start gap-0.5 rounded-sm px-3 py-1.5 text-start text-sm hover:bg-accent hover:text-accent-foreground"
                 onClick={() => {
                   setQ(o.label);
                   setId(o.id);
                   setOpen(false);
                 }}
               >
-                <span>{o.label}</span>
-                {o.hint && <span className="text-xs text-muted-foreground">{o.hint}</span>}
+                <span>{t(o.label)}</span>
+                {o.hint && <span className="text-xs text-muted-foreground">{t(o.hint)}</span>}
               </button>
             </li>
           ))}

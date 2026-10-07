@@ -1,8 +1,10 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { fill } from "@/lib/i18n";
+import { useT } from "@/lib/i18n/client";
 import { useRouter } from "next/navigation";
-import { toast } from "sonner";
+import { toast } from "@/lib/i18n/toast";
 import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -27,6 +29,7 @@ const q = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { maximumFractionDi
 export function PickListSheet({ pickListId, open, groups, deliveries, canConfirm, canCancel }: {
   pickListId: string; open: boolean; groups: SheetGroup[]; deliveries: SheetDelivery[]; canConfirm: boolean; canCancel: boolean;
 }) {
+  const t = useT();
   const router = useRouter();
   const [picked, setPicked] = useState<Record<string, number>>(() => Object.fromEntries(groups.map((g) => [g.itemId, g.picked])));
   const [pending, start] = useTransition();
@@ -39,7 +42,7 @@ export function PickListSheet({ pickListId, open, groups, deliveries, canConfirm
     const g = groups.find((x) => x.itemId === item.id);
     if (!g) { toast.error("الصنف ده مش في الجولة"); return; }
     const next = (picked[g.itemId] ?? 0) + 1;
-    if (next > g.required) toast.warning(`${g.code}: كده أكتر من المطلوب (${q(g.required)})`);
+    if (next > g.required) toast.warning(fill(t("{0}: كده أكتر من المطلوب ({1})"), [g.code, q(g.required)]));
     setPicked((p) => ({ ...p, [g.itemId]: next }));
   };
 
@@ -55,7 +58,7 @@ export function PickListSheet({ pickListId, open, groups, deliveries, canConfirm
       if (s.error) { toast.error(s.error); return; }
       const r = await confirmReadyAction(pickListId);
       if (r.error) { toast.error(r.error); return; }
-      toast.success(`اتأكد ${q(r.confirmed ?? 0)} إذن${r.waiting ? ` · ${q(r.waiting)} لسه ناقص` : ""}`);
+      toast.success(fill(t("اتأكد {0} إذن"), [q(r.confirmed ?? 0)]) + (r.waiting ? fill(t(" · {0} لسه ناقص"), [q(r.waiting)]) : ""));
       for (const f of r.failed ?? []) toast.error(f);
       router.refresh();
     });
@@ -77,17 +80,17 @@ export function PickListSheet({ pickListId, open, groups, deliveries, canConfirm
           <div className="h-2 w-40 overflow-hidden rounded-full bg-muted">
             <div className="h-2 rounded-full bg-primary transition-all" style={{ width: `${total ? (done / total) * 100 : 0}%` }} />
           </div>
-          <span className="tabular-nums text-muted-foreground">{q(done)} من {q(total)}</span>
+          <span className="tabular-nums text-muted-foreground">{q(done)} {t("من")} {q(total)}</span>
         </div>
         <div className="ms-auto flex flex-wrap gap-2">
-          <Button variant="outline" size="sm" onClick={() => window.print()}><Icon name="Printer" className="size-4" />طباعة</Button>
-          {open && <Button variant="outline" size="sm" disabled={pending} onClick={save}>حفظ</Button>}
+          <Button variant="outline" size="sm" onClick={() => window.print()}><Icon name="Printer" className="size-4" />{t("طباعة")}</Button>
+          {open && <Button variant="outline" size="sm" disabled={pending} onClick={save}>{t("حفظ")}</Button>}
           {open && canConfirm && (
             <Button size="sm" disabled={pending} onClick={ship}>
-              {pending ? <Loader2 className="size-4 animate-spin" /> : <Icon name="Truck" className="size-4" />}تأكيد الأذون الجاهزة
+              {pending ? <Loader2 className="size-4 animate-spin" /> : <Icon name="Truck" className="size-4" />}{t("تأكيد الأذون الجاهزة")}
             </Button>
           )}
-          {open && canCancel && <Button variant="ghost" size="sm" disabled={pending} onClick={cancel}>إلغاء الجولة</Button>}
+          {open && canCancel && <Button variant="ghost" size="sm" disabled={pending} onClick={cancel}>{t("إلغاء الجولة")}</Button>}
         </div>
       </div>
 
@@ -95,10 +98,10 @@ export function PickListSheet({ pickListId, open, groups, deliveries, canConfirm
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="text-start">الموقع</TableHead>
-              <TableHead className="text-start">الصنف</TableHead>
-              <TableHead className="text-start">المطلوب</TableHead>
-              <TableHead className="text-start">اتجهّز</TableHead>
+              <TableHead className="text-start">{t("الموقع")}</TableHead>
+              <TableHead className="text-start">{t("الصنف")}</TableHead>
+              <TableHead className="text-start">{t("المطلوب")}</TableHead>
+              <TableHead className="text-start">{t("اتجهّز")}</TableHead>
               <TableHead className="w-10" />
             </TableRow>
           </TableHeader>
@@ -111,7 +114,7 @@ export function PickListSheet({ pickListId, open, groups, deliveries, canConfirm
                   <TableCell className="font-mono text-sm font-semibold">{g.binCode ?? "—"}</TableCell>
                   <TableCell className="max-w-[320px] whitespace-normal">
                     <div className="font-mono text-xs text-muted-foreground">{g.code}</div>
-                    <div className="line-clamp-2 leading-snug">{g.name}</div>
+                    <div className="line-clamp-2 leading-snug">{t(g.name)}</div>
                   </TableCell>
                   <TableCell className="text-lg font-bold tabular-nums">{q(g.required)}</TableCell>
                   <TableCell className="w-32">
@@ -133,11 +136,11 @@ export function PickListSheet({ pickListId, open, groups, deliveries, canConfirm
       </div>
 
       <div className="flex flex-wrap gap-2 text-sm">
-        <span className="text-muted-foreground">الأذون:</span>
+        <span className="text-muted-foreground">{t("الأذون:")}</span>
         {deliveries.map((d) => (
           <Badge key={d.id} variant="outline" className={cn("gap-1 font-mono",
             d.status !== "DRAFT" ? "border-emerald-300 text-emerald-700 dark:text-emerald-400" : d.ready ? "border-primary/50 text-primary" : "")}>
-            {d.number} · {d.status !== "DRAFT" ? "اتسلّم" : d.ready ? "جاهز" : "ناقص"}
+            {d.number} · {d.status !== "DRAFT" ? t("اتسلّم") : d.ready ? t("جاهز") : t("ناقص")}
           </Badge>
         ))}
       </div>

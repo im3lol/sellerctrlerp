@@ -1,4 +1,5 @@
 import { withPlatformScope } from "@/lib/db-scope";
+import { getT } from "@/lib/i18n/server";
 import { eq, asc, desc, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { organizations, orgSubscriptions, plans, subscriptionRequests, organizationMembers, documentAttachments } from "@/db/schema";
@@ -8,6 +9,7 @@ import { RequestsPanel } from "@/components/admin/requests-panel";
 
 // (admin) layout already restricts to system_admin.
 export default async function LicensingPage() {
+  const t = await getT();
   return withPlatformScope(async () => {
     const rows = await db
       .select({
@@ -53,7 +55,7 @@ export default async function LicensingPage() {
 
     return (
       <div className="space-y-6">
-        <PageHeader title="التراخيص والتفعيل" description="اشتراكات المؤسسات، الوحدات المفعّلة، والاستهلاك (مستخدمون + تخزين)." />
+        <PageHeader title={t("التراخيص والتفعيل")} description={t("اشتراكات المؤسسات، الوحدات المفعّلة، والاستهلاك (مستخدمون + تخزين).")} />
         <RequestsPanel requests={requests} />
         <LicensingManager orgs={orgs} plans={catalog} />
       </div>

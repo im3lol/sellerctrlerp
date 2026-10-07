@@ -1,4 +1,5 @@
 import { and, asc, desc, eq, inArray } from "drizzle-orm";
+import { getT } from "@/lib/i18n/server";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
 import { jobOpenings, jobApplicants, applicantInterviews, employees } from "@/db/schema";
@@ -10,6 +11,7 @@ import type { Stage } from "@/lib/erp/hr-people";
 export const dynamic = "force-dynamic";
 
 export default async function RecruitmentPage() {
+  const t = await getT();
   return loadErpPage("hr.view", async ({ orgId, can }) => {
     const [openingRows, applicantRows, empRows] = await Promise.all([
       db.select({ o: jobOpenings, managerName: employees.fullName })
@@ -44,8 +46,8 @@ export default async function RecruitmentPage() {
       <div className="space-y-6">
         <ErpPageHeader
           icon="UserPlus"
-          title="التوظيف"
-          subtitle="وظائف مفتوحة ومسار المتقدّمين — من التقديم للتعيين"
+          title={t("التوظيف")}
+          subtitle={t("وظائف مفتوحة ومسار المتقدّمين — من التقديم للتعيين")}
           backHref="/hr"
           action={<DatasetExport dataset="applicants" />}
         />

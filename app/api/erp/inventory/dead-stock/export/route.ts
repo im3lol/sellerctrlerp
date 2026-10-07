@@ -3,6 +3,8 @@ import { requireErpModule } from "@/lib/erp/org";
 import { withOrgScope } from "@/lib/db-scope";
 import { db } from "@/lib/db";
 import { xlsxResponse } from "@/lib/erp/xlsx";
+import { fill } from "@/lib/i18n";
+import { getT } from "@/lib/i18n/server";
 
 export const runtime = "nodejs";
 const DAYS = [30, 60, 90, 180, 365];
@@ -51,10 +53,11 @@ export async function GET(req: Request) {
 
   const iso = (d: string | null) => (d ? new Date(d).toISOString().slice(0, 10) : "—");
 
+  const t = await getT();
   return xlsxResponse({
     sheet: "المخزون الراكد",
     filename: `dead-stock-${days}d`,
-    headers: ["الكود", "الصنف", "الحالة", "الكمية", "القيمة", `المُباع (${days} يوم)`, "آخر بيع"],
+    headers: ["الكود", "الصنف", "الحالة", "الكمية", "القيمة", fill(t("المُباع ({0} يوم)"), [days]), "آخر بيع"],
     rows: list.map((r) => [r.code, r.name, r.status, r.qty, r.val, r.sold, iso(r.last)]),
     colWidths: [12, 28, 10, 12, 16, 14, 14],
   });

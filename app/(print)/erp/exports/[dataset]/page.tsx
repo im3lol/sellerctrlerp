@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { getT } from "@/lib/i18n/server";
 import { loadErpPage } from "@/lib/erp/org";
 import { EXPORT_DATASETS, type Cell } from "@/lib/erp/export-datasets";
 import { PrintNowButton } from "@/components/erp/print-now-button";
@@ -9,6 +10,7 @@ const cell = (c: Cell) => (typeof c === "number" ? c.toLocaleString("en-US", { m
 
 /** Generic printable (→ PDF) view for any registered dataset. */
 export default async function ExportPrintPage({ params }: { params: Promise<{ dataset: string }> }) {
+  const t = await getT();
   const key = (await params).dataset;
   const ds = EXPORT_DATASETS[key];
   if (!ds) notFound();
@@ -20,16 +22,16 @@ export default async function ExportPrintPage({ params }: { params: Promise<{ da
     return (
       <div className="p-6">
         <div className="mb-4 flex items-center justify-between print:hidden">
-          <span className="text-sm text-gray-500">اضغط «طباعة / حفظ PDF» ثم اختر «حفظ كـ PDF».</span>
+          <span className="text-sm text-gray-500">{t("اضغط «طباعة / حفظ PDF» ثم اختر «حفظ كـ PDF».")}</span>
           <PrintNowButton />
         </div>
-        <h1 className="mb-1 text-xl font-bold">{ds.title}</h1>
-        <p className="mb-4 text-sm text-gray-500">{today} — {rows.length} سجل</p>
+        <h1 className="mb-1 text-xl font-bold">{t(ds.title)}</h1>
+        <p className="mb-4 text-sm text-gray-500">{today} — {rows.length} {t("سجل")}</p>
         <table className="w-full border-collapse text-sm">
           <thead>
             <tr>
               {ds.headers.map((h, i) => (
-                <th key={i} className="border border-gray-300 bg-gray-100 px-2 py-1 text-right font-semibold">{h}</th>
+                <th key={i} className="border border-gray-300 bg-gray-100 px-2 py-1 text-start font-semibold">{t(h)}</th>
               ))}
             </tr>
           </thead>
@@ -37,12 +39,12 @@ export default async function ExportPrintPage({ params }: { params: Promise<{ da
             {rows.map((r, ri) => (
               <tr key={ri}>
                 {r.map((c, ci) => (
-                  <td key={ci} className="border border-gray-300 px-2 py-1 text-right">{cell(c)}</td>
+                  <td key={ci} className="border border-gray-300 px-2 py-1 text-start">{typeof c === "string" ? t(c) : cell(c)}</td>
                 ))}
               </tr>
             ))}
             {rows.length === 0 && (
-              <tr><td colSpan={ds.headers.length} className="border border-gray-300 px-2 py-6 text-center text-gray-500">لا توجد بيانات للفترة المحددة</td></tr>
+              <tr><td colSpan={ds.headers.length} className="border border-gray-300 px-2 py-6 text-center text-gray-500">{t("لا توجد بيانات للفترة المحددة")}</td></tr>
             )}
           </tbody>
         </table>

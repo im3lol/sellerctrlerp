@@ -1,6 +1,9 @@
 "use client";
 
 import { Badge } from "@/components/ui/badge";
+import { fill } from "@/lib/i18n";
+import { useLocale, useT } from "@/lib/i18n/client";
+import { dirOf } from "@/lib/i18n";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 type InvoiceRow = {
@@ -50,6 +53,8 @@ function AgingTable({
   today: Date;
   title: string;
 }) {
+  const t = useT();
+  const locale = useLocale();
   const enriched = rows.map((r) => {
     const days = daysPastDue(r.dueDate, today);
     return { ...r, days, bucket: bucketOf(days) };
@@ -64,7 +69,7 @@ function AgingTable({
   if (rows.length === 0) {
     return (
       <div className="rounded-xl border border-dashed py-12 text-center text-muted-foreground">
-        لا توجد مستحقات مفتوحة.
+        {t("لا توجد مستحقات مفتوحة.")}
       </div>
     );
   }
@@ -75,12 +80,12 @@ function AgingTable({
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
         {BUCKETS.map((b, i) => (
           <div key={i} className="rounded-xl border bg-card p-3 text-center">
-            <p className="text-xs text-muted-foreground">{b.label}</p>
+            <p className="text-xs text-muted-foreground">{t(b.label)}</p>
             <p className={`mt-1 text-lg font-bold tabular-nums ${i >= 3 ? "text-destructive" : ""}`}>
               {fmt(bucketTotals[i])}
             </p>
             <p className="text-xs text-muted-foreground">
-              {enriched.filter((r) => r.bucket === i).length} فاتورة
+              {fill(t("{0} فاتورة"), [enriched.filter((r) => r.bucket === i).length])}
             </p>
           </div>
         ))}
@@ -88,7 +93,7 @@ function AgingTable({
 
       {/* Grand total */}
       <div className="flex items-center justify-between rounded-xl border bg-muted/20 px-4 py-3">
-        <span className="font-semibold">إجمالي المستحقات</span>
+        <span className="font-semibold">{t("إجمالي المستحقات")}</span>
         <span className="text-xl font-bold tabular-nums">{fmt(grandTotal)}</span>
       </div>
 
@@ -98,12 +103,12 @@ function AgingTable({
           <thead className="bg-muted/30 text-xs text-muted-foreground">
             <tr className="[&>th]:p-3 [&>th]:text-start">
               <th>{title}</th>
-              <th>رقم الفاتورة</th>
-              <th>تاريخ الفاتورة</th>
-              <th>تاريخ الاستحقاق</th>
-              <th>إجمالي الفاتورة</th>
-              <th>المتبقي</th>
-              <th>التأخير</th>
+              <th>{t("رقم الفاتورة")}</th>
+              <th>{t("تاريخ الفاتورة")}</th>
+              <th>{t("تاريخ الاستحقاق")}</th>
+              <th>{t("إجمالي الفاتورة")}</th>
+              <th>{t("المتبقي")}</th>
+              <th>{t("التأخير")}</th>
             </tr>
           </thead>
           <tbody>
@@ -114,15 +119,15 @@ function AgingTable({
                   <div className="text-xs text-muted-foreground">{r.partyCode}</div>
                 </td>
                 <td className="font-mono text-xs">{r.number}</td>
-                <td className="text-xs">{new Date(r.date).toLocaleDateString("ar-EG")}</td>
+                <td className="text-xs">{new Date(r.date).toLocaleDateString(locale === "en" ? "en-GB" : "ar-EG")}</td>
                 <td className="text-xs">
-                  {r.dueDate ? new Date(r.dueDate).toLocaleDateString("ar-EG") : "—"}
+                  {r.dueDate ? new Date(r.dueDate).toLocaleDateString(locale === "en" ? "en-GB" : "ar-EG") : "—"}
                 </td>
                 <td className="tabular-nums text-xs">{fmt(r.totalAmount)}</td>
                 <td className="tabular-nums font-semibold">{fmt(r.balanceDue)}</td>
                 <td>
                   <Badge variant={BUCKET_VARIANT[r.bucket]}>
-                    {r.days <= 0 ? "لم تستحق" : `${r.days} يوم`}
+                    {r.days <= 0 ? t("لم تستحق") : fill(t("{0} يوم"), [r.days])}
                   </Badge>
                 </td>
               </tr>
@@ -143,17 +148,19 @@ export function AgingReport({
   apRows: InvoiceRow[];
   today: Date;
 }) {
+  const t = useT();
+  const locale = useLocale();
   return (
-    <Tabs defaultValue="ar" dir="rtl">
+    <Tabs defaultValue="ar" dir={dirOf(locale)}>
       <TabsList>
         <TabsTrigger value="ar">
-          ذمم مدينة (AR)
+          {t("ذمم مدينة (AR)")}
           {arRows.length > 0 && (
             <Badge variant="secondary" className="ms-2 text-xs">{arRows.length}</Badge>
           )}
         </TabsTrigger>
         <TabsTrigger value="ap">
-          ذمم دائنة (AP)
+          {t("ذمم دائنة (AP)")}
           {apRows.length > 0 && (
             <Badge variant="secondary" className="ms-2 text-xs">{apRows.length}</Badge>
           )}
@@ -161,10 +168,10 @@ export function AgingReport({
       </TabsList>
 
       <TabsContent value="ar" className="mt-4">
-        <AgingTable rows={arRows} today={today} title="العميل" />
+        <AgingTable rows={arRows} today={today} title={t("العميل")} />
       </TabsContent>
       <TabsContent value="ap" className="mt-4">
-        <AgingTable rows={apRows} today={today} title="المورد" />
+        <AgingTable rows={apRows} today={today} title={t("المورد")} />
       </TabsContent>
     </Tabs>
   );

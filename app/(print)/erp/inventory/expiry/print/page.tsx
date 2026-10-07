@@ -1,4 +1,6 @@
 import { loadErpPage } from "@/lib/erp/org";
+import { fill } from "@/lib/i18n";
+import { getT } from "@/lib/i18n/server";
 import { getExpiryReport } from "@/lib/erp/expiry";
 import { loadPrintHeader } from "@/lib/erp/print-org";
 import { fmt, qty } from "@/lib/erp/print-format";
@@ -13,6 +15,7 @@ type SP = { [k: string]: string | string[] | undefined };
 const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) ?? "";
 
 export default async function PrintExpiryPage({ searchParams }: { searchParams: Promise<SP> }) {
+  const t = await getT();
   return loadErpPage("inventory.view", async ({ orgId }) => {
     const sp = await searchParams;
     const fProduct = one(sp.product).trim();
@@ -35,18 +38,18 @@ export default async function PrintExpiryPage({ searchParams }: { searchParams: 
     return (
       <ReportSheet
         org={org}
-        title="تنبيهات انتهاء الصلاحية"
+        title={t("تنبيهات انتهاء الصلاحية")}
         backHref={`/inventory/expiry${backQs.size ? `?${backQs}` : ""}`}
         filters={[
           ...(fProduct ? [{ label: "المنتج", value: fProduct }] : []),
           ...(fWarehouse ? [{ label: "المستودع", value: whList.find((w) => w.id === fWarehouse)?.nameAr ?? "" }] : []),
           ...(fStatus ? [{ label: "الحالة", value: STATUS_AR[fStatus] ?? fStatus }] : []),
-          { label: "حد التنبيه", value: `${intl(withinDays)} يوم` },
+          { label: "حد التنبيه", value: fill(t("{0} يوم"), [intl(withinDays)]) },
         ]}
         kpis={[
           { label: "منتهية", value: intl(totals.expiredCount), tone: "danger" },
           { label: "قيمة المنتهي", value: fmt(totals.expiredValue), tone: "danger" },
-          { label: `قرب الانتهاء (≤${intl(withinDays)} يوم)`, value: intl(totals.nearCount) },
+          { label: fill(t("قرب الانتهاء (≤{0} يوم)"), [intl(withinDays)]), value: intl(totals.nearCount) },
           { label: "قيمة قرب الانتهاء", value: fmt(totals.nearValue) },
         ]}
         sections={[{
@@ -68,13 +71,13 @@ export default async function PrintExpiryPage({ searchParams }: { searchParams: 
             r.warehouse,
             r.batchNo ?? "—",
             sdt(r.expiryDate),
-            r.daysLeft < 0 ? `انتهى منذ ${intl(-r.daysLeft)} يوم` : `${intl(r.daysLeft)} يوم`,
+            r.daysLeft < 0 ? fill(t("انتهى منذ {0} يوم"), [intl(-r.daysLeft)]) : fill(t("{0} يوم"), [intl(r.daysLeft)]),
             qty(r.remaining),
             fmt(r.value),
             STATUS_AR[r.status] ?? r.status,
           ]),
         }]}
-        note={all.length > CAP ? `عُرضت أول ${intl(CAP)} صف من ${intl(all.length)}.` : null}
+        note={all.length > CAP ? fill(t("عُرضت أول {0} صف من {1}."), [intl(CAP), intl(all.length)]) : null}
       />
     );
   });

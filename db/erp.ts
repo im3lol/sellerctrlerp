@@ -1732,6 +1732,8 @@ export const dashboards = pgTable(
   {
     id: pk(),
     organizationId: orgId(),
+    /** DSH-YYYY-NNNN — generated, never edited; the dashboard's URL (scripts/checks/chk-doc-routes.ts). */
+    number: text("number").notNull(),
     nameAr: text("name_ar").notNull(),
     widgets: jsonb("widgets").$type<{ reportId: string; wide?: boolean }[]>().notNull().default([]),
     /** Private to whoever built it unless they share it with the org. */
@@ -1740,7 +1742,10 @@ export const dashboards = pgTable(
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
-  (t) => [index("dashboards_org_idx").on(t.organizationId)],
+  (t) => [
+    index("dashboards_org_idx").on(t.organizationId),
+    uniqueIndex("dashboards_org_number_idx").on(t.organizationId, t.number),
+  ],
 );
 
 /**
@@ -2264,6 +2269,8 @@ export const automationRules = pgTable(
   {
     id: pk(),
     organizationId: orgId(),
+    /** AUT-YYYY-NNNN — generated, never edited; the rule's URL (scripts/checks/chk-doc-routes.ts). */
+    number: text("number").notNull(),
     name: text("name").notNull(),
     enabled: boolean("enabled").notNull().default(true),
     spec: jsonb("spec").$type<import("../lib/erp/automation/model").RuleSpec>().notNull(),
@@ -2275,7 +2282,10 @@ export const automationRules = pgTable(
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
-  (t) => [index("automation_rules_org_idx").on(t.organizationId, t.enabled)],
+  (t) => [
+    index("automation_rules_org_idx").on(t.organizationId, t.enabled),
+    uniqueIndex("automation_rules_org_number_idx").on(t.organizationId, t.number),
+  ],
 );
 
 /** One rule run on one document: what each action did, or why it failed. */

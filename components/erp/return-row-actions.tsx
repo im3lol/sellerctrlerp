@@ -1,8 +1,9 @@
 "use client";
 
 import { useTransition } from "react";
+import { useT } from "@/lib/i18n/client";
 import { useRouter } from "next/navigation";
-import { toast } from "sonner";
+import { toast } from "@/lib/i18n/toast";
 import { confirmSalesReturnAction, deleteSalesReturnAction } from "@/app/actions/erp/sales-returns";
 import { confirmPurchaseReturnAction, deletePurchaseReturnAction } from "@/app/actions/erp/purchase-returns";
 import { Button } from "@/components/ui/button";
@@ -19,6 +20,7 @@ export function ReturnRowActions({
   status: string;
   canManage: boolean;
 }) {
+  const t = useT();
   const router = useRouter();
   const [pending, start] = useTransition();
   if (!canManage || status !== "DRAFT") return null;
@@ -28,16 +30,16 @@ export function ReturnRowActions({
     start(async () => {
       const r = await fn();
       if (r.ok) { toast.success(ok); router.refresh(); }
-      else toast.error(r.error ?? "تعذّر التنفيذ");
+      else toast.error(r.error ?? t("تعذّر التنفيذ"));
     });
 
   return (
     <div className="flex gap-1">
       <Button size="sm" disabled={pending}
         onClick={() => run(() => isSales ? confirmSalesReturnAction(returnId) : confirmPurchaseReturnAction(returnId), "تم تأكيد المرتجع وترحيله")}>
-        <Icon name="Check" className="size-4" />تأكيد
+        <Icon name="Check" className="size-4" />{t("تأكيد")}
       </Button>
-      <Button size="sm" variant="ghost" disabled={pending} aria-label="حذف"
+      <Button size="sm" variant="ghost" disabled={pending} aria-label={t("حذف")}
         onClick={() => run(() => isSales ? deleteSalesReturnAction(returnId) : deletePurchaseReturnAction(returnId), "تم حذف المسودة")}>
         <Icon name="Trash2" className="size-4 text-destructive" />
       </Button>

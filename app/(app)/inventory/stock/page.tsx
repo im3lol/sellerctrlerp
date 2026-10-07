@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { fill } from "@/lib/i18n";
+import { getT } from "@/lib/i18n/server";
 import { loadErpPage } from "@/lib/erp/org";
 import { getStockBalances } from "@/lib/erp/stock-balances";
 import { Pagination } from "@/components/erp/pagination";
@@ -22,6 +24,7 @@ type SP = { [k: string]: string | string[] | undefined };
 const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) ?? "";
 
 export default async function StockBalancePage({ searchParams }: { searchParams: Promise<SP> }) {
+  const t = await getT();
   return loadErpPage("inventory.view", async ({ orgId , permissions }) => {
     const sp = await searchParams;
     const fProduct = one(sp.product).trim();
@@ -49,69 +52,69 @@ export default async function StockBalancePage({ searchParams }: { searchParams:
       <ReportShell
         reportKey="inv-stock"
         icon="Boxes"
-        title="أرصدة المخزون"
-        subtitle={`${lines.length} صنف`}
+        title={t("أرصدة المخزون")}
+        subtitle={fill(t("{0} صنف"), [lines.length])}
         query={filterQs().toString()}
         permissions={permissions}
       >
         <Card>
           <CardHeader>
-            <CardTitle>الرصيد الحالي</CardTitle>
-            <CardDescription>الكمية والتكلفة المتوسطة والقيمة لكل صنف/مستودع. استخدم الفلاتر لحصر صنف أو مستودع أو حالة.</CardDescription>
+            <CardTitle>{t("الرصيد الحالي")}</CardTitle>
+            <CardDescription>{t("الكمية والتكلفة المتوسطة والقيمة لكل صنف/مستودع. استخدم الفلاتر لحصر صنف أو مستودع أو حالة.")}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <details open={hasFilters} className="rounded-lg border">
               <summary className="flex cursor-pointer select-none items-center gap-2 px-4 py-2 text-sm font-medium">
-                <Icon name="ListFilter" className="size-4" /> بحث وتصفية
+                <Icon name="ListFilter" className="size-4" /> {t("بحث وتصفية")}
               </summary>
               <form className="grid gap-3 p-4 pt-0 sm:grid-cols-4 items-end">
                 <div className="space-y-1 sm:col-span-2">
-                  <Label htmlFor="product">المنتج (اسم أو كود)</Label>
-                  <LedgerCombobox name="product" defaultValue={fProduct} placeholder="ابحث باسم الصنف أو الكود…" options={productOptions} />
+                  <Label htmlFor="product">{t("المنتج (اسم أو كود)")}</Label>
+                  <LedgerCombobox name="product" defaultValue={fProduct} placeholder={t("ابحث باسم الصنف أو الكود…")} options={productOptions} />
                 </div>
                 <div className="space-y-1">
-                  <Label htmlFor="warehouse">المستودع</Label>
+                  <Label htmlFor="warehouse">{t("المستودع")}</Label>
                   <select id="warehouse" name="warehouse" defaultValue={fWarehouse} className={selectCls}>
-                    <option value="">كل المستودعات</option>
-                    {whList.map((w) => <option key={w.id} value={w.id}>{w.nameAr}</option>)}
+                    <option value="">{t("كل المستودعات")}</option>
+                    {whList.map((w) => <option key={w.id} value={w.id}>{t(w.nameAr)}</option>)}
                   </select>
                 </div>
                 <div className="space-y-1">
-                  <Label htmlFor="status">الحالة</Label>
+                  <Label htmlFor="status">{t("الحالة")}</Label>
                   <select id="status" name="status" defaultValue={fStatus} className={selectCls}>
-                    <option value="">كل الحالات</option>
-                    {STATUS_OPTIONS.map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                    <option value="">{t("كل الحالات")}</option>
+                    {STATUS_OPTIONS.map(([k, v]) => <option key={k} value={k}>{t(v)}</option>)}
                   </select>
                 </div>
                 <div className="flex gap-2 sm:col-span-4">
-                  <Button type="submit">تطبيق</Button>
-                  {hasFilters && <Button type="button" variant="outline" asChild><Link href="/inventory/stock">مسح</Link></Button>}
+                  <Button type="submit">{t("تطبيق")}</Button>
+                  {hasFilters && <Button type="button" variant="outline" asChild><Link href="/inventory/stock">{t("مسح")}</Link></Button>}
                 </div>
               </form>
             </details>
 
             {allLines.length === 0 ? (
-              <div className="rounded-xl border border-dashed py-12 text-center text-muted-foreground">{hasFilters ? "لا توجد أرصدة مطابقة." : "لا توجد حركات مخزون بعد."}</div>
+              <div className="rounded-xl border border-dashed py-12 text-center text-muted-foreground">{hasFilters ? t("لا توجد أرصدة مطابقة.") : t("لا توجد حركات مخزون بعد.")}</div>
             ) : (
               <>
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="text-start">الكود</TableHead>
-                    <TableHead className="text-start">الصنف</TableHead>
-                    <TableHead className="text-start">المستودع</TableHead>
-                    <TableHead className="text-start">الكمية</TableHead>
-                    <TableHead className="text-start">متوسط التكلفة</TableHead>
-                    <TableHead className="text-start">القيمة</TableHead>
-                    <TableHead className="text-start">أقرب انتهاء</TableHead>
-                    <TableHead className="text-start">الحالة</TableHead>
+                    <TableHead className="text-start">{t("الكود")}</TableHead>
+                    <TableHead className="text-start">{t("الصنف")}</TableHead>
+                    <TableHead className="text-start">{t("المستودع")}</TableHead>
+                    <TableHead className="text-start">{t("الكمية")}</TableHead>
+                    <TableHead className="text-start">{t("متوسط التكلفة")}</TableHead>
+                    <TableHead className="text-start">{t("القيمة")}</TableHead>
+                    <TableHead className="text-start">{t("أقرب انتهاء")}</TableHead>
+                    <TableHead className="text-start">{t("الحالة")}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {lines.map((l, i) => (
                     <TableRow key={i}>
                       <TableCell className="font-mono whitespace-nowrap"><Link href={`/inventory/items/${l.itemId}`} className="text-primary hover:underline">{l.code}</Link></TableCell>
-                      <TableCell className="max-w-[300px] whitespace-normal"><div dir="ltr" className="line-clamp-2 text-start leading-snug" title={l.name ?? undefined}>{l.name}</div></TableCell>
+                      <TableCell className="max-w-[300px] whitespace-normal"><div dir="ltr" className="line-clamp-2 text-start leading-snug" title={l.name ?? undefined}>{t(l.name)}</div></TableCell>
                       <TableCell className="whitespace-nowrap">{l.warehouse}</TableCell>
                       <TableCell>{qty(l.quantity)}</TableCell>
                       <TableCell>{fmt(l.avgCost)}</TableCell>
@@ -120,14 +123,14 @@ export default async function StockBalancePage({ searchParams }: { searchParams:
                         {l.nearestExpiry ? expDate(l.nearestExpiry) : "—"}
                       </TableCell>
                       <TableCell>
-                        {l.status === "OUT" ? <Badge variant="destructive">نافد</Badge> : l.status === "LOW" ? <Badge variant="secondary">منخفض</Badge> : <Badge variant="default">متوفّر</Badge>}
+                        {l.status === "OUT" ? <Badge variant="destructive">{t("نافد")}</Badge> : l.status === "LOW" ? <Badge variant="secondary">{t("منخفض")}</Badge> : <Badge variant="default">{t("متوفّر")}</Badge>}
                       </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
                 <TableFooter>
                   <TableRow className="font-bold">
-                    <TableCell colSpan={3}>الإجمالي (كل الصفحات)</TableCell>
+                    <TableCell colSpan={3}>{t("الإجمالي (كل الصفحات)")}</TableCell>
                     <TableCell>{qty(totals.quantity)}</TableCell>
                     <TableCell />
                     <TableCell>{fmt(totals.value)}</TableCell>
@@ -136,7 +139,7 @@ export default async function StockBalancePage({ searchParams }: { searchParams:
                   </TableRow>
                 </TableFooter>
               </Table>
-              <Pagination page={page} pages={pages} total={allLines.length} unit="صنف/مستودع" basePath="/inventory/stock" params={{ product: fProduct, warehouse: fWarehouse, status: fStatus }} />
+              <Pagination page={page} pages={pages} total={allLines.length} unit={t("صنف/مستودع")} basePath="/inventory/stock" params={{ product: fProduct, warehouse: fWarehouse, status: fStatus }} />
               </>
             )}
           </CardContent>

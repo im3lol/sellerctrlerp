@@ -1,4 +1,6 @@
 import { and, eq, gt, inArray, ne, sql } from "drizzle-orm";
+import { fill } from "@/lib/i18n";
+import { getT } from "@/lib/i18n/server";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
 import { salesInvoices, purchaseInvoices } from "@/db/schema";
@@ -14,6 +16,7 @@ type Inv = { currencyCode: string; foreignAmount: string | null; totalAmount: st
 type Agg = { currency: string; kind: "AR" | "AP"; foreignRemaining: number; book: number; revalued: number };
 
 export default async function PrintFxRevaluationPage() {
+  const t = await getT();
   return loadErpPage("reports.view", async ({ orgId }) => {
     const [{ org }, base] = await Promise.all([loadPrintHeader(orgId), getBaseCurrencyCode(orgId)]);
 
@@ -59,7 +62,7 @@ export default async function PrintFxRevaluationPage() {
     return (
       <ReportSheet
         org={org}
-        title="إعادة تقييم العملات الأجنبية"
+        title={t("إعادة تقييم العملات الأجنبية")}
         backHref="/reports/fx-revaluation"
         kpis={[
           { label: "العملة الأساسية", value: base },
@@ -71,13 +74,13 @@ export default async function PrintFxRevaluationPage() {
             { label: "العملة", width: "12%" },
             { label: "النوع", width: "16%" },
             { label: "الرصيد الأجنبي المتبقّي", align: "end" as const },
-            { label: `القيمة الدفترية (${base})`, align: "end" as const },
+            { label: fill(t("القيمة الدفترية ({0})"), [base]), align: "end" as const },
             { label: "القيمة المعاد تقييمها", align: "end" as const },
             { label: "غير محقّق", align: "end" as const },
           ],
           rows: shown.map((r) => [
             <span key="c" dir="ltr">{r.currency}</span>,
-            r.kind === "AR" ? "ذمم مدينة" : "ذمم دائنة",
+            r.kind === "AR" ? t("ذمم مدينة") : t("ذمم دائنة"),
             fmt(r.foreignRemaining),
             fmt(r.book),
             fmt(r.revalued),
@@ -86,7 +89,7 @@ export default async function PrintFxRevaluationPage() {
         }]}
         note={[
           "القيمة الدفترية بسعر الفاتورة مقابل القيمة المعاد تقييمها بأحدث سعر صرف.",
-          rows.length > CAP ? `عُرضت أول ${CAP} صف من ${rows.length}.` : "",
+          rows.length > CAP ? fill(t("عُرضت أول {0} صف من {1}."), [CAP, rows.length]) : "",
         ].filter(Boolean).join(" ")}
       />
     );

@@ -1,8 +1,10 @@
 "use client";
 
 import { useMemo, useRef, useState, useTransition } from "react";
+import { fill } from "@/lib/i18n";
+import { useT } from "@/lib/i18n/client";
 import { useRouter } from "next/navigation";
-import { toast } from "sonner";
+import { toast } from "@/lib/i18n/toast";
 import { Loader2, Upload, FileSpreadsheet } from "lucide-react";
 import { importPlatformPaymentsAction, type PlatformPaymentsResult } from "@/app/actions/erp/platforms";
 import { parseCsvWithHeader } from "@/lib/erp/csv";
@@ -18,6 +20,7 @@ const guess = (headers: string[], keys: string[]) => {
 type Mapping = { reference: string; amount: string; date: string };
 
 export function PlatformPaymentsImport({ platformId, platformName, hasBank }: { platformId: string; platformName: string; hasBank: boolean }) {
+  const t = useT();
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
   const [pending, start] = useTransition();
@@ -66,12 +69,12 @@ export function PlatformPaymentsImport({ platformId, platformName, hasBank }: { 
     start(async () => {
       const r = await importPlatformPaymentsAction(platformId, payments);
       setResult(r);
-      if (r.ok) { toast.success(`تم إنشاء ${r.created} سند قبض${r.skippedDuplicate ? ` · تخطّي ${r.skippedDuplicate} مكرر` : ""}`); router.refresh(); }
+      if (r.ok) { toast.success(fill(t("تم إنشاء {0} سند قبض"), [r.created]) + (r.skippedDuplicate ? fill(t(" · تخطّي {0} مكرر"), [r.skippedDuplicate]) : "")); router.refresh(); }
       else toast.error(r.error);
     });
   };
 
-  const colOptions = headers.map((h, i) => <option key={i} value={i}>{h || `عمود ${i + 1}`}</option>);
+  const colOptions = headers.map((h, i) => <option key={i} value={i}>{h || fill(t("عمود {0}"), [i + 1])}</option>);
   // Plain props factory, NOT a component — see components/erp/column-map-select.tsx.
   const mapProps = (k: keyof Mapping) => ({
     value: map[k],
@@ -82,34 +85,34 @@ export function PlatformPaymentsImport({ platformId, platformName, hasBank }: { 
   return (
     <Card>
       <CardHeader>
-        <CardTitle>استيراد المدفوعات — {platformName}</CardTitle>
-        <CardDescription>ارفع ملف المدفوعات/التحويلات، اربط الأعمدة، ثم استورد. كل دفعة تصبح سند قبض (مسودة) باسم عميل المنصة على حسابها البنكي. أكّد السندات لترحيلها.</CardDescription>
+        <CardTitle>{t("استيراد المدفوعات —")} {platformName}</CardTitle>
+        <CardDescription>{t("ارفع ملف المدفوعات/التحويلات، اربط الأعمدة، ثم استورد. كل دفعة تصبح سند قبض (مسودة) باسم عميل المنصة على حسابها البنكي. أكّد السندات لترحيلها.")}</CardDescription>
       </CardHeader>
       <CardContent className="space-y-5">
         {!hasBank && (
           <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
-            اضبط الحساب البنكي للمنصة أولًا (من تعديل المنصة) قبل استيراد المدفوعات.
+            {t("اضبط الحساب البنكي للمنصة أولًا (من تعديل المنصة) قبل استيراد المدفوعات.")}
           </div>
         )}
         <div>
           <input ref={inputRef} type="file" accept=".csv,text/csv" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) onFile(f); }} />
           <Button variant="outline" onClick={() => inputRef.current?.click()} disabled={!hasBank}>
-            <Upload className="size-4" />{fileName ? "تغيير الملف" : "رفع ملف CSV"}
+            <Upload className="size-4" />{fileName ? t("تغيير الملف") : t("رفع ملف CSV")}
           </Button>
-          {fileName && <span className="ms-3 inline-flex items-center gap-1.5 text-sm text-muted-foreground"><FileSpreadsheet className="size-4" />{fileName} · {dataRows.length} صف</span>}
+          {fileName && <span className="ms-3 inline-flex items-center gap-1.5 text-sm text-muted-foreground"><FileSpreadsheet className="size-4" />{fileName} · {dataRows.length} {t("صف")}</span>}
         </div>
 
         {rows && (
           <>
             <div className="grid grid-cols-2 gap-3 rounded-xl border bg-muted/20 p-3 sm:grid-cols-3">
-              <ColumnMapSelect label="المرجع / رقم الدفعة" {...mapProps("reference")} />
-              <ColumnMapSelect label="المبلغ" {...mapProps("amount")} />
-              <ColumnMapSelect label="التاريخ" {...mapProps("date")} optional />
+              <ColumnMapSelect label={t("المرجع / رقم الدفعة")} {...mapProps("reference")} />
+              <ColumnMapSelect label={t("المبلغ")} {...mapProps("amount")} />
+              <ColumnMapSelect label={t("التاريخ")} {...mapProps("date")} optional />
             </div>
             <div className="flex items-center justify-between rounded-xl border p-3 text-sm">
-              <span>{ready ? <>جاهز: <b>{payments.length}</b> دفعة</> : "اربط المرجع والمبلغ لعرض المعاينة."}</span>
+              <span>{ready ? <>{t("جاهز:")} <b>{payments.length}</b> {t("دفعة")}</> : t("اربط المرجع والمبلغ لعرض المعاينة.")}</span>
               <Button onClick={run} disabled={pending || !ready || payments.length === 0}>
-                {pending && <Loader2 className="size-4 animate-spin" />}استيراد {payments.length > 0 ? `(${payments.length})` : ""}
+                {pending && <Loader2 className="size-4 animate-spin" />}{t("استيراد")} {payments.length > 0 ? `(${payments.length})` : ""}
               </Button>
             </div>
           </>
@@ -117,8 +120,8 @@ export function PlatformPaymentsImport({ platformId, platformName, hasBank }: { 
 
         {result?.ok && (
           <div className="space-y-1 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm dark:bg-emerald-950/20">
-            <div>✅ تم إنشاء <b>{result.created}</b> سند قبض (مسودة).</div>
-            {result.skippedDuplicate > 0 && <div>↷ تخطّي <b>{result.skippedDuplicate}</b> دفعة مكررة.</div>}
+            <div>{t("✅ تم إنشاء")} <b>{result.created}</b> {t("سند قبض (مسودة).")}</div>
+            {result.skippedDuplicate > 0 && <div>{t("↷ تخطّي")} <b>{result.skippedDuplicate}</b> {t("دفعة مكررة.")}</div>}
           </div>
         )}
       </CardContent>

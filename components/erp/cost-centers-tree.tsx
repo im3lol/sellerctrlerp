@@ -1,9 +1,10 @@
 "use client";
 
 import { useActionState, useEffect, useMemo, useState, useTransition } from "react";
+import { useT } from "@/lib/i18n/client";
 import { useFormStatus } from "react-dom";
 import { Pencil, Trash2, Plus, Loader2 } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "@/lib/i18n/toast";
 import { saveCostCenterAction, deleteCostCenterAction } from "@/app/actions/erp/cost-centers";
 import type { ActionState } from "@/lib/erp/action-auth";
 import { Button } from "@/components/ui/button";
@@ -25,8 +26,9 @@ export type CostCenter = {
 
 
 function SubmitBtn() {
+  const t = useT();
   const { pending } = useFormStatus();
-  return <Button type="submit" disabled={pending}>{pending && <Loader2 className="size-4 animate-spin" />}حفظ</Button>;
+  return <Button type="submit" disabled={pending}>{pending && <Loader2 className="size-4 animate-spin" />}{t("حفظ")}</Button>;
 }
 
 function CenterDialog({
@@ -35,6 +37,7 @@ function CenterDialog({
   open: boolean; onOpenChange: (o: boolean) => void;
   editing: CostCenter | null; presetParent: string | null; centers: CostCenter[];
 }) {
+  const t = useT();
   const [state, formAction] = useActionState<ActionState, FormData>(saveCostCenterAction, {});
   useEffect(() => {
     if (state.ok) { toast.success("تم الحفظ"); onOpenChange(false); }
@@ -48,24 +51,24 @@ function CenterDialog({
       <DialogContent>
         <form action={formAction} className="space-y-4">
           <DialogHeader>
-            <DialogTitle>{editing ? "تعديل مركز تكلفة" : "مركز تكلفة جديد"}</DialogTitle>
-            <DialogDescription>مركز تكلفة ضمن هيكل المؤسسة النشطة.</DialogDescription>
+            <DialogTitle>{editing ? t("تعديل مركز تكلفة") : t("مركز تكلفة جديد")}</DialogTitle>
+            <DialogDescription>{t("مركز تكلفة ضمن هيكل المؤسسة النشطة.")}</DialogDescription>
           </DialogHeader>
           {editing && <input type="hidden" name="id" value={editing.id} />}
           <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-2"><Label htmlFor="c-code">الكود</Label><Input id="c-code" name="code" defaultValue={editing?.code} required /></div>
-            <div className="space-y-2"><Label htmlFor="c-name">الاسم</Label><Input id="c-name" name="nameAr" defaultValue={editing?.nameAr} required /></div>
-            <div className="space-y-2"><Label htmlFor="c-name-en">الاسم (إنجليزي)</Label><Input id="c-name-en" name="nameEn" defaultValue={editing?.nameEn ?? ""} /></div>
+            <div className="space-y-2"><Label htmlFor="c-code">{t("الكود")}</Label><Input id="c-code" name="code" defaultValue={editing?.code} required /></div>
+            <div className="space-y-2"><Label htmlFor="c-name">{t("الاسم")}</Label><Input id="c-name" name="nameAr" defaultValue={editing?.nameAr} required /></div>
+            <div className="space-y-2"><Label htmlFor="c-name-en">{t("الاسم (إنجليزي)")}</Label><Input id="c-name-en" name="nameEn" defaultValue={editing?.nameEn ?? ""} /></div>
             <div className="space-y-2">
-              <Label htmlFor="c-parent">المركز الأب</Label>
+              <Label htmlFor="c-parent">{t("المركز الأب")}</Label>
               <select id="c-parent" name="parentId" defaultValue={editing?.parentId ?? presetParent ?? ""} className={selectCls}>
-                <option value="">— مركز رئيسي —</option>
-                {parentOptions.map((c) => <option key={c.id} value={c.id}>{c.code} — {c.nameAr}</option>)}
+                <option value="">{t("— مركز رئيسي —")}</option>
+                {parentOptions.map((c) => <option key={c.id} value={c.id}>{c.code} — {t(c.nameAr)}</option>)}
               </select>
             </div>
           </div>
           <div className="flex gap-6">
-            <label className="flex items-center gap-2 text-sm"><input type="checkbox" name="isActive" defaultChecked={editing ? editing.isActive : true} />نشط</label>
+            <label className="flex items-center gap-2 text-sm"><input type="checkbox" name="isActive" defaultChecked={editing ? editing.isActive : true} />{t("نشط")}</label>
           </div>
           <DialogFooter><SubmitBtn /></DialogFooter>
         </form>
@@ -75,6 +78,7 @@ function CenterDialog({
 }
 
 export function CostCentersTree({ centers, canManage }: { centers: CostCenter[]; canManage: boolean }) {
+  const t = useT();
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<CostCenter | null>(null);
   const [presetParent, setPresetParent] = useState<string | null>(null);
@@ -98,7 +102,7 @@ export function CostCentersTree({ centers, canManage }: { centers: CostCenter[];
   const openEdit = (c: CostCenter) => { setEditing(c); setPresetParent(null); setOpen(true); };
   const remove = (c: CostCenter) => startTransition(async () => {
     const r = await deleteCostCenterAction(c.id);
-    if (r.ok) toast.success("تم الحذف"); else toast.error(r.error ?? "تعذّر الحذف");
+    if (r.ok) toast.success("تم الحذف"); else toast.error(r.error ?? t("تعذّر الحذف"));
   });
 
   const renderNode = (c: CostCenter, depth: number): React.ReactNode => {
@@ -110,7 +114,7 @@ export function CostCentersTree({ centers, canManage }: { centers: CostCenter[];
         <div className="group flex items-center gap-2 border-b py-2 pe-2 text-sm hover:bg-muted/40"
           style={{ paddingInlineStart: depth * 22 + 8 }}>
           {hasKids ? (
-            <button onClick={() => toggle(c.id)} className="grid size-5 place-items-center rounded hover:bg-accent" aria-label="طيّ">
+            <button onClick={() => toggle(c.id)} className="grid size-5 place-items-center rounded hover:bg-accent" aria-label={t("طيّ")}>
               <Icon name={isOpen ? "ChevronDown" : "ChevronLeft"} className="size-4" />
             </button>
           ) : (
@@ -118,17 +122,17 @@ export function CostCentersTree({ centers, canManage }: { centers: CostCenter[];
           )}
           <Icon name={hasKids ? "FolderTree" : "Target"} className={cn("size-4 shrink-0", hasKids ? "text-primary" : "text-muted-foreground")} />
           <span className="font-mono text-muted-foreground">{c.code}</span>
-          <span className={cn(hasKids && "font-semibold")}>{c.nameAr}</span>
-          {!c.isActive && <Badge variant="secondary">معطّل</Badge>}
+          <span className={cn(hasKids && "font-semibold")}>{t(c.nameAr)}</span>
+          {!c.isActive && <Badge variant="secondary">{t("معطّل")}</Badge>}
           {canManage && (
             <div className="ms-auto flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
-              <Button variant="ghost" size="icon" className="size-7" onClick={() => openCreate(c.id)} aria-label="مركز فرعي"><Plus className="size-3.5" /></Button>
-              <Button variant="ghost" size="icon" className="size-7" onClick={() => openEdit(c)} aria-label="تعديل"><Pencil className="size-3.5" /></Button>
+              <Button variant="ghost" size="icon" className="size-7" onClick={() => openCreate(c.id)} aria-label={t("مركز فرعي")}><Plus className="size-3.5" /></Button>
+              <Button variant="ghost" size="icon" className="size-7" onClick={() => openEdit(c)} aria-label={t("تعديل")}><Pencil className="size-3.5" /></Button>
               <AlertDialog>
-                <AlertDialogTrigger asChild><Button variant="ghost" size="icon" className="size-7" disabled={pending} aria-label="حذف"><Trash2 className="size-3.5 text-destructive" /></Button></AlertDialogTrigger>
+                <AlertDialogTrigger asChild><Button variant="ghost" size="icon" className="size-7" disabled={pending} aria-label={t("حذف")}><Trash2 className="size-3.5 text-destructive" /></Button></AlertDialogTrigger>
                 <AlertDialogContent>
-                  <AlertDialogHeader><AlertDialogTitle>حذف المركز «{c.nameAr}»؟</AlertDialogTitle><AlertDialogDescription>لا يمكن التراجع. تأكّد أنه بلا مراكز فرعية أو قيود.</AlertDialogDescription></AlertDialogHeader>
-                  <AlertDialogFooter><AlertDialogCancel>إلغاء</AlertDialogCancel><AlertDialogAction onClick={() => remove(c)}>حذف</AlertDialogAction></AlertDialogFooter>
+                  <AlertDialogHeader><AlertDialogTitle>{t("حذف المركز «")}{t(c.nameAr)}{t("»؟")}</AlertDialogTitle><AlertDialogDescription>{t("لا يمكن التراجع. تأكّد أنه بلا مراكز فرعية أو قيود.")}</AlertDialogDescription></AlertDialogHeader>
+                  <AlertDialogFooter><AlertDialogCancel>{t("إلغاء")}</AlertDialogCancel><AlertDialogAction onClick={() => remove(c)}>{t("حذف")}</AlertDialogAction></AlertDialogFooter>
                 </AlertDialogContent>
               </AlertDialog>
             </div>
@@ -142,12 +146,12 @@ export function CostCentersTree({ centers, canManage }: { centers: CostCenter[];
   return (
     <Card>
       <CardHeader className="flex-row items-center justify-between">
-        <div><CardTitle>مراكز التكلفة</CardTitle><CardDescription>هيكل مراكز التكلفة الهرمي للمؤسسة النشطة.</CardDescription></div>
-        {canManage && <Button onClick={() => openCreate(null)}><Plus className="size-4" />مركز جديد</Button>}
+        <div><CardTitle>{t("مراكز التكلفة")}</CardTitle><CardDescription>{t("هيكل مراكز التكلفة الهرمي للمؤسسة النشطة.")}</CardDescription></div>
+        {canManage && <Button onClick={() => openCreate(null)}><Plus className="size-4" />{t("مركز جديد")}</Button>}
       </CardHeader>
       <CardContent>
         {roots.length === 0 ? (
-          <div className="rounded-xl border border-dashed py-12 text-center text-muted-foreground">لا توجد مراكز تكلفة بعد.</div>
+          <div className="rounded-xl border border-dashed py-12 text-center text-muted-foreground">{t("لا توجد مراكز تكلفة بعد.")}</div>
         ) : (
           <div className="rounded-xl border">{roots.map((r) => renderNode(r, 0))}</div>
         )}

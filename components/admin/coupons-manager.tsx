@@ -1,8 +1,10 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import type { Locale } from "@/lib/i18n";
+import { useLocale, useT } from "@/lib/i18n/client";
 import { useRouter } from "next/navigation";
-import { toast } from "sonner";
+import { toast } from "@/lib/i18n/toast";
 import { Loader2, Plus, Trash2, Pencil } from "lucide-react";
 import { upsertCouponAction, toggleCouponAction, deleteCouponAction } from "@/app/actions/admin/coupons";
 import { Button } from "@/components/ui/button";
@@ -16,9 +18,10 @@ import { selectCls } from "@/lib/utils";
 
 export type Coupon = { id: string; code: string; description: string; discountType: string; value: number; isActive: boolean; maxRedemptions: number | null; redemptions: number; expiresAt: string };
 
-const fmtVal = (c: Coupon) => c.discountType === "PERCENT" ? `${c.value}%` : `${c.value.toLocaleString("ar-EG")} خصم`;
+const fmtVal = (c: Coupon, locale: Locale) => c.discountType === "PERCENT" ? `${c.value}%` : locale === "en" ? `${c.value.toLocaleString("en-US")} off` : `${c.value.toLocaleString("ar-EG")} خصم`;
 
 function EditDialog({ coupon, onClose }: { coupon: Coupon | null; onClose: () => void }) {
+  const t = useT();
   const router = useRouter();
   const [pending, start] = useTransition();
   const isEdit = !!coupon;
@@ -39,32 +42,34 @@ function EditDialog({ coupon, onClose }: { coupon: Coupon | null; onClose: () =>
   });
 
   return (
-    <DialogContent dir="rtl">
-      <DialogHeader><DialogTitle>{isEdit ? "تعديل كوبون" : "كوبون جديد"}</DialogTitle></DialogHeader>
+    <DialogContent>
+      <DialogHeader><DialogTitle>{isEdit ? t("تعديل كوبون") : t("كوبون جديد")}</DialogTitle></DialogHeader>
       <div className="space-y-4">
         <div className="grid grid-cols-2 gap-3">
-          <div className="space-y-1.5"><Label>الكود</Label><Input value={code} onChange={(e) => setCode(e.target.value.toUpperCase())} placeholder="WELCOME20" disabled={isEdit} className="font-mono" /></div>
+          <div className="space-y-1.5"><Label>{t("الكود")}</Label><Input value={code} onChange={(e) => setCode(e.target.value.toUpperCase())} placeholder="WELCOME20" disabled={isEdit} className="font-mono" /></div>
           <div className="space-y-1.5">
-            <Label>نوع الخصم</Label>
+            <Label>{t("نوع الخصم")}</Label>
             <select className={selectCls} value={discountType} onChange={(e) => setDiscountType(e.target.value)}>
-              <option value="PERCENT">نسبة %</option><option value="FIXED">مبلغ ثابت</option>
+              <option value="PERCENT">{t("نسبة %")}</option><option value="FIXED">{t("مبلغ ثابت")}</option>
             </select>
           </div>
-          <div className="space-y-1.5"><Label>القيمة {discountType === "PERCENT" ? "(%)" : ""}</Label><Input type="number" min="0" value={value} onChange={(e) => setValue(e.target.value)} /></div>
-          <div className="space-y-1.5"><Label>حد الاستخدام</Label><Input type="number" min="1" value={maxRedemptions} onChange={(e) => setMaxRedemptions(e.target.value)} placeholder="بلا حد" /></div>
-          <div className="space-y-1.5"><Label>تاريخ الانتهاء</Label><Input type="date" value={expiresAt} onChange={(e) => setExpiresAt(e.target.value)} /></div>
+          <div className="space-y-1.5"><Label>{t("القيمة")} {discountType === "PERCENT" ? "(%)" : ""}</Label><Input type="number" min="0" value={value} onChange={(e) => setValue(e.target.value)} /></div>
+          <div className="space-y-1.5"><Label>{t("حد الاستخدام")}</Label><Input type="number" min="1" value={maxRedemptions} onChange={(e) => setMaxRedemptions(e.target.value)} placeholder={t("بلا حد")} /></div>
+          <div className="space-y-1.5"><Label>{t("تاريخ الانتهاء")}</Label><Input type="date" value={expiresAt} onChange={(e) => setExpiresAt(e.target.value)} /></div>
         </div>
-        <div className="space-y-1.5"><Label>الوصف</Label><Input value={description} onChange={(e) => setDescription(e.target.value)} placeholder="اختياري" /></div>
+        <div className="space-y-1.5"><Label>{t("الوصف")}</Label><Input value={description} onChange={(e) => setDescription(e.target.value)} placeholder={t("اختياري")} /></div>
       </div>
       <DialogFooter>
-        <Button variant="outline" onClick={onClose}>إلغاء</Button>
-        <Button onClick={save} disabled={pending}>{pending && <Loader2 className="size-4 animate-spin" />}حفظ</Button>
+        <Button variant="outline" onClick={onClose}>{t("إلغاء")}</Button>
+        <Button onClick={save} disabled={pending}>{pending && <Loader2 className="size-4 animate-spin" />}{t("حفظ")}</Button>
       </DialogFooter>
     </DialogContent>
   );
 }
 
 export function CouponsManager({ coupons }: { coupons: Coupon[] }) {
+  const locale = useLocale();
+  const t = useT();
   const router = useRouter();
   const [pending, start] = useTransition();
   const [dialog, setDialog] = useState<{ open: boolean; coupon: Coupon | null }>({ open: false, coupon: null });
@@ -77,35 +82,35 @@ export function CouponsManager({ coupons }: { coupons: Coupon[] }) {
     <Card>
       <CardContent className="p-0">
         <div className="flex items-center justify-between p-4">
-          <span className="text-sm text-muted-foreground">{coupons.length} كوبون · إجمالي الاستخدامات: <span className="font-semibold text-foreground tabular-nums">{coupons.reduce((s, c) => s + (c.redemptions || 0), 0)}</span></span>
-          <Button size="sm" onClick={() => setDialog({ open: true, coupon: null })}><Plus className="size-4" />كوبون جديد</Button>
+          <span className="text-sm text-muted-foreground">{coupons.length} {t("كوبون · إجمالي الاستخدامات:")} <span className="font-semibold text-foreground tabular-nums">{coupons.reduce((s, c) => s + (c.redemptions || 0), 0)}</span></span>
+          <Button size="sm" onClick={() => setDialog({ open: true, coupon: null })}><Plus className="size-4" />{t("كوبون جديد")}</Button>
         </div>
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="text-start">الكود</TableHead>
-              <TableHead className="text-start">الخصم</TableHead>
-              <TableHead className="text-start">الاستخدام</TableHead>
-              <TableHead className="text-start">الانتهاء</TableHead>
-              <TableHead className="text-start">الحالة</TableHead>
-              <TableHead className="text-start">إجراءات</TableHead>
+              <TableHead className="text-start">{t("الكود")}</TableHead>
+              <TableHead className="text-start">{t("الخصم")}</TableHead>
+              <TableHead className="text-start">{t("الاستخدام")}</TableHead>
+              <TableHead className="text-start">{t("الانتهاء")}</TableHead>
+              <TableHead className="text-start">{t("الحالة")}</TableHead>
+              <TableHead className="text-start">{t("إجراءات")}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {coupons.length === 0 ? (
-              <TableRow><TableCell colSpan={6} className="py-10 text-center text-muted-foreground">لا توجد كوبونات.</TableCell></TableRow>
+              <TableRow><TableCell colSpan={6} className="py-10 text-center text-muted-foreground">{t("لا توجد كوبونات.")}</TableCell></TableRow>
             ) : coupons.map((c) => (
               <TableRow key={c.id}>
-                <TableCell><span className="font-mono font-medium">{c.code}</span>{c.description && <div className="text-xs text-muted-foreground">{c.description}</div>}</TableCell>
-                <TableCell>{fmtVal(c)}</TableCell>
+                <TableCell><span className="font-mono font-medium">{c.code}</span>{c.description && <div className="text-xs text-muted-foreground">{t(c.description)}</div>}</TableCell>
+                <TableCell>{fmtVal(c, locale)}</TableCell>
                 <TableCell className="text-sm">{c.redemptions}{c.maxRedemptions != null ? ` / ${c.maxRedemptions}` : ""}</TableCell>
                 <TableCell className="text-sm">{c.expiresAt || <span className="text-muted-foreground">—</span>}</TableCell>
-                <TableCell><Badge variant={c.isActive ? "default" : "outline"}>{c.isActive ? "مفعّل" : "موقوف"}</Badge></TableCell>
+                <TableCell><Badge variant={c.isActive ? "default" : "outline"}>{c.isActive ? t("مفعّل") : t("موقوف")}</Badge></TableCell>
                 <TableCell>
                   <div className="flex gap-1">
-                    <Button size="icon" variant="ghost" onClick={() => setDialog({ open: true, coupon: c })} aria-label="تعديل"><Pencil className="size-4" /></Button>
-                    <Button size="sm" variant="ghost" disabled={pending} onClick={() => toggle(c.id)}>{c.isActive ? "إيقاف" : "تفعيل"}</Button>
-                    <Button size="icon" variant="ghost" disabled={pending} onClick={() => setConfirmDel(c)} aria-label="حذف"><Trash2 className="size-4 text-destructive" /></Button>
+                    <Button size="icon" variant="ghost" onClick={() => setDialog({ open: true, coupon: c })} aria-label={t("تعديل")}><Pencil className="size-4" /></Button>
+                    <Button size="sm" variant="ghost" disabled={pending} onClick={() => toggle(c.id)}>{c.isActive ? t("إيقاف") : t("تفعيل")}</Button>
+                    <Button size="icon" variant="ghost" disabled={pending} onClick={() => setConfirmDel(c)} aria-label={t("حذف")}><Trash2 className="size-4 text-destructive" /></Button>
                   </div>
                 </TableCell>
               </TableRow>
@@ -119,11 +124,11 @@ export function CouponsManager({ coupons }: { coupons: Coupon[] }) {
       </Dialog>
       <Dialog open={!!confirmDel} onOpenChange={(o) => !o && setConfirmDel(null)}>
         {confirmDel && (
-          <DialogContent dir="rtl">
-            <DialogHeader><DialogTitle>حذف الكوبون «{confirmDel.code}»؟</DialogTitle></DialogHeader>
+          <DialogContent>
+            <DialogHeader><DialogTitle>{t("حذف الكوبون «")}{confirmDel.code}{t("»؟")}</DialogTitle></DialogHeader>
             <DialogFooter>
-              <Button variant="outline" onClick={() => setConfirmDel(null)}>إلغاء</Button>
-              <Button variant="destructive" disabled={pending} onClick={() => del(confirmDel)}>حذف</Button>
+              <Button variant="outline" onClick={() => setConfirmDel(null)}>{t("إلغاء")}</Button>
+              <Button variant="destructive" disabled={pending} onClick={() => del(confirmDel)}>{t("حذف")}</Button>
             </DialogFooter>
           </DialogContent>
         )}

@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useRef, useState, useTransition } from "react";
-import { toast } from "sonner";
+import { fill } from "@/lib/i18n";
+import { useT } from "@/lib/i18n/client";
+import { toast } from "@/lib/i18n/toast";
 import { scanItemAction, type ItemSearchResult } from "@/app/actions/erp/item-search";
 import { isNativeApp, scanBarcode } from "@/lib/native";
 import { Input } from "@/components/ui/input";
@@ -15,6 +17,7 @@ import { Icon } from "@/components/icon";
  * the same resolve path.
  */
 export function BarcodeScan({ onScan }: { onScan: (item: ItemSearchResult) => void }) {
+  const t = useT();
   const [code, setCode] = useState("");
   const [pending, start] = useTransition();
   const [native, setNative] = useState(false);
@@ -31,7 +34,7 @@ export function BarcodeScan({ onScan }: { onScan: (item: ItemSearchResult) => vo
     start(async () => {
       const it = await scanItemAction(v);
       if (it) { onScan(it); setCode(""); triedRef.current.clear(); } // re-scanning the same item works again
-      else if (!silent) toast.error(`كود غير معروف: ${v}`);
+      else if (!silent) toast.error(fill(t("كود غير معروف: {0}"), [v]));
     });
   };
 
@@ -60,12 +63,12 @@ export function BarcodeScan({ onScan }: { onScan: (item: ItemSearchResult) => vo
           disabled={pending}
           onChange={(e) => setCode(e.target.value)}
           onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); resolve(code); } }}
-          placeholder="امسح الباركود أو اكتب الكود ثم Enter…"
+          placeholder={t("امسح الباركود أو اكتب الكود ثم Enter…")}
           className="ps-9"
         />
       </div>
       {native && (
-        <button type="button" onClick={camera} disabled={pending} aria-label="مسح بالكاميرا"
+        <button type="button" onClick={camera} disabled={pending} aria-label={t("مسح بالكاميرا")}
           className="grid size-9 shrink-0 place-items-center rounded-md border bg-primary text-primary-foreground disabled:opacity-50">
           <Icon name="Camera" className="size-4" />
         </button>

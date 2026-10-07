@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { useT } from "@/lib/i18n/client";
 import { DndContext, closestCenter, PointerSensor, KeyboardSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove, sortableKeyboardCoordinates } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
@@ -84,20 +85,21 @@ export function SortableLineRows<T extends { id: string }>({
 function SortableRow({ id, canUp, canDown, onUp, onDown, children }: {
   id: string; canUp: boolean; canDown: boolean; onUp: () => void; onDown: () => void; children: ReactNode;
 }) {
+  const t = useT();
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
   const style: CSSProperties = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.6 : undefined, position: "relative", zIndex: isDragging ? 1 : undefined };
   return (
     <TableRow ref={setNodeRef} style={style}>
       <TableCell className="w-8 px-1">
-        <Button type="button" variant="ghost" size="icon-xs" className="cursor-grab touch-none active:cursor-grabbing" aria-label="سحب لإعادة الترتيب" {...attributes} {...listeners}>
+        <Button type="button" variant="ghost" size="icon-xs" className="cursor-grab touch-none active:cursor-grabbing" aria-label={t("سحب لإعادة الترتيب")} {...attributes} {...listeners}>
           <Icon name="GripVertical" className="size-4" />
         </Button>
       </TableCell>
       {children}
       <TableCell className="w-8 px-1">
         <div className="flex flex-col">
-          <Button type="button" variant="ghost" size="icon-xs" disabled={!canUp} onClick={onUp} aria-label="نقل لأعلى"><Icon name="ChevronUp" className="size-3.5" /></Button>
-          <Button type="button" variant="ghost" size="icon-xs" disabled={!canDown} onClick={onDown} aria-label="نقل لأسفل"><Icon name="ChevronDown" className="size-3.5" /></Button>
+          <Button type="button" variant="ghost" size="icon-xs" disabled={!canUp} onClick={onUp} aria-label={t("نقل لأعلى")}><Icon name="ChevronUp" className="size-3.5" /></Button>
+          <Button type="button" variant="ghost" size="icon-xs" disabled={!canDown} onClick={onDown} aria-label={t("نقل لأسفل")}><Icon name="ChevronDown" className="size-3.5" /></Button>
         </div>
       </TableCell>
     </TableRow>

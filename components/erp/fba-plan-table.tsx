@@ -1,8 +1,10 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { fill } from "@/lib/i18n";
+import { useT } from "@/lib/i18n/client";
 import { useRouter } from "next/navigation";
-import { toast } from "sonner";
+import { toast } from "@/lib/i18n/toast";
 import { createStockTransferAction } from "@/app/actions/erp/stock-transfers";
 import { toCsv } from "@/lib/erp/csv";
 import type { FbaPlanRow } from "@/lib/erp/fba-plan";
@@ -31,6 +33,7 @@ const BOM = String.fromCharCode(0xfeff); // so Excel reads the Arabic titles
 export function FbaPlanTable({ rows, fromWarehouseId, toWarehouseId, sourceName, windowDays, canCreate }: {
   rows: FbaPlanRow[]; fromWarehouseId: string; toWarehouseId: string; sourceName: string; windowDays: number; canCreate: boolean;
 }) {
+  const t = useT();
   const router = useRouter();
   const [pending, start] = useTransition();
   const [qty, setQty] = useState<Record<string, number>>(() => Object.fromEntries(rows.map((r) => [r.itemId, r.sendQty])));
@@ -53,7 +56,7 @@ export function FbaPlanTable({ rows, fromWarehouseId, toWarehouseId, sourceName,
   const excel = async () => {
     const XLSX = await import("xlsx"); // loaded on click — keeps the page bundle light
     const ws = XLSX.utils.aoa_to_sheet([
-      ["الصنف", "SKU", "ASIN", `مبيعات آخر ${windowDays} يوم`, "بيع/يوم", "متاح في أمازون", "في الطريق", "يكفّي (يوم)", "المطلوب", `في «${sourceName}»`, "هتبعت", "الحالة"],
+      ["الصنف", "SKU", "ASIN", fill(t("مبيعات آخر {0} يوم"), [windowDays]), "بيع/يوم", "متاح في أمازون", "في الطريق", "يكفّي (يوم)", "المطلوب", fill(t("في «{0}»"), [sourceName]), "هتبعت", "الحالة"],
       ...rows.map((r) => [r.name, r.sku ?? r.code, r.asin ?? "", r.soldAtAmazon, Math.round(r.velocity * 10) / 10, r.fbaAvailable, r.fbaInbound,
         Math.round(r.daysOfCover * 10) / 10, r.suggestedQty, Math.floor(r.sourceOnHand), qty[r.itemId] ?? 0, STATUS[r.status].label]),
       ["الإجمالي", "", "", salesInWindow, "", amazonOnHand, "", "", "", systemOnHand, units, ""],
@@ -71,55 +74,55 @@ export function FbaPlanTable({ rows, fromWarehouseId, toWarehouseId, sourceName,
       notes: "خطة شحن FBA",
       lines: chosen.map((x) => ({ itemId: x.itemId, fromWarehouseId, toWarehouseId, quantity: qty[x.itemId] })),
     });
-    if (!r.ok || !r.number) { toast.error(r.error ?? "تعذّر إنشاء التحويل"); return; }
-    toast.success(`تحويل مسودة ${r.number} — أكّده لما الشحنة تطلع فعلاً`);
+    if (!r.ok || !r.number) { toast.error(r.error ?? t("تعذّر إنشاء التحويل")); return; }
+    toast.success(fill(t("تحويل مسودة {0} — أكّده لما الشحنة تطلع فعلاً"), [r.number]));
     router.push(`/inventory/transfers/${encodeURIComponent(r.number)}`);
   });
 
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-muted/40 px-3 py-2 text-sm">
-        <span className="font-medium">{int(chosen.length)} صنف · {int(units)} وحدة</span>
+        <span className="font-medium">{int(chosen.length)} {t("صنف ·")} {int(units)} {t("وحدة")}</span>
         <div className="ms-auto flex flex-wrap gap-2 print:hidden">
           <Button size="sm" variant="outline" onClick={excel}>
             <Icon name="FileSpreadsheet" className="size-4" />Excel
           </Button>
           <Button size="sm" variant="outline" onClick={() => window.print()}>
-            <Icon name="Printer" className="size-4" />طباعة
+            <Icon name="Printer" className="size-4" />{t("طباعة")}
           </Button>
           <Button size="sm" variant="outline" disabled={chosen.length === 0} onClick={download}
-            title="SKU وكمية لكل صنف — للرفع أو النسخ في Send to Amazon">
-            <Icon name="Download" className="size-4" />ملف الشحنة (CSV)
+            title={t("SKU وكمية لكل صنف — للرفع أو النسخ في Send to Amazon")}>
+            <Icon name="Download" className="size-4" />{t("ملف الشحنة (CSV)")}
           </Button>
           {canCreate && (
             <Button size="sm" disabled={pending || chosen.length === 0} onClick={transfer}
-              title={`تحويل مسودة من «${sourceName}» لمخزن أمازون — مفيش مخزون بيتحرك غير لما تأكّده`}>
-              <Icon name="ArrowLeftRight" className="size-4" />تحويل مسودة لمخزن أمازون
+              title={fill(t("تحويل مسودة من «{0}» لمخزن أمازون — مفيش مخزون بيتحرك غير لما تأكّده"), [sourceName])}>
+              <Icon name="ArrowLeftRight" className="size-4" />{t("تحويل مسودة لمخزن أمازون")}
             </Button>
           )}
         </div>
       </div>
 
       <div className="grid gap-2 sm:grid-cols-3">
-        <div className="rounded-lg border px-3 py-2 text-sm"><span className="text-muted-foreground">مخزون Amazon الحالي</span><div className="font-semibold tabular-nums">{int(amazonOnHand)} وحدة</div></div>
-        <div className="rounded-lg border px-3 py-2 text-sm"><span className="text-muted-foreground">مخزون النظام في «{sourceName}»</span><div className="font-semibold tabular-nums">{int(systemOnHand)} وحدة</div></div>
-        <div className="rounded-lg border px-3 py-2 text-sm"><span className="text-muted-foreground">مبيعات Amazon آخر {int(windowDays)} يوم</span><div className="font-semibold tabular-nums">{int(salesInWindow)} وحدة</div></div>
+        <div className="rounded-lg border px-3 py-2 text-sm"><span className="text-muted-foreground">{t("مخزون Amazon الحالي")}</span><div className="font-semibold tabular-nums">{int(amazonOnHand)} {t("وحدة")}</div></div>
+        <div className="rounded-lg border px-3 py-2 text-sm"><span className="text-muted-foreground">{t("مخزون النظام في «")}{sourceName}»</span><div className="font-semibold tabular-nums">{int(systemOnHand)} {t("وحدة")}</div></div>
+        <div className="rounded-lg border px-3 py-2 text-sm"><span className="text-muted-foreground">{t("مبيعات Amazon آخر")} {int(windowDays)} {t("يوم")}</span><div className="font-semibold tabular-nums">{int(salesInWindow)} {t("وحدة")}</div></div>
       </div>
 
       <div className="overflow-x-auto rounded-xl border">
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="text-start">الصنف</TableHead>
-              <TableHead className="text-start whitespace-nowrap">مبيعات آخر {int(windowDays)} يوم</TableHead>
-              <TableHead className="text-start">بيع/يوم</TableHead>
-              <TableHead className="text-start">متاح في أمازون</TableHead>
-              <TableHead className="text-start">في الطريق</TableHead>
-              <TableHead className="text-start">يكفّي (يوم)</TableHead>
-              <TableHead className="text-start">المطلوب</TableHead>
-              <TableHead className="text-start whitespace-nowrap">في النظام «{sourceName}»</TableHead>
-              <TableHead className="text-start">هتبعت</TableHead>
-              <TableHead className="text-start">الحالة</TableHead>
+              <TableHead className="text-start">{t("الصنف")}</TableHead>
+              <TableHead className="text-start whitespace-nowrap">{t("مبيعات آخر")} {int(windowDays)} {t("يوم")}</TableHead>
+              <TableHead className="text-start">{t("بيع/يوم")}</TableHead>
+              <TableHead className="text-start">{t("متاح في أمازون")}</TableHead>
+              <TableHead className="text-start">{t("في الطريق")}</TableHead>
+              <TableHead className="text-start">{t("يكفّي (يوم)")}</TableHead>
+              <TableHead className="text-start">{t("المطلوب")}</TableHead>
+              <TableHead className="text-start whitespace-nowrap">{t("في النظام «")}{sourceName}»</TableHead>
+              <TableHead className="text-start">{t("هتبعت")}</TableHead>
+              <TableHead className="text-start">{t("الحالة")}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -128,7 +131,7 @@ export function FbaPlanTable({ rows, fromWarehouseId, toWarehouseId, sourceName,
               return (
                 <TableRow key={r.itemId}>
                   <TableCell className="max-w-[240px]">
-                    <div className="truncate font-medium" title={r.name}>{r.name}</div>
+                    <div className="truncate font-medium" title={r.name}>{t(r.name)}</div>
                     <div className="font-mono text-[11px] text-muted-foreground">{r.sku ?? r.code}{r.asin ? ` · ${r.asin}` : ""}</div>
                   </TableCell>
                   <TableCell className="tabular-nums">{int(r.soldAtAmazon)}</TableCell>
@@ -139,7 +142,7 @@ export function FbaPlanTable({ rows, fromWarehouseId, toWarehouseId, sourceName,
                   <TableCell className="tabular-nums">{int(r.suggestedQty)}</TableCell>
                   <TableCell className="tabular-nums">{int(max)}</TableCell>
                   <TableCell>
-                    <Input type="number" min={0} max={max} step={1} className="w-24 tabular-nums" aria-label={`كمية ${r.name}`}
+                    <Input type="number" min={0} max={max} step={1} className="w-24 tabular-nums" aria-label={fill(t("كمية {0}"), [r.name])}
                       value={qty[r.itemId] ?? 0}
                       onChange={(e) => {
                         const v = Math.min(max, Math.max(0, Math.floor(Number(e.target.value) || 0)));
@@ -148,9 +151,9 @@ export function FbaPlanTable({ rows, fromWarehouseId, toWarehouseId, sourceName,
                   </TableCell>
                   <TableCell>
                     <div className="flex flex-wrap items-center gap-1">
-                      <Badge variant={STATUS[r.status].variant}>{STATUS[r.status].label}</Badge>
+                      <Badge variant={STATUS[r.status].variant}>{t(STATUS[r.status].label)}</Badge>
                       {r.short > 0 && (
-                        <Badge variant="outline" title="مش موجود في المخزن ده — اشتريه أو ابعته من مخزن تاني">ناقص {int(r.short)}</Badge>
+                        <Badge variant="outline" title={t("مش موجود في المخزن ده — اشتريه أو ابعته من مخزن تاني")}>{t("ناقص")} {int(r.short)}</Badge>
                       )}
                     </div>
                   </TableCell>

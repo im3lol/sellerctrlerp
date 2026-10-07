@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { fill } from "@/lib/i18n";
+import { useT } from "@/lib/i18n/client";
 import { useRouter } from "next/navigation";
 import { recordReportDownloadAction } from "@/app/actions/erp/report-downloads";
 import { Card, CardContent } from "@/components/ui/card";
@@ -24,6 +26,7 @@ const Step = ({ n, title, done }: { n: number; title: string; done?: boolean }) 
 );
 
 export function ReportGenerator() {
+  const t = useT();
   const [moduleKey, setModuleKey] = useState<string | null>(null);
   const [report, setReport] = useState<CatalogReport | null>(null);
   const [from, setFrom] = useState(yearStartISO());
@@ -63,7 +66,7 @@ export function ReportGenerator() {
       <CardContent className="space-y-8 pt-6">
         {/* 1 — module */}
         <div>
-          <Step n={1} title="اختر الموديول" done={!!moduleKey} />
+          <Step n={1} title={t("اختر الموديول")} done={!!moduleKey} />
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
             {REPORT_MODULES.map((m) => {
               const active = m.key === moduleKey;
@@ -77,7 +80,7 @@ export function ReportGenerator() {
                   <span className={`grid size-10 place-items-center rounded-lg ${active ? "bg-primary text-primary-foreground" : "bg-primary/10 text-primary"}`}>
                     <Icon name={m.icon} className="size-5" />
                   </span>
-                  <span className="text-sm font-medium">{m.label}</span>
+                  <span className="text-sm font-medium">{t(m.label)}</span>
                 </button>
               );
             })}
@@ -87,7 +90,7 @@ export function ReportGenerator() {
         {/* 2 — report */}
         {activeModule && (
           <div>
-            <Step n={2} title="اختر التقرير" done={!!report} />
+            <Step n={2} title={t("اختر التقرير")} done={!!report} />
             <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
               {activeModule.reports.map((r) => {
                 const active = r.key === report?.key;
@@ -98,7 +101,7 @@ export function ReportGenerator() {
                     onClick={() => pickReport(r)}
                     className={`flex items-center justify-between gap-2 rounded-lg border px-3 py-2.5 text-start text-sm transition-colors ${active ? "border-primary bg-primary/5 font-medium" : "bg-card hover:border-primary/60 hover:bg-accent"}`}
                   >
-                    <span>{r.label}</span>
+                    <span>{t(r.label)}</span>
                     {active && <Icon name="Check" className="size-4 text-primary" />}
                   </button>
                 );
@@ -110,16 +113,16 @@ export function ReportGenerator() {
         {/* 3 — period */}
         {report && report.dates !== "none" && (
           <div>
-            <Step n={3} title="حدّد الفترة" done />
+            <Step n={3} title={t("حدّد الفترة")} done />
             <div className="flex flex-wrap items-end gap-3">
               {report.dates === "range" && (
                 <div className="space-y-1">
-                  <Label htmlFor="from">من تاريخ</Label>
+                  <Label htmlFor="from">{t("من تاريخ")}</Label>
                   <input id="from" type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="flex h-9 rounded-md border border-input bg-transparent px-3 text-sm shadow-sm outline-none focus:border-primary" />
                 </div>
               )}
               <div className="space-y-1">
-                <Label htmlFor="to">{report.dates === "asOf" ? "كما في تاريخ" : "إلى تاريخ"}</Label>
+                <Label htmlFor="to">{report.dates === "asOf" ? t("كما في تاريخ") : t("إلى تاريخ")}</Label>
                 <input id="to" type="date" value={to} onChange={(e) => setTo(e.target.value)} className="flex h-9 rounded-md border border-input bg-transparent px-3 text-sm shadow-sm outline-none focus:border-primary" />
               </div>
             </div>
@@ -129,7 +132,7 @@ export function ReportGenerator() {
         {/* 4 — format */}
         {report && !report.party && (
           <div>
-            <Step n={report.dates === "none" ? 3 : 4} title="اختر الصيغة" done />
+            <Step n={report.dates === "none" ? 3 : 4} title={t("اختر الصيغة")} done />
             <div className="flex flex-wrap gap-3">
               {([
                 { v: "pdf", label: "PDF (طباعة)", icon: "Printer", enabled: true },
@@ -144,11 +147,11 @@ export function ReportGenerator() {
                     onClick={() => setFormat(f.v)}
                     className={`flex items-center gap-2 rounded-lg border px-4 py-2.5 text-sm transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${active ? "border-primary bg-primary text-primary-foreground" : "bg-card hover:border-primary/60"}`}
                   >
-                    <Icon name={f.icon} className="size-4" />{f.label}
+                    <Icon name={f.icon} className="size-4" />{t(f.label)}
                   </button>
                 );
               })}
-              {!report.excel && <span className="self-center text-xs text-muted-foreground">Excel غير متاح لهذا التقرير بعد</span>}
+              {!report.excel && <span className="self-center text-xs text-muted-foreground">{t("Excel غير متاح لهذا التقرير بعد")}</span>}
             </div>
           </div>
         )}
@@ -158,9 +161,9 @@ export function ReportGenerator() {
           <div className="border-t pt-5">
             <Button onClick={run} size="lg" className="gap-2">
               <Icon name={report.party ? "ArrowLeft" : format === "excel" ? "Download" : "FileText"} className="size-4" />
-              {report.party ? `اختيار ${report.party === "customer" ? "العميل" : "المورّد"} ثم استخراج «${report.label}»` : `استخراج «${report.label}» ${format === "excel" ? "Excel" : "PDF"}`}
+              {report.party ? fill(t("اختيار {0} ثم استخراج «{1}»"), [report.party === "customer" ? t("العميل") : t("المورّد"), t(report.label)]) : fill(t("استخراج «{0}» {1}"), [t(report.label), format === "excel" ? "Excel" : "PDF"])}
             </Button>
-            {report.party && <p className="mt-2 text-xs text-muted-foreground">اختَر الطرف أولاً، ثم صدّر كشفه Excel أو PDF بنفس الفترة.</p>}
+            {report.party && <p className="mt-2 text-xs text-muted-foreground">{t("اختَر الطرف أولاً، ثم صدّر كشفه Excel أو PDF بنفس الفترة.")}</p>}
           </div>
         )}
       </CardContent>

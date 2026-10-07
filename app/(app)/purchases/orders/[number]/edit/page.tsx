@@ -1,4 +1,6 @@
 import { notFound, redirect } from "next/navigation";
+import { fill } from "@/lib/i18n";
+import { getT } from "@/lib/i18n/server";
 import { and, asc, desc, eq } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
@@ -11,6 +13,7 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 const round2 = (n: number) => Math.round(n * 100) / 100;
 
 export default async function EditPurchaseOrderPage({ params }: { params: Promise<{ number: string }> }) {
+  const t = await getT();
   const raw = decodeURIComponent((await params).number);
   return loadErpPage("purchases.create", async ({ orgId }) => {
     const [po] = await db.select().from(purchaseOrders)
@@ -63,7 +66,7 @@ export default async function EditPurchaseOrderPage({ params }: { params: Promis
 
     return (
       <div className="space-y-6">
-        <ErpPageHeader icon="ClipboardList" title={`تعديل أمر شراء ${po.number}`} subtitle="مسودة — عدّل الأصناف والكميات والأسعار ثم احفظ" backHref={`/purchases/orders/${encodeURIComponent(po.number)}`} />
+        <ErpPageHeader icon="ClipboardList" title={fill(t("تعديل أمر شراء {0}"), [po.number])} subtitle={t("مسودة — عدّل الأصناف والكميات والأسعار ثم احفظ")} backHref={`/purchases/orders/${encodeURIComponent(po.number)}`} />
         <PurchaseOrderForm suppliers={supList} warehouses={whList} items={itemList} unitsByItem={unitsByItem} orgName={org[0]?.nameAr ?? "—"} vatRate={Number(org[0]?.vatRate ?? 0)} currencies={currRows} latestRates={latestRates} rateHistory={rateHistory} initial={initial} />
       </div>
     );

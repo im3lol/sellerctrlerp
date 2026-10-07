@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useT } from "@/lib/i18n/client";
 import type { SalesLedgerRow, SalesLedgerTotals } from "@/lib/erp/sales-ledger";
 import { fmtMoney, fmtQty } from "@/lib/format";
 
@@ -44,22 +45,23 @@ export function SalesLedgerTable({
   rows: SalesLedgerRow[];
   totals: SalesLedgerTotals;
 }) {
+  const t = useT();
   return (
     <div className="overflow-x-auto rounded-lg border">
-      <table className="w-full text-sm" dir="rtl">
+      <table className="w-full text-sm">
         <thead className="bg-muted/50 text-muted-foreground text-xs">
           <tr>
-            <th className="px-3 py-2 text-right font-medium">الرقم</th>
-            <th className="px-3 py-2 text-right font-medium">التاريخ</th>
-            <th className="px-3 py-2 text-right font-medium">العميل</th>
-            <th className="px-3 py-2 text-right font-medium">النوع</th>
-            <th className="px-3 py-2 text-right font-medium">الحالة</th>
-            <th className="px-3 py-2 text-left font-medium">الكلي</th>
-            <th className="px-3 py-2 text-left font-medium">المُسلّم</th>
-            <th className="px-3 py-2 text-left font-medium">السعر</th>
-            <th className="px-3 py-2 text-left font-medium">الخصم</th>
-            <th className="px-3 py-2 text-left font-medium">الضريبة</th>
-            <th className="px-3 py-2 text-left font-medium">الإجمالي</th>
+            <th className="px-3 py-2 text-start font-medium">{t("الرقم")}</th>
+            <th className="px-3 py-2 text-start font-medium">{t("التاريخ")}</th>
+            <th className="px-3 py-2 text-start font-medium">{t("العميل")}</th>
+            <th className="px-3 py-2 text-start font-medium">{t("النوع")}</th>
+            <th className="px-3 py-2 text-start font-medium">{t("الحالة")}</th>
+            <th className="px-3 py-2 text-left font-medium">{t("الكلي")}</th>
+            <th className="px-3 py-2 text-left font-medium">{t("المُسلّم")}</th>
+            <th className="px-3 py-2 text-left font-medium">{t("السعر")}</th>
+            <th className="px-3 py-2 text-left font-medium">{t("الخصم")}</th>
+            <th className="px-3 py-2 text-left font-medium">{t("الضريبة")}</th>
+            <th className="px-3 py-2 text-left font-medium">{t("الإجمالي")}</th>
           </tr>
         </thead>
         <tbody className="divide-y">
@@ -80,11 +82,11 @@ export function SalesLedgerTable({
                 </td>
                 <td className="px-3 py-2">
                   <span className={`inline-flex rounded-full border px-2 py-0.5 text-xs font-medium ${doc.cls}`}>
-                    {doc.label}
+                    {t(doc.label)}
                   </span>
                 </td>
                 <td className="px-3 py-2 text-xs text-muted-foreground whitespace-nowrap">
-                  {STATUS[r.status] ?? r.status}
+                  {t(STATUS[r.status] ?? r.status)}
                 </td>
                 <td className="px-3 py-2 text-left"><QtyCell v={r.qtyTotal} strong /></td>
                 <td className="px-3 py-2 text-left text-emerald-700"><QtyCell v={r.qtyDelivered} /></td>
@@ -98,8 +100,8 @@ export function SalesLedgerTable({
         </tbody>
         <tfoot className="border-t-2 border-border bg-muted/40">
           <tr className="font-semibold text-sm">
-            <td colSpan={5} className="px-3 py-2.5 text-right text-muted-foreground">
-              الإجمالي الكلي
+            <td colSpan={5} className="px-3 py-2.5 text-start text-muted-foreground">
+              {t("الإجمالي الكلي")}
             </td>
             <td className="px-3 py-2.5 text-left tabular-nums">{fmtQty(totals.qtyTotal)}</td>
             <td className="px-3 py-2.5 text-left tabular-nums text-emerald-700">{fmtQty(totals.qtyDelivered)}</td>

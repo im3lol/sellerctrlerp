@@ -1,4 +1,5 @@
 import { and, asc, eq, gte, lt, lte, sql } from "drizzle-orm";
+import { getT } from "@/lib/i18n/server";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
 import { accounts, journalEntries, journalEntryLines } from "@/db/schema";
@@ -17,6 +18,7 @@ export default async function GeneralLedgerPage({
 }: {
   searchParams: Promise<{ account?: string; from?: string; to?: string }>;
 }) {
+  const t = await getT();
   return loadErpPage("accounting.view", async ({ orgId }) => {
     const sp = await searchParams;
     const accountId = sp.account ?? "";
@@ -37,7 +39,7 @@ export default async function GeneralLedgerPage({
 
     if (accountId) {
       const acc = accountList.find((a) => a.id === accountId);
-      accountName = acc ? `${acc.code} — ${acc.nameAr}` : "";
+      accountName = acc ? `${acc.code} — ${t(acc.nameAr)}` : "";
 
       const postedFor = (extra: ReturnType<typeof and>[]) =>
         and(
@@ -82,31 +84,31 @@ export default async function GeneralLedgerPage({
 
     return (
       <div className="space-y-6">
-        <ErpPageHeader icon="BookOpen" title="دفتر الأستاذ العام" subtitle={accountName || "اختر حساباً لعرض حركته"} />
+        <ErpPageHeader icon="BookOpen" title={t("دفتر الأستاذ العام")} subtitle={accountName || t("اختر حساباً لعرض حركته")} />
 
         <Card>
           <CardHeader>
-            <CardTitle>تصفية</CardTitle>
-            <CardDescription>اختر الحساب والفترة.</CardDescription>
+            <CardTitle>{t("تصفية")}</CardTitle>
+            <CardDescription>{t("اختر الحساب والفترة.")}</CardDescription>
           </CardHeader>
           <CardContent>
             <form className="flex flex-wrap items-end gap-3">
               <div className="space-y-2">
-                <Label htmlFor="account">الحساب</Label>
+                <Label htmlFor="account">{t("الحساب")}</Label>
                 <select id="account" name="account" defaultValue={accountId} className={`${selectCls} min-w-64`}>
-                  <option value="">— اختر الحساب —</option>
-                  {accountList.map((a) => <option key={a.id} value={a.id}>{a.code} — {a.nameAr}</option>)}
+                  <option value="">{t("— اختر الحساب —")}</option>
+                  {accountList.map((a) => <option key={a.id} value={a.id}>{a.code} — {t(a.nameAr)}</option>)}
                 </select>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="from">من تاريخ</Label>
+                <Label htmlFor="from">{t("من تاريخ")}</Label>
                 <input id="from" name="from" type="date" defaultValue={from} className={selectCls} />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="to">إلى تاريخ</Label>
+                <Label htmlFor="to">{t("إلى تاريخ")}</Label>
                 <input id="to" name="to" type="date" defaultValue={to} className={selectCls} />
               </div>
-              <Button type="submit">عرض</Button>
+              <Button type="submit">{t("عرض")}</Button>
             </form>
           </CardContent>
         </Card>
@@ -114,27 +116,27 @@ export default async function GeneralLedgerPage({
         {accountId && (
           <Card>
             <CardHeader>
-              <CardTitle>حركة الحساب</CardTitle>
-              <CardDescription>الرصيد موجب = مدين، سالب = دائن.</CardDescription>
+              <CardTitle>{t("حركة الحساب")}</CardTitle>
+              <CardDescription>{t("الرصيد موجب = مدين، سالب = دائن.")}</CardDescription>
             </CardHeader>
             <CardContent>
               {rows.length === 0 ? (
-                <div className="rounded-xl border border-dashed py-12 text-center text-muted-foreground">لا توجد حركة في هذه الفترة.</div>
+                <div className="rounded-xl border border-dashed py-12 text-center text-muted-foreground">{t("لا توجد حركة في هذه الفترة.")}</div>
               ) : (
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead className="text-start">التاريخ</TableHead>
-                      <TableHead className="text-start">القيد</TableHead>
-                      <TableHead className="text-start">البيان</TableHead>
-                      <TableHead className="text-start">مدين</TableHead>
-                      <TableHead className="text-start">دائن</TableHead>
-                      <TableHead className="text-start">الرصيد</TableHead>
+                      <TableHead className="text-start">{t("التاريخ")}</TableHead>
+                      <TableHead className="text-start">{t("القيد")}</TableHead>
+                      <TableHead className="text-start">{t("البيان")}</TableHead>
+                      <TableHead className="text-start">{t("مدين")}</TableHead>
+                      <TableHead className="text-start">{t("دائن")}</TableHead>
+                      <TableHead className="text-start">{t("الرصيد")}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     <TableRow className="bg-muted/30">
-                      <TableCell colSpan={5} className="font-medium">رصيد افتتاحي</TableCell>
+                      <TableCell colSpan={5} className="font-medium">{t("رصيد افتتاحي")}</TableCell>
                       <TableCell className="font-medium">{fmt(opening)}</TableCell>
                     </TableRow>
                     {rows.map((r, i) => {
@@ -153,7 +155,7 @@ export default async function GeneralLedgerPage({
                   </TableBody>
                   <TableFooter>
                     <TableRow className="font-bold">
-                      <TableCell colSpan={3}>الإجمالي</TableCell>
+                      <TableCell colSpan={3}>{t("الإجمالي")}</TableCell>
                       <TableCell>{fmt(totalDebit)}</TableCell>
                       <TableCell>{fmt(totalCredit)}</TableCell>
                       <TableCell>{fmt(running)}</TableCell>

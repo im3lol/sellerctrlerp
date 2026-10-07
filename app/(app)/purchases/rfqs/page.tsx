@@ -1,4 +1,5 @@
 import { and, asc, eq } from "drizzle-orm";
+import { getT } from "@/lib/i18n/server";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
 import { items, suppliers, warehouses } from "@/db/schema";
@@ -6,6 +7,7 @@ import { ErpPageHeader } from "@/components/erp/page-header";
 import { RfqManager } from "@/components/erp/rfq-manager";
 
 export default async function RfqsPage() {
+  const t = await getT();
   return loadErpPage("purchases.view", async ({ orgId, can }) => {
     const [itemList, supList, whList] = await Promise.all([
       db.select({ id: items.id, code: items.code, nameAr: items.nameAr })
@@ -23,15 +25,15 @@ export default async function RfqsPage() {
       <div className="space-y-6">
         <ErpPageHeader
           icon="GitCompare"
-          title="طلبات عروض الأسعار"
-          subtitle="نفس السلة لكذا مورّد، وجدول واحد يقارن ردودهم"
+          title={t("طلبات عروض الأسعار")}
+          subtitle={t("نفس السلة لكذا مورّد، وجدول واحد يقارن ردودهم")}
           backHref="/purchases"
         />
         <RfqManager
           canManage={can("purchases.create")}
-          items={itemList.map((i) => ({ id: i.id, label: `${i.code} — ${i.nameAr ?? ""}` }))}
-          suppliers={supList.map((s) => ({ id: s.id, label: `${s.code} — ${s.nameAr}` }))}
-          warehouses={whList.map((w) => ({ id: w.id, label: w.nameAr }))}
+          items={itemList.map((i) => ({ id: i.id, label: `${i.code} — ${t(i.nameAr ?? "")}` }))}
+          suppliers={supList.map((s) => ({ id: s.id, label: `${s.code} — ${t(s.nameAr)}` }))}
+          warehouses={whList.map((w) => ({ id: w.id, label: t(w.nameAr) }))}
         />
       </div>
     );

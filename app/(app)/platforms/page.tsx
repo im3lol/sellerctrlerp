@@ -1,4 +1,5 @@
 import { and, asc, eq, sql } from "drizzle-orm";
+import { getT } from "@/lib/i18n/server";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
 import { salesPlatforms, customers, warehouses, bankAccounts, platformCredentials } from "@/db/schema";
@@ -9,6 +10,7 @@ import { registeredConnectors } from "@/lib/erp/marketplace/registry";
 import { enabledConnectorCodes } from "@/lib/saas/connector-enabled";
 
 export default async function PlatformsPage() {
+  const t = await getT();
   return loadErpPage("sales.view", async ({ orgId, can, permissions }) => {
     const enabled = await enabledConnectorCodes();
     const [rows, whRows, bankRows] = await Promise.all([
@@ -45,8 +47,8 @@ export default async function PlatformsPage() {
       <div className="space-y-6">
         <ErpPageHeader
           icon="Store"
-          title="المنصات والقنوات"
-          subtitle="أمازون متاحة الآن لربط المبيعات والمخزون والحسابات — نون وبقية المنصات قريبًا"
+          title={t("المنصات والقنوات")}
+          subtitle={t("أمازون متاحة الآن لربط المبيعات والمخزون والحسابات — نون وبقية المنصات قريبًا")}
         />
         <PlatformsManager
           platforms={rows.map((r) => ({
@@ -64,7 +66,7 @@ export default async function PlatformsPage() {
         {/* The pages that only exist because a platform does — returns, removals,
             reimbursements, settlements, P&L. Derived from NAV like every other module
             workspace, so this can't fall behind the sidebar. */}
-        <ModuleWorkspace heading="المنصات" permissions={permissions} />
+        <ModuleWorkspace heading={t("المنصات")} permissions={permissions} />
       </div>
     );
   }, "marketplace");

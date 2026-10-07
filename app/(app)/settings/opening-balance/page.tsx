@@ -1,4 +1,5 @@
 import { and, asc, desc, eq, inArray } from "drizzle-orm";
+import { getT } from "@/lib/i18n/server";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
 import { accounts, customers, suppliers, items, warehouses, openingBalances, openingBalanceLines, salesPlatforms, platformCredentials } from "@/db/schema";
@@ -14,6 +15,7 @@ import { OpeningBalanceEditor } from "@/components/erp/opening-balance-editor";
  * stock adjustments, which is why onboarding stalled for every real customer.
  */
 export default async function OpeningBalancePage() {
+  const t = await getT();
   return loadErpPage("accounting.create", async ({ orgId }) => {
     // Accounts/customers/suppliers stay client-side (bounded); items are searched
     // server-side (the catalog can be tens of thousands of rows).
@@ -84,14 +86,14 @@ export default async function OpeningBalancePage() {
     const date = (draft ?? posted[0]) ? new Date((draft ?? posted[0]).date).toISOString().slice(0, 10) : fyStart.toISOString().slice(0, 10);
 
     return (
-      <div className="space-y-6" dir="rtl">
-        <ErpPageHeader icon="Upload" title="الأرصدة الافتتاحية"
-          subtitle="أرصدة الحسابات والعملاء والموردين والمخزون كما كانت في بداية السنة المالية" backHref="/settings" />
+      <div className="space-y-6">
+        <ErpPageHeader icon="Upload" title={t("الأرصدة الافتتاحية")}
+          subtitle={t("أرصدة الحسابات والعملاء والموردين والمخزون كما كانت في بداية السنة المالية")} backHref="/settings" />
 
         {custs.length + supps.length + itms.length === 0 && (
           <Card>
             <CardContent className="py-6 text-sm text-muted-foreground">
-              سجّل العملاء والموردين والأصناف أولاً (أو استوردهم من «الاستيراد والتصدير») ثم أدخل أرصدتهم الافتتاحية هنا.
+              {t("سجّل العملاء والموردين والأصناف أولاً (أو استوردهم من «الاستيراد والتصدير») ثم أدخل أرصدتهم الافتتاحية هنا.")}
             </CardContent>
           </Card>
         )}

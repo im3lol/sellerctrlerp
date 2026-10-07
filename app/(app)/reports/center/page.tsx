@@ -1,4 +1,5 @@
 import { and, desc, eq, gte } from "drizzle-orm";
+import { getT } from "@/lib/i18n/server";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
 import { reportDownloads } from "@/db/schema";
@@ -25,6 +26,7 @@ function downloadHref(key: string, format: string, params: string): { href: stri
 }
 
 export default async function ReportsCenterPage() {
+  const t = await getT();
   return loadErpPage("reports.view", async ({ orgId }) => {
     // Recent downloads (kept ~1 week).
     const weekAgo = new Date(Date.now() - 7 * 864e5);
@@ -37,7 +39,7 @@ export default async function ReportsCenterPage() {
 
     return (
       <div className="mx-auto max-w-4xl space-y-6">
-        <ErpPageHeader icon="ChartColumn" title="مركز التقارير" subtitle="اختر الموديول ثم التقرير والفترة والصيغة — واستخرجه PDF أو Excel" />
+        <ErpPageHeader icon="ChartColumn" title={t("مركز التقارير")} subtitle={t("اختر الموديول ثم التقرير والفترة والصيغة — واستخرجه PDF أو Excel")} />
         <ReportGenerator />
 
         <Link href="/reports/builder"
@@ -45,9 +47,9 @@ export default async function ReportsCenterPage() {
           <div className="flex items-center gap-3">
             <Icon name="Table2" className="size-5 text-primary" />
             <div>
-              <div className="font-medium">باني التقارير</div>
+              <div className="font-medium">{t("باني التقارير")}</div>
               <div className="text-sm text-muted-foreground">
-                التقرير اللي مش موجود في القايمة — اختار البيانات وفلتر وجمّع بنفسك.
+                {t("التقرير اللي مش موجود في القايمة — اختار البيانات وفلتر وجمّع بنفسك.")}
               </div>
             </div>
           </div>
@@ -59,9 +61,9 @@ export default async function ReportsCenterPage() {
           <div className="flex items-center gap-3">
             <Icon name="LayoutDashboard" className="size-5 text-primary" />
             <div>
-              <div className="font-medium">لوحات التقارير</div>
+              <div className="font-medium">{t("لوحات التقارير")}</div>
               <div className="text-sm text-muted-foreground">
-                تقاريرك المحفوظة ورسوماتها في صفحة واحدة — ليك أو للفريق كله.
+                {t("تقاريرك المحفوظة ورسوماتها في صفحة واحدة — ليك أو للفريق كله.")}
               </div>
             </div>
           </div>
@@ -70,12 +72,12 @@ export default async function ReportsCenterPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-base"><Icon name="History" className="size-5 text-primary" />آخر التقارير المُحمّلة</CardTitle>
-            <CardDescription>متاحة لإعادة التحميل خلال أسبوع من إنشائها.</CardDescription>
+            <CardTitle className="flex items-center gap-2 text-base"><Icon name="History" className="size-5 text-primary" />{t("آخر التقارير المُحمّلة")}</CardTitle>
+            <CardDescription>{t("متاحة لإعادة التحميل خلال أسبوع من إنشائها.")}</CardDescription>
           </CardHeader>
           <CardContent>
             {recent.length === 0 ? (
-              <div className="rounded-xl border border-dashed py-10 text-center text-sm text-muted-foreground">لم تُحمّل أي تقارير بعد.</div>
+              <div className="rounded-xl border border-dashed py-10 text-center text-sm text-muted-foreground">{t("لم تُحمّل أي تقارير بعد.")}</div>
             ) : (
               <ul className="divide-y">
                 {recent.map((r) => {
@@ -84,7 +86,7 @@ export default async function ReportsCenterPage() {
                     <li key={r.id} className="flex items-center justify-between gap-3 py-2.5 text-sm">
                       <div className="flex min-w-0 items-center gap-2">
                         <Icon name={r.format === "excel" ? "Download" : "Printer"} className="size-4 shrink-0 text-muted-foreground" />
-                        <span className="truncate font-medium">{r.label}</span>
+                        <span className="truncate font-medium">{t(r.label)}</span>
                         <Badge variant="secondary" className="shrink-0 uppercase">{r.format}</Badge>
                         <span className="shrink-0 text-xs text-muted-foreground">{dt(r.createdAt)}</span>
                       </div>
@@ -94,10 +96,10 @@ export default async function ReportsCenterPage() {
                           {...(dl.blank ? { target: "_blank", rel: "noopener" } : { download: true })}
                           className="flex shrink-0 items-center gap-1 rounded-lg bg-primary/10 px-3 py-1.5 text-xs font-medium text-primary transition-colors hover:bg-primary hover:text-primary-foreground"
                         >
-                          <Icon name="Download" className="size-3.5" />إعادة التحميل
+                          <Icon name="Download" className="size-3.5" />{t("إعادة التحميل")}
                         </a>
                       ) : (
-                        <span className="shrink-0 text-xs text-muted-foreground">غير متاح</span>
+                        <span className="shrink-0 text-xs text-muted-foreground">{t("غير متاح")}</span>
                       )}
                     </li>
                   );

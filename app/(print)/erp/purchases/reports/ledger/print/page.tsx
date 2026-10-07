@@ -1,4 +1,6 @@
 import { loadErpPage } from "@/lib/erp/org";
+import { fill } from "@/lib/i18n";
+import { getLocale, getT } from "@/lib/i18n/server";
 import { getPurchasesLedger } from "@/lib/erp/purchases-ledger";
 import { fmt, qty, dt } from "@/lib/erp/print-format";
 import { loadPrintHeader } from "@/lib/erp/print-org";
@@ -23,6 +25,8 @@ type SP = { [k: string]: string | string[] | undefined };
 const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) ?? "";
 
 export default async function PrintPurchasesLedgerPage({ searchParams }: { searchParams: Promise<SP> }) {
+  const t = await getT();
+  const locale = await getLocale();
   return loadErpPage("purchases.view", async ({ orgId }) => {
     const sp = await searchParams;
     const fSupplier = one(sp.supplier);
@@ -47,8 +51,8 @@ export default async function PrintPurchasesLedgerPage({ searchParams }: { searc
     return (
       <ReportSheet
         org={org}
-        title="تقرير دفتر المشتريات"
-        period={from || to ? `من ${from ? dt(from) : "البداية"} إلى ${to ? dt(to) : "اليوم"}` : undefined}
+        title={t("تقرير دفتر المشتريات")}
+        period={from || to ? fill(t("من {0} إلى {1}"), [from ? dt(from, locale) : t("البداية"), to ? dt(to, locale) : t("اليوم")]) : undefined}
         filters={[
           ...(fSupplier ? [{ label: "المورد", value: fSupplier }] : []),
           ...(fType ? [{ label: "نوع الوثيقة", value: DOC_LABEL[fType] ?? fType }] : []),
@@ -92,7 +96,7 @@ export default async function PrintPurchasesLedgerPage({ searchParams }: { searc
             fmt(totals.subtotal), fmt(totals.shipping), fmt(totals.discount), fmt(totals.tax), fmt(totals.total),
           ],
         }]}
-        note={rows.length > MAX_ROWS ? `عُرضت أول ${MAX_ROWS} صف من ${rows.length} — ضيّق الفلاتر أو استخدم تصدير Excel للحصر الكامل.` : null}
+        note={rows.length > MAX_ROWS ? fill(t("عُرضت أول {0} صف من {1} — ضيّق الفلاتر أو استخدم تصدير Excel للحصر الكامل."), [MAX_ROWS, rows.length]) : null}
         backHref={`/purchases/reports/ledger${backQs.size ? `?${backQs}` : ""}`}
       />
     );

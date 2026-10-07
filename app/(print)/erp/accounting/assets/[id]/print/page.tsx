@@ -1,4 +1,6 @@
 import { notFound } from "next/navigation";
+import { fill } from "@/lib/i18n";
+import { getLocale, getT } from "@/lib/i18n/server";
 import { and, asc, eq } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
@@ -18,6 +20,8 @@ const STATUS: Record<string, string> = {
 type Params = { params: Promise<{ id: string }> };
 
 export default async function PrintFixedAssetPage({ params }: Params) {
+  const t = await getT();
+  const locale = await getLocale();
   const { id } = await params;
   return loadErpPage("accounting.view", async ({ orgId }) => {
     const [a] = await db
@@ -54,19 +58,19 @@ export default async function PrintFixedAssetPage({ params }: Params) {
       <DocumentSheet
         org={org}
         footerText={footerText}
-        title="بطاقة أصل ثابت"
+        title={t("بطاقة أصل ثابت")}
         number={a.code}
         backHref={`/accounting/assets/${id}`}
         meta={[
           { label: "الأصل", value: a.nameAr },
           { label: "الفئة", value: CATEGORIES[a.category] ?? a.category },
           { label: "الحالة", value: STATUS[a.status] ?? a.status },
-          { label: "تاريخ الشراء", value: dt(a.purchaseDate) },
-          { label: "العمر الإنتاجي", value: `${a.usefulLifeYears} سنة` },
-          { label: "الإهلاك السنوي", value: money(annualDeprec, currency) },
-          { label: "القيمة التخريدية", value: money(a.salvageValue, currency) },
-          ...(a.disposalDate ? [{ label: "تاريخ الاستبعاد", value: dt(a.disposalDate) }] : []),
-          ...(a.disposalProceeds ? [{ label: "متحصّلات الاستبعاد", value: money(a.disposalProceeds, currency) }] : []),
+          { label: "تاريخ الشراء", value: dt(a.purchaseDate, locale) },
+          { label: "العمر الإنتاجي", value: fill(t("{0} سنة"), [a.usefulLifeYears]) },
+          { label: "الإهلاك السنوي", value: money(annualDeprec, currency, locale) },
+          { label: "القيمة التخريدية", value: money(a.salvageValue, currency, locale) },
+          ...(a.disposalDate ? [{ label: "تاريخ الاستبعاد", value: dt(a.disposalDate, locale) }] : []),
+          ...(a.disposalProceeds ? [{ label: "متحصّلات الاستبعاد", value: money(a.disposalProceeds, currency, locale) }] : []),
         ]}
         columns={rows.length ? [
           { label: "الفترة", width: "25%" },
@@ -76,9 +80,9 @@ export default async function PrintFixedAssetPage({ params }: Params) {
         ] : []}
         rows={rows}
         totals={[
-          { label: "تكلفة الشراء", value: money(a.purchaseCost, currency) },
-          { label: "الإهلاك المتراكم", value: money(a.accumulatedDepreciation, currency) },
-          { label: "القيمة الدفترية الصافية", value: money(a.netBookValue, currency), tone: "strong" },
+          { label: "تكلفة الشراء", value: money(a.purchaseCost, currency, locale) },
+          { label: "الإهلاك المتراكم", value: money(a.accumulatedDepreciation, currency, locale) },
+          { label: "القيمة الدفترية الصافية", value: money(a.netBookValue, currency, locale), tone: "strong" },
         ]}
         note={a.notes}
         signatures={["المحاسب", "المدير المالي"]}

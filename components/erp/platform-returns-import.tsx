@@ -1,9 +1,11 @@
 "use client";
 
 import { useMemo, useRef, useState, useTransition } from "react";
+import { fill } from "@/lib/i18n";
+import { useT } from "@/lib/i18n/client";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { toast } from "sonner";
+import { toast } from "@/lib/i18n/toast";
 import { Loader2, Upload, FileSpreadsheet } from "lucide-react";
 import { importPlatformReturnsAction, type PlatformReturnsResult } from "@/app/actions/erp/platform-returns";
 import { parseCsvWithHeader } from "@/lib/erp/csv";
@@ -17,6 +19,7 @@ const guess = (h: string[], keys: string[]) => { const i = h.findIndex((x) => ke
 type Mapping = { order: string; sku: string; qty: string; date: string };
 
 export function PlatformReturnsImport({ platformId, platformName }: { platformId: string; platformName: string }) {
+  const t = useT();
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
   const [pending, start] = useTransition();
@@ -66,12 +69,12 @@ export function PlatformReturnsImport({ platformId, platformName }: { platformId
     start(async () => {
       const r = await importPlatformReturnsAction(platformId, returns);
       setResult(r);
-      if (r.ok) { toast.success(`تم إنشاء ${int(r.created)} مسودّة مرتجع`); router.refresh(); }
+      if (r.ok) { toast.success(fill(t("تم إنشاء {0} مسودّة مرتجع"), [int(r.created)])); router.refresh(); }
       else toast.error(r.error);
     });
   };
 
-  const colOptions = headers.map((h, i) => <option key={i} value={i}>{h || `عمود ${i + 1}`}</option>);
+  const colOptions = headers.map((h, i) => <option key={i} value={i}>{h || fill(t("عمود {0}"), [i + 1])}</option>);
   // Plain props factory, NOT a component — see components/erp/column-map-select.tsx.
   const mapProps = (k: keyof Mapping) => ({
     value: map[k],
@@ -82,45 +85,45 @@ export function PlatformReturnsImport({ platformId, platformName }: { platformId
   return (
     <Card>
       <CardHeader>
-        <CardTitle>استيراد المرتجعات — {platformName}</CardTitle>
-        <CardDescription>ارفع تقرير مرتجعات العملاء (FBA Customer Returns)، اربط الأعمدة، ثم استورد. لكل مرتجع نطابق أمر البيع وفاتورته المُرحّلة، ونُنشئ <b>مسودّة</b> مرتجع تراجعها وتؤكّدها (باختيار حالة البضاعة) من سجل المرتجعات. المكرر يُتخطّى.</CardDescription>
+        <CardTitle>{t("استيراد المرتجعات —")} {platformName}</CardTitle>
+        <CardDescription>{t("ارفع تقرير مرتجعات العملاء (FBA Customer Returns)، اربط الأعمدة، ثم استورد. لكل مرتجع نطابق أمر البيع وفاتورته المُرحّلة، ونُنشئ")} <b>{t("مسودّة")}</b> {t("مرتجع تراجعها وتؤكّدها (باختيار حالة البضاعة) من سجل المرتجعات. المكرر يُتخطّى.")}</CardDescription>
       </CardHeader>
       <CardContent className="space-y-5">
         <div>
           <input ref={inputRef} type="file" accept=".csv,.txt,text/csv" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) onFile(f); }} />
-          <Button variant="outline" onClick={() => inputRef.current?.click()}><Upload className="size-4" />{fileName ? "تغيير الملف" : "رفع ملف CSV"}</Button>
-          {fileName && <span className="ms-3 inline-flex items-center gap-1.5 text-sm text-muted-foreground"><FileSpreadsheet className="size-4" />{fileName} · {dataRows.length} صف</span>}
+          <Button variant="outline" onClick={() => inputRef.current?.click()}><Upload className="size-4" />{fileName ? t("تغيير الملف") : t("رفع ملف CSV")}</Button>
+          {fileName && <span className="ms-3 inline-flex items-center gap-1.5 text-sm text-muted-foreground"><FileSpreadsheet className="size-4" />{fileName} · {dataRows.length} {t("صف")}</span>}
         </div>
 
         {rows && (
           <>
             <div className="grid grid-cols-2 gap-3 rounded-xl border bg-muted/20 p-3 sm:grid-cols-4">
-              <ColumnMapSelect label="رقم الطلب" {...mapProps("order")} />
-              <ColumnMapSelect label="كود الصنف / SKU" {...mapProps("sku")} />
-              <ColumnMapSelect label="الكمية المرتجعة" {...mapProps("qty")} />
-              <ColumnMapSelect label="التاريخ" {...mapProps("date")} optional />
+              <ColumnMapSelect label={t("رقم الطلب")} {...mapProps("order")} />
+              <ColumnMapSelect label={t("كود الصنف / SKU")} {...mapProps("sku")} />
+              <ColumnMapSelect label={t("الكمية المرتجعة")} {...mapProps("qty")} />
+              <ColumnMapSelect label={t("التاريخ")} {...mapProps("date")} optional />
             </div>
             <div className="flex items-center justify-between rounded-xl border p-3 text-sm">
-              <span>{ready ? <>جاهز: <b>{int(returns.length)}</b> مرتجع</> : "اربط الطلب والصنف والكمية للمعاينة."}</span>
-              <Button onClick={run} disabled={pending || !ready || returns.length === 0}>{pending && <Loader2 className="size-4 animate-spin" />}استيراد {returns.length > 0 ? `(${int(returns.length)})` : ""}</Button>
+              <span>{ready ? <>{t("جاهز:")} <b>{int(returns.length)}</b> {t("مرتجع")}</> : t("اربط الطلب والصنف والكمية للمعاينة.")}</span>
+              <Button onClick={run} disabled={pending || !ready || returns.length === 0}>{pending && <Loader2 className="size-4 animate-spin" />}{t("استيراد")} {returns.length > 0 ? `(${int(returns.length)})` : ""}</Button>
             </div>
           </>
         )}
 
         {result?.ok && (
           <div className="space-y-1 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm dark:bg-emerald-950/20">
-            <div>✅ تم إنشاء <b>{int(result.created)}</b> مسودّة مرتجع — راجعها وأكّدها من <Link href="/sales/returns" className="underline">سجل المرتجعات</Link>.</div>
-            {result.skippedDuplicate > 0 && <div>↷ تخطّي <b>{int(result.skippedDuplicate)}</b> مرتجع مكرر.</div>}
+            <div>{t("✅ تم إنشاء")} <b>{int(result.created)}</b> {t("مسودّة مرتجع — راجعها وأكّدها من")} <Link href="/sales/returns" className="underline">{t("سجل المرتجعات")}</Link>.</div>
+            {result.skippedDuplicate > 0 && <div>{t("↷ تخطّي")} <b>{int(result.skippedDuplicate)}</b> {t("مرتجع مكرر.")}</div>}
             {(result.noOrder + result.noInvoice + result.notOnInvoice + result.unmatchedSku + result.failed) > 0 && (
               <div className="mt-1 text-muted-foreground">
-                لم تُعالَج: {result.noOrder > 0 && <span>{int(result.noOrder)} بلا أمر مطابق · </span>}
-                {result.noInvoice > 0 && <span>{int(result.noInvoice)} بلا فاتورة مُرحّلة · </span>}
-                {result.notOnInvoice > 0 && <span>{int(result.notOnInvoice)} الصنف ليس على الفاتورة · </span>}
-                {result.unmatchedSku > 0 && <span>{int(result.unmatchedSku)} SKU غير مربوط · </span>}
-                {result.failed > 0 && <span className="text-destructive">{int(result.failed)} فشل</span>}
+                {t("لم تُعالَج:")} {result.noOrder > 0 && <span>{int(result.noOrder)} {t("بلا أمر مطابق ·")} </span>}
+                {result.noInvoice > 0 && <span>{int(result.noInvoice)} {t("بلا فاتورة مُرحّلة ·")} </span>}
+                {result.notOnInvoice > 0 && <span>{int(result.notOnInvoice)} {t("الصنف ليس على الفاتورة ·")} </span>}
+                {result.unmatchedSku > 0 && <span>{int(result.unmatchedSku)} {t("SKU غير مربوط ·")} </span>}
+                {result.failed > 0 && <span className="text-destructive">{int(result.failed)} {t("فشل")}</span>}
               </div>
             )}
-            {result.unmatchedSkus.length > 0 && <div className="font-mono text-xs text-muted-foreground">أكواد غير مربوطة: {result.unmatchedSkus.join("، ")}</div>}
+            {result.unmatchedSkus.length > 0 && <div className="font-mono text-xs text-muted-foreground">{t("أكواد غير مربوطة:")} {result.unmatchedSkus.join("، ")}</div>}
           </div>
         )}
       </CardContent>

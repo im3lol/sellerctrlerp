@@ -1,4 +1,6 @@
 import { notFound, redirect } from "next/navigation";
+import { fill } from "@/lib/i18n";
+import { getT } from "@/lib/i18n/server";
 import { and, eq, inArray } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
@@ -31,6 +33,7 @@ const STATUS: Record<string, { label: string; variant: "default" | "secondary" |
 };
 
 export default async function ReceiptDetailPage({ params }: { params: Promise<{ number: string }> }) {
+  const t = await getT();
   const raw = decodeURIComponent((await params).number);
   return loadErpPage("purchases.view", async ({ orgId, can }) => {
     if (UUID_RE.test(raw)) {
@@ -122,7 +125,7 @@ export default async function ReceiptDetailPage({ params }: { params: Promise<{ 
     if (pi) linked.push({ label: "فاتورة شراء", number: pi.number, href: `/purchases/invoices/${encodeURIComponent(pi.number)}` });
     for (const rd of retDocs) {
       if (rd.status === "CANCELLED") continue;
-      linked.push({ label: rd.status === "POSTED" ? "مرتجع" : "مرتجع (مسودة)", number: rd.number, href: `/purchases/returns/${encodeURIComponent(rd.number)}` });
+      linked.push({ label: rd.status === "POSTED" ? t("مرتجع") : t("مرتجع (مسودة)"), number: rd.number, href: `/purchases/returns/${encodeURIComponent(rd.number)}` });
     }
     for (const v of lcvDocs) linked.push({ label: "تكاليف استيراد", number: v.number, href: `/purchases/landed-costs/${encodeURIComponent(v.number)}` });
 
@@ -133,7 +136,7 @@ export default async function ReceiptDetailPage({ params }: { params: Promise<{ 
       <div className="space-y-6">
         <ErpPageHeader
           icon="PackageCheck"
-          title={`إذن استلام ${grn.number}`}
+          title={fill(t("إذن استلام {0}"), [grn.number])}
           subtitle={sup ? `${sup.code} — ${sup.name}` : "إذن استلام"}
           backHref="/purchases/receipts"
           action={
@@ -149,25 +152,25 @@ export default async function ReceiptDetailPage({ params }: { params: Promise<{ 
         />
 
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <Field label="الحالة"><Badge variant={st.variant}>{st.label}</Badge></Field>
-          <Field label="التاريخ">{dt(grn.date)}</Field>
-          <Field label="المستودع">{wh?.name ?? "—"}</Field>
-          <Field label="عدد الأصناف">{qtyf(lines.length)}</Field>
+          <Field label={t("الحالة")}><Badge variant={st.variant}>{t(st.label)}</Badge></Field>
+          <Field label={t("التاريخ")}>{dt(grn.date)}</Field>
+          <Field label={t("المستودع")}>{wh?.name ?? "—"}</Field>
+          <Field label={t("عدد الأصناف")}>{qtyf(lines.length)}</Field>
         </div>
 
         <Card>
-          <CardHeader><CardTitle>الأصناف المستلمة</CardTitle><CardDescription>البضاعة الداخلة للمخزون.</CardDescription></CardHeader>
+          <CardHeader><CardTitle>{t("الأصناف المستلمة")}</CardTitle><CardDescription>{t("البضاعة الداخلة للمخزون.")}</CardDescription></CardHeader>
           <CardContent>
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="w-14 text-start">صورة</TableHead>
-                  <TableHead className="text-start">الصنف</TableHead>
-                  <TableHead className="text-start">مخزن الاستلام</TableHead>
-                  <TableHead className="text-start">الكمية المستلمة</TableHead>
-                  {anyRejected && <TableHead className="text-start">الكمية المرفوضة</TableHead>}
-                  {canSeeCost && <TableHead className="text-start">تكلفة القطعة الشاملة</TableHead>}
-                  {canSeeCost && <TableHead className="text-start">الإجمالي</TableHead>}
+                  <TableHead className="w-14 text-start">{t("صورة")}</TableHead>
+                  <TableHead className="text-start">{t("الصنف")}</TableHead>
+                  <TableHead className="text-start">{t("مخزن الاستلام")}</TableHead>
+                  <TableHead className="text-start">{t("الكمية المستلمة")}</TableHead>
+                  {anyRejected && <TableHead className="text-start">{t("الكمية المرفوضة")}</TableHead>}
+                  {canSeeCost && <TableHead className="text-start">{t("تكلفة القطعة الشاملة")}</TableHead>}
+                  {canSeeCost && <TableHead className="text-start">{t("الإجمالي")}</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -178,7 +181,7 @@ export default async function ReceiptDetailPage({ params }: { params: Promise<{ 
                   <TableRow key={l.id}>
                     <TableCell className="w-14"><ItemThumb src={l.image} /></TableCell>
                     <TableCell className="max-w-[320px] whitespace-normal">
-                      <div className="line-clamp-2 leading-snug" title={l.name ?? undefined}>{l.name}</div>
+                      <div className="line-clamp-2 leading-snug" title={l.name ?? undefined}>{t(l.name ?? "")}</div>
                       <div className="font-mono text-xs text-muted-foreground" dir="ltr">{l.code}</div>
                     </TableCell>
                     <TableCell>{l.wh ?? wh?.name ?? "—"}</TableCell>
@@ -193,17 +196,17 @@ export default async function ReceiptDetailPage({ params }: { params: Promise<{ 
             </Table>
             {canSeeCost && (
               <div className="mt-4 flex flex-col items-end gap-1 text-sm">
-                <div>قيمة البضاعة: <span className="font-medium tabular-nums">{fmt(totals.goods)}</span></div>
-                <div>تكاليف الاستيراد المحمَّلة: <span className={`font-medium tabular-nums ${totals.landed ? "text-amber-600" : ""}`}>{fmt(totals.landed)}</span></div>
-                <div className="text-base font-bold text-primary">الإجمالي الشامل: {fmt(totals.goods + totals.landed)}</div>
+                <div>{t("قيمة البضاعة:")} <span className="font-medium tabular-nums">{fmt(totals.goods)}</span></div>
+                <div>{t("تكاليف الاستيراد المحمَّلة:")} <span className={`font-medium tabular-nums ${totals.landed ? "text-amber-600" : ""}`}>{fmt(totals.landed)}</span></div>
+                <div className="text-base font-bold text-primary">{t("الإجمالي الشامل:")} {fmt(totals.goods + totals.landed)}</div>
                 {!anyLanded && (
                   <p className="text-xs text-muted-foreground">
-                    لم تُحمَّل تكاليف استيراد على هذه الشحنة بعد — تُسجَّل من «المشتريات ← تكاليف الاستيراد».
+                    {t("لم تُحمَّل تكاليف استيراد على هذه الشحنة بعد — تُسجَّل من «المشتريات ← تكاليف الاستيراد».")}
                   </p>
                 )}
               </div>
             )}
-            {grn.notes && <p className="mt-4 text-sm text-muted-foreground">ملاحظات: {grn.notes}</p>}
+            {grn.notes && <p className="mt-4 text-sm text-muted-foreground">{t("ملاحظات:")} {grn.notes}</p>}
           </CardContent>
         </Card>
 

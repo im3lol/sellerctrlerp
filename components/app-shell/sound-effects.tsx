@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { toast } from "sonner";
+import { toast } from "@/lib/i18n/toast";
 import { playChime } from "@/lib/sound";
 
 // Delete/cancel wording → the "delete" chime; every other success → "confirm".

@@ -1,8 +1,9 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
+import { useT } from "@/lib/i18n/client";
 import { useRouter } from "next/navigation";
-import { toast } from "sonner";
+import { toast } from "@/lib/i18n/toast";
 import { Loader2, Lightbulb, TriangleAlert } from "lucide-react";
 import { replyFeedbackAction } from "@/app/actions/admin/feedback";
 import { Button } from "@/components/ui/button";
@@ -34,6 +35,7 @@ const TABS = [
 
 
 function ReplyDialog({ item, onClose }: { item: InboxItem; onClose: () => void }) {
+  const t = useT();
   const router = useRouter();
   const [pending, start] = useTransition();
   const [reply, setReply] = useState(item.reply ?? "");
@@ -47,7 +49,7 @@ function ReplyDialog({ item, onClose }: { item: InboxItem; onClose: () => void }
 
   return (
     <Dialog open onOpenChange={onClose}>
-      <DialogContent className="max-w-lg" dir="rtl">
+      <DialogContent className="max-w-lg">
         <DialogHeader><DialogTitle>{item.subject}</DialogTitle></DialogHeader>
 
         <div className="space-y-3">
@@ -55,29 +57,29 @@ function ReplyDialog({ item, onClose }: { item: InboxItem; onClose: () => void }
             <div className="mb-1 text-xs text-muted-foreground">
               {item.orgName}{item.userName ? ` · ${item.userName}` : ""}
             </div>
-            <p className="whitespace-pre-wrap">{item.message}</p>
+            <p className="whitespace-pre-wrap">{t(item.message)}</p>
           </div>
 
           <div className="space-y-1">
-            <Label htmlFor="reply">الرد</Label>
+            <Label htmlFor="reply">{t("الرد")}</Label>
             <Textarea id="reply" rows={5} value={reply} onChange={(e) => setReply(e.target.value)}
-              placeholder="الرد ده بيظهر للعميل في صفحته." />
+              placeholder={t("الرد ده بيظهر للعميل في صفحته.")} />
           </div>
 
           <div className="space-y-1">
-            <Label htmlFor="status">الحالة</Label>
+            <Label htmlFor="status">{t("الحالة")}</Label>
             <select id="status" className={selectCls} value={status} onChange={(e) => setStatus(e.target.value)}>
-              <option value="open">جديدة</option>
-              <option value="seen">بنشتغل عليها</option>
-              <option value="done">تم</option>
+              <option value="open">{t("جديدة")}</option>
+              <option value="seen">{t("بنشتغل عليها")}</option>
+              <option value="done">{t("تم")}</option>
             </select>
           </div>
         </div>
 
         <DialogFooter>
-          <Button variant="ghost" onClick={onClose}>إلغاء</Button>
+          <Button variant="ghost" onClick={onClose}>{t("إلغاء")}</Button>
           <Button onClick={save} disabled={pending}>
-            {pending && <Loader2 className="size-4 animate-spin" />} حفظ
+            {pending && <Loader2 className="size-4 animate-spin" />} {t("حفظ")}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -86,6 +88,7 @@ function ReplyDialog({ item, onClose }: { item: InboxItem; onClose: () => void }
 }
 
 export function FeedbackInbox({ items }: { items: InboxItem[] }) {
+  const t = useT();
   const [tab, setTab] = useState("open");
   const [open, setOpen] = useState<InboxItem | null>(null);
 
@@ -93,22 +96,22 @@ export function FeedbackInbox({ items }: { items: InboxItem[] }) {
   const count = (s: string) => (s ? items.filter((i) => i.status === s).length : items.length);
 
   return (
-    <div className="space-y-4" dir="rtl">
+    <div className="space-y-4">
       <div className="flex flex-wrap gap-2">
-        {TABS.map((t) => (
-          <button key={t.value} type="button" onClick={() => setTab(t.value)}
+        {TABS.map((tb) => (
+          <button key={tb.value} type="button" onClick={() => setTab(tb.value)}
             className={cn(
               "rounded-full border px-3 py-1.5 text-sm transition-colors",
-              tab === t.value ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-muted",
+              tab === tb.value ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-muted",
             )}>
-            {t.label} <span className="tabular-nums text-xs text-muted-foreground">{count(t.value)}</span>
+            {t(tb.label)} <span className="tabular-nums text-xs text-muted-foreground">{count(tb.value)}</span>
           </button>
         ))}
       </div>
 
       {shown.length === 0 ? (
         <Card><CardContent className="py-12 text-center text-sm text-muted-foreground">
-          مافيش حاجة هنا.
+          {t("مافيش حاجة هنا.")}
         </CardContent></Card>
       ) : (
         <div className="space-y-3">
@@ -126,11 +129,11 @@ export function FeedbackInbox({ items }: { items: InboxItem[] }) {
                       <span className="font-medium">{i.subject}</span>
                     </div>
                     <div className="flex items-center gap-2">
-                      {i.reply && <Badge variant="outline">تم الرد</Badge>}
-                      <Badge variant={s.variant}>{s.label}</Badge>
+                      {i.reply && <Badge variant="outline">{t("تم الرد")}</Badge>}
+                      <Badge variant={s.variant}>{t(s.label)}</Badge>
                     </div>
                   </div>
-                  <p className="line-clamp-2 text-sm text-muted-foreground">{i.message}</p>
+                  <p className="line-clamp-2 text-sm text-muted-foreground">{t(i.message)}</p>
                   <div className="text-xs text-muted-foreground">
                     {i.orgName}{i.userName ? ` · ${i.userName}` : ""} · {i.createdAt}
                   </div>

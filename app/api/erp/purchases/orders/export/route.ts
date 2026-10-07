@@ -5,6 +5,7 @@ import { withOrgScope } from "@/lib/db-scope";
 import { purchaseOrders, purchaseOrderLines, suppliers, items } from "@/db/schema";
 import { xlsxResponse, xlsxDate } from "@/lib/erp/xlsx";
 import { getBaseCurrencyCode } from "@/lib/erp/currency";
+import { getT } from "@/lib/i18n/server";
 
 export const runtime = "nodejs";
 
@@ -18,7 +19,7 @@ const STATUS_LABEL: Record<string, string> = {
 export async function GET(req: Request) {
   const { orgId } = await requireErpModule("purchases.view");
   const numbers = (new URL(req.url).searchParams.get("numbers") ?? "").split(",").map((s) => s.trim()).filter(Boolean);
-  if (!numbers.length) return new Response("لا توجد مستندات محددة", { status: 400 });
+  if (!numbers.length) return new Response((await getT())("لا توجد مستندات محددة"), { status: 400 });
 
   const { orders, supRows, lineRows } = await withOrgScope(orgId, false, async () => {
     const orders = await db.select({
@@ -43,7 +44,7 @@ export async function GET(req: Request) {
     ]);
     return { orders, supRows, lineRows };
   });
-  if (!orders.length) return new Response("لا توجد مستندات مطابقة", { status: 404 });
+  if (!orders.length) return new Response((await getT())("لا توجد مستندات مطابقة"), { status: 404 });
 
   const supById = new Map(supRows.map((s) => [s.id, s]));
   const linesByOrder = new Map<string, typeof lineRows>();

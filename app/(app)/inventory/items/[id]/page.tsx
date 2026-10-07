@@ -1,4 +1,6 @@
 import { notFound } from "next/navigation";
+import { fill } from "@/lib/i18n";
+import { getT } from "@/lib/i18n/server";
 import { and, eq, or, sql } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
@@ -24,6 +26,7 @@ const money = (v: string | number | null) => Number(v ?? 0).toLocaleString("ar-E
 const qf = (v: string | number | null) => Number(v ?? 0).toLocaleString("ar-EG-u-nu-latn", { maximumFractionDigits: 3 });
 
 export default async function ItemDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const t = await getT();
   const { id } = await params;
   // URL carries the item CODE; old UUID links still resolve. ponytail: a code
   // with a literal "/" would split the segment — none in use; encode on links.
@@ -73,7 +76,7 @@ export default async function ItemDetailPage({ params }: { params: Promise<{ id:
         <ErpPageHeader
           icon="Package"
           title={item.nameAr ?? item.code}
-          subtitle={`الكود: ${item.code}`}
+          subtitle={fill(t("الكود: {0}"), [item.code])}
           backHref="/inventory/items"
           action={
             <div className="flex flex-wrap items-center gap-2">
@@ -97,30 +100,30 @@ export default async function ItemDetailPage({ params }: { params: Promise<{ id:
 
           <div className="space-y-4 lg:col-span-2">
             <div className="grid gap-4 sm:grid-cols-2">
-              <Field label="الاسم">{item.nameAr ?? "—"}</Field>
-              <Field label="سعر البيع">{money(item.sellPrice)}</Field>
-              <Field label="حد إعادة الطلب">{qf(item.minStock)}</Field>
-              <Field label="الرصيد الكلي">{qf(totalQty)}</Field>
-              <Field label="محجوز لأوامر">{qf(av?.reserved ?? 0)}</Field>
-              <Field label="المتاح للبيع"><span className={(av?.available ?? totalQty) <= 0 ? "text-destructive font-semibold" : "font-semibold"}>{qf(av?.available ?? totalQty)}</span></Field>
-              <Field label="قيمة المخزون">{money(totalVal)}</Field>
-              {item.brand && <Field label="العلامة التجارية">{item.brand}</Field>}
+              <Field label={t("الاسم")}>{t(item.nameAr ?? "—")}</Field>
+              <Field label={t("سعر البيع")}>{money(item.sellPrice)}</Field>
+              <Field label={t("حد إعادة الطلب")}>{qf(item.minStock)}</Field>
+              <Field label={t("الرصيد الكلي")}>{qf(totalQty)}</Field>
+              <Field label={t("محجوز لأوامر")}>{qf(av?.reserved ?? 0)}</Field>
+              <Field label={t("المتاح للبيع")}><span className={(av?.available ?? totalQty) <= 0 ? "text-destructive font-semibold" : "font-semibold"}>{qf(av?.available ?? totalQty)}</span></Field>
+              <Field label={t("قيمة المخزون")}>{money(totalVal)}</Field>
+              {item.brand && <Field label={t("العلامة التجارية")}>{item.brand}</Field>}
               {/* The number is the truth; the catalogue's own wording is only a fallback for
                   a unit we could not convert. Showing "0.37 pounds" to an Egyptian seller
                   is a figure they cannot act on. */}
               {(formatWeight(item.weightKg != null ? Number(item.weightKg) : null) ?? item.weight) && (
-                <Field label="الوزن">
+                <Field label={t("الوزن")}>
                   {formatWeight(item.weightKg != null ? Number(item.weightKg) : null) ?? item.weight}
                 </Field>
               )}
-              {item.dimensions && <Field label="الأبعاد">{item.dimensions}</Field>}
+              {item.dimensions && <Field label={t("الأبعاد")}>{item.dimensions}</Field>}
             </div>
 
             <Card>
-              <CardHeader><CardTitle>الأكواد</CardTitle><CardDescription>الباركود والأكواد الخارجية المرتبطة بالصنف.</CardDescription></CardHeader>
+              <CardHeader><CardTitle>{t("الأكواد")}</CardTitle><CardDescription>{t("الباركود والأكواد الخارجية المرتبطة بالصنف.")}</CardDescription></CardHeader>
               <CardContent>
                 {codes.length === 0 ? (
-                  <div className="py-3 text-sm text-muted-foreground">لا توجد أكواد. أضِفها من «تعديل».</div>
+                  <div className="py-3 text-sm text-muted-foreground">{t("لا توجد أكواد. أضِفها من «تعديل».")}</div>
                 ) : (
                   <div className="flex flex-wrap gap-2">
                     {codes.map((c, i) => (
@@ -152,23 +155,23 @@ export default async function ItemDetailPage({ params }: { params: Promise<{ id:
 
         {item.description && (
           <Card>
-            <CardHeader><CardTitle>الوصف</CardTitle></CardHeader>
-            <CardContent><p className="whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground">{item.description}</p></CardContent>
+            <CardHeader><CardTitle>{t("الوصف")}</CardTitle></CardHeader>
+            <CardContent><p className="whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground">{t(item.description)}</p></CardContent>
           </Card>
         )}
 
         <Card>
-          <CardHeader><CardTitle>الرصيد حسب المستودع</CardTitle></CardHeader>
+          <CardHeader><CardTitle>{t("الرصيد حسب المستودع")}</CardTitle></CardHeader>
           <CardContent>
             {stockRows.length === 0 ? (
-              <div className="py-3 text-sm text-muted-foreground">لا توجد حركة مخزون لهذا الصنف.</div>
+              <div className="py-3 text-sm text-muted-foreground">{t("لا توجد حركة مخزون لهذا الصنف.")}</div>
             ) : (
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="text-start">المستودع</TableHead>
-                    <TableHead className="text-start">الكمية</TableHead>
-                    <TableHead className="text-start">القيمة</TableHead>
+                    <TableHead className="text-start">{t("المستودع")}</TableHead>
+                    <TableHead className="text-start">{t("الكمية")}</TableHead>
+                    <TableHead className="text-start">{t("القيمة")}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -188,46 +191,46 @@ export default async function ItemDetailPage({ params }: { params: Promise<{ id:
         {pnl && (
           <Card>
             <CardHeader>
-              <CardTitle>الربحية (P&L)</CardTitle>
+              <CardTitle>{t("الربحية (P&L)")}</CardTitle>
               <CardDescription>
-                إيراد وتكلفة الصنف من فواتير البيع المرحّلة، ورسوم أمازون الفعلية من التسويات.
-                {!pnl.hasSettlement && " (لا توجد تسويات أمازون لهذا الصنف بعد — الرسوم صفر.)"}
+                {t("إيراد وتكلفة الصنف من فواتير البيع المرحّلة، ورسوم أمازون الفعلية من التسويات.")}
+                {!pnl.hasSettlement && " " + t("(لا توجد تسويات أمازون لهذا الصنف بعد — الرسوم صفر.)")}
               </CardDescription>
             </CardHeader>
             <CardContent>
               <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-6">
-                <Field label="الكمية المباعة">{qf(pnl.units)}</Field>
-                <Field label="المبيعات">{money(pnl.revenue)}</Field>
-                <Field label="عمولة أمازون">{money(pnl.referralFee)}</Field>
-                <Field label="رسوم FBA">{money(pnl.fbaFee)}</Field>
-                <Field label="تكلفة البضاعة">{money(pnl.cogs)}</Field>
-                <Field label="صافي الربح">
+                <Field label={t("الكمية المباعة")}>{qf(pnl.units)}</Field>
+                <Field label={t("المبيعات")}>{money(pnl.revenue)}</Field>
+                <Field label={t("عمولة أمازون")}>{money(pnl.referralFee)}</Field>
+                <Field label={t("رسوم FBA")}>{money(pnl.fbaFee)}</Field>
+                <Field label={t("تكلفة البضاعة")}>{money(pnl.cogs)}</Field>
+                <Field label={t("صافي الربح")}>
                   <span className={pnl.net < 0 ? "font-bold text-destructive" : "font-bold text-emerald-600"}>{money(pnl.net)}</span>
                   <span className="ms-2 text-xs text-muted-foreground">({pnl.margin.toFixed(1)}%)</span>
                 </Field>
               </div>
-              {pnl.otherFee !== 0 && <p className="mt-3 text-xs text-muted-foreground">رسوم أمازون أخرى: {money(pnl.otherFee)} · إجمالي رسوم أمازون: {money(pnl.amazonFees)}</p>}
+              {pnl.otherFee !== 0 && <p className="mt-3 text-xs text-muted-foreground">{t("رسوم أمازون أخرى:")} {money(pnl.otherFee)} {t("· إجمالي رسوم أمازون:")} {money(pnl.amazonFees)}</p>}
             </CardContent>
           </Card>
         )}
 
         {pnl && linkedDocs.length > 0 && (
           <Card>
-            <CardHeader><CardTitle>المستندات المرتبطة</CardTitle><CardDescription>كل مستند لمس هذا الصنف — بيع وشراء ومرتجعات.</CardDescription></CardHeader>
+            <CardHeader><CardTitle>{t("المستندات المرتبطة")}</CardTitle><CardDescription>{t("كل مستند لمس هذا الصنف — بيع وشراء ومرتجعات.")}</CardDescription></CardHeader>
             <CardContent>
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="text-start">النوع</TableHead>
-                    <TableHead className="text-start">الرقم</TableHead>
-                    <TableHead className="text-start">التاريخ</TableHead>
-                    <TableHead className="text-start">الكمية</TableHead>
+                    <TableHead className="text-start">{t("النوع")}</TableHead>
+                    <TableHead className="text-start">{t("الرقم")}</TableHead>
+                    <TableHead className="text-start">{t("التاريخ")}</TableHead>
+                    <TableHead className="text-start">{t("الكمية")}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {linkedDocs.map((d, i) => (
                     <TableRow key={i}>
-                      <TableCell><Badge variant="secondary">{d.kind}</Badge></TableCell>
+                      <TableCell><Badge variant="secondary">{t(d.kind)}</Badge></TableCell>
                       <TableCell className="font-mono"><Link href={d.href} className="text-primary hover:underline">{d.number}</Link></TableCell>
                       <TableCell>{ldt(d.date)}</TableCell>
                       <TableCell className="tabular-nums">{qf(d.qty)}</TableCell>

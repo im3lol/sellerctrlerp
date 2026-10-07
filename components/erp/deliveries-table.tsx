@@ -1,9 +1,11 @@
 "use client";
 
 import Link from "next/link";
+import { fill } from "@/lib/i18n";
+import { useT } from "@/lib/i18n/client";
 import { Fragment, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { toast } from "sonner";
+import { toast } from "@/lib/i18n/toast";
 import { bulkDeliveriesAction, type DeliveriesFilter } from "@/app/actions/erp/deliveries";
 import { createPickListAction } from "@/app/actions/erp/pick-lists";
 import { Badge } from "@/components/ui/badge";
@@ -29,6 +31,7 @@ type ReturnRow = { id: string; number: string; date: Date; qty: number; status: 
 type Row = { id: string; number: string; date: Date; customer: string | null; order: string | null; invoice: string | null; status: string; returned?: boolean; returns?: ReturnRow[] };
 
 export function DeliveriesTable({ rows, canConfirm, canCreate, total, filter, shortIds = [] }: { rows: Row[]; canConfirm: boolean; canCreate: boolean; total: number; filter: DeliveriesFilter; shortIds?: string[] }) {
+  const t = useT();
   const canAct = canConfirm || canCreate;
   const router = useRouter();
   const [pending, start] = useTransition();
@@ -54,19 +57,19 @@ export function DeliveriesTable({ rows, canConfirm, canCreate, total, filter, sh
     const ids = selRows.filter((r) => r.status === "DRAFT").map((r) => r.id);
     start(async () => {
       const r = await createPickListAction(ids);
-      if (r.error || !r.number) { toast.error(r.error ?? "تعذّر إنشاء الجولة"); return; }
-      toast.success(`جولة التجهيز ${r.number}`);
+      if (r.error || !r.number) { toast.error(r.error ?? t("تعذّر إنشاء الجولة")); return; }
+      toast.success(fill(t("جولة التجهيز {0}"), [r.number]));
       router.push(`/inventory/pick-lists?n=${encodeURIComponent(r.number)}`);
     });
   };
 
   const run = (op: "confirm" | "bill" | "delete" | "reverse", verb: string) => {
     void (async () => {
-      if (!(await confirm({ title: `${verb} ${int(count)} إذن`, danger: op === "delete" || op === "reverse" }))) return;
+      if (!(await confirm({ title: fill(t("{0} {1} إذن"), [verb, int(count)]), danger: op === "delete" || op === "reverse" }))) return;
       start(async () => {
         const r = await bulkDeliveriesAction(op, allPages ? [] : [...sel], allPages ? filter : undefined);
-        if (r.ok) { toast.success(`تم ${verb} ${int(r.count ?? 0)} إذن`); setSel(new Set()); setAllPages(false); router.refresh(); }
-        else toast.error(r.error ?? "تعذّر التنفيذ");
+        if (r.ok) { toast.success(fill(t("تم {0} {1} إذن"), [verb, int(r.count ?? 0)])); setSel(new Set()); setAllPages(false); router.refresh(); }
+        else toast.error(r.error ?? t("تعذّر التنفيذ"));
       });
     })();
   };
@@ -75,30 +78,30 @@ export function DeliveriesTable({ rows, canConfirm, canCreate, total, filter, sh
     <div className="space-y-3">
       {canAct && count > 0 && (
         <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-muted/40 px-3 py-2 text-sm">
-          <span className="font-medium">{allPages ? `كل الـ${int(total)} محدّد` : `${int(sel.size)} محدّد`}</span>
+          <span className="font-medium">{allPages ? fill(t("كل الـ{0} محدّد"), [int(total)]) : fill(t("{0} محدّد"), [int(sel.size)])}</span>
           {!allPages && allSelected && total > rows.length && (
-            <button type="button" className="text-primary underline" onClick={() => setAllPages(true)}>حدّد الكل ({int(total)}) في كل الصفحات</button>
+            <button type="button" className="text-primary underline" onClick={() => setAllPages(true)}>{t("حدّد الكل (")}{int(total)}{t(") في كل الصفحات")}</button>
           )}
-          <button type="button" className="text-muted-foreground hover:text-foreground" onClick={() => { setSel(new Set()); setAllPages(false); }}>إلغاء التحديد</button>
+          <button type="button" className="text-muted-foreground hover:text-foreground" onClick={() => { setSel(new Set()); setAllPages(false); }}>{t("إلغاء التحديد")}</button>
           <div className="ms-auto flex gap-2">
-            {canConfirm && hasDraft && <Button size="sm" disabled={pending} onClick={() => run("confirm", "تأكيد")}><Icon name="Check" className="size-4" />تأكيد</Button>}
-            {canCreate && hasDraft && !allPages && <Button size="sm" variant="outline" disabled={pending} onClick={pickRound} title="تجمّع الأذون المسودة المحدّدة في لفّة تجهيز واحدة على المخزن"><Icon name="ScanLine" className="size-4" />جولة تجهيز</Button>}
-            {canConfirm && canCreate && hasDelivered && <Button size="sm" variant="outline" disabled={pending} onClick={() => run("bill", "تحويل")} title="ينشئ فاتورة مسودة لكل إذن مؤكّد"><Icon name="FileText" className="size-4" />تحويل لفاتورة</Button>}
-            {canConfirm && hasDelivered && <Button size="sm" variant="outline" disabled={pending} onClick={() => run("reverse", "إلغاء")} title="عكس الصرف: يعيد البضاعة للمخزون ويعكس التكلفة"><Icon name="Undo2" className="size-4" />إلغاء</Button>}
-            {canCreate && hasDraft && <Button size="sm" variant="ghost" disabled={pending} onClick={() => run("delete", "حذف")}><Icon name="Trash2" className="size-4 text-destructive" />حذف</Button>}
+            {canConfirm && hasDraft && <Button size="sm" disabled={pending} onClick={() => run("confirm", "تأكيد")}><Icon name="Check" className="size-4" />{t("تأكيد")}</Button>}
+            {canCreate && hasDraft && !allPages && <Button size="sm" variant="outline" disabled={pending} onClick={pickRound} title={t("تجمّع الأذون المسودة المحدّدة في لفّة تجهيز واحدة على المخزن")}><Icon name="ScanLine" className="size-4" />{t("جولة تجهيز")}</Button>}
+            {canConfirm && canCreate && hasDelivered && <Button size="sm" variant="outline" disabled={pending} onClick={() => run("bill", "تحويل")} title={t("ينشئ فاتورة مسودة لكل إذن مؤكّد")}><Icon name="FileText" className="size-4" />{t("تحويل لفاتورة")}</Button>}
+            {canConfirm && hasDelivered && <Button size="sm" variant="outline" disabled={pending} onClick={() => run("reverse", "إلغاء")} title={t("عكس الصرف: يعيد البضاعة للمخزون ويعكس التكلفة")}><Icon name="Undo2" className="size-4" />{t("إلغاء")}</Button>}
+            {canCreate && hasDraft && <Button size="sm" variant="ghost" disabled={pending} onClick={() => run("delete", "حذف")}><Icon name="Trash2" className="size-4 text-destructive" />{t("حذف")}</Button>}
           </div>
         </div>
       )}
       <Table>
         <TableHeader>
           <TableRow>
-            {canAct && <TableHead className="w-10"><Checkbox checked={allSelected} onCheckedChange={toggleAll} aria-label="تحديد الكل" /></TableHead>}
-            <TableHead className="text-start">الرقم</TableHead>
-            <TableHead className="text-start">التاريخ</TableHead>
-            <TableHead className="text-start">العميل</TableHead>
-            <TableHead className="text-start">أمر البيع</TableHead>
-            <TableHead className="text-start">الفاتورة</TableHead>
-            <TableHead className="text-start">الحالة</TableHead>
+            {canAct && <TableHead className="w-10"><Checkbox checked={allSelected} onCheckedChange={toggleAll} aria-label={t("تحديد الكل")} /></TableHead>}
+            <TableHead className="text-start">{t("الرقم")}</TableHead>
+            <TableHead className="text-start">{t("التاريخ")}</TableHead>
+            <TableHead className="text-start">{t("العميل")}</TableHead>
+            <TableHead className="text-start">{t("أمر البيع")}</TableHead>
+            <TableHead className="text-start">{t("الفاتورة")}</TableHead>
+            <TableHead className="text-start">{t("الحالة")}</TableHead>
             <TableHead className="w-10" />
           </TableRow>
         </TableHeader>
@@ -108,7 +111,7 @@ export function DeliveriesTable({ rows, canConfirm, canCreate, total, filter, sh
             return (
               <Fragment key={r.id}>
                 <TableRow data-state={allPages || sel.has(r.id) ? "selected" : undefined}>
-                  {canAct && <TableCell><Checkbox checked={allPages || sel.has(r.id)} onCheckedChange={() => toggle(r.id)} aria-label="تحديد" /></TableCell>}
+                  {canAct && <TableCell><Checkbox checked={allPages || sel.has(r.id)} onCheckedChange={() => toggle(r.id)} aria-label={t("تحديد")} /></TableCell>}
                   <TableCell>
                     <Link href={`/sales/deliveries/${encodeURIComponent(r.number)}`} className="hover:text-primary">{r.number}</Link>
                   </TableCell>
@@ -116,7 +119,7 @@ export function DeliveriesTable({ rows, canConfirm, canCreate, total, filter, sh
                   <TableCell className="max-w-[200px] truncate" title={r.customer ?? undefined}>{r.customer ?? "—"}</TableCell>
                   <TableCell>{r.order ?? "—"}</TableCell>
                   <TableCell>{r.invoice ?? "—"}</TableCell>
-                  <TableCell><div className="flex items-center gap-1"><Badge variant={st.variant}>{st.label}</Badge>{r.status === "DRAFT" && short.has(r.id) && <Badge variant="destructive" title="المخزون الحالي لا يغطي كميات هذا الإذن (مع باقي المسودات)">نقص مخزون</Badge>}{r.returned && <Badge variant="destructive">مرتجع</Badge>}</div></TableCell>
+                  <TableCell><div className="flex items-center gap-1"><Badge variant={st.variant}>{t(st.label)}</Badge>{r.status === "DRAFT" && short.has(r.id) && <Badge variant="destructive" title={t("المخزون الحالي لا يغطي كميات هذا الإذن (مع باقي المسودات)")}>{t("نقص مخزون")}</Badge>}{r.returned && <Badge variant="destructive">{t("مرتجع")}</Badge>}</div></TableCell>
                   <TableCell>
                     <DeliveryRowMenu id={r.id} number={r.number} status={r.status} canManage={canCreate} />
                   </TableCell>
@@ -126,13 +129,13 @@ export function DeliveriesTable({ rows, canConfirm, canCreate, total, filter, sh
                     {canAct && <TableCell />}
                     <TableCell className="ps-8">
                       <Link href={`/sales/returns/${encodeURIComponent(rt.number)}`} className="inline-flex items-center gap-1 text-muted-foreground hover:text-primary"><Icon name="Undo2" className="size-3.5" />{rt.number}</Link>
-                      <span className="ms-2 text-destructive">كمية مرتجعة: {qf(rt.qty)}</span>
+                      <span className="ms-2 text-destructive">{t("كمية مرتجعة:")} {qf(rt.qty)}</span>
                     </TableCell>
                     <TableCell className="text-muted-foreground">{dt(rt.date)}</TableCell>
                     <TableCell className="text-muted-foreground">{r.customer ?? "—"}</TableCell>
                     <TableCell className="text-muted-foreground">—</TableCell>
                     <TableCell className="text-muted-foreground">—</TableCell>
-                    <TableCell><Badge variant="destructive">{rt.status === "POSTED" ? "مرتجع" : "مرتجع (مسودة)"}</Badge></TableCell>
+                    <TableCell><Badge variant="destructive">{rt.status === "POSTED" ? t("مرتجع") : t("مرتجع (مسودة)")}</Badge></TableCell>
                     <TableCell />
                   </TableRow>
                 ))}

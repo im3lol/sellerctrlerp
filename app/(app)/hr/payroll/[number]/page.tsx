@@ -7,6 +7,8 @@ import { ErpPageHeader } from "@/components/erp/page-header";
 import { PrintDocLink } from "@/components/erp/print/print-doc-link";
 import { PayrollRunDetail } from "@/components/erp/payroll-run-detail";
 import { docNumberParam } from "@/lib/erp/doc-route";
+import { date, fill } from "@/lib/i18n";
+import { getLocale, getT } from "@/lib/i18n/server";
 
 export default async function PayrollRunPage({ params }: { params: Promise<{ number: string }> }) {
   const raw = (await params).number;
@@ -44,12 +46,14 @@ export default async function PayrollRunPage({ params }: { params: Promise<{ num
       .where(eq(payrollLines.payrollRunId, run.id))
       .orderBy(users.name);
 
+    const t = await getT();
+    const locale = await getLocale();
     return (
       <div className="space-y-6">
         <ErpPageHeader
           icon="Banknote"
-          title={`مسير الرواتب — ${run.number}`}
-          subtitle={`الفترة: ${new Date(run.periodStart).toLocaleDateString("ar-EG")} — ${new Date(run.periodEnd).toLocaleDateString("ar-EG")}`}
+          title={fill(t("مسير الرواتب — {0}"), [run.number])}
+          subtitle={fill(t("الفترة: {0} — {1}"), [date(run.periodStart, locale), date(run.periodEnd, locale)])}
           backHref="/hr/payroll"
           action={<PrintDocLink href={`/erp/hr/payroll/${encodeURIComponent(run.number)}/print`} />}
         />

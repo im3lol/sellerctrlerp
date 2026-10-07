@@ -1,4 +1,5 @@
 import { aliasedTable, and, asc, desc, eq, sql } from "drizzle-orm";
+import { getT } from "@/lib/i18n/server";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
 import { recurringExpenses, accounts } from "@/db/schema";
@@ -8,6 +9,7 @@ import { RecurringExpensesManager } from "@/components/erp/recurring-expenses-ma
 const ymd = (d: Date | null) => (d ? new Date(d).toISOString().slice(0, 10) : "");
 
 export default async function RecurringExpensesPage() {
+  const t = await getT();
   return loadErpPage("accounting.view", async ({ orgId }) => {
     const cat = aliasedTable(accounts, "cat");
     const cash = aliasedTable(accounts, "cash");
@@ -41,7 +43,7 @@ export default async function RecurringExpensesPage() {
 
     return (
       <div className="space-y-6">
-        <ErpPageHeader icon="Repeat" title="المصروفات المتكررة" subtitle="قوالب تُولّد مصروفاً كمسودة تلقائياً في موعدها" backHref="/accounting/expenses" />
+        <ErpPageHeader icon="Repeat" title={t("المصروفات المتكررة")} subtitle={t("قوالب تُولّد مصروفاً كمسودة تلقائياً في موعدها")} backHref="/accounting/expenses" />
         <RecurringExpensesManager items={items} expenseAccounts={expenseAccs} cashAccounts={cashAccs} />
       </div>
     );

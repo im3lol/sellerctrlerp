@@ -1,4 +1,5 @@
 import { and, eq, gt } from "drizzle-orm";
+import { getT } from "@/lib/i18n/server";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
 import { salesInvoices, customers } from "@/db/schema";
@@ -12,6 +13,7 @@ import { selectCls } from "@/lib/utils";
 const iso = (d: Date) => d.toISOString().slice(0, 10);
 
 export default async function ArAgingPage({ searchParams }: { searchParams: Promise<{ asOf?: string }> }) {
+  const t = await getT();
   return loadErpPage("sales.view", async ({ orgId, permissions }) => {
     const sp = await searchParams;
     const asOf = sp.asOf || iso(new Date());
@@ -42,11 +44,11 @@ export default async function ArAgingPage({ searchParams }: { searchParams: Prom
       <ReportShell
         reportKey="sales-aging"
         icon="Users"
-        title="أعمار ذمم العملاء"
-        subtitle="أرصدة مستحقة من فواتير البيع المُرحّلة"
+        title={t("أعمار ذمم العملاء")}
+        subtitle={t("أرصدة مستحقة من فواتير البيع المُرحّلة")}
         query={`asOf=${asOf}`}
         permissions={permissions}
-        filters={<ReportField label="كما في تاريخ"><input name="asOf" type="date" defaultValue={asOf} className={selectCls} /></ReportField>}
+        filters={<ReportField label={t("كما في تاريخ")}><input name="asOf" type="date" defaultValue={asOf} className={selectCls} /></ReportField>}
         kpis={[
           { label: "إجمالي المستحق", value: grand.toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2 }) },
           ...AGING_BUCKETS.map((b) => ({
@@ -55,19 +57,19 @@ export default async function ArAgingPage({ searchParams }: { searchParams: Prom
             tone: (b === AGING_BUCKETS[0] ? "muted" : "loss") as "muted" | "loss",
           })),
         ]}
-        chartTitle={grand > 0 ? "المستحق حسب العمر" : undefined}
+        chartTitle={grand > 0 ? t("المستحق حسب العمر") : undefined}
         chart={grand > 0
-          ? <BarChart data={AGING_BUCKETS.map((b) => ({ label: BUCKET_LABELS[b], value: totals[b] }))} valueLabel="المستحق" money height={220} />
+          ? <BarChart data={AGING_BUCKETS.map((b) => ({ label: BUCKET_LABELS[b], value: totals[b] }))} valueLabel={t("المستحق")} money height={220} />
           : undefined}
       >
         <Card>
           <CardHeader>
-            <CardTitle>تحليل الأعمار</CardTitle>
-            <CardDescription>إجمالي المستحق {grand.toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2 })}</CardDescription>
+            <CardTitle>{t("تحليل الأعمار")}</CardTitle>
+            <CardDescription>{t("إجمالي المستحق")} {grand.toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2 })}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
-            {grand > 0 && <BarChart data={AGING_BUCKETS.map((b) => ({ label: BUCKET_LABELS[b], value: totals[b] }))} valueLabel="المستحق" money height={220} />}
-            <AgingTable rows={rows} totals={totals} grand={grand} partyLabel="العميل" empty="لا توجد أرصدة مستحقة على العملاء." />
+            {grand > 0 && <BarChart data={AGING_BUCKETS.map((b) => ({ label: BUCKET_LABELS[b], value: totals[b] }))} valueLabel={t("المستحق")} money height={220} />}
+            <AgingTable rows={rows} totals={totals} grand={grand} partyLabel={t("العميل")} empty={t("لا توجد أرصدة مستحقة على العملاء.")} />
           </CardContent>
         </Card>
       </ReportShell>

@@ -1,4 +1,7 @@
 import { EmptyState } from "@/components/empty-state";
+import type { Locale } from "@/lib/i18n";
+import { fill } from "@/lib/i18n";
+import { getLocale, getT } from "@/lib/i18n/server";
 import Link from "next/link";
 import { and, asc, count, desc, eq, gte, ilike, inArray, lte, or, sql } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
@@ -17,7 +20,7 @@ import { cn, selectCls } from "@/lib/utils";
 const PER_PAGE = 10;
 /** The board shows every status at once, so it takes the latest N under the filters. */
 const BOARD_LIMIT = 300;
-const day = (d: Date) => new Date(d).toLocaleDateString("ar-EG-u-nu-latn", { day: "numeric", month: "short" });
+const day = (d: Date, locale: Locale = "ar") => new Date(d).toLocaleDateString((locale === "en" ? "en-GB" : "ar-EG-u-nu-latn"), { day: "numeric", month: "short" });
 const money = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const STATUS_OPTIONS: [string, string][] = [
   ["DRAFT", "مسودة"], ["CONFIRMED", "مؤكّد"], ["PARTIALLY_DELIVERED", "تسليم جزئي"],
@@ -29,6 +32,8 @@ type SP = { [k: string]: string | string[] | undefined };
 const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) ?? "";
 
 export default async function SalesOrdersPage({ searchParams }: { searchParams: Promise<SP> }) {
+  const locale = await getLocale();
+  const t = await getT();
   return loadErpPage("sales.view", async ({ orgId, can }) => {
     const canManage = can("sales.create");
     const canConfirm = can("sales.confirm");
@@ -124,7 +129,7 @@ export default async function SalesOrdersPage({ searchParams }: { searchParams: 
           .orderBy(desc(salesOrders.date), desc(salesOrders.number)).limit(BOARD_LIMIT))
           .map((r) => ({
             id: r.id, column: r.status, title: r.number, subtitle: r.customer, amount: money(Number(r.total ?? 0)),
-            meta: `${day(r.date)}${r.channel !== "MANUAL" && channelLabel[r.channel] ? ` · ${channelLabel[r.channel]}` : ""}`,
+            meta: `${day(r.date, locale)}${r.channel !== "MANUAL" && channelLabel[r.channel] ? ` · ${t(channelLabel[r.channel])}` : ""}`,
             href: `/sales/orders/${encodeURIComponent(r.number)}`,
           }))
       : [];
@@ -155,22 +160,22 @@ export default async function SalesOrdersPage({ searchParams }: { searchParams: 
       <div className="space-y-6">
         <ErpPageHeader
           icon="ClipboardList"
-          title="أوامر البيع"
-          subtitle={`${total} أمر`}
+          title={t("أوامر البيع")}
+          subtitle={fill(t("{0} أمر"), [total])}
           action={
             <div className="flex flex-wrap gap-2">
               <div className="flex rounded-lg border p-0.5">
                 {(["table", "board"] as const).map((v) => (
                   <Link key={v} href={viewHref(v)}
                     className={cn("flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm", view === v ? "bg-primary text-primary-foreground" : "hover:bg-accent")}>
-                    <Icon name={v === "table" ? "List" : "Columns3"} className="size-4" />{v === "table" ? "جدول" : "كانبان"}
+                    <Icon name={v === "table" ? "List" : "Columns3"} className="size-4" />{v === "table" ? t("جدول") : t("كانبان")}
                   </Link>
                 ))}
               </div>
               {canManage && (
                 <>
-                  <Button variant="outline" asChild><Link href="/platforms"><Icon name="Store" className="size-4" />المنصات (الاستيراد والتسويات)</Link></Button>
-                  <Button asChild><Link href="/sales/orders/new"><Icon name="Plus" className="size-4" />أمر بيع</Link></Button>
+                  <Button variant="outline" asChild><Link href="/platforms"><Icon name="Store" className="size-4" />{t("المنصات (الاستيراد والتسويات)")}</Link></Button>
+                  <Button asChild><Link href="/sales/orders/new"><Icon name="Plus" className="size-4" />{t("أمر بيع")}</Link></Button>
                 </>
               )}
             </div>
@@ -178,56 +183,56 @@ export default async function SalesOrdersPage({ searchParams }: { searchParams: 
         />
 
         <div className="grid gap-4 sm:grid-cols-3">
-          <Card><CardContent className="pt-6"><div className="text-sm text-muted-foreground">إجمالي القيمة</div><p className="mt-1 text-2xl font-bold tabular-nums">{money(totalValue)}</p></CardContent></Card>
-          <Card><CardContent className="pt-6"><div className="text-sm text-muted-foreground">قيمة الأوامر المفتوحة</div><p className="mt-1 text-2xl font-bold tabular-nums text-amber-600">{money(openValue)}</p></CardContent></Card>
-          <Card><CardContent className="pt-6"><div className="text-sm text-muted-foreground">قيمة المفوترة</div><p className="mt-1 text-2xl font-bold tabular-nums text-emerald-600">{money(invoicedValue)}</p></CardContent></Card>
+          <Card><CardContent className="pt-6"><div className="text-sm text-muted-foreground">{t("إجمالي القيمة")}</div><p className="mt-1 text-2xl font-bold tabular-nums">{money(totalValue)}</p></CardContent></Card>
+          <Card><CardContent className="pt-6"><div className="text-sm text-muted-foreground">{t("قيمة الأوامر المفتوحة")}</div><p className="mt-1 text-2xl font-bold tabular-nums text-amber-600">{money(openValue)}</p></CardContent></Card>
+          <Card><CardContent className="pt-6"><div className="text-sm text-muted-foreground">{t("قيمة المفوترة")}</div><p className="mt-1 text-2xl font-bold tabular-nums text-emerald-600">{money(invoicedValue)}</p></CardContent></Card>
         </div>
 
         <Card>
           <CardContent className="space-y-4 pt-6">
             <details open={hasFilters} className="rounded-lg border">
               <summary className="flex cursor-pointer select-none items-center gap-2 px-4 py-2 text-sm font-medium">
-                <Icon name="ListFilter" className="size-4" /> بحث وتصفية
+                <Icon name="ListFilter" className="size-4" /> {t("بحث وتصفية")}
               </summary>
               <form className="grid gap-3 p-4 pt-0 sm:grid-cols-6 items-end">
                 {view === "board" && <input type="hidden" name="view" value="board" />}
-                <div className="space-y-1"><Label htmlFor="q">رقم الأمر / أمازون</Label><Input id="q" name="q" defaultValue={q} placeholder="SO-2026-... أو 407-..." /></div>
+                <div className="space-y-1"><Label htmlFor="q">{t("رقم الأمر / أمازون")}</Label><Input id="q" name="q" defaultValue={q} placeholder={t("SO-2026-... أو 407-...")} /></div>
                 <div className="space-y-1">
-                  <Label htmlFor="status">الحالة</Label>
+                  <Label htmlFor="status">{t("الحالة")}</Label>
                   <select id="status" name="status" defaultValue={fStatus} className={selectCls}>
-                    <option value="">الكل</option>
-                    {STATUS_OPTIONS.map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                    <option value="">{t("الكل")}</option>
+                    {STATUS_OPTIONS.map(([k, v]) => <option key={k} value={k}>{t(v)}</option>)}
                   </select>
                 </div>
                 <div className="space-y-1">
-                  <Label htmlFor="channel">القناة</Label>
+                  <Label htmlFor="channel">{t("القناة")}</Label>
                   <select id="channel" name="channel" defaultValue={fChannel} className={selectCls}>
-                    <option value="">الكل</option>
-                    {CHANNEL_OPTIONS.map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                    <option value="">{t("الكل")}</option>
+                    {CHANNEL_OPTIONS.map(([k, v]) => <option key={k} value={k}>{t(v)}</option>)}
                   </select>
                 </div>
                 <div className="space-y-1">
-                  <Label htmlFor="fulfillment">التنفيذ</Label>
+                  <Label htmlFor="fulfillment">{t("التنفيذ")}</Label>
                   <select id="fulfillment" name="fulfillment" defaultValue={fFulfillment} className={selectCls}>
-                    <option value="">الكل</option>
-                    <option value="FBA">FBA (أمازون)</option>
-                    <option value="FBM">FBM (التاجر)</option>
-                    <option value="FBN">FBN (نون)</option>
-                    <option value="FBP">FBP (الشريك)</option>
+                    <option value="">{t("الكل")}</option>
+                    <option value="FBA">{t("FBA (أمازون)")}</option>
+                    <option value="FBM">{t("FBM (التاجر)")}</option>
+                    <option value="FBN">{t("FBN (نون)")}</option>
+                    <option value="FBP">{t("FBP (الشريك)")}</option>
                   </select>
                 </div>
                 <div className="space-y-1">
-                  <Label htmlFor="customer">العميل</Label>
+                  <Label htmlFor="customer">{t("العميل")}</Label>
                   <select id="customer" name="customer" defaultValue={fCustomer} className={selectCls}>
-                    <option value="">الكل</option>
-                    {custList.map((c) => <option key={c.id} value={c.id}>{c.nameAr}</option>)}
+                    <option value="">{t("الكل")}</option>
+                    {custList.map((c) => <option key={c.id} value={c.id}>{t(c.nameAr)}</option>)}
                   </select>
                 </div>
-                <div className="space-y-1"><Label htmlFor="from">من تاريخ</Label><Input id="from" name="from" type="date" defaultValue={from} /></div>
-                <div className="space-y-1"><Label htmlFor="to">إلى تاريخ</Label><Input id="to" name="to" type="date" defaultValue={to} /></div>
+                <div className="space-y-1"><Label htmlFor="from">{t("من تاريخ")}</Label><Input id="from" name="from" type="date" defaultValue={from} /></div>
+                <div className="space-y-1"><Label htmlFor="to">{t("إلى تاريخ")}</Label><Input id="to" name="to" type="date" defaultValue={to} /></div>
                 <div className="flex gap-2 sm:col-span-6">
-                  <Button type="submit">تطبيق</Button>
-                  {hasFilters && <Button type="button" variant="outline" asChild><Link href="/sales/orders">مسح</Link></Button>}
+                  <Button type="submit">{t("تطبيق")}</Button>
+                  {hasFilters && <Button type="button" variant="outline" asChild><Link href="/sales/orders">{t("مسح")}</Link></Button>}
                 </div>
               </form>
             </details>
@@ -236,15 +241,15 @@ export default async function SalesOrdersPage({ searchParams }: { searchParams: 
               <>
                 <OrdersKanban kind="sales" cards={boardCards} canMove={canConfirm || canManage} />
                 {boardCards.length >= BOARD_LIMIT && (
-                  <p className="text-xs text-muted-foreground">بيعرض آخر {BOARD_LIMIT.toLocaleString("ar-EG-u-nu-latn")} أمر — ضيّق الفلاتر عشان توصل للأقدم.</p>
+                  <p className="text-xs text-muted-foreground">{t("بيعرض آخر")} {BOARD_LIMIT.toLocaleString("ar-EG-u-nu-latn")} {t("أمر — ضيّق الفلاتر عشان توصل للأقدم.")}</p>
                 )}
               </>
             ) : tableRows.length === 0 ? (
-              hasFilters ? <div className="rounded-xl border border-dashed py-12 text-center text-muted-foreground">لا توجد نتائج مطابقة.</div> : (
-              <EmptyState icon="ShoppingCart" title="لا توجد أوامر بيع بعد" description="طلبات أمازون بتنزل هنا لوحدها بعد المزامنة، أو اعمل أمر يدوي.">
+              hasFilters ? <div className="rounded-xl border border-dashed py-12 text-center text-muted-foreground">{t("لا توجد نتائج مطابقة.")}</div> : (
+              <EmptyState icon="ShoppingCart" title={t("لا توجد أوامر بيع بعد")} description={t("طلبات أمازون بتنزل هنا لوحدها بعد المزامنة، أو اعمل أمر يدوي.")}>
                 <div className="flex flex-wrap justify-center gap-2">
-                  {canManage && <Button asChild size="sm"><Link href="/sales/orders/new">أمر بيع جديد</Link></Button>}
-                  <Button asChild size="sm" variant="outline"><Link href="/platforms">مزامنة أمازون</Link></Button>
+                  {canManage && <Button asChild size="sm"><Link href="/sales/orders/new">{t("أمر بيع جديد")}</Link></Button>}
+                  <Button asChild size="sm" variant="outline"><Link href="/platforms">{t("مزامنة أمازون")}</Link></Button>
                 </div>
               </EmptyState>
             )
@@ -252,13 +257,13 @@ export default async function SalesOrdersPage({ searchParams }: { searchParams: 
               <>
                 <SalesOrdersTable rows={tableRows} canConfirm={canConfirm} canCreate={canManage} total={Number(total)} filter={{ q, status: fStatus, customer: fCustomer, from, to }} />
                 <div className="flex items-center justify-between text-sm text-muted-foreground">
-                  <span>صفحة {safePage} من {pages}</span>
+                  <span>{t("صفحة")} {safePage} {t("من")} {pages}</span>
                   <div className="flex gap-2">
                     <Button variant="outline" size="sm" disabled={safePage <= 1} asChild={safePage > 1}>
-                      {safePage > 1 ? <a href={qs(safePage - 1)}>السابق</a> : <span>السابق</span>}
+                      {safePage > 1 ? <a href={qs(safePage - 1)}>{t("السابق")}</a> : <span>{t("السابق")}</span>}
                     </Button>
                     <Button variant="outline" size="sm" disabled={safePage >= pages} asChild={safePage < pages}>
-                      {safePage < pages ? <a href={qs(safePage + 1)}>التالي</a> : <span>التالي</span>}
+                      {safePage < pages ? <a href={qs(safePage + 1)}>{t("التالي")}</a> : <span>{t("التالي")}</span>}
                     </Button>
                   </div>
                 </div>

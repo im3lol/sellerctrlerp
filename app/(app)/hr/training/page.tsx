@@ -1,4 +1,5 @@
 import { and, asc, eq, inArray } from "drizzle-orm";
+import { getT } from "@/lib/i18n/server";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
 import { trainingCourses, trainingEnrollments, employees } from "@/db/schema";
@@ -10,6 +11,7 @@ import type { Enrollment } from "@/lib/erp/hr-people";
 export const dynamic = "force-dynamic";
 
 export default async function TrainingPage() {
+  const t = await getT();
   return loadErpPage("hr.view", async ({ orgId, can }) => {
     const [courseRows, empRows] = await Promise.all([
       db.select().from(trainingCourses)
@@ -34,8 +36,8 @@ export default async function TrainingPage() {
       <div className="space-y-6">
         <ErpPageHeader
           icon="GraduationCap"
-          title="التدريب"
-          subtitle="كورسات ومَن حضرها — والتكلفة على المقاعد المحجوزة"
+          title={t("التدريب")}
+          subtitle={t("كورسات ومَن حضرها — والتكلفة على المقاعد المحجوزة")}
           backHref="/hr"
           action={<DatasetExport dataset="training-courses" />}
         />

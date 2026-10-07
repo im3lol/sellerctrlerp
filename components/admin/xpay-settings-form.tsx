@@ -1,8 +1,10 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { fill } from "@/lib/i18n";
+import { useT } from "@/lib/i18n/client";
 import { useRouter } from "next/navigation";
-import { toast } from "sonner";
+import { toast } from "@/lib/i18n/toast";
 import { Loader2, Copy } from "lucide-react";
 import { saveXpaySettingsAction } from "@/app/actions/admin/platform-settings";
 import { Button } from "@/components/ui/button";
@@ -24,6 +26,7 @@ function CopyRow({ label, value }: { label: string; value: string }) {
 }
 
 export function XpaySettingsForm({ initial, appUrl }: { initial: Initial; appUrl: string }) {
+  const t = useT();
   const router = useRouter();
   const [pending, start] = useTransition();
   const [secretKey, setSecretKey] = useState("");
@@ -37,7 +40,7 @@ export function XpaySettingsForm({ initial, appUrl }: { initial: Initial; appUrl
       if ("ok" in r) { toast.success("تم حفظ إعدادات xpay"); setSecretKey(""); setWebhookSecret(""); router.refresh(); }
       else toast.error(r.error);
     } catch (e) {
-      toast.error("تعذّر الحفظ: " + (e instanceof Error ? e.message : "خطأ غير متوقع"));
+      toast.error(fill(t("تعذّر الحفظ: {0}"), [e instanceof Error ? e.message : t("خطأ غير متوقع")]));
     }
   });
 
@@ -45,34 +48,34 @@ export function XpaySettingsForm({ initial, appUrl }: { initial: Initial; appUrl
 
   return (
     <div className="space-y-5">
-      <p className="text-xs text-muted-foreground">مفاتيح حساب xpay لتحصيل اشتراكات المؤسسات أونلاين. تُخزَّن الأسرار مشفّرة. اترك حقل السر فارغًا للإبقاء على المحفوظ.</p>
+      <p className="text-xs text-muted-foreground">{t("مفاتيح حساب xpay لتحصيل اشتراكات المؤسسات أونلاين. تُخزَّن الأسرار مشفّرة. اترك حقل السر فارغًا للإبقاء على المحفوظ.")}</p>
         <div className="space-y-2">
-          <Label htmlFor="sk">المفتاح السري (Secret key)</Label>
-          <Input id="sk" value={secretKey} onChange={(e) => setSecretKey(e.target.value)} placeholder={initial.hasSecretKey ? "••••••••  (محفوظ — اترك فارغًا للإبقاء عليه)" : "sk_test_…  أو  sk_live_…"} dir="ltr" autoComplete="off" />
+          <Label htmlFor="sk">{t("المفتاح السري (Secret key)")}</Label>
+          <Input id="sk" value={secretKey} onChange={(e) => setSecretKey(e.target.value)} placeholder={initial.hasSecretKey ? t("••••••••  (محفوظ — اترك فارغًا للإبقاء عليه)") : t("sk_test_…  أو  sk_live_…")} dir="ltr" autoComplete="off" />
         </div>
         <div className="space-y-2">
-          <Label htmlFor="pk">المفتاح العام (Publishable key) <span className="text-muted-foreground">(للدفع داخل الموقع)</span></Label>
-          <Input id="pk" value={publishableKey} onChange={(e) => setPublishableKey(e.target.value)} placeholder="pk_test_…  أو  pk_live_…" dir="ltr" autoComplete="off" />
-          <p className="text-xs text-muted-foreground">لو مضبوط، الدفع يتم في نافذة داخل موقعك (Drop-in) بدل التحويل لصفحة xpay.</p>
+          <Label htmlFor="pk">{t("المفتاح العام (Publishable key)")} <span className="text-muted-foreground">{t("(للدفع داخل الموقع)")}</span></Label>
+          <Input id="pk" value={publishableKey} onChange={(e) => setPublishableKey(e.target.value)} placeholder={t("pk_test_…  أو  pk_live_…")} dir="ltr" autoComplete="off" />
+          <p className="text-xs text-muted-foreground">{t("لو مضبوط، الدفع يتم في نافذة داخل موقعك (Drop-in) بدل التحويل لصفحة xpay.")}</p>
         </div>
         <div className="space-y-2">
-          <Label htmlFor="wh">سر الويبهوك (Webhook secret)</Label>
-          <Input id="wh" value={webhookSecret} onChange={(e) => setWebhookSecret(e.target.value)} placeholder={initial.hasWebhookSecret ? "••••••••  (محفوظ — اترك فارغًا للإبقاء عليه)" : "whsec_…"} dir="ltr" autoComplete="off" />
+          <Label htmlFor="wh">{t("سر الويبهوك (Webhook secret)")}</Label>
+          <Input id="wh" value={webhookSecret} onChange={(e) => setWebhookSecret(e.target.value)} placeholder={initial.hasWebhookSecret ? t("••••••••  (محفوظ — اترك فارغًا للإبقاء عليه)") : "whsec_…"} dir="ltr" autoComplete="off" />
         </div>
         <div className="space-y-2">
-          <Label htmlFor="bu">عنوان الـ API <span className="text-muted-foreground">(اختياري)</span></Label>
+          <Label htmlFor="bu">{t("عنوان الـ API")} <span className="text-muted-foreground">{t("(اختياري)")}</span></Label>
           <Input id="bu" value={baseUrl} onChange={(e) => setBaseUrl(e.target.value)} placeholder="https://api.xpay.app" dir="ltr" />
-          <p className="text-xs text-muted-foreground">اتركه فارغًا للافتراضي <span dir="ltr" className="font-mono">https://api.xpay.app</span>.</p>
+          <p className="text-xs text-muted-foreground">{t("اتركه فارغًا للافتراضي")} <span dir="ltr" className="font-mono">https://api.xpay.app</span>.</p>
         </div>
 
         <div className="rounded-xl border bg-muted/20 p-3">
-          <div className="mb-2 text-sm font-medium">في لوحة xpay ← Developers ← Webhooks، أضِف هذا العنوان (الحدث <span dir="ltr" className="font-mono">checkout.session.completed</span>):</div>
+          <div className="mb-2 text-sm font-medium">{t("في لوحة xpay ← Developers ← Webhooks، أضِف هذا العنوان (الحدث")} <span dir="ltr" className="font-mono">checkout.session.completed</span>):</div>
           <CopyRow label="Webhook URL" value={`${base}/api/subscription/xpay/webhook`} />
         </div>
 
         <div className="flex justify-end">
           <Button onClick={save} disabled={pending}>
-            {pending && <Loader2 className="size-4 animate-spin" />}حفظ الإعدادات
+            {pending && <Loader2 className="size-4 animate-spin" />}{t("حفظ الإعدادات")}
           </Button>
         </div>
     </div>

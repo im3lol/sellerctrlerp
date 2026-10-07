@@ -1,9 +1,11 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
+import { fill } from "@/lib/i18n";
+import { useT } from "@/lib/i18n/client";
 import { useRouter } from "next/navigation";
 import { Plus, Trash2, Loader2 } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "@/lib/i18n/toast";
 import { createPurchaseOrderAction, updatePurchaseOrderAction } from "@/app/actions/erp/purchase-orders";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -54,6 +56,7 @@ const lineTotal = (l: Line, vatRate: number, applyVat: boolean) => round2(l.quan
 const newLine = (): LineRow => ({ id: newId(), itemId: "", quantity: 1, unitPrice: 0, shippingPerUnit: 0, discountPerUnit: 0, uomId: "", uomFactor: 1 });
 
 export function PurchaseOrderForm({ suppliers, warehouses, items, unitsByItem = {}, orgName, vatRate, initialLines, initialSupplierId, requisitionId, lastPrices = {}, supplierPrices = {}, currencies = [], latestRates = {}, rateHistory = {}, initial }: { suppliers: Supplier[]; warehouses: Warehouse[]; items: Item[]; unitsByItem?: Record<string, FormUnit[]>; orgName: string; vatRate: number; initialLines?: { itemId: string; quantity: number }[]; initialSupplierId?: string; requisitionId?: string; lastPrices?: Record<string, number>; supplierPrices?: Record<string, Record<string, number>>; currencies?: Currency[]; latestRates?: Record<string, number>; rateHistory?: Record<string, { date: string; rate: number }[]>; initial?: PurchaseOrderInitial }) {
+  const t = useT();
   const router = useRouter();
   const [pending, start] = useTransition();
   const today = new Date().toISOString().slice(0, 10);
@@ -101,7 +104,7 @@ export function PurchaseOrderForm({ suppliers, warehouses, items, unitsByItem = 
   const [quickOpen, setQuickOpen] = useState(false);
   const [quickName, setQuickName] = useState("");
   const allSuppliers = useMemo(() => [...suppliers, ...newSuppliers], [suppliers, newSuppliers]);
-  const supplierOptions = useMemo(() => allSuppliers.map((s) => ({ id: s.id, label: s.nameAr })), [allSuppliers]);
+  const supplierOptions = useMemo(() => allSuppliers.map((s) => ({ id: s.id, label: t(s.nameAr) })), [allSuppliers, t]);
   const supplierLabelById = useMemo(() => new Map(supplierOptions.map((o) => [o.id, o.label])), [supplierOptions]);
 
   const setLine = (i: number, patch: Partial<Line>) => setLines((ls) => ls.map((l, idx) => (idx === i ? { ...l, ...patch } : l)));
@@ -130,7 +133,7 @@ export function PurchaseOrderForm({ suppliers, warehouses, items, unitsByItem = 
   const submit = () => {
     if (!supplierId) return toast.error("اختر المورد");
     if (!warehouseId) return toast.error("اختر المستودع");
-    if (isForeign && rate <= 0) return toast.error(`أضِف سعر صرف لـ${currency} من الإعدادات ← العملات أولاً`);
+    if (isForeign && rate <= 0) return toast.error(fill(t("أضِف سعر صرف لـ{0} من الإعدادات ← العملات أولاً"), [currency]));
     if (lines.some((l) => !l.itemId)) return toast.error("اختر الصنف في كل بند");
     start(async () => {
       const payload = lines.map((l) => ({
@@ -141,10 +144,10 @@ export function PurchaseOrderForm({ suppliers, warehouses, items, unitsByItem = 
       const body = { supplierId, warehouseId, date, expectedDate: expectedDate || null, notes, currencyCode: currency, exchangeRate: isManualRate ? rate : undefined, materialRequestId: requisitionId, lines: payload };
       const r = isEdit ? await updatePurchaseOrderAction(initial!.id, body) : await createPurchaseOrderAction(body);
       if (r.ok) {
-        toast.success(isEdit ? "تم حفظ التعديلات" : "تم حفظ أمر الشراء (مسودة) — أكّده أو ألغِه");
+        toast.success(isEdit ? t("تم حفظ التعديلات") : t("تم حفظ أمر الشراء (مسودة) — أكّده أو ألغِه"));
         router.push(r.id ? `/purchases/orders/${r.id}` : "/purchases/orders");
         router.refresh();
-      } else toast.error(r.error ?? "تعذّر الحفظ");
+      } else toast.error(r.error ?? t("تعذّر الحفظ"));
     });
   };
 
@@ -152,24 +155,24 @@ export function PurchaseOrderForm({ suppliers, warehouses, items, unitsByItem = 
     <Card>
       <CardHeader>
         <div className="flex w-full items-center justify-between gap-3">
-          <CardTitle>بيانات أمر الشراء</CardTitle>
+          <CardTitle>{t("بيانات أمر الشراء")}</CardTitle>
           <div className="flex gap-2">
-            <Button size="sm" onClick={submit} disabled={pending}>{pending && <Loader2 className="size-4 animate-spin" />}{isEdit ? "حفظ التعديلات" : "حفظ الأمر"}</Button>
-            <Button variant="outline" size="sm" onClick={() => router.push(isEdit ? `/purchases/orders/${initial!.id}` : "/purchases/orders")}>إلغاء</Button>
+            <Button size="sm" onClick={submit} disabled={pending}>{pending && <Loader2 className="size-4 animate-spin" />}{isEdit ? t("حفظ التعديلات") : t("حفظ الأمر")}</Button>
+            <Button variant="outline" size="sm" onClick={() => router.push(isEdit ? `/purchases/orders/${initial!.id}` : "/purchases/orders")}>{t("إلغاء")}</Button>
           </div>
         </div>
       </CardHeader>
       <CardContent className="space-y-5">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-4">
           <div className="space-y-2">
-            <Label>المورد</Label>
+            <Label>{t("المورد")}</Label>
             <CellCombobox
               selectedLabel={supplierLabelById.get(supplierId) ?? ""}
               options={supplierOptions}
               onSelect={(id) => setSupplierId(id)}
-              placeholder="ابحث عن المورد…"
+              placeholder={t("ابحث عن المورد…")}
               onCreate={(typed) => { setQuickName(typed); setQuickOpen(true); }}
-              createLabel="إضافة مورد"
+              createLabel={t("إضافة مورد")}
             />
             <QuickCreateParty
               kind="supplier"
@@ -180,38 +183,38 @@ export function PurchaseOrderForm({ suppliers, warehouses, items, unitsByItem = 
             />
           </div>
           <div className="space-y-2">
-            <Label>الشركة</Label>
+            <Label>{t("الشركة")}</Label>
             <div className="flex h-9 items-center rounded-md border bg-muted/40 px-3 text-sm font-medium">{orgName}</div>
           </div>
-          <div className="space-y-2"><Label>التاريخ</Label><Input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></div>
+          <div className="space-y-2"><Label>{t("التاريخ")}</Label><Input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></div>
           {/* The promised delivery date — the only thing the supplier scorecard can
               measure punctuality against, so it is worth the one extra field. */}
-          <div className="space-y-2"><Label>التسليم المتوقّع</Label><Input type="date" value={expectedDate} onChange={(e) => setExpectedDate(e.target.value)} /></div>
-          <div className="space-y-2"><Label>ملاحظات</Label><Input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="اختياري" /></div>
+          <div className="space-y-2"><Label>{t("التسليم المتوقّع")}</Label><Input type="date" value={expectedDate} onChange={(e) => setExpectedDate(e.target.value)} /></div>
+          <div className="space-y-2"><Label>{t("ملاحظات")}</Label><Input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder={t("اختياري")} /></div>
         </div>
 
         <div className="grid gap-4 rounded-xl border bg-muted/30 p-4 sm:grid-cols-4">
-          <div className="space-y-2"><Label>مسح باركود</Label><BarcodeScan onScan={addOrBumpItem} /></div>
+          <div className="space-y-2"><Label>{t("مسح باركود")}</Label><BarcodeScan onScan={addOrBumpItem} /></div>
           <div className="space-y-2">
-            <Label>المستودع</Label>
+            <Label>{t("المستودع")}</Label>
             <select className={selectCls} value={warehouseId} onChange={(e) => setWarehouseId(e.target.value)}>
-              {warehouses.map((w) => <option key={w.id} value={w.id}>{w.nameAr}</option>)}
+              {warehouses.map((w) => <option key={w.id} value={w.id}>{t(w.nameAr)}</option>)}
             </select>
           </div>
           <div className="space-y-2">
-            <Label>الضريبة</Label>
+            <Label>{t("الضريبة")}</Label>
             <label className="flex h-9 cursor-pointer items-center gap-2 rounded-md border bg-background px-3 text-sm">
               <input type="checkbox" checked={applyVat} disabled={vatRate <= 0} onChange={(e) => setApplyVat(e.target.checked)} />
-              {vatRate > 0 ? `إضافة ض.ق.م (${qtyf(vatRate)}%)` : "لا توجد نسبة ضريبة مضبوطة"}
+              {vatRate > 0 ? fill(t("إضافة ض.ق.م ({0}%)"), [qtyf(vatRate)]) : t("لا توجد نسبة ضريبة مضبوطة")}
             </label>
           </div>
           <div className="space-y-2">
-            <Label>العملة</Label>
+            <Label>{t("العملة")}</Label>
             {currencies.length <= 1 ? (
               <div className="flex h-9 items-center rounded-md border bg-muted/40 px-3 text-sm font-medium">{baseCode}</div>
             ) : (
               <select className={selectCls} value={currency} onChange={(e) => setCurrency(e.target.value)}>
-                {currencies.map((c) => <option key={c.code} value={c.code}>{c.nameAr} ({c.code})</option>)}
+                {currencies.map((c) => <option key={c.code} value={c.code}>{t(c.nameAr)} ({c.code})</option>)}
               </select>
             )}
           </div>
@@ -223,12 +226,12 @@ export function PurchaseOrderForm({ suppliers, warehouses, items, unitsByItem = 
         {isForeign && (
           <div className="grid gap-4 rounded-xl border bg-muted/30 p-4 sm:grid-cols-[minmax(0,14rem)_minmax(0,16rem)_1fr]">
             <div className="space-y-2">
-              <Label>سعر الصرف</Label>
+              <Label>{t("سعر الصرف")}</Label>
               <div className="flex items-center gap-2">
-                <span className="shrink-0 text-sm text-muted-foreground">١ {currency} =</span>
+                <span className="shrink-0 text-sm text-muted-foreground">{t("١")} {currency} =</span>
                 <Input
                   type="number" step="0.000001" min="0" className="tabular-nums"
-                  placeholder={autoRate > 0 ? ratef(autoRate) : "اكتب السعر"}
+                  placeholder={autoRate > 0 ? ratef(autoRate) : t("اكتب السعر")}
                   value={rateOverride}
                   onChange={(e) => setRateOverride(e.target.value)}
                 />
@@ -237,14 +240,14 @@ export function PurchaseOrderForm({ suppliers, warehouses, items, unitsByItem = 
             </div>
 
             <div className="space-y-2">
-              <Label>أسعار مسجّلة</Label>
+              <Label>{t("أسعار مسجّلة")}</Label>
               {(rateHistory[currency] ?? []).length > 0 ? (
                 <select
                   className={selectCls}
                   value=""
                   onChange={(e) => e.target.value && setRateOverride(e.target.value)}
                 >
-                  <option value="">اختر من الأسعار المسجّلة…</option>
+                  <option value="">{t("اختر من الأسعار المسجّلة…")}</option>
                   {(rateHistory[currency] ?? []).slice(0, 30).map((r) => (
                     <option key={`${r.date}-${r.rate}`} value={String(r.rate)}>
                       {r.date} — {ratef(r.rate)}
@@ -253,7 +256,7 @@ export function PurchaseOrderForm({ suppliers, warehouses, items, unitsByItem = 
                 </select>
               ) : (
                 <div className="flex h-9 items-center rounded-md border border-dashed px-3 text-xs text-muted-foreground">
-                  مفيش أسعار مسجّلة لـ{currency}
+                  {fill(t("مفيش أسعار مسجّلة لـ{0}"), [currency])}
                 </div>
               )}
             </div>
@@ -262,18 +265,18 @@ export function PurchaseOrderForm({ suppliers, warehouses, items, unitsByItem = 
               {rate > 0 ? (
                 <>
                   <div className="text-sm">
-                    <span className="font-semibold tabular-nums">١ {currency} = {ratef(rate)} {baseCode}</span>
+                    <span className="font-semibold tabular-nums">{t("١")} {currency} = {ratef(rate)} {baseCode}</span>
                     {isManualRate
-                      ? <span className="ms-2 rounded bg-amber-500/15 px-2 py-0.5 text-xs text-amber-700 dark:text-amber-400">سعر يدوي</span>
-                      : autoRate > 0 && <span className="ms-2 rounded bg-muted px-2 py-0.5 text-xs text-muted-foreground">سعر {date}</span>}
+                      ? <span className="ms-2 rounded bg-amber-500/15 px-2 py-0.5 text-xs text-amber-700 dark:text-amber-400">{t("سعر يدوي")}</span>
+                      : autoRate > 0 && <span className="ms-2 rounded bg-muted px-2 py-0.5 text-xs text-muted-foreground">{t("سعر")} {date}</span>}
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    ده السعر المعتمد للأمر كله — إذن الاستلام والفاتورة هيمشوا بيه.
+                    {t("ده السعر المعتمد للأمر كله — إذن الاستلام والفاتورة هيمشوا بيه.")}
                   </p>
                 </>
               ) : (
                 <p className="text-xs text-destructive">
-                  مفيش سعر صرف لـ{currency} في تاريخ الأمر — اكتبه هنا أو أضِفه من الإعدادات ← العملات.
+                  {fill(t("مفيش سعر صرف لـ{0} في تاريخ الأمر — اكتبه هنا أو أضِفه من الإعدادات ← العملات."), [currency])}
                 </p>
               )}
               {rateOverride.trim() !== "" && (
@@ -282,7 +285,7 @@ export function PurchaseOrderForm({ suppliers, warehouses, items, unitsByItem = 
                   className="self-start text-xs text-primary underline"
                   onClick={() => setRateOverride("")}
                 >
-                  رجّع السعر الافتراضي
+                  {t("رجّع السعر الافتراضي")}
                 </button>
               )}
             </div>
@@ -294,15 +297,15 @@ export function PurchaseOrderForm({ suppliers, warehouses, items, unitsByItem = 
             <TableHeader>
               <TableRow>
                 <TableHead className="w-8" />
-                <TableHead className="w-14 text-start">صورة</TableHead>
-                <TableHead className="w-72 min-w-64 text-start">الصنف</TableHead>
-                <TableHead className="w-28 text-start">الوحدة</TableHead>
-                <TableHead className="w-28 text-start">الكمية</TableHead>
-                <TableHead className="w-36 text-start">السعر</TableHead>
-                <TableHead className="w-28 text-start">شحن/وحدة</TableHead>
-                <TableHead className="w-28 text-start">خصم/وحدة</TableHead>
-                <TableHead className="w-28 text-start">الضريبة</TableHead>
-                <TableHead className="w-28 text-start">الإجمالي</TableHead>
+                <TableHead className="w-14 text-start">{t("صورة")}</TableHead>
+                <TableHead className="w-72 min-w-64 text-start">{t("الصنف")}</TableHead>
+                <TableHead className="w-28 text-start">{t("الوحدة")}</TableHead>
+                <TableHead className="w-28 text-start">{t("الكمية")}</TableHead>
+                <TableHead className="w-36 text-start">{t("السعر")}</TableHead>
+                <TableHead className="w-28 text-start">{t("شحن/وحدة")}</TableHead>
+                <TableHead className="w-28 text-start">{t("خصم/وحدة")}</TableHead>
+                <TableHead className="w-28 text-start">{t("الضريبة")}</TableHead>
+                <TableHead className="w-28 text-start">{t("الإجمالي")}</TableHead>
                 <TableHead className="w-10"></TableHead>
                 <TableHead className="w-8" />
               </TableRow>
@@ -339,14 +342,14 @@ export function PurchaseOrderForm({ suppliers, warehouses, items, unitsByItem = 
                     {/* VAT is the document-level choice, not a per-line entry — read only. */}
                     <TableCell className="tabular-nums text-muted-foreground">{fmt(lineTax(l, vatRate, applyVat))}</TableCell>
                     <TableCell className="font-medium">{fmt(lineTotal(l, vatRate, applyVat))}</TableCell>
-                    <TableCell><Button variant="ghost" size="icon" onClick={() => removeLine(i)} aria-label="حذف"><Trash2 className="size-4 text-destructive" /></Button></TableCell>
+                    <TableCell><Button variant="ghost" size="icon" onClick={() => removeLine(i)} aria-label={t("حذف")}><Trash2 className="size-4 text-destructive" /></Button></TableCell>
                   </>
                 )}
               />
             </TableBody>
           </Table>
         </div>
-        <Button variant="outline" onClick={addLine}><Plus className="size-4" />إضافة بند</Button>
+        <Button variant="outline" onClick={addLine}><Plus className="size-4" />{t("إضافة بند")}</Button>
 
         {/* Two different costs, two different places. What the supplier charges for
             getting the goods to you is part of the agreed price and belongs on the line
@@ -354,22 +357,21 @@ export function PurchaseOrderForm({ suppliers, warehouses, items, unitsByItem = 
             arrive later, from other suppliers, on their own voucher — entering those here
             would capitalise the same cost twice. */}
         <p className="text-xs text-muted-foreground">
-          «شحن/وحدة» هو الشحن الداخلي المتفق عليه مع المورد — جزء من سعر البضاعة، وإذن الاستلام بيرثه.
-          أمّا شحن الاستيراد والجمارك فتُسجَّل بعد الاستلام من «المشتريات ← تكاليف الاستيراد».
+          {t("«شحن/وحدة» هو الشحن الداخلي المتفق عليه مع المورد — جزء من سعر البضاعة، وإذن الاستلام بيرثه. أمّا شحن الاستيراد والجمارك فتُسجَّل بعد الاستلام من «المشتريات ← تكاليف الاستيراد».")}
         </p>
 
         <div className="flex items-start justify-between gap-4 text-sm">
           <div className="flex flex-col items-start gap-1">
-            <div>إجمالي الكمية: <span className="font-medium">{qtyf(totals.qty)}</span></div>
+            <div>{t("إجمالي الكمية:")} <span className="font-medium">{qtyf(totals.qty)}</span></div>
           </div>
           <div className="flex flex-col items-end gap-1">
-            <div>الإجمالي الفرعي: <span className="font-medium">{fmt(totals.subtotal)}</span></div>
-            <div>الشحن: <span className="font-medium">{fmt(totals.shipping)}</span></div>
-            <div>الخصم: <span className="font-medium">{fmt(totals.discount)}</span></div>
-            <div>الضريبة: <span className="font-medium">{fmt(totals.tax)}</span></div>
-            <div className="text-base font-bold text-primary">الإجمالي: {fmt(totals.total)} {isForeign ? currency : baseCode}</div>
+            <div>{t("الإجمالي الفرعي:")} <span className="font-medium">{fmt(totals.subtotal)}</span></div>
+            <div>{t("الشحن:")} <span className="font-medium">{fmt(totals.shipping)}</span></div>
+            <div>{t("الخصم:")} <span className="font-medium">{fmt(totals.discount)}</span></div>
+            <div>{t("الضريبة:")} <span className="font-medium">{fmt(totals.tax)}</span></div>
+            <div className="text-base font-bold text-primary">{t("الإجمالي:")} {fmt(totals.total)} {isForeign ? currency : baseCode}</div>
             {isForeign && rate > 0 && (
-              <div className="text-base font-bold">الإجمالي: {fmt(round2(totals.total * rate))} {baseCode} <span className="text-xs font-normal text-muted-foreground">(يُرحّل بالحسابات)</span></div>
+              <div className="text-base font-bold">{t("الإجمالي:")} {fmt(round2(totals.total * rate))} {baseCode} <span className="text-xs font-normal text-muted-foreground">{t("(يُرحّل بالحسابات)")}</span></div>
             )}
           </div>
         </div>

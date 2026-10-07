@@ -1,8 +1,9 @@
 "use client";
 
 import { useTransition } from "react";
+import { useT } from "@/lib/i18n/client";
 import { useRouter } from "next/navigation";
-import { toast } from "sonner";
+import { toast } from "@/lib/i18n/toast";
 import { createSandboxAction, deleteSandboxAction } from "@/app/actions/erp/sandbox";
 import { setActiveOrgAction } from "@/app/actions/org";
 import { Button } from "@/components/ui/button";
@@ -10,6 +11,7 @@ import { Icon } from "@/components/icon";
 
 /** «جرّب بشركة تجريبية» — builds (or reopens) the demo company and switches to it. */
 export function SandboxStartButton({ variant = "outline" }: { variant?: "outline" | "default" }) {
+  const t = useT();
   const router = useRouter();
   const [pending, start] = useTransition();
   const go = () => start(async () => {
@@ -20,15 +22,16 @@ export function SandboxStartButton({ variant = "outline" }: { variant?: "outline
   });
   return (
     <Button variant={variant} disabled={pending} onClick={go}
-      title="شركة منفصلة فيها بيانات أمازون وهمية — شركتك الحقيقية مش بتتلمس">
+      title={t("شركة منفصلة فيها بيانات أمازون وهمية — شركتك الحقيقية مش بتتلمس")}>
       <Icon name={pending ? "LoaderCircle" : "FlaskConical"} className={`size-4 ${pending ? "animate-spin" : ""}`} />
-      {pending ? "بنجهّز الشركة التجريبية… حوالي دقيقة" : "جرّب بشركة تجريبية"}
+      {pending ? t("بنجهّز الشركة التجريبية… حوالي دقيقة") : t("جرّب بشركة تجريبية")}
     </Button>
   );
 }
 
 /** Strip shown on every page while the demo company is the active one. */
 export function SandboxBanner({ realOrgId }: { realOrgId: string | null }) {
+  const t = useT();
   const router = useRouter();
   const [pending, start] = useTransition();
   const back = () => start(async () => {
@@ -50,14 +53,14 @@ export function SandboxBanner({ realOrgId }: { realOrgId: string | null }) {
     <div className="flex flex-wrap items-center justify-between gap-2 border-b border-sky-500/40 bg-sky-500/10 px-4 py-2 text-sm md:px-6">
       <span className="flex items-center gap-2 font-medium text-sky-800 dark:text-sky-300">
         <Icon name="FlaskConical" className="size-4" />
-        انت في الشركة التجريبية — كل البيانات هنا وهمية، جرّب براحتك
+        {t("انت في الشركة التجريبية — كل البيانات هنا وهمية، جرّب براحتك")}
       </span>
       <div className="flex gap-2">
         {realOrgId && (
-          <Button size="sm" variant="outline" disabled={pending} onClick={back}>ارجع لشركتي</Button>
+          <Button size="sm" variant="outline" disabled={pending} onClick={back}>{t("ارجع لشركتي")}</Button>
         )}
         <Button size="sm" variant="ghost" disabled={pending} onClick={remove}>
-          <Icon name="Trash2" className="size-4" />امسح الشركة التجريبية
+          <Icon name="Trash2" className="size-4" />{t("امسح الشركة التجريبية")}
         </Button>
       </div>
     </div>

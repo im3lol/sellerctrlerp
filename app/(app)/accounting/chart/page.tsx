@@ -1,4 +1,6 @@
 import { and, asc, eq, sql } from "drizzle-orm";
+import { fill } from "@/lib/i18n";
+import { getT } from "@/lib/i18n/server";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
 import { accounts, journalEntries, journalEntryLines } from "@/db/schema";
@@ -6,6 +8,7 @@ import { ErpPageHeader } from "@/components/erp/page-header";
 import { AccountsTree } from "@/components/erp/accounts-tree";
 
 export default async function ChartOfAccountsPage() {
+  const t = await getT();
   return loadErpPage("accounting.view", async ({ orgId, can }) => {
     const [rows, balRows] = await Promise.all([
       db
@@ -47,8 +50,8 @@ export default async function ChartOfAccountsPage() {
       <div className="space-y-6">
         <ErpPageHeader
           icon="Calculator"
-          title="دليل الحسابات"
-          subtitle={`${rows.length} حساب (${leafCount} تفصيلي)`}
+          title={t("دليل الحسابات")}
+          subtitle={fill(t("{0} حساب ({1} تفصيلي)"), [rows.length, leafCount])}
           backHref="/accounting"
         />
         <AccountsTree accounts={rows} balances={balances} canManage={can("accounting.create")} />

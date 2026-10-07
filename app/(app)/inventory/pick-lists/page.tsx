@@ -1,4 +1,7 @@
 import Link from "next/link";
+import type { Locale } from "@/lib/i18n";
+import { fill } from "@/lib/i18n";
+import { getLocale, getT } from "@/lib/i18n/server";
 import { notFound } from "next/navigation";
 import { and, desc, eq, sql } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
@@ -17,7 +20,7 @@ const STATUS: Record<string, { label: string; variant: "default" | "secondary" |
   DONE: { label: "اتقفلت", variant: "default" },
   CANCELLED: { label: "ملغية", variant: "destructive" },
 };
-const dt = (d: Date) => new Date(d).toLocaleDateString("ar-EG-u-nu-latn", { day: "numeric", month: "short", year: "numeric" });
+const dt = (d: Date, locale: Locale = "ar") => new Date(d).toLocaleDateString((locale === "en" ? "en-GB" : "ar-EG-u-nu-latn"), { day: "numeric", month: "short", year: "numeric" });
 const n = (v: number) => v.toLocaleString("ar-EG-u-nu-latn");
 
 /**
@@ -26,6 +29,8 @@ const n = (v: number) => v.toLocaleString("ar-EG-u-nu-latn");
  * drafts → «جولة تجهيز»).
  */
 export default async function PickListsPage({ searchParams }: { searchParams: Promise<{ n?: string }> }) {
+  const locale = await getLocale();
+  const t = await getT();
   return loadErpPage("inventory.view", async ({ orgId, can }) => {
     const number = ((await searchParams).n ?? "").trim();
 
@@ -63,10 +68,10 @@ export default async function PickListsPage({ searchParams }: { searchParams: Pr
         <div className="space-y-6">
           <ErpPageHeader
             icon="ScanLine"
-            title={`جولة تجهيز ${pl.number}`}
-            subtitle={`${pl.warehouse ?? "—"} · ${dt(pl.date)} · ${n(deliveries.length)} إذن · ${n(groups.length)} صنف`}
+            title={fill(t("جولة تجهيز {0}"), [pl.number])}
+            subtitle={fill(t("{0} · {1} · {2} إذن · {3} صنف"), [pl.warehouse ?? "—", dt(pl.date, locale), n(deliveries.length), n(groups.length)])}
             backHref="/inventory/pick-lists"
-            action={<Badge variant={st.variant}>{st.label}</Badge>}
+            action={<Badge variant={st.variant}>{t(st.label)}</Badge>}
           />
           <PickListSheet
             pickListId={pl.id} open={pl.status === "OPEN"} groups={groups} deliveries={deliveries}
@@ -91,25 +96,25 @@ export default async function PickListsPage({ searchParams }: { searchParams: Pr
       <div className="space-y-6">
         <ErpPageHeader
           icon="ScanLine"
-          title="جولات التجهيز"
-          subtitle="جمّع أذون صرف كتير في لفّة واحدة على المخزن — من «أذون الصرف» حدّد المسودات ودوس «جولة تجهيز»."
+          title={t("جولات التجهيز")}
+          subtitle={t("جمّع أذون صرف كتير في لفّة واحدة على المخزن — من «أذون الصرف» حدّد المسودات ودوس «جولة تجهيز».")}
           backHref="/inventory"
-          action={<Button asChild variant="outline"><Link href="/sales/deliveries?status=DRAFT">أذون الصرف المسودة</Link></Button>}
+          action={<Button asChild variant="outline"><Link href="/sales/deliveries?status=DRAFT">{t("أذون الصرف المسودة")}</Link></Button>}
         />
         <Card>
           <CardContent className="p-0">
             {list.length === 0 ? (
-              <div className="py-12 text-center text-muted-foreground">لسه مفيش جولات — ابدأ من «أذون الصرف».</div>
+              <div className="py-12 text-center text-muted-foreground">{t("لسه مفيش جولات — ابدأ من «أذون الصرف».")}</div>
             ) : (
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="text-start">الرقم</TableHead>
-                    <TableHead className="text-start">التاريخ</TableHead>
-                    <TableHead className="text-start">المخزن</TableHead>
-                    <TableHead className="text-start">الأذون</TableHead>
-                    <TableHead className="text-start">الأصناف</TableHead>
-                    <TableHead className="text-start">الحالة</TableHead>
+                    <TableHead className="text-start">{t("الرقم")}</TableHead>
+                    <TableHead className="text-start">{t("التاريخ")}</TableHead>
+                    <TableHead className="text-start">{t("المخزن")}</TableHead>
+                    <TableHead className="text-start">{t("الأذون")}</TableHead>
+                    <TableHead className="text-start">{t("الأصناف")}</TableHead>
+                    <TableHead className="text-start">{t("الحالة")}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -118,11 +123,11 @@ export default async function PickListsPage({ searchParams }: { searchParams: Pr
                     return (
                       <TableRow key={r.id}>
                         <TableCell><Link href={`/inventory/pick-lists?n=${encodeURIComponent(r.number)}`} className="font-mono font-medium text-primary hover:underline">{r.number}</Link></TableCell>
-                        <TableCell>{dt(r.date)}</TableCell>
+                        <TableCell>{dt(r.date, locale)}</TableCell>
                         <TableCell>{r.warehouse ?? "—"}</TableCell>
                         <TableCell className="tabular-nums">{n(r.deliveries)}</TableCell>
                         <TableCell className="tabular-nums">{n(r.itemCount)}</TableCell>
-                        <TableCell><Badge variant={st.variant}>{st.label}</Badge></TableCell>
+                        <TableCell><Badge variant={st.variant}>{t(st.label)}</Badge></TableCell>
                       </TableRow>
                     );
                   })}

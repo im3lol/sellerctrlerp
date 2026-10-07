@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useT } from "@/lib/i18n/client";
 import { createPortal } from "react-dom";
 import { Input } from "@/components/ui/input";
 import type { WarehouseStock } from "@/app/actions/erp/stock";
@@ -25,6 +26,7 @@ export function WarehousePicker({
   disabled?: boolean;
   placeholder?: string;
 }) {
+  const t = useT();
   const selected = options.find((o) => o.warehouseId === value);
   const label = selected ? `${selected.name} — ${fmt(selected.qty)}` : "";
 
@@ -78,11 +80,11 @@ export function WarehousePicker({
           className="max-h-72 overflow-auto rounded-md border bg-popover text-popover-foreground shadow-lg"
         >
           {filtered.length === 0 ? (
-            <div className="px-3 py-2 text-sm text-muted-foreground">لا نتائج</div>
+            <div className="px-3 py-2 text-sm text-muted-foreground">{t("لا نتائج")}</div>
           ) : (
             filtered.map((o) => (
               <button type="button" key={o.warehouseId} onClick={() => pick(o)} className="flex w-full items-center justify-between gap-3 px-3 py-2 text-start hover:bg-accent">
-                <span className="truncate text-sm">{o.name}</span>
+                <span className="truncate text-sm">{t(o.name)}</span>
                 <span className={`shrink-0 text-xs tabular-nums ${o.qty > 0 ? "text-muted-foreground" : "text-destructive"}`}>{fmt(o.qty)}</span>
               </button>
             ))
@@ -97,7 +99,7 @@ export function WarehousePicker({
       <Input
         value={q}
         disabled={disabled}
-        placeholder={placeholder ?? "ابحث عن مستودع…"}
+        placeholder={placeholder ?? t("ابحث عن مستودع…")}
         onFocus={() => { setEditing(true); setQ(""); setOpen(true); }}
         onChange={(e) => { setQ(e.target.value); setOpen(true); }}
       />

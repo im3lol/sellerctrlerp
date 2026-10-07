@@ -1,8 +1,9 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
+import { useT } from "@/lib/i18n/client";
 import { useRouter } from "next/navigation";
-import { toast } from "sonner";
+import { toast } from "@/lib/i18n/toast";
 import { Loader2, Plus, Pencil, Trash2 } from "lucide-react";
 import { upsertRecurringExpenseAction, toggleRecurringExpenseAction, deleteRecurringExpenseAction, bulkDeleteRecurringExpensesAction } from "@/app/actions/erp/recurring-expenses";
 import { FREQUENCY_LABELS, type Frequency } from "@/lib/erp/recurring-shared";
@@ -27,6 +28,7 @@ export type Recurring = {
 const egp = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 function EditDialog({ rec, expenseAccounts, cashAccounts, onClose }: { rec: Recurring | null; expenseAccounts: Account[]; cashAccounts: Account[]; onClose: () => void }) {
+  const t = useT();
   const router = useRouter();
   const [pending, start] = useTransition();
   const today = new Date().toISOString().slice(0, 10);
@@ -47,43 +49,44 @@ function EditDialog({ rec, expenseAccounts, cashAccounts, onClose }: { rec: Recu
   const save = () => start(async () => {
     const r = await upsertRecurringExpenseAction({ id: rec?.id, expenseAccountId, cashAccountId, amount: Number(amount) || 0, frequency, nextRunDate, payee, notes });
     if (r.ok) { toast.success("تم حفظ القالب المتكرر"); onClose(); router.refresh(); }
-    else toast.error(r.error ?? "تعذّر الحفظ");
+    else toast.error(r.error ?? t("تعذّر الحفظ"));
   });
 
   return (
-    <DialogContent dir="rtl">
-      <DialogHeader><DialogTitle>{rec ? "تعديل مصروف متكرر" : "مصروف متكرر جديد"}</DialogTitle></DialogHeader>
+    <DialogContent>
+      <DialogHeader><DialogTitle>{rec ? t("تعديل مصروف متكرر") : t("مصروف متكرر جديد")}</DialogTitle></DialogHeader>
       <div className="space-y-4">
         <div className="space-y-1.5">
-          <Label>بند المصروف</Label>
-          <CellCombobox selectedLabel={expLabel.get(expenseAccountId) ?? ""} options={expOptions} onSelect={setExpenseAccountId} placeholder="ابحث عن بند المصروف…" />
+          <Label>{t("بند المصروف")}</Label>
+          <CellCombobox selectedLabel={expLabel.get(expenseAccountId) ?? ""} options={expOptions} onSelect={setExpenseAccountId} placeholder={t("ابحث عن بند المصروف…")} />
         </div>
         <div className="space-y-1.5">
-          <Label>الدفع من (نقدية / بنك)</Label>
-          <CellCombobox selectedLabel={cashLabel.get(cashAccountId) ?? ""} options={cashOptions} onSelect={setCashAccountId} placeholder="ابحث عن الحساب…" />
+          <Label>{t("الدفع من (نقدية / بنك)")}</Label>
+          <CellCombobox selectedLabel={cashLabel.get(cashAccountId) ?? ""} options={cashOptions} onSelect={setCashAccountId} placeholder={t("ابحث عن الحساب…")} />
         </div>
         <div className="grid grid-cols-2 gap-3">
-          <div className="space-y-1.5"><Label>المبلغ</Label><Input type="number" step="0.01" min="0" value={amount} onChange={(e) => setAmount(e.target.value)} /></div>
+          <div className="space-y-1.5"><Label>{t("المبلغ")}</Label><Input type="number" step="0.01" min="0" value={amount} onChange={(e) => setAmount(e.target.value)} /></div>
           <div className="space-y-1.5">
-            <Label>التكرار</Label>
+            <Label>{t("التكرار")}</Label>
             <select className={selectCls} value={frequency} onChange={(e) => setFrequency(e.target.value as Frequency)}>
-              {Object.entries(FREQUENCY_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+              {Object.entries(FREQUENCY_LABELS).map(([k, v]) => <option key={k} value={k}>{t(v)}</option>)}
             </select>
           </div>
-          <div className="space-y-1.5"><Label>أول تنفيذ</Label><Input type="date" value={nextRunDate} onChange={(e) => setNextRunDate(e.target.value)} /></div>
-          <div className="space-y-1.5"><Label>المستفيد (اختياري)</Label><Input value={payee} onChange={(e) => setPayee(e.target.value)} /></div>
+          <div className="space-y-1.5"><Label>{t("أول تنفيذ")}</Label><Input type="date" value={nextRunDate} onChange={(e) => setNextRunDate(e.target.value)} /></div>
+          <div className="space-y-1.5"><Label>{t("المستفيد (اختياري)")}</Label><Input value={payee} onChange={(e) => setPayee(e.target.value)} /></div>
         </div>
-        <div className="space-y-1.5"><Label>ملاحظات</Label><Input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="اختياري" /></div>
+        <div className="space-y-1.5"><Label>{t("ملاحظات")}</Label><Input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder={t("اختياري")} /></div>
       </div>
       <DialogFooter>
-        <Button variant="outline" onClick={onClose}>إلغاء</Button>
-        <Button onClick={save} disabled={pending}>{pending && <Loader2 className="size-4 animate-spin" />}حفظ</Button>
+        <Button variant="outline" onClick={onClose}>{t("إلغاء")}</Button>
+        <Button onClick={save} disabled={pending}>{pending && <Loader2 className="size-4 animate-spin" />}{t("حفظ")}</Button>
       </DialogFooter>
     </DialogContent>
   );
 }
 
 export function RecurringExpensesManager({ items, expenseAccounts, cashAccounts }: { items: Recurring[]; expenseAccounts: Account[]; cashAccounts: Account[] }) {
+  const t = useT();
   const router = useRouter();
   const [pending, start] = useTransition();
   const [dialog, setDialog] = useState<{ open: boolean; rec: Recurring | null }>({ open: false, rec: null });
@@ -98,41 +101,41 @@ export function RecurringExpensesManager({ items, expenseAccounts, cashAccounts 
     <Card>
       <CardContent className="p-0">
         <div className="flex items-center justify-between p-4">
-          <span className="text-sm text-muted-foreground">{items.length} قالب — تُولَّد كمسودة تلقائياً عند حلول موعدها</span>
-          <Button size="sm" onClick={() => setDialog({ open: true, rec: null })}><Plus className="size-4" />قالب جديد</Button>
+          <span className="text-sm text-muted-foreground">{items.length} {t("قالب — تُولَّد كمسودة تلقائياً عند حلول موعدها")}</span>
+          <Button size="sm" onClick={() => setDialog({ open: true, rec: null })}><Plus className="size-4" />{t("قالب جديد")}</Button>
         </div>
         <>
-        <BulkDeleteBar ids={sel.ids} action={bulkDeleteRecurringExpensesAction} onDone={sel.clear} entity="قالب" />
+        <BulkDeleteBar ids={sel.ids} action={bulkDeleteRecurringExpensesAction} onDone={sel.clear} entity={t("قالب")} />
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="w-10"><SelectBox label="تحديد الكل" checked={sel.allOf(allIds)} indeterminate={sel.someOf(allIds)} onChange={() => sel.togglePage(allIds)} /></TableHead>
-              <TableHead className="text-start">البند</TableHead>
-              <TableHead className="text-start">المبلغ</TableHead>
-              <TableHead className="text-start">التكرار</TableHead>
-              <TableHead className="text-start">التنفيذ القادم</TableHead>
-              <TableHead className="text-start">الدفع من</TableHead>
-              <TableHead className="text-start">الحالة</TableHead>
-              <TableHead className="text-start">إجراءات</TableHead>
+              <TableHead className="w-10"><SelectBox label={t("تحديد الكل")} checked={sel.allOf(allIds)} indeterminate={sel.someOf(allIds)} onChange={() => sel.togglePage(allIds)} /></TableHead>
+              <TableHead className="text-start">{t("البند")}</TableHead>
+              <TableHead className="text-start">{t("المبلغ")}</TableHead>
+              <TableHead className="text-start">{t("التكرار")}</TableHead>
+              <TableHead className="text-start">{t("التنفيذ القادم")}</TableHead>
+              <TableHead className="text-start">{t("الدفع من")}</TableHead>
+              <TableHead className="text-start">{t("الحالة")}</TableHead>
+              <TableHead className="text-start">{t("إجراءات")}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {items.length === 0 ? (
-              <TableRow><TableCell colSpan={8} className="py-10 text-center text-muted-foreground">لا توجد قوالب متكررة — أنشئ أول قالب.</TableCell></TableRow>
+              <TableRow><TableCell colSpan={8} className="py-10 text-center text-muted-foreground">{t("لا توجد قوالب متكررة — أنشئ أول قالب.")}</TableCell></TableRow>
             ) : items.map((r) => (
               <TableRow key={r.id} data-state={sel.has(r.id) ? "selected" : undefined}>
-                <TableCell><SelectBox label="تحديد" checked={sel.has(r.id)} onChange={() => sel.toggle(r.id)} /></TableCell>
-                <TableCell className="font-medium">{r.category}{r.payee ? <span className="text-xs text-muted-foreground"> — {r.payee}</span> : ""}</TableCell>
+                <TableCell><SelectBox label={t("تحديد")} checked={sel.has(r.id)} onChange={() => sel.toggle(r.id)} /></TableCell>
+                <TableCell className="font-medium">{t(r.category)}{r.payee ? <span className="text-xs text-muted-foreground"> — {r.payee}</span> : ""}</TableCell>
                 <TableCell className="tabular-nums">{egp(r.amount)}</TableCell>
-                <TableCell>{FREQUENCY_LABELS[r.frequency as Frequency] ?? r.frequency}</TableCell>
+                <TableCell>{t(FREQUENCY_LABELS[r.frequency as Frequency] ?? r.frequency)}</TableCell>
                 <TableCell className="tabular-nums">{r.nextRunDate}</TableCell>
                 <TableCell>{r.paidFrom}</TableCell>
-                <TableCell><Badge variant={r.isActive ? "default" : "outline"}>{r.isActive ? "مفعّل" : "موقوف"}</Badge></TableCell>
+                <TableCell><Badge variant={r.isActive ? "default" : "outline"}>{r.isActive ? t("مفعّل") : t("موقوف")}</Badge></TableCell>
                 <TableCell>
                   <div className="flex gap-1">
-                    <Button size="icon" variant="ghost" onClick={() => setDialog({ open: true, rec: r })} aria-label="تعديل"><Pencil className="size-4" /></Button>
-                    <Button size="sm" variant="ghost" disabled={pending} onClick={() => toggle(r.id)}>{r.isActive ? "إيقاف" : "تفعيل"}</Button>
-                    <Button size="icon" variant="ghost" disabled={pending} onClick={() => setConfirmDel(r)} aria-label="حذف"><Trash2 className="size-4 text-destructive" /></Button>
+                    <Button size="icon" variant="ghost" onClick={() => setDialog({ open: true, rec: r })} aria-label={t("تعديل")}><Pencil className="size-4" /></Button>
+                    <Button size="sm" variant="ghost" disabled={pending} onClick={() => toggle(r.id)}>{r.isActive ? t("إيقاف") : t("تفعيل")}</Button>
+                    <Button size="icon" variant="ghost" disabled={pending} onClick={() => setConfirmDel(r)} aria-label={t("حذف")}><Trash2 className="size-4 text-destructive" /></Button>
                   </div>
                 </TableCell>
               </TableRow>
@@ -147,12 +150,12 @@ export function RecurringExpensesManager({ items, expenseAccounts, cashAccounts 
       </Dialog>
       <Dialog open={!!confirmDel} onOpenChange={(o) => !o && setConfirmDel(null)}>
         {confirmDel && (
-          <DialogContent dir="rtl">
-            <DialogHeader><DialogTitle>حذف القالب المتكرر؟</DialogTitle></DialogHeader>
-            <p className="text-sm text-muted-foreground">لن يؤثر على المصروفات التي وُلّدت بالفعل.</p>
+          <DialogContent>
+            <DialogHeader><DialogTitle>{t("حذف القالب المتكرر؟")}</DialogTitle></DialogHeader>
+            <p className="text-sm text-muted-foreground">{t("لن يؤثر على المصروفات التي وُلّدت بالفعل.")}</p>
             <DialogFooter>
-              <Button variant="outline" onClick={() => setConfirmDel(null)}>إلغاء</Button>
-              <Button variant="destructive" disabled={pending} onClick={() => del(confirmDel)}>حذف</Button>
+              <Button variant="outline" onClick={() => setConfirmDel(null)}>{t("إلغاء")}</Button>
+              <Button variant="destructive" disabled={pending} onClick={() => del(confirmDel)}>{t("حذف")}</Button>
             </DialogFooter>
           </DialogContent>
         )}

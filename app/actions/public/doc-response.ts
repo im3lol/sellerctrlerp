@@ -7,6 +7,7 @@ import { organizationMembers, salesQuotations } from "@/db/schema";
 import { verifyDocLink, docLinkSecret } from "@/lib/erp/doc-link";
 import { tryRecordAudit } from "@/lib/erp/audit";
 import { notifyUsers } from "@/lib/erp/approval-notify";
+import { fill } from "@/lib/i18n";
 
 /**
  * A customer accepting or rejecting a quotation from its link — no account. The signed
@@ -39,8 +40,9 @@ export async function respondQuotationAction(token: string, decision: "ACCEPTED"
   });
   if (!done) return { ok: false, error: "العرض ده اتردّ عليه قبل كده" };
 
-  await notifyUsers(link.o, done.people,
-    `${decision === "ACCEPTED" ? "✅ العميل وافق على" : "❌ العميل رفض"} عرض السعر ${done.number}`,
-    who ? [`باسم: ${who}`] : [], `/sales/quotations/${encodeURIComponent(done.number)}`);
+  await notifyUsers(link.o, done.people, (t) => ({
+    heading: fill(t(decision === "ACCEPTED" ? "✅ العميل وافق على عرض السعر {0}" : "❌ العميل رفض عرض السعر {0}"), [done.number]),
+    lines: who ? [fill(t("باسم: {0}"), [who])] : [],
+  }), `/sales/quotations/${encodeURIComponent(done.number)}`);
   return { ok: true };
 }

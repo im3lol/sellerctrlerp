@@ -13,6 +13,8 @@ import {
   recurringSalesInvoices, recurringSalesInvoiceLines, itemComponents,
   costCenters, bankStatementLines, payrollRuns, payrollLines, recurringExpenses,
   recurringJournals, recurringJournalLines, fiscalPeriods, accountBudgets,
+  stockSerials, binLocations, pickLists, pickListLines, qcInspections,
+  salesReturns, priceLists, promotions, rfqs, landedCostVouchers,
 } from "@/db/schema";
 
 /**
@@ -760,6 +762,179 @@ async function _platformList(orgId: string): Promise<DocRow[]> {
   return rows.map((r) => ({ id: r.id, number: r.code, title: r.name, subtitle: r.fulfillment ?? r.code, amount: null, status: r.active ? "نشط" : "متوقف" }));
 }
 
+/** الأرقام التسلسلية — every tracked serial with where it stands now. */
+async function _serialList(orgId: string): Promise<DocRow[]> {
+  const rows = await db.select({
+    id: stockSerials.id, serial: stockSerials.serial, status: stockSerials.status,
+    item: items.nameAr, code: items.code, warehouse: warehouses.nameAr, batch: stockSerials.batchNo,
+  }).from(stockSerials)
+    .leftJoin(items, eq(items.id, stockSerials.itemId))
+    .leftJoin(warehouses, eq(warehouses.id, stockSerials.warehouseId))
+    .where(eq(stockSerials.organizationId, orgId))
+    .orderBy(desc(stockSerials.createdAt)).limit(200);
+  return rows.map((r) => ({
+    id: r.id, number: r.serial, title: r.item ?? r.code ?? "—",
+    subtitle: [r.warehouse, r.batch ? `دفعة ${r.batch}` : null].filter(Boolean).join(" · ") || null,
+    amount: null, status: SERIAL_STATUS_AR[r.status] ?? r.status,
+  }));
+}
+
+/** مواقع التخزين — bins per warehouse. */
+async function _binLocationList(orgId: string): Promise<DocRow[]> {
+  const rows = await db.select({
+    id: binLocations.id, code: binLocations.code, name: binLocations.nameAr,
+    warehouse: warehouses.nameAr, active: binLocations.isActive,
+  }).from(binLocations)
+    .leftJoin(warehouses, eq(warehouses.id, binLocations.warehouseId))
+    .where(eq(binLocations.organizationId, orgId))
+    .orderBy(binLocations.code).limit(200);
+  return rows.map((r) => ({
+    id: r.id, number: r.code, title: r.name ?? r.code, subtitle: r.warehouse,
+    amount: null, status: r.active ? "نشط" : "متوقف",
+  }));
+}
+
+/** جولات التجهيز — pick lists with how much of the round is already picked. */
+async function _pickListList(orgId: string): Promise<DocRow[]> {
+  const rows = await db.select({
+    id: pickLists.id, number: pickLists.number, date: pickLists.date, status: pickLists.status,
+    warehouse: warehouses.nameAr,
+    lines: sql<string>`count(${pickListLines.id})`,
+    qty: sql<string>`coalesce(sum(${pickListLines.quantity}), 0)`,
+    picked: sql<string>`coalesce(sum(${pickListLines.pickedQty}), 0)`,
+  }).from(pickLists)
+    .leftJoin(warehouses, eq(warehouses.id, pickLists.warehouseId))
+    .leftJoin(pickListLines, eq(pickListLines.pickListId, pickLists.id))
+    .where(eq(pickLists.organizationId, orgId))
+    .groupBy(pickLists.id, warehouses.nameAr)
+    .orderBy(desc(pickLists.date)).limit(LIMIT);
+  return rows.map((r) => ({
+    id: r.id, number: r.number, title: r.warehouse ?? "—",
+    subtitle: `${new Date(r.date).toISOString().slice(0, 10)} · ${Number(r.lines)} صنف · تم تجهيز ${fmtQty(Number(r.picked))} من ${fmtQty(Number(r.qty))}`,
+    amount: null, status: r.status,
+  }));
+}
+
+/** فحص الجودة — quarantine inspections and what was decided. */
+async function _qcInspectionList(orgId: string): Promise<DocRow[]> {
+  const rows = await db.select({
+    id: qcInspections.id, number: qcInspections.number, receipt: qcInspections.receiptNumber,
+    item: items.nameAr, code: items.code, status: qcInspections.status,
+    qty: qcInspections.quantity, passed: qcInspections.passedQty, failed: qcInspections.failedQty,
+  }).from(qcInspections)
+    .leftJoin(items, eq(items.id, qcInspections.itemId))
+    .where(eq(qcInspections.organizationId, orgId))
+    .orderBy(desc(qcInspections.createdAt)).limit(LIMIT);
+  return rows.map((r) => ({
+    id: r.id, number: r.number, title: r.item ?? r.code ?? "—",
+    subtitle: `إذن ${r.receipt} · كمية ${fmtQty(Number(r.qty))} · سليم ${fmtQty(Number(r.passed))} · مرفوض ${fmtQty(Number(r.failed))}`,
+    amount: null, status: QC_STATUS_AR[r.status] ?? r.status,
+  }));
+}
+
+/** تقييم المخزون — one row per item: total quantity and its value across warehouses. */
+async function _valuationList(orgId: string): Promise<DocRow[]> {
+  const { getStockBalances } = await import("@/lib/erp/stock-balances");
+  const { lines } = await getStockBalances(orgId, {});
+  const byItem = new Map<string, { code: string; name: string; qty: number; value: number }>();
+  for (const l of lines) {
+    const cur = byItem.get(l.itemId) ?? { code: l.code, name: l.name, qty: 0, value: 0 };
+    cur.qty += l.quantity; cur.value += l.value;
+    byItem.set(l.itemId, cur);
+  }
+  return [...byItem.entries()]
+    .sort((a, b) => b[1].value - a[1].value)
+    .slice(0, 200)
+    .map(([id, v]) => ({
+      id, number: v.code, title: v.name,
+      subtitle: `كمية ${fmtQty(v.qty)} · متوسط ${v.qty ? (v.value / v.qty).toFixed(2) : "0"}`,
+      amount: v.value, status: null,
+    }));
+}
+
+/** مرتجعات المبيعات. */
+async function _salesReturnList(orgId: string): Promise<DocRow[]> {
+  const rows = await db.select({
+    id: salesReturns.id, number: salesReturns.number, date: salesReturns.date, status: salesReturns.status,
+    amount: salesReturns.totalAmount, name: customers.nameAr, channel: salesReturns.channel,
+  }).from(salesReturns)
+    .leftJoin(customers, eq(customers.id, salesReturns.customerId))
+    .where(eq(salesReturns.organizationId, orgId))
+    .orderBy(desc(salesReturns.date)).limit(LIMIT);
+  return rows.map((r) => ({
+    id: r.id, number: r.number, title: r.name ?? "—",
+    subtitle: `${new Date(r.date).toISOString().slice(0, 10)}${r.channel ? ` · ${r.channel}` : ""}`,
+    amount: Number(r.amount), status: r.status,
+  }));
+}
+
+/** قوائم الأسعار — each list and the window it applies in. */
+async function _priceListList(orgId: string): Promise<DocRow[]> {
+  const rows = await db.select({
+    id: priceLists.id, code: priceLists.code, name: priceLists.nameAr, isDefault: priceLists.isDefault,
+    from: priceLists.validFrom, to: priceLists.validTo, active: priceLists.isActive,
+  }).from(priceLists).where(eq(priceLists.organizationId, orgId)).orderBy(priceLists.code).limit(200);
+  const day = (d: Date | null) => (d ? new Date(d).toISOString().slice(0, 10) : null);
+  return rows.map((r) => ({
+    id: r.id, number: r.code, title: r.name,
+    subtitle: [r.isDefault ? "الافتراضية" : null, r.from || r.to ? `${day(r.from) ?? "—"} ← ${day(r.to) ?? "—"}` : null].filter(Boolean).join(" · ") || null,
+    amount: null, status: r.active ? "نشطة" : "متوقفة",
+  }));
+}
+
+/** العروض — discount rules and what each one gives. */
+async function _promotionList(orgId: string): Promise<DocRow[]> {
+  const rows = await db.select({
+    id: promotions.id, code: promotions.code, name: promotions.nameAr, type: promotions.type,
+    value: promotions.value, buyQty: promotions.buyQty, getQty: promotions.getQty,
+    item: items.nameAr, active: promotions.isActive,
+  }).from(promotions)
+    .leftJoin(items, eq(items.id, promotions.itemId))
+    .where(eq(promotions.organizationId, orgId)).orderBy(promotions.code).limit(200);
+  const offer = (r: typeof rows[number]) =>
+    r.type === "PERCENT" ? `خصم ${fmtQty(Number(r.value))}%`
+      : r.type === "AMOUNT" ? `خصم ${fmtQty(Number(r.value))} للقطعة`
+      : `اشترِ ${r.buyQty} واحصل على ${r.getQty}`;
+  return rows.map((r) => ({
+    id: r.id, number: r.code, title: r.name,
+    subtitle: [offer(r), r.item].filter(Boolean).join(" · "),
+    amount: null, status: r.active ? "نشط" : "متوقف",
+  }));
+}
+
+/** طلبات عروض الأسعار — RFQs and who won them. */
+async function _rfqList(orgId: string): Promise<DocRow[]> {
+  const rows = await db.select({
+    id: rfqs.id, number: rfqs.number, date: rfqs.date, status: rfqs.status, awarded: suppliers.nameAr,
+  }).from(rfqs)
+    .leftJoin(suppliers, eq(suppliers.id, rfqs.awardedSupplierId))
+    .where(eq(rfqs.organizationId, orgId)).orderBy(desc(rfqs.date)).limit(LIMIT);
+  return rows.map((r) => ({
+    id: r.id, number: r.number, title: r.awarded ?? "لم يُرسَ بعد",
+    subtitle: new Date(r.date).toISOString().slice(0, 10), amount: null, status: r.status,
+  }));
+}
+
+/** تكاليف الاستيراد — landed-cost vouchers with their freight/customs split. */
+async function _landedCostList(orgId: string): Promise<DocRow[]> {
+  const rows = await db.select({
+    id: landedCostVouchers.id, number: landedCostVouchers.number, date: landedCostVouchers.date,
+    status: landedCostVouchers.status, amount: landedCostVouchers.totalAmount,
+    shipping: landedCostVouchers.shipping, customs: landedCostVouchers.customs, name: suppliers.nameAr,
+  }).from(landedCostVouchers)
+    .leftJoin(suppliers, eq(suppliers.id, landedCostVouchers.supplierId))
+    .where(eq(landedCostVouchers.organizationId, orgId))
+    .orderBy(desc(landedCostVouchers.date)).limit(LIMIT);
+  return rows.map((r) => ({
+    id: r.id, number: r.number, title: r.name ?? "—",
+    subtitle: `${new Date(r.date).toISOString().slice(0, 10)} · شحن ${fmtQty(Number(r.shipping))} · جمارك ${fmtQty(Number(r.customs))}`,
+    amount: Number(r.amount), status: r.status,
+  }));
+}
+
+const SERIAL_STATUS_AR: Record<string, string> = { IN_STOCK: "في المخزن", SOLD: "مُباع", RETURNED: "مرتجع", SCRAP: "تالف" };
+const QC_STATUS_AR: Record<string, string> = { PENDING: "بانتظار الفحص", DECIDED: "تم القرار", CANCELLED: "ملغي" };
+
 // ── RLS: every helper above is exported through scoped() so the /api/v1 routes
 // (which call these directly after authorizeApi, outside any wrapper) keep
 // working after the RLS prod cutover — the bare pool would return 0 rows.
@@ -828,3 +1003,13 @@ export const fixedAssetList = scoped(_fixedAssetList);
 export const chartAccountList = scoped(_chartAccountList);
 export const holidayList = scoped(_holidayList);
 export const platformList = scoped(_platformList);
+export const serialList = scoped(_serialList);
+export const binLocationList = scoped(_binLocationList);
+export const pickListList = scoped(_pickListList);
+export const qcInspectionList = scoped(_qcInspectionList);
+export const valuationList = scoped(_valuationList);
+export const salesReturnList = scoped(_salesReturnList);
+export const priceListList = scoped(_priceListList);
+export const promotionList = scoped(_promotionList);
+export const rfqList = scoped(_rfqList);
+export const landedCostList = scoped(_landedCostList);

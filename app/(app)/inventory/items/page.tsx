@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { fill } from "@/lib/i18n";
+import { getT } from "@/lib/i18n/server";
 import { and, or, asc, count, eq, inArray, isNull, notInArray, sql } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
@@ -21,6 +23,7 @@ type SP = { [k: string]: string | string[] | undefined };
 const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) ?? "";
 
 export default async function ItemsPage({ searchParams }: { searchParams: Promise<SP> }) {
+  const t = await getT();
   return loadErpPage("inventory.view", async ({ orgId, can }) => {
     const canManage = can("inventory.create");
     const sp = await searchParams;
@@ -117,64 +120,64 @@ export default async function ItemsPage({ searchParams }: { searchParams: Promis
       <div className="space-y-6">
         <ErpPageHeader
           icon="Package"
-          title="الأصناف"
-          subtitle={`${total} صنف`}
+          title={t("الأصناف")}
+          subtitle={fill(t("{0} صنف"), [total])}
           backHref="/inventory"
           action={
             <div className="flex items-center gap-2">
               <ExportCsvButton action={exportItemsCsvAction} />
-              {canManage && <Button asChild data-tour="new-item"><Link href="/inventory/items/new"><Icon name="Plus" className="size-4" />صنف جديد</Link></Button>}
+              {canManage && <Button asChild data-tour="new-item"><Link href="/inventory/items/new"><Icon name="Plus" className="size-4" />{t("صنف جديد")}</Link></Button>}
             </div>
           }
         />
         <Card>
-          <CardHeader><CardTitle>قائمة الأصناف</CardTitle><CardDescription>ابحث بالاسم أو الكود الداخلي أو أي كود خارجي (SKU/ASIN/باركود). اضغط الصنف لعرض تفاصيله.</CardDescription></CardHeader>
+          <CardHeader><CardTitle>{t("قائمة الأصناف")}</CardTitle><CardDescription>{t("ابحث بالاسم أو الكود الداخلي أو أي كود خارجي (SKU/ASIN/باركود). اضغط الصنف لعرض تفاصيله.")}</CardDescription></CardHeader>
           <CardContent className="space-y-4">
             <form className="grid gap-3 sm:grid-cols-5 items-end">
-              <div className="space-y-1 sm:col-span-2"><Label htmlFor="q">بحث</Label><Input id="q" name="q" defaultValue={q} placeholder="اسم / كود / SKU / ASIN / باركود" /></div>
+              <div className="space-y-1 sm:col-span-2"><Label htmlFor="q">{t("بحث")}</Label><Input id="q" name="q" defaultValue={q} placeholder={t("اسم / كود / SKU / ASIN / باركود")} /></div>
               <div className="space-y-1">
-                <Label htmlFor="category">الفئة</Label>
+                <Label htmlFor="category">{t("الفئة")}</Label>
                 <select id="category" name="category" defaultValue={fCategory} className={selectCls}>
-                  <option value="">الكل</option>
-                  {cats.map((c) => <option key={c.id} value={c.id}>{c.nameAr}</option>)}
+                  <option value="">{t("الكل")}</option>
+                  {cats.map((c) => <option key={c.id} value={c.id}>{t(c.nameAr)}</option>)}
                 </select>
               </div>
               <div className="space-y-1">
-                <Label htmlFor="status">الحالة</Label>
+                <Label htmlFor="status">{t("الحالة")}</Label>
                 <select id="status" name="status" defaultValue={fStatus} className={selectCls}>
-                  <option value="">الكل</option>
-                  <option value="active">نشط</option>
-                  <option value="inactive">متوقف</option>
+                  <option value="">{t("الكل")}</option>
+                  <option value="active">{t("نشط")}</option>
+                  <option value="inactive">{t("متوقف")}</option>
                 </select>
               </div>
               <div className="space-y-1">
-                <Label htmlFor="missing">فلتر ذكي</Label>
+                <Label htmlFor="missing">{t("فلتر ذكي")}</Label>
                 <select id="missing" name="missing" defaultValue={fMissing} className={selectCls}>
                   <option value="">—</option>
-                  <option value="image">بدون صورة</option>
-                  <option value="codes">بدون أكواد</option>
+                  <option value="image">{t("بدون صورة")}</option>
+                  <option value="codes">{t("بدون أكواد")}</option>
                 </select>
               </div>
               <div className="flex flex-wrap items-center gap-3 sm:col-span-5">
-                <Button type="submit"><Icon name="Search" className="size-4" />بحث</Button>
-                {hasFilters && <Button type="button" variant="outline" asChild><Link href="/inventory/items">مسح</Link></Button>}
-                <label className="flex cursor-pointer items-center gap-2 text-sm" title="عند البحث بكود صنف، أظهر معه بقية عائلته (الأب والتنويعات الأخرى)">
+                <Button type="submit"><Icon name="Search" className="size-4" />{t("بحث")}</Button>
+                {hasFilters && <Button type="button" variant="outline" asChild><Link href="/inventory/items">{t("مسح")}</Link></Button>}
+                <label className="flex cursor-pointer items-center gap-2 text-sm" title={t("عند البحث بكود صنف، أظهر معه بقية عائلته (الأب والتنويعات الأخرى)")}>
                   <input type="checkbox" name="related" value="1" defaultChecked={showRelated} className="size-4 rounded border-input" />
-                  إظهار المنتجات المرتبطة
+                  {t("إظهار المنتجات المرتبطة")}
                 </label>
               </div>
             </form>
 
             {rows.length === 0 ? (
               hasFilters ? (
-                <div className="rounded-xl border border-dashed py-12 text-center text-muted-foreground">لا توجد نتائج مطابقة.</div>
+                <div className="rounded-xl border border-dashed py-12 text-center text-muted-foreground">{t("لا توجد نتائج مطابقة.")}</div>
               ) : (
                 <div className="space-y-4 rounded-xl border border-dashed py-12 text-center">
-                  <div className="text-muted-foreground">لا توجد أصناف بعد — ابدأ بإضافة منتجاتك بإحدى الطرق:</div>
+                  <div className="text-muted-foreground">{t("لا توجد أصناف بعد — ابدأ بإضافة منتجاتك بإحدى الطرق:")}</div>
                   <div className="flex flex-wrap justify-center gap-2">
-                    <Button asChild><Link href="/inventory/items/new"><Icon name="Plus" className="size-4" />صنف جديد</Link></Button>
-                    <Button asChild variant="outline"><Link href="/imports"><Icon name="Upload" className="size-4" />استيراد ملف</Link></Button>
-                    <Button asChild variant="outline"><Link href="/platforms"><Icon name="Store" className="size-4" />مزامنة من أمازون</Link></Button>
+                    <Button asChild><Link href="/inventory/items/new"><Icon name="Plus" className="size-4" />{t("صنف جديد")}</Link></Button>
+                    <Button asChild variant="outline"><Link href="/imports"><Icon name="Upload" className="size-4" />{t("استيراد ملف")}</Link></Button>
+                    <Button asChild variant="outline"><Link href="/platforms"><Icon name="Store" className="size-4" />{t("مزامنة من أمازون")}</Link></Button>
                   </div>
                 </div>
               )
@@ -187,13 +190,13 @@ export default async function ItemsPage({ searchParams }: { searchParams: Promis
                   filter={{ q, status: fStatus, category: fCategory, missing: fMissing }}
                 />
                 <div className="flex items-center justify-between text-sm text-muted-foreground">
-                  <span>صفحة {safePage} من {pages}</span>
+                  <span>{t("صفحة")} {safePage} {t("من")} {pages}</span>
                   <div className="flex gap-2">
                     <Button variant="outline" size="sm" disabled={safePage <= 1} asChild={safePage > 1}>
-                      {safePage > 1 ? <a href={qs(safePage - 1)}>السابق</a> : <span>السابق</span>}
+                      {safePage > 1 ? <a href={qs(safePage - 1)}>{t("السابق")}</a> : <span>{t("السابق")}</span>}
                     </Button>
                     <Button variant="outline" size="sm" disabled={safePage >= pages} asChild={safePage < pages}>
-                      {safePage < pages ? <a href={qs(safePage + 1)}>التالي</a> : <span>التالي</span>}
+                      {safePage < pages ? <a href={qs(safePage + 1)}>{t("التالي")}</a> : <span>{t("التالي")}</span>}
                     </Button>
                   </div>
                 </div>

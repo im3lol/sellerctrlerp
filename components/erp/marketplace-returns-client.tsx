@@ -1,7 +1,9 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
-import { toast } from "sonner";
+import { fill } from "@/lib/i18n";
+import { useT } from "@/lib/i18n/client";
+import { toast } from "@/lib/i18n/toast";
 import { Loader2, PackageCheck, PackageX, HandCoins, Search } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -51,6 +53,7 @@ const NEEDS_WAREHOUSE = new Set<ReturnCondition>(["OPENED", "SCRATCHED", "USED"]
  * person holding it knows which.
  */
 export function MarketplaceReturnsClient({ initial, warehouses }: { initial: MarketplaceReturnRow[]; warehouses: Warehouse[] }) {
+  const t = useT();
   const [rows, setRows] = useState(initial);
   const [pending, start] = useTransition();
   const [busy, setBusy] = useState<string | null>(null);
@@ -84,7 +87,7 @@ export function MarketplaceReturnsClient({ initial, warehouses }: { initial: Mar
   });
 
   if (rows.length === 0) {
-    return <Card><CardContent className="py-14 text-center text-muted-foreground">مفيش مرتجعات منصات مستنية مراجعة ✓</CardContent></Card>;
+    return <Card><CardContent className="py-14 text-center text-muted-foreground">{t("مفيش مرتجعات منصات مستنية مراجعة ✓")}</CardContent></Card>;
   }
 
   return (
@@ -92,18 +95,18 @@ export function MarketplaceReturnsClient({ initial, warehouses }: { initial: Mar
       <Card>
         <CardContent className="space-y-3 pt-6">
           <p className="text-sm text-muted-foreground">
-            دي مرتجعات عملاء من المنصات، لسه <b>مسودّات</b>. العميل بيرجّع للمنصة، والمنصة مش دايماً بتبعتهالك — فمفيش حاجة بتترحّل لحد ما تقول إيه اللي وصلك بالظبط.
+            {t("دي مرتجعات عملاء من المنصات، لسه")} <b>{t("مسودّات")}</b>{t(". العميل بيرجّع للمنصة، والمنصة مش دايماً بتبعتهالك — فمفيش حاجة بتترحّل لحد ما تقول إيه اللي وصلك بالظبط.")}
           </p>
           <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
             {CONDITIONS.map((c) => (
               <div key={c.key} className="flex items-start gap-2 rounded-lg border bg-muted/30 px-3 py-2 text-xs">
                 <PackageCheck className={`mt-0.5 size-4 shrink-0 ${c.tone}`} />
-                <span><b>{c.label}</b> — {c.effect}</span>
+                <span><b>{t(c.label)}</b> — {c.effect}</span>
               </div>
             ))}
             <div className="flex items-start gap-2 rounded-lg border bg-muted/30 px-3 py-2 text-xs">
               <HandCoins className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
-              <span><b>ماستلمتوش</b> — عكس الفاتورة بس، مفيش مخزون، في انتظار تعويض</span>
+              <span><b>{t("ماستلمتوش")}</b> {t("— عكس الفاتورة بس، مفيش مخزون، في انتظار تعويض")}</span>
             </div>
           </div>
         </CardContent>
@@ -111,23 +114,23 @@ export function MarketplaceReturnsClient({ initial, warehouses }: { initial: Mar
 
       <div className="relative">
         <Search className="absolute start-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-        <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="ابحث برقم المرتجع أو الطلب أو الفاتورة أو الصنف…" className="ps-9" />
+        <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t("ابحث برقم المرتجع أو الطلب أو الفاتورة أو الصنف…")} className="ps-9" />
       </div>
 
       <Card>
         <CardContent className="pt-6">
           {shown.length === 0 ? (
-            <div className="py-10 text-center text-muted-foreground">مفيش نتائج للبحث ده.</div>
+            <div className="py-10 text-center text-muted-foreground">{t("مفيش نتائج للبحث ده.")}</div>
           ) : (
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="w-14 text-start">صورة</TableHead>
-                  <TableHead className="text-start">الصنف</TableHead>
-                  <TableHead className="text-start">المرتجع</TableHead>
-                  <TableHead className="text-end">الكمية</TableHead>
-                  <TableHead className="text-end">القيمة</TableHead>
-                  <TableHead className="text-start">قرار الاستلام</TableHead>
+                  <TableHead className="w-14 text-start">{t("صورة")}</TableHead>
+                  <TableHead className="text-start">{t("الصنف")}</TableHead>
+                  <TableHead className="text-start">{t("المرتجع")}</TableHead>
+                  <TableHead className="text-end">{t("الكمية")}</TableHead>
+                  <TableHead className="text-end">{t("القيمة")}</TableHead>
+                  <TableHead className="text-start">{t("قرار الاستلام")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -142,7 +145,7 @@ export function MarketplaceReturnsClient({ initial, warehouses }: { initial: Mar
                       <TableCell className="max-w-[280px] whitespace-normal">
                         <div className="line-clamp-2 leading-snug" title={o.itemsSummary}>{first?.name ?? first?.code ?? "—"}</div>
                         {first?.code && <div className="font-mono text-xs text-muted-foreground" dir="ltr">{first.code}</div>}
-                        {more > 0 && <div className="text-xs text-muted-foreground">+ {qtyf(more)} صنف آخر</div>}
+                        {more > 0 && <div className="text-xs text-muted-foreground">+ {qtyf(more)} {t("صنف آخر")}</div>}
                       </TableCell>
                       <TableCell className="whitespace-nowrap">
                         <div className="flex items-center gap-2">
@@ -151,7 +154,7 @@ export function MarketplaceReturnsClient({ initial, warehouses }: { initial: Mar
                         </div>
                         <div className="text-xs text-muted-foreground" dir="ltr">{o.externalReturnId ?? ""}</div>
                         <div className="text-xs text-muted-foreground">
-                          {dt(o.date)}{o.invoiceNumber ? ` · فاتورة ${o.invoiceNumber}` : ""}
+                          {dt(o.date)}{o.invoiceNumber ? fill(t(" · فاتورة {0}"), [o.invoiceNumber]) : ""}
                         </div>
                       </TableCell>
                       <TableCell className="text-end tabular-nums">{qtyf(totalQty)}</TableCell>
@@ -162,8 +165,8 @@ export function MarketplaceReturnsClient({ initial, warehouses }: { initial: Mar
                           value={cond[o.id] ?? ""}
                           onChange={(e) => setCond((d) => ({ ...d, [o.id]: e.target.value as ReturnCondition | "" }))}
                         >
-                          <option value="">ماستلمتوش</option>
-                          {CONDITIONS.map((c) => <option key={c.key} value={c.key}>{c.label}</option>)}
+                          <option value="">{t("ماستلمتوش")}</option>
+                          {CONDITIONS.map((c) => <option key={c.key} value={c.key}>{t(c.label)}</option>)}
                         </select>
 
                         {/* Nothing came back: which of these decides the claim you can make. */}
@@ -173,7 +176,7 @@ export function MarketplaceReturnsClient({ initial, warehouses }: { initial: Mar
                             value={reason[o.id] ?? "NEVER_ARRIVED"}
                             onChange={(e) => setReason((d) => ({ ...d, [o.id]: e.target.value as NotReceivedReason }))}
                           >
-                            {REASONS.map((r) => <option key={r.key} value={r.key}>{r.label}</option>)}
+                            {REASONS.map((r) => <option key={r.key} value={r.key}>{t(r.label)}</option>)}
                           </select>
                         )}
 
@@ -184,8 +187,8 @@ export function MarketplaceReturnsClient({ initial, warehouses }: { initial: Mar
                             value={dest[o.id] ?? ""}
                             onChange={(e) => setDest((d) => ({ ...d, [o.id]: e.target.value }))}
                           >
-                            <option value="">الوجهة: الافتراضي (مخزن التوالف أو إعدام)</option>
-                            {warehouses.map((w) => <option key={w.id} value={w.id}>→ {w.name}</option>)}
+                            <option value="">{t("الوجهة: الافتراضي (مخزن التوالف أو إعدام)")}</option>
+                            {warehouses.map((w) => <option key={w.id} value={w.id}>→ {t(w.name)}</option>)}
                           </select>
                         )}
 
@@ -194,7 +197,7 @@ export function MarketplaceReturnsClient({ initial, warehouses }: { initial: Mar
                           <Input
                             type="number" step="any" min="0" max={totalQty}
                             className="mt-1.5 h-8 text-xs"
-                            placeholder={`الكمية المستلمة (${qtyf(totalQty)})`}
+                            placeholder={fill(t("الكمية المستلمة ({0})"), [qtyf(totalQty)])}
                             value={qty[o.id] ?? ""}
                             onChange={(e) => setQty((d) => ({ ...d, [o.id]: e.target.value }))}
                           />
@@ -202,7 +205,7 @@ export function MarketplaceReturnsClient({ initial, warehouses }: { initial: Mar
 
                         <Button size="sm" className="mt-2 w-full" disabled={isBusy} onClick={() => confirm(o)}>
                           {isBusy ? <Loader2 className="size-4 animate-spin" /> : <PackageX className="size-4" />}
-                          تأكيد
+                          {t("تأكيد")}
                         </Button>
                       </TableCell>
                     </TableRow>

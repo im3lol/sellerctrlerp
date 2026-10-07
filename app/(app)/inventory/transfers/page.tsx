@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { fill } from "@/lib/i18n";
+import { getT } from "@/lib/i18n/server";
 import { and, count, desc, eq, gte, ilike, inArray, lte } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
@@ -20,6 +22,7 @@ type SP = { [k: string]: string | string[] | undefined };
 const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) ?? "";
 
 export default async function TransfersPage({ searchParams }: { searchParams: Promise<SP> }) {
+  const t = await getT();
   return loadErpPage("inventory.view", async ({ orgId, can }) => {
     const canManage = can("inventory.create");
     const sp = await searchParams;
@@ -75,12 +78,12 @@ export default async function TransfersPage({ searchParams }: { searchParams: Pr
       <div className="space-y-6">
         <ErpPageHeader
           icon="ArrowLeftRight"
-          title="التحويلات المخزنية"
-          subtitle={`${total} تحويل`}
+          title={t("التحويلات المخزنية")}
+          subtitle={fill(t("{0} تحويل"), [total])}
           action={
             canManage ? (
               <Button asChild>
-                <Link href="/inventory/transfers/new"><Icon name="Plus" className="size-4" />تحويل جديد</Link>
+                <Link href="/inventory/transfers/new"><Icon name="Plus" className="size-4" />{t("تحويل جديد")}</Link>
               </Button>
             ) : undefined
           }
@@ -88,40 +91,40 @@ export default async function TransfersPage({ searchParams }: { searchParams: Pr
 
         <div className="grid gap-4 sm:grid-cols-2">
           {statCards.map((s) => (
-            <Card key={s.label}><CardContent className="pt-6"><div className="text-sm text-muted-foreground">{s.label}</div><p className={`mt-1 text-2xl font-bold tabular-nums ${s.tone}`}>{s.count.toLocaleString("ar-EG-u-nu-latn")}</p></CardContent></Card>
+            <Card key={s.label}><CardContent className="pt-6"><div className="text-sm text-muted-foreground">{t(s.label)}</div><p className={`mt-1 text-2xl font-bold tabular-nums ${s.tone}`}>{s.count.toLocaleString("ar-EG-u-nu-latn")}</p></CardContent></Card>
           ))}
         </div>
 
         <Card>
           <CardHeader>
-            <CardTitle>سجل التحويلات</CardTitle>
-            <CardDescription>نقل البضاعة بين المستودعات بنفس التكلفة (لا يؤثّر على إجمالي قيمة المخزون). تُحفظ مسودة ثم تُؤكَّد.</CardDescription>
+            <CardTitle>{t("سجل التحويلات")}</CardTitle>
+            <CardDescription>{t("نقل البضاعة بين المستودعات بنفس التكلفة (لا يؤثّر على إجمالي قيمة المخزون). تُحفظ مسودة ثم تُؤكَّد.")}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <details open={hasFilters} className="rounded-lg border">
               <summary className="flex cursor-pointer select-none items-center gap-2 px-4 py-2 text-sm font-medium">
-                <Icon name="ListFilter" className="size-4" /> بحث وتصفية
+                <Icon name="ListFilter" className="size-4" /> {t("بحث وتصفية")}
               </summary>
               <form className="grid gap-3 p-4 pt-0 sm:grid-cols-4 items-end">
-                <div className="space-y-1"><Label htmlFor="q">رقم التحويل</Label><Input id="q" name="q" defaultValue={q} placeholder="TR-2026-..." /></div>
+                <div className="space-y-1"><Label htmlFor="q">{t("رقم التحويل")}</Label><Input id="q" name="q" defaultValue={q} placeholder="TR-2026-..." /></div>
                 <div className="space-y-1">
-                  <Label htmlFor="status">الحالة</Label>
+                  <Label htmlFor="status">{t("الحالة")}</Label>
                   <select id="status" name="status" defaultValue={fStatus} className={selectCls}>
-                    <option value="">الكل</option>
-                    {STATUS_OPTIONS.map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                    <option value="">{t("الكل")}</option>
+                    {STATUS_OPTIONS.map(([k, v]) => <option key={k} value={k}>{t(v)}</option>)}
                   </select>
                 </div>
-                <div className="space-y-1"><Label htmlFor="from">من تاريخ</Label><Input id="from" name="from" type="date" defaultValue={from} /></div>
-                <div className="space-y-1"><Label htmlFor="to">إلى تاريخ</Label><Input id="to" name="to" type="date" defaultValue={to} /></div>
+                <div className="space-y-1"><Label htmlFor="from">{t("من تاريخ")}</Label><Input id="from" name="from" type="date" defaultValue={from} /></div>
+                <div className="space-y-1"><Label htmlFor="to">{t("إلى تاريخ")}</Label><Input id="to" name="to" type="date" defaultValue={to} /></div>
                 <div className="flex gap-2 sm:col-span-4">
-                  <Button type="submit">تطبيق</Button>
-                  {hasFilters && <Button type="button" variant="outline" asChild><Link href="/inventory/transfers">مسح</Link></Button>}
+                  <Button type="submit">{t("تطبيق")}</Button>
+                  {hasFilters && <Button type="button" variant="outline" asChild><Link href="/inventory/transfers">{t("مسح")}</Link></Button>}
                 </div>
               </form>
             </details>
 
             {heads.length === 0 ? (
-              <div className="rounded-xl border border-dashed py-12 text-center text-muted-foreground">{hasFilters ? "لا توجد تحويلات مطابقة." : "لا توجد تحويلات بعد."}</div>
+              <div className="rounded-xl border border-dashed py-12 text-center text-muted-foreground">{hasFilters ? t("لا توجد تحويلات مطابقة.") : t("لا توجد تحويلات بعد.")}</div>
             ) : (
               <>
                 <TransfersTable
@@ -132,13 +135,13 @@ export default async function TransfersPage({ searchParams }: { searchParams: Pr
                   filter={{ q, status: fStatus, from, to }}
                 />
                 <div className="flex items-center justify-between text-sm text-muted-foreground">
-                  <span>صفحة {safePage} من {pages}</span>
+                  <span>{t("صفحة")} {safePage} {t("من")} {pages}</span>
                   <div className="flex gap-2">
                     <Button variant="outline" size="sm" disabled={safePage <= 1} asChild={safePage > 1}>
-                      {safePage > 1 ? <a href={qs(safePage - 1)}>السابق</a> : <span>السابق</span>}
+                      {safePage > 1 ? <a href={qs(safePage - 1)}>{t("السابق")}</a> : <span>{t("السابق")}</span>}
                     </Button>
                     <Button variant="outline" size="sm" disabled={safePage >= pages} asChild={safePage < pages}>
-                      {safePage < pages ? <a href={qs(safePage + 1)}>التالي</a> : <span>التالي</span>}
+                      {safePage < pages ? <a href={qs(safePage + 1)}>{t("التالي")}</a> : <span>{t("التالي")}</span>}
                     </Button>
                   </div>
                 </div>

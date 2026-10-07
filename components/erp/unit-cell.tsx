@@ -1,6 +1,7 @@
 "use client";
 
 import { selectCls } from "@/lib/utils";
+import { useT } from "@/lib/i18n/client";
 
 /** One transactable unit of an item, as the line forms need it. */
 export type FormUnit = { uomId: string; label: string; factor: number; isBase: boolean };
@@ -21,10 +22,11 @@ export function UnitCell({
   onPick: (uomId: string, factor: number) => void;
   disabled?: boolean;
 }) {
+  const t = useT();
   const extra = units.filter((u) => !u.isBase);
   const base = units.find((u) => u.isBase);
   if (!extra.length) {
-    return <span className="text-xs text-muted-foreground">{base?.label ?? "—"}</span>;
+    return <span className="text-xs text-muted-foreground">{t(base?.label ?? "—")}</span>;
   }
 
   const current = units.find((u) => Math.abs(u.factor - factor) < 1e-9) ?? base;
@@ -34,7 +36,7 @@ export function UnitCell({
       className={`${selectCls} w-24 min-w-24`}
       value={current?.uomId ?? ""}
       disabled={disabled}
-      aria-label="وحدة البند"
+      aria-label={t("وحدة البند")}
       onChange={(e) => {
         const u = units.find((x) => x.uomId === e.target.value);
         if (u) onPick(u.isBase ? "" : u.uomId, u.factor);
@@ -42,7 +44,7 @@ export function UnitCell({
     >
       {units.map((u) => (
         <option key={u.uomId || "__base__"} value={u.uomId}>
-          {u.label}{u.isBase ? "" : ` (${u.factor})`}
+          {t(u.label)}{u.isBase ? "" : ` (${u.factor})`}
         </option>
       ))}
     </select>

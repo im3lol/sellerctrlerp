@@ -1,10 +1,12 @@
 "use client";
 
 import Link from "next/link";
+import { fill } from "@/lib/i18n";
+import { useT } from "@/lib/i18n/client";
 import { useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "@/lib/i18n/toast";
 import { setQuotationStatusAction, deleteQuotationAction } from "@/app/actions/erp/quotations";
 import { Button } from "@/components/ui/button";
 import { DocumentActions, type DocAction } from "@/components/erp/document-actions";
@@ -35,6 +37,7 @@ export function QuotationDetailActions({
   /** The customer link (/d/<token>): the customer reads the quote and accepts or rejects it there. */
   link?: string | null;
 }) {
+  const t = useT();
   const router = useRouter();
   const [pending, start] = useTransition();
 
@@ -44,16 +47,17 @@ export function QuotationDetailActions({
       start(async () => {
         const r = await fn();
         if (r.ok) { toast.success(ok); if (dest) router.push(dest); router.refresh(); }
-        else toast.error(r.error ?? "تعذّر التنفيذ");
+        else toast.error(r.error ?? t("تعذّر التنفيذ"));
       });
     })();
   };
 
   const fmt = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  const shareMsg = `عرض سعر رقم: ${number}${total != null ? `\nالإجمالي: ${fmt(total)}` : ""}\nفي انتظار ردكم، وشكراً لثقتكم.`;
+  const shareMsg = fill(t("عرض سعر رقم: {0}"), [number])
+    + (total != null ? "\n" + fill(t("الإجمالي: {0}"), [fmt(total)]) : "")
+    + "\n" + t("في انتظار ردكم، وشكراً لثقتكم.");
   const waPhone = waNumber(customerPhone);
-  const message = link ? `${shareMsg}
-للاطلاع على العرض والرد عليه: ${link}` : shareMsg;
+  const message = link ? fill(t("{0}\nللاطلاع على العرض والرد عليه: {1}"), [shareMsg, link]) : shareMsg;
 
   // Print and share need no write permission — a viewer may still send the customer a copy.
   const items: DocAction[] = [
@@ -62,7 +66,7 @@ export function QuotationDetailActions({
   if (waPhone) items.push({ label: "واتساب", icon: "MessageCircle", newTab: true,
     href: `https://wa.me/${waPhone}?text=${encodeURIComponent(message)}` });
   if (customerEmail) items.push({ label: "إيميل", icon: "Mail",
-    href: `mailto:${customerEmail}?subject=${encodeURIComponent(`عرض سعر رقم ${number}`)}&body=${encodeURIComponent(message)}` });
+    href: `mailto:${customerEmail}?subject=${encodeURIComponent(fill(t("عرض سعر رقم {0}"), [number]))}&body=${encodeURIComponent(message)}` });
   if (link) items.push({ label: "نسخ رابط العميل", icon: "Link",
     onSelect: () => { void navigator.clipboard.writeText(link).then(() => toast.success("اتنسخ الرابط — صالح ٣٠ يوم")); } });
 
@@ -85,7 +89,7 @@ export function QuotationDetailActions({
     : status === "SENT" ? step("قبول العميل", "ThumbsUp", () => run(() => setQuotationStatusAction(id, "ACCEPTED"), "تم قبول العرض"))
     : status === "ACCEPTED" ? (
       <Button size="sm" asChild>
-        <Link href={`/sales/orders/new?fromQuotation=${id}`}><Icon name="ClipboardList" className="size-4" />تحويل لأمر بيع</Link>
+        <Link href={`/sales/orders/new?fromQuotation=${id}`}><Icon name="ClipboardList" className="size-4" />{t("تحويل لأمر بيع")}</Link>
       </Button>
     ) : undefined;
 

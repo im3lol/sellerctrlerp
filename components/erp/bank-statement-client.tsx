@@ -1,6 +1,7 @@
 "use client";
 
 import { useTransition, useState } from "react";
+import { useT } from "@/lib/i18n/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -39,6 +40,7 @@ type Props = {
 };
 
 export function BankStatementClient({ bankAccountId, lines, glLines, canEdit }: Props) {
+  const t = useT();
   const [pending, start] = useTransition();
   const [showAdd, setShowAdd] = useState(false);
   const [showGl, setShowGl] = useState(false);
@@ -81,11 +83,11 @@ export function BankStatementClient({ bankAccountId, lines, glLines, canEdit }: 
       {/* Statement lines */}
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle className="text-base">كشف الحساب البنكي</CardTitle>
+          <CardTitle className="text-base">{t("كشف الحساب البنكي")}</CardTitle>
           {canEdit && (
             <Button size="sm" onClick={() => setShowAdd(!showAdd)} disabled={pending}>
               <Icon name="Plus" className="size-4" />
-              إضافة سطر
+              {t("إضافة سطر")}
             </Button>
           )}
         </CardHeader>
@@ -94,51 +96,51 @@ export function BankStatementClient({ bankAccountId, lines, glLines, canEdit }: 
             <form onSubmit={handleAdd} className="rounded-xl border p-4 space-y-3 bg-muted/30">
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
                 <div className="space-y-1">
-                  <Label className="text-xs">التاريخ *</Label>
+                  <Label className="text-xs">{t("التاريخ *")}</Label>
                   <Input type="date" value={form.date} onChange={(e) => setForm((f) => ({ ...f, date: e.target.value }))} required />
                 </div>
                 <div className="space-y-1 sm:col-span-2">
-                  <Label className="text-xs">البيان</Label>
-                  <Input placeholder="وصف الحركة" value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} />
+                  <Label className="text-xs">{t("البيان")}</Label>
+                  <Input placeholder={t("وصف الحركة")} value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} />
                 </div>
                 <div className="space-y-1">
-                  <Label className="text-xs">المرجع</Label>
-                  <Input placeholder="رقم الشيك…" value={form.reference} onChange={(e) => setForm((f) => ({ ...f, reference: e.target.value }))} />
+                  <Label className="text-xs">{t("المرجع")}</Label>
+                  <Input placeholder={t("رقم الشيك…")} value={form.reference} onChange={(e) => setForm((f) => ({ ...f, reference: e.target.value }))} />
                 </div>
                 <div className="grid grid-cols-2 gap-2 sm:col-span-1 col-span-2">
                   <div className="space-y-1">
-                    <Label className="text-xs">وارد (+)</Label>
+                    <Label className="text-xs">{t("وارد (+)")}</Label>
                     <Input type="number" step="0.01" min="0" placeholder="0.00" value={form.debit} onChange={(e) => setForm((f) => ({ ...f, debit: e.target.value, credit: "" }))} />
                   </div>
                   <div className="space-y-1">
-                    <Label className="text-xs">صادر (−)</Label>
+                    <Label className="text-xs">{t("صادر (−)")}</Label>
                     <Input type="number" step="0.01" min="0" placeholder="0.00" value={form.credit} onChange={(e) => setForm((f) => ({ ...f, credit: e.target.value, debit: "" }))} />
                   </div>
                 </div>
               </div>
               <div className="flex gap-2">
-                <Button type="submit" size="sm" disabled={pending}>حفظ</Button>
-                <Button type="button" size="sm" variant="ghost" onClick={() => setShowAdd(false)}>إلغاء</Button>
+                <Button type="submit" size="sm" disabled={pending}>{t("حفظ")}</Button>
+                <Button type="button" size="sm" variant="ghost" onClick={() => setShowAdd(false)}>{t("إلغاء")}</Button>
               </div>
             </form>
           )}
 
           {withBalance.length === 0 ? (
             <div className="rounded-xl border border-dashed py-10 text-center text-sm text-muted-foreground">
-              لا توجد سطور في الكشف. أضف سطرًا أو استورد الكشف من البنك.
+              {t("لا توجد سطور في الكشف. أضف سطرًا أو استورد الكشف من البنك.")}
             </div>
           ) : (
             <div className="overflow-hidden rounded-xl border">
               <table className="w-full text-sm">
                 <thead className="bg-muted/30 text-xs text-muted-foreground">
                   <tr className="[&>th]:p-2.5 [&>th]:text-start">
-                    <th>التاريخ</th>
-                    <th>البيان</th>
-                    <th>المرجع</th>
-                    <th className="text-end">وارد</th>
-                    <th className="text-end">صادر</th>
-                    <th className="text-end">الرصيد</th>
-                    <th className="text-center">مسوّى</th>
+                    <th>{t("التاريخ")}</th>
+                    <th>{t("البيان")}</th>
+                    <th>{t("المرجع")}</th>
+                    <th className="text-end">{t("وارد")}</th>
+                    <th className="text-end">{t("صادر")}</th>
+                    <th className="text-end">{t("الرصيد")}</th>
+                    <th className="text-center">{t("مسوّى")}</th>
                     {canEdit && <th />}
                   </tr>
                 </thead>
@@ -166,7 +168,7 @@ export function BankStatementClient({ bankAccountId, lines, glLines, canEdit }: 
                             onClick={() => toggleReconcile(l.id)}
                             disabled={pending}
                             className="rounded p-1 hover:bg-muted transition-colors"
-                            title={l.isReconciled ? "إلغاء التسوية" : "تسوية"}
+                            title={l.isReconciled ? t("إلغاء التسوية") : t("تسوية")}
                           >
                             <Icon
                               name={l.isReconciled ? "CheckCircle2" : "Circle"}
@@ -201,10 +203,10 @@ export function BankStatementClient({ bankAccountId, lines, glLines, canEdit }: 
       {glLines.length > 0 && (
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle className="text-base">حركات الأستاذ (للمقارنة)</CardTitle>
+            <CardTitle className="text-base">{t("حركات الأستاذ (للمقارنة)")}</CardTitle>
             <Button variant="ghost" size="sm" onClick={() => setShowGl(!showGl)}>
               <Icon name={showGl ? "ChevronUp" : "ChevronDown"} className="size-4" />
-              {showGl ? "إخفاء" : "عرض"}
+              {showGl ? t("إخفاء") : t("عرض")}
             </Button>
           </CardHeader>
           {showGl && (
@@ -213,11 +215,11 @@ export function BankStatementClient({ bankAccountId, lines, glLines, canEdit }: 
                 <table className="w-full text-sm">
                   <thead className="bg-muted/30 text-xs text-muted-foreground">
                     <tr className="[&>th]:p-2.5 [&>th]:text-start">
-                      <th>التاريخ</th>
-                      <th>القيد</th>
-                      <th>البيان</th>
-                      <th className="text-end">مدين</th>
-                      <th className="text-end">دائن</th>
+                      <th>{t("التاريخ")}</th>
+                      <th>{t("القيد")}</th>
+                      <th>{t("البيان")}</th>
+                      <th className="text-end">{t("مدين")}</th>
+                      <th className="text-end">{t("دائن")}</th>
                     </tr>
                   </thead>
                   <tbody>

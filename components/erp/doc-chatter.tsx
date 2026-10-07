@@ -1,7 +1,10 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
-import { toast } from "sonner";
+import type { Locale } from "@/lib/i18n";
+import { fill } from "@/lib/i18n";
+import { useLocale, useT } from "@/lib/i18n/client";
+import { toast } from "@/lib/i18n/toast";
 import { Loader2 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -9,7 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Icon } from "@/components/icon";
 import { CellCombobox } from "@/components/erp/cell-combobox";
-import { DocAuditCard, ACTION_AR } from "@/components/erp/document-detail";
+import { DocAuditCard, ACTION_AR } from "@/components/erp/doc-audit-card";
 import {
   getChatterAction, addCommentAction, addFollowUpAction, completeFollowUpAction, deleteCommentAction,
   type ChatterData,
@@ -18,8 +21,8 @@ import { followUpState, cairoToday, type ChatterKind, type FollowUpState } from 
 import type { AuditRow } from "@/lib/erp/audit";
 import { cn } from "@/lib/utils";
 
-const when = (d: string | Date) =>
-  new Date(d).toLocaleString("ar-EG-u-nu-latn", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+const when = (d: string | Date, locale: Locale = "ar") =>
+  new Date(d).toLocaleString((locale === "en" ? "en-GB" : "ar-EG-u-nu-latn"), { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
 
 const STATE: Record<FollowUpState, { label: string; cls: string }> = {
   overdue: { label: "متأخرة", cls: "bg-destructive/10 text-destructive" },
@@ -44,6 +47,8 @@ type Entry =
 export function DocChatter({ kind, entityId, entityNumber, audit }: {
   kind: ChatterKind; entityId: string; entityNumber: string; audit: AuditRow[];
 }) {
+  const t = useT();
+  const locale = useLocale();
   const [data, setData] = useState<ChatterData | null>(null);
   const [failed, setFailed] = useState(false);
   const [tab, setTab] = useState<"comment" | "followUp">("comment");
@@ -94,8 +99,8 @@ export function DocChatter({ kind, entityId, entityNumber, audit }: {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center gap-2"><Icon name="MessagesSquare" className="size-4" />المحادثة والسجل</CardTitle>
-        <CardDescription>علّق، اذكر زميل بـ«@»، أو سيب متابعة على حد بموعد — وكل اللي حصل على المستند في مكان واحد.</CardDescription>
+        <CardTitle className="flex items-center gap-2"><Icon name="MessagesSquare" className="size-4" />{t("المحادثة والسجل")}</CardTitle>
+        <CardDescription>{t("علّق، اذكر زميل بـ«@»، أو سيب متابعة على حد بموعد — وكل اللي حصل على المستند في مكان واحد.")}</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         {!data ? (
@@ -103,23 +108,23 @@ export function DocChatter({ kind, entityId, entityNumber, audit }: {
         ) : (
           <div className="space-y-3 rounded-xl border p-3">
             <div className="flex gap-1">
-              {(["comment", "followUp"] as const).map((t) => (
-                <button key={t} type="button" onClick={() => setTab(t)}
-                  className={cn("rounded-md px-3 py-1 text-sm", tab === t ? "bg-primary text-primary-foreground" : "hover:bg-accent")}>
-                  {t === "comment" ? "تعليق" : "متابعة"}
+              {(["comment", "followUp"] as const).map((it) => (
+                <button key={it} type="button" onClick={() => setTab(it)}
+                  className={cn("rounded-md px-3 py-1 text-sm", tab === it ? "bg-primary text-primary-foreground" : "hover:bg-accent")}>
+                  {it === "comment" ? t("تعليق") : t("متابعة")}
                 </button>
               ))}
             </div>
             {tab === "comment" ? (
               <>
                 <textarea
-                  value={body} onChange={(e) => setBody(e.target.value)} rows={3} placeholder="اكتب تعليق…"
+                  value={body} onChange={(e) => setBody(e.target.value)} rows={3} placeholder={t("اكتب تعليق…")}
                   className="w-full resize-y rounded-md border bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 />
                 <div className="flex flex-wrap items-center gap-2">
                   <div className="w-52">
                     <CellCombobox
-                      selectedLabel="" placeholder="@ اذكر زميل…"
+                      selectedLabel="" placeholder={t("@ اذكر زميل…")}
                       options={data.members.filter((m) => m.id !== data.me && !mentions.includes(m.id)).map((m) => ({ id: m.id, label: m.name }))}
                       onSelect={(id, label) => {
                         setMentions((ms) => [...ms, id]);
@@ -130,32 +135,32 @@ export function DocChatter({ kind, entityId, entityNumber, audit }: {
                   {mentions.map((id) => (
                     <Badge key={id} variant="secondary" className="gap-1">
                       @{nameOf(id)}
-                      <button type="button" aria-label="شيل" onClick={() => setMentions((ms) => ms.filter((x) => x !== id))}>
+                      <button type="button" aria-label={t("شيل")} onClick={() => setMentions((ms) => ms.filter((x) => x !== id))}>
                         <Icon name="X" className="size-3" />
                       </button>
                     </Badge>
                   ))}
                   <Button size="sm" className="ms-auto" disabled={pending || !body.trim()}
                     onClick={() => run(() => addCommentAction({ kind, entityId, entityNumber, body, mentions }), "اتنشر", () => { setBody(""); setMentions([]); })}>
-                    {pending && <Loader2 className="size-4 animate-spin" />}نشر
+                    {pending && <Loader2 className="size-4 animate-spin" />}{t("نشر")}
                   </Button>
                 </div>
               </>
             ) : (
               <div className="flex flex-wrap items-end gap-2">
                 <Input value={summary} onChange={(e) => setSummary(e.target.value)} className="min-w-60 flex-1"
-                  placeholder="المطلوب — مثلاً: كلّم المورد على موعد الشحن" />
+                  placeholder={t("المطلوب — مثلاً: كلّم المورد على موعد الشحن")} />
                 <div className="w-44">
                   <CellCombobox
-                    selectedLabel={assignee ? nameOf(assignee) : ""} placeholder="على مين؟"
-                    options={data.members.map((m) => ({ id: m.id, label: m.id === data.me ? `${m.name} (أنا)` : m.name }))}
+                    selectedLabel={assignee ? nameOf(assignee) : ""} placeholder={t("على مين؟")}
+                    options={data.members.map((m) => ({ id: m.id, label: m.id === data.me ? fill(t("{0} (أنا)"), [m.name]) : m.name }))}
                     onSelect={(id) => setAssignee(id)}
                   />
                 </div>
                 <Input type="date" value={due} min={today} onChange={(e) => setDue(e.target.value)} className="w-40" />
                 <Button size="sm" disabled={pending || summary.trim().length < 2 || !assignee}
                   onClick={() => run(() => addFollowUpAction({ kind, entityId, entityNumber, summary, assignedTo: assignee, dueDate: due }), "اتسجّلت المتابعة", () => { setSummary(""); setAssignee(""); })}>
-                  {pending && <Loader2 className="size-4 animate-spin" />}سجّل
+                  {pending && <Loader2 className="size-4 animate-spin" />}{t("سجّل")}
                 </Button>
               </div>
             )}
@@ -163,7 +168,7 @@ export function DocChatter({ kind, entityId, entityNumber, audit }: {
         )}
 
         {entries.length === 0 ? (
-          <p className="py-2 text-center text-sm text-muted-foreground">لسه مفيش حاجة على المستند ده.</p>
+          <p className="py-2 text-center text-sm text-muted-foreground">{t("لسه مفيش حاجة على المستند ده.")}</p>
         ) : (
           <ol className="space-y-3">
             {entries.map((e) => (
@@ -176,10 +181,10 @@ export function DocChatter({ kind, entityId, entityNumber, audit }: {
                     <div className="min-w-0 flex-1 rounded-xl bg-muted/40 px-3 py-2">
                       <div className="flex items-center gap-2 text-xs text-muted-foreground">
                         <span className="font-medium text-foreground">{nameOf(e.c.userId)}</span>
-                        <span>{when(e.c.createdAt)}</span>
+                        <span>{when(e.c.createdAt, locale)}</span>
                         {e.c.userId === data?.me && (
                           <button type="button" className="ms-auto hover:text-destructive" disabled={pending}
-                            onClick={() => run(() => deleteCommentAction(kind, e.c.id), "اتمسح")}>مسح</button>
+                            onClick={() => run(() => deleteCommentAction(kind, e.c.id), "اتمسح")}>{t("مسح")}</button>
                         )}
                       </div>
                       <p className="mt-1 whitespace-pre-wrap text-sm">{e.c.body}</p>
@@ -190,8 +195,8 @@ export function DocChatter({ kind, entityId, entityNumber, audit }: {
                     pending={pending} onDone={() => run(() => completeFollowUpAction(kind, e.f.id), "تمام ✓")} />
                 ) : (
                   <div className="flex items-start gap-3 ps-11 text-xs text-muted-foreground">
-                    <Badge variant="outline" className="shrink-0">{ACTION_AR[e.a.action] ?? e.a.action}</Badge>
-                    <span className="min-w-0">{e.a.summary ?? "—"} · {when(e.a.createdAt)} · {e.a.userName ?? "تلقائي (النظام)"}</span>
+                    <Badge variant="outline" className="shrink-0">{t(ACTION_AR[e.a.action] ?? e.a.action)}</Badge>
+                    <span className="min-w-0">{t(e.a.summary ?? "—")} · {when(e.a.createdAt, locale)} · {e.a.userName ?? t("تلقائي (النظام)")}</span>
                   </div>
                 )}
               </li>
@@ -206,6 +211,8 @@ export function DocChatter({ kind, entityId, entityNumber, audit }: {
 function FollowUpRow({ f, today, nameOf, canClose, pending, onDone }: {
   f: FollowUp; today: string; nameOf: (id: string | null) => string; canClose: boolean; pending: boolean; onDone: () => void;
 }) {
+  const t = useT();
+  const locale = useLocale();
   const st = followUpState(f.dueDate, f.doneAt, today);
   return (
     <div className="flex items-start gap-3">
@@ -214,17 +221,17 @@ function FollowUpRow({ f, today, nameOf, canClose, pending, onDone }: {
       </span>
       <div className="min-w-0 flex-1 rounded-xl border px-3 py-2">
         <div className="flex flex-wrap items-center gap-2 text-sm">
-          <span className="font-medium">{f.summary}</span>
-          <span className={cn("rounded-md px-2 py-0.5 text-xs font-medium", STATE[st].cls)}>{STATE[st].label}</span>
+          <span className="font-medium">{t(f.summary)}</span>
+          <span className={cn("rounded-md px-2 py-0.5 text-xs font-medium", STATE[st].cls)}>{t(STATE[st].label)}</span>
         </div>
         <div className="mt-1 text-xs text-muted-foreground">
-          على {nameOf(f.assignedTo)} · موعدها {f.dueDate} · طلبها {nameOf(f.createdBy)}
-          {f.doneAt ? ` · اتعملت ${when(f.doneAt)} (${nameOf(f.doneBy)})` : ""}
+          {fill(t("على {0} · موعدها {1} · طلبها {2}"), [nameOf(f.assignedTo), f.dueDate, nameOf(f.createdBy)])}
+          {f.doneAt ? fill(t(" · اتعملت {0} ({1})"), [when(f.doneAt, locale), nameOf(f.doneBy)]) : ""}
         </div>
       </div>
       {!f.doneAt && canClose && (
         <Button size="sm" variant="outline" disabled={pending} onClick={onDone}>
-          <Icon name="Check" className="size-4" />اتعملت
+          <Icon name="Check" className="size-4" />{t("اتعملت")}
         </Button>
       )}
     </div>

@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { fill } from "@/lib/i18n";
+import { getT } from "@/lib/i18n/server";
 import { loadErpPage } from "@/lib/erp/org";
 import { getErpOverview } from "@/lib/erp/overview";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,6 +12,7 @@ const money = (n: number) => (n + 0).toLocaleString("ar-EG-u-nu-latn", { minimum
 const int = (n: number) => n.toLocaleString("ar-EG-u-nu-latn");
 
 export default async function AnalyticsPage() {
+  const t = await getT();
   return loadErpPage("reports.view", async ({ orgId }) => {
     let ov: Awaited<ReturnType<typeof getErpOverview>> | null = null;
     try { ov = await getErpOverview(orgId); } catch { ov = null; }
@@ -32,17 +35,17 @@ export default async function AnalyticsPage() {
 
     const alerts = ov
       ? ([
-          ov.overdueAR > 0 && { label: `ذمم متأخرة: ${money(ov.overdueAR)}`, href: "/sales/aging", danger: true },
-          ov.overdueAP > 0 && { label: `مستحقات متأخرة: ${money(ov.overdueAP)}`, href: "/purchases/aging", danger: true },
-          ov.outOfStock > 0 && { label: `أصناف نافدة: ${int(ov.outOfStock)}`, href: "/inventory/reorder", danger: true },
-          ov.lowStock > 0 && { label: `مخزون منخفض: ${int(ov.lowStock)}`, href: "/inventory/reorder", danger: false },
-          ov.nearExpiryCount > 0 && { label: `قرب انتهاء الصلاحية: ${int(ov.nearExpiryCount)}`, href: "/inventory/expiry", danger: false },
+          ov.overdueAR > 0 && { label: fill(t("ذمم متأخرة: {0}"), [money(ov.overdueAR)]), href: "/sales/aging", danger: true },
+          ov.overdueAP > 0 && { label: fill(t("مستحقات متأخرة: {0}"), [money(ov.overdueAP)]), href: "/purchases/aging", danger: true },
+          ov.outOfStock > 0 && { label: fill(t("أصناف نافدة: {0}"), [int(ov.outOfStock)]), href: "/inventory/reorder", danger: true },
+          ov.lowStock > 0 && { label: fill(t("مخزون منخفض: {0}"), [int(ov.lowStock)]), href: "/inventory/reorder", danger: false },
+          ov.nearExpiryCount > 0 && { label: fill(t("قرب انتهاء الصلاحية: {0}"), [int(ov.nearExpiryCount)]), href: "/inventory/expiry", danger: false },
         ].filter(Boolean) as { label: string; href: string; danger: boolean }[])
       : [];
 
     return (
       <div className="space-y-6">
-        <ErpPageHeader icon="Activity" title="التحليلات" subtitle="كل مؤشرات الأداء والرسوم التحليلية في مكان واحد" />
+        <ErpPageHeader icon="Activity" title={t("التحليلات")} subtitle={t("كل مؤشرات الأداء والرسوم التحليلية في مكان واحد")} />
 
         {kpis.length > 0 && (
           <div className="grid gap-4 grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
@@ -50,7 +53,7 @@ export default async function AnalyticsPage() {
               <Link key={k.label} href={k.href}>
                 <Card className="h-full transition-colors hover:border-primary/50">
                   <CardContent className="pt-6">
-                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground"><Icon name={k.icon} className="size-3.5" />{k.label}</div>
+                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground"><Icon name={k.icon} className="size-3.5" />{t(k.label)}</div>
                     <div className={`mt-1 text-xl font-bold tabular-nums ${k.tone}`}>{k.value}</div>
                   </CardContent>
                 </Card>
@@ -63,7 +66,7 @@ export default async function AnalyticsPage() {
           <div className="flex flex-wrap gap-2 text-sm">
             {alerts.map((a) => (
               <Link key={a.label} href={a.href} className={a.danger ? "rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-1.5 text-destructive hover:bg-destructive/10" : "rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-1.5 text-amber-700 hover:bg-amber-500/10 dark:text-amber-400"}>
-                {a.label}
+                {t(a.label)}
               </Link>
             ))}
           </div>
@@ -73,8 +76,8 @@ export default async function AnalyticsPage() {
           {hasPnl && (
             <Card className="lg:col-span-2">
               <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-base"><Icon name="BarChart3" className="size-5 text-primary" />الإيراد مقابل المصروف</CardTitle>
-                <CardDescription>آخر ٦ أشهر — من القيود المُرحّلة.</CardDescription>
+                <CardTitle className="flex items-center gap-2 text-base"><Icon name="BarChart3" className="size-5 text-primary" />{t("الإيراد مقابل المصروف")}</CardTitle>
+                <CardDescription>{t("آخر ٦ أشهر — من القيود المُرحّلة.")}</CardDescription>
               </CardHeader>
               <CardContent>
                 <GroupedBarChart
@@ -91,8 +94,8 @@ export default async function AnalyticsPage() {
           {topItems.length > 0 && (
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-base"><Icon name="Boxes" className="size-5 text-primary" />أعلى الأصناف قيمةً</CardTitle>
-                <CardDescription>أكبر الأصناف من حيث قيمة المخزون.</CardDescription>
+                <CardTitle className="flex items-center gap-2 text-base"><Icon name="Boxes" className="size-5 text-primary" />{t("أعلى الأصناف قيمةً")}</CardTitle>
+                <CardDescription>{t("أكبر الأصناف من حيث قيمة المخزون.")}</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">

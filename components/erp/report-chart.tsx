@@ -1,6 +1,7 @@
 "use client";
 
 import { BarChart } from "@/components/charts/bar-chart";
+import { useT } from "@/lib/i18n/client";
 import { GroupedBarChart } from "@/components/charts/grouped-bar-chart";
 import { TrendChart } from "@/components/charts/trend-chart";
 import { StatusDonut } from "@/components/charts/status-donut";
@@ -12,8 +13,9 @@ const SERIES = ["#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#e87ba4", "#008300"
 
 /** Draws a grouped report: one series (bars, trend, donut) or, pivoted, one bar per column. */
 export function ReportChart({ result, kind, height = 260, id }: { result: ReportResult; kind: ChartKind; height?: number; id?: string }) {
+  const t = useT();
   const d = chartData(result, kind === "trend" ? 366 : 24);
-  if (!d) return <p className="py-8 text-center text-sm text-muted-foreground">الرسم محتاج «تجميع حسب».</p>;
+  if (!d) return <p className="py-8 text-center text-sm text-muted-foreground">{t("الرسم محتاج «تجميع حسب».")}</p>;
 
   if (d.kind === "multi") {
     return <GroupedBarChart data={d.points} series={d.series.map((s, i) => ({ ...s, color: SERIES[i] }))} height={height} />;

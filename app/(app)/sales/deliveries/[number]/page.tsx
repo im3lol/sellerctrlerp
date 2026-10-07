@@ -1,4 +1,6 @@
 import { notFound, redirect } from "next/navigation";
+import { fill } from "@/lib/i18n";
+import { getT } from "@/lib/i18n/server";
 import { and, eq, inArray } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
@@ -27,6 +29,7 @@ const STATUS: Record<string, { label: string; variant: "default" | "secondary" |
 };
 
 export default async function DeliveryDetailPage({ params }: { params: Promise<{ number: string }> }) {
+  const t = await getT();
   const raw = decodeURIComponent((await params).number);
   return loadErpPage("sales.view", async ({ orgId, can }) => {
     if (UUID_RE.test(raw)) {
@@ -79,7 +82,7 @@ export default async function DeliveryDetailPage({ params }: { params: Promise<{
     if (si) linked.push({ label: "فاتورة بيع", number: si.number, href: `/sales/invoices/${encodeURIComponent(si.number)}` });
     for (const rd of retDocs) {
       if (rd.status === "CANCELLED") continue;
-      linked.push({ label: rd.status === "POSTED" ? "مرتجع" : "مرتجع (مسودة)", number: rd.number, href: `/sales/returns/${encodeURIComponent(rd.number)}` });
+      linked.push({ label: rd.status === "POSTED" ? t("مرتجع") : t("مرتجع (مسودة)"), number: rd.number, href: `/sales/returns/${encodeURIComponent(rd.number)}` });
     }
 
     const st = STATUS[dn.status] ?? { label: dn.status, variant: "secondary" as const };
@@ -89,7 +92,7 @@ export default async function DeliveryDetailPage({ params }: { params: Promise<{
       <div className="space-y-6">
         <ErpPageHeader
           icon="Truck"
-          title={`إذن صرف ${dn.number}`}
+          title={fill(t("إذن صرف {0}"), [dn.number])}
           subtitle={cust ? `${cust.code} — ${cust.name}` : "إذن صرف"}
           backHref="/sales/deliveries"
           action={
@@ -105,34 +108,34 @@ export default async function DeliveryDetailPage({ params }: { params: Promise<{
         />
 
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <Field label="الحالة"><Badge variant={st.variant}>{st.label}</Badge></Field>
-          <Field label="التاريخ">{dt(dn.date)}</Field>
-          <Field label="المستودع">{wh?.name ?? "—"}</Field>
-          <Field label="عدد الأصناف">{qtyf(lines.length)}</Field>
+          <Field label={t("الحالة")}><Badge variant={st.variant}>{t(st.label)}</Badge></Field>
+          <Field label={t("التاريخ")}>{dt(dn.date)}</Field>
+          <Field label={t("المستودع")}>{wh?.name ?? "—"}</Field>
+          <Field label={t("عدد الأصناف")}>{qtyf(lines.length)}</Field>
         </div>
 
         <Card>
-          <CardHeader><CardTitle>الأصناف المصروفة</CardTitle><CardDescription>البضاعة الخارجة من المخزون.</CardDescription></CardHeader>
+          <CardHeader><CardTitle>{t("الأصناف المصروفة")}</CardTitle><CardDescription>{t("البضاعة الخارجة من المخزون.")}</CardDescription></CardHeader>
           <CardContent>
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="text-start">الصنف</TableHead>
-                  <TableHead className="text-start">مخزن الصرف</TableHead>
-                  <TableHead className="text-start">الكمية المسلّمة</TableHead>
+                  <TableHead className="text-start">{t("الصنف")}</TableHead>
+                  <TableHead className="text-start">{t("مخزن الصرف")}</TableHead>
+                  <TableHead className="text-start">{t("الكمية المسلّمة")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 <PaginatedTableRows rows={lines.map((l) => (
                   <TableRow key={l.id}>
-                    <TableCell className="max-w-[320px] whitespace-normal"><div className="line-clamp-2 leading-snug" title={l.name ?? undefined}><span className="font-mono text-muted-foreground">{l.code}</span> {l.name}</div></TableCell>
+                    <TableCell className="max-w-[320px] whitespace-normal"><div className="line-clamp-2 leading-snug" title={l.name ?? undefined}><span className="font-mono text-muted-foreground">{l.code}</span> {t(l.name ?? "")}</div></TableCell>
                     <TableCell>{l.wh ?? wh?.name ?? "—"}</TableCell>
                     <TableCell>{qtyf(l.qty)}</TableCell>
                   </TableRow>
                 ))} />
               </TableBody>
             </Table>
-            {dn.notes && <p className="mt-4 text-sm text-muted-foreground">ملاحظات: {dn.notes}</p>}
+            {dn.notes && <p className="mt-4 text-sm text-muted-foreground">{t("ملاحظات:")} {dn.notes}</p>}
           </CardContent>
         </Card>
 

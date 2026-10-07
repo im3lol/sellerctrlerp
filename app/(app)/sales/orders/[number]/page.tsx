@@ -1,4 +1,6 @@
 import { notFound, redirect } from "next/navigation";
+import { fill } from "@/lib/i18n";
+import { getT } from "@/lib/i18n/server";
 import { and, eq, inArray } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
@@ -41,6 +43,7 @@ const CHANNEL_STATUS: Record<string, string> = {
 };
 
 export default async function SalesOrderDetailPage({ params }: { params: Promise<{ number: string }> }) {
+  const t = await getT();
   const raw = decodeURIComponent((await params).number);
   return loadErpPage("sales.view", async ({ orgId, role, can }) => {
     if (UUID_RE.test(raw)) {
@@ -120,7 +123,7 @@ export default async function SalesOrderDetailPage({ params }: { params: Promise
       <div className="space-y-6">
         <ErpPageHeader
           icon="ClipboardList"
-          title={`أمر بيع ${so.number}`}
+          title={fill(t("أمر بيع {0}"), [so.number])}
           subtitle={cust ? `${cust.code} — ${cust.name}` : "أمر بيع"}
           backHref="/sales/orders"
           action={
@@ -136,32 +139,32 @@ export default async function SalesOrderDetailPage({ params }: { params: Promise
         {so.externalOrderId && (
           <div className="flex flex-wrap items-center gap-3 rounded-xl border bg-muted/30 px-4 py-3">
             <Icon name="ShoppingCart" className="size-4 text-primary" />
-            <span className="text-sm text-muted-foreground">رقم طلب {CHANNEL_LABEL[so.channel] ?? "المتجر"}:</span>
+            <span className="text-sm text-muted-foreground">{t("رقم طلب")} {t(CHANNEL_LABEL[so.channel] ?? t("المتجر"))}:</span>
             <Copyable text={so.externalOrderId} className="font-mono text-base font-semibold"><span dir="ltr">{so.externalOrderId}</span></Copyable>
-            {CHANNEL_LABEL[so.channel] && <Badge variant="secondary">{CHANNEL_LABEL[so.channel]}</Badge>}
-            {so.channelStatus && <Badge variant="outline" title="حالة الطلب على المنصّة">حالة المنصّة: {CHANNEL_STATUS[so.channelStatus] ?? so.channelStatus}</Badge>}
+            {CHANNEL_LABEL[so.channel] && <Badge variant="secondary">{t(CHANNEL_LABEL[so.channel])}</Badge>}
+            {so.channelStatus && <Badge variant="outline" title={t("حالة الطلب على المنصّة")}>{t("حالة المنصّة:")} {t(CHANNEL_STATUS[so.channelStatus] ?? so.channelStatus)}</Badge>}
           </div>
         )}
 
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <Field label="الحالة"><Badge variant={st.variant}>{st.label}</Badge></Field>
-          <Field label="التاريخ">{dt(so.date)}</Field>
-          <Field label="تاريخ الاستحقاق">{so.dueDate ? dt(so.dueDate) : "—"}</Field>
-          <Field label="الإجمالي">{fmt(so.totalAmount)}</Field>
+          <Field label={t("الحالة")}><Badge variant={st.variant}>{t(st.label)}</Badge></Field>
+          <Field label={t("التاريخ")}>{dt(so.date)}</Field>
+          <Field label={t("تاريخ الاستحقاق")}>{so.dueDate ? dt(so.dueDate) : "—"}</Field>
+          <Field label={t("الإجمالي")}>{fmt(so.totalAmount)}</Field>
         </div>
 
         <Card>
-          <CardHeader><CardTitle>البنود</CardTitle><CardDescription>أصناف الأمر.</CardDescription></CardHeader>
+          <CardHeader><CardTitle>{t("البنود")}</CardTitle><CardDescription>{t("أصناف الأمر.")}</CardDescription></CardHeader>
           <CardContent>
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="text-start">الصنف</TableHead>
-                  <TableHead className="text-start">الكمية</TableHead>
-                  <TableHead className="text-start">السعر</TableHead>
-                  <TableHead className="text-start">الخصم</TableHead>
-                  <TableHead className="text-start">الضريبة</TableHead>
-                  <TableHead className="text-start">الإجمالي</TableHead>
+                  <TableHead className="text-start">{t("الصنف")}</TableHead>
+                  <TableHead className="text-start">{t("الكمية")}</TableHead>
+                  <TableHead className="text-start">{t("السعر")}</TableHead>
+                  <TableHead className="text-start">{t("الخصم")}</TableHead>
+                  <TableHead className="text-start">{t("الضريبة")}</TableHead>
+                  <TableHead className="text-start">{t("الإجمالي")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -176,12 +179,12 @@ export default async function SalesOrderDetailPage({ params }: { params: Promise
                             : <div className="flex size-full items-center justify-center text-muted-foreground"><Icon name="Image" className="size-4" /></div>}
                         </div>
                         <div className="min-w-0">
-                          <div className="truncate text-start font-medium" dir="ltr" title={l.name ?? ""}>{l.name}</div>
+                          <div className="truncate text-start font-medium" dir="ltr" title={l.name ?? ""}>{t(l.name ?? "")}</div>
                           <div className="mt-1 flex flex-wrap items-center gap-1">
                             <span className="font-mono text-[11px] text-muted-foreground">{l.code}</span>
                             {codesByItem.get(l.itemId ?? "")?.map((c) => (
                               <Badge key={c.type + c.code} variant="outline" className="gap-1 text-[10px]">
-                                <span className="text-muted-foreground">{c.type}</span>
+                                <span className="text-muted-foreground">{t(c.type)}</span>
                                 <span className="font-mono" dir="ltr">{c.code}</span>
                               </Badge>
                             ))}
@@ -199,46 +202,46 @@ export default async function SalesOrderDetailPage({ params }: { params: Promise
               </TableBody>
               <TableFooter>
                 <TableRow className="font-bold">
-                  <TableCell colSpan={5}>الإجمالي</TableCell>
+                  <TableCell colSpan={5}>{t("الإجمالي")}</TableCell>
                   <TableCell>{fmt(so.totalAmount)}</TableCell>
                 </TableRow>
               </TableFooter>
             </Table>
-            {so.notes && !/^طلب (أمازون|نون)\s/.test(so.notes) && <p className="mt-4 text-sm text-muted-foreground">ملاحظات: {so.notes}</p>}
+            {so.notes && !/^طلب (أمازون|نون)\s/.test(so.notes) && <p className="mt-4 text-sm text-muted-foreground">{t("ملاحظات:")} {so.notes}</p>}
           </CardContent>
         </Card>
 
         {settle.length > 0 && (
           <Card>
             <CardHeader>
-              <CardTitle>التسوية المالية (أمازون)</CardTitle>
-              <CardDescription>تفصيل ما استلمته أمازون لهذا الطلب بعد الرسوم. القيود المحاسبية مُرحّلة مجمّعة وقت الإفراج.</CardDescription>
+              <CardTitle>{t("التسوية المالية (أمازون)")}</CardTitle>
+              <CardDescription>{t("تفصيل ما استلمته أمازون لهذا الطلب بعد الرسوم. القيود المحاسبية مُرحّلة مجمّعة وقت الإفراج.")}</CardDescription>
             </CardHeader>
             <CardContent>
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="text-start">النوع</TableHead>
-                    <TableHead className="text-start">المبيعات</TableHead>
-                    <TableHead className="text-start">الرسوم</TableHead>
-                    <TableHead className="text-start">الصافي</TableHead>
-                    <TableHead className="text-start">الحالة</TableHead>
+                    <TableHead className="text-start">{t("النوع")}</TableHead>
+                    <TableHead className="text-start">{t("المبيعات")}</TableHead>
+                    <TableHead className="text-start">{t("الرسوم")}</TableHead>
+                    <TableHead className="text-start">{t("الصافي")}</TableHead>
+                    <TableHead className="text-start">{t("الحالة")}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {settle.map((r, i) => (
                     <TableRow key={i}>
-                      <TableCell>{r.type === "Order" ? "بيع" : r.type === "Refund" ? "مرتجع" : r.type}</TableCell>
+                      <TableCell>{r.type === "Order" ? t("بيع") : r.type === "Refund" ? t("مرتجع") : r.type}</TableCell>
                       <TableCell>{fmt(r.gross)}</TableCell>
                       <TableCell className="text-destructive">{fmt(-r.fees)}</TableCell>
                       <TableCell className="font-medium">{fmt(r.net)}</TableCell>
-                      <TableCell><Badge variant={r.status === "Released" ? "default" : "secondary"}>{r.status === "Released" ? "مُفرج عنه" : "مؤجّل"}</Badge></TableCell>
+                      <TableCell><Badge variant={r.status === "Released" ? "default" : "secondary"}>{r.status === "Released" ? t("مُفرج عنه") : t("مؤجّل")}</Badge></TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
                 <TableFooter>
                   <TableRow className="font-bold">
-                    <TableCell>الإجمالي</TableCell>
+                    <TableCell>{t("الإجمالي")}</TableCell>
                     <TableCell>—</TableCell>
                     <TableCell className="text-destructive">{fmt(-settleFees)}</TableCell>
                     <TableCell>{fmt(settleNet)}</TableCell>

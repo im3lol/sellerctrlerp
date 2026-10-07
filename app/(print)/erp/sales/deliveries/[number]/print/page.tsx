@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { getLocale, getT } from "@/lib/i18n/server";
 import { and, eq } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
@@ -21,6 +22,8 @@ type Params = { params: Promise<{ number: string }> };
  * customer paid.
  */
 export default async function PrintDeliveryNotePage({ params }: Params) {
+  const t = await getT();
+  const locale = await getLocale();
   const raw = decodeURIComponent((await params).number);
   return loadErpPage("sales.view", async ({ orgId }) => {
     const [dn] = await db
@@ -56,12 +59,12 @@ export default async function PrintDeliveryNotePage({ params }: Params) {
         org={org}
         hiddenColumns={hiddenFor("sales-delivery")}
         footerText={footerText}
-        title="إذن صرف"
+        title={t("إذن صرف")}
         number={dn.number}
-        watermark={dn.status === "DRAFT" ? "مسودة" : undefined}
+        watermark={dn.status === "DRAFT" ? t("مسودة") : undefined}
         backHref={`/sales/deliveries/${encodeURIComponent(raw)}`}
         meta={[
-          { label: "التاريخ", value: dt(dn.date) },
+          { label: "التاريخ", value: dt(dn.date, locale) },
           { label: "الحالة", value: STATUS[dn.status] ?? dn.status },
         ]}
         parties={[
@@ -76,7 +79,7 @@ export default async function PrintDeliveryNotePage({ params }: Params) {
         rows={lines.map((l, i) => [
           <span key="i" style={{ color: "#8a93a6" }}>{i + 1}</span>,
           <span key="n">
-            <b>{l.name}</b>
+            <b>{t(l.name ?? "")}</b>
             {l.code && <span dir="ltr" style={{ color: "#8a93a6", fontSize: 10.5, marginInlineStart: 6 }}>{l.code}</span>}
           </span>,
           <b key="q">{qty(l.qty)}</b>,

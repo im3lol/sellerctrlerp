@@ -1,9 +1,10 @@
 "use client";
 
 import { useTransition } from "react";
+import { useT } from "@/lib/i18n/client";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "@/lib/i18n/toast";
 import { confirmReceiptVoucherAction, deleteReceiptVoucherAction, reverseReceiptVoucherAction } from "@/app/actions/erp/receipts";
 import { confirmPaymentVoucherAction, deletePaymentVoucherAction, reversePaymentVoucherAction } from "@/app/actions/erp/payments";
 import { Button } from "@/components/ui/button";
@@ -23,6 +24,7 @@ export function VoucherDetailActions({
 }: {
   id: string; number: string; type: "receipt" | "payment"; status: string; canManage: boolean;
 }) {
+  const t = useT();
   const router = useRouter();
   const [pending, start] = useTransition();
   const isReceipt = type === "receipt";
@@ -34,8 +36,8 @@ export function VoucherDetailActions({
       if (!(await confirm({ danger }))) return;
       start(async () => {
         const r = await fn();
-        if (r.ok) { toast.success(ok); if (dest) router.push(dest); router.refresh(); }
-        else toast.error(r.error ?? "تعذّر التنفيذ");
+        if (r.ok) { toast.success(t(ok)); if (dest) router.push(dest); router.refresh(); }
+        else toast.error(r.error ?? t("تعذّر التنفيذ"));
       });
     })();
   };
@@ -54,12 +56,12 @@ export function VoucherDetailActions({
   if (canManage && status === "REVERSED") {
     items.push({ label: "حذف نهائي", icon: "Trash2", danger: true, disabled: pending,
       onSelect: () => void (async () => {
-        const label = isReceipt ? "سند القبض" : "سند الصرف";
+        const label = isReceipt ? t("سند القبض") : t("سند الصرف");
         if (!(await confirmPurge(label))) return;
         start(async () => {
           const r = await deleteCancelledDocumentAction(isReceipt ? "receiptVoucher" : "paymentVoucher", id);
           if (r.ok) { toast.success("تم حذف السند نهائياً"); router.push(listHref); router.refresh(); }
-          else toast.error(r.error ?? "تعذّر الحذف");
+          else toast.error(r.error ?? t("تعذّر الحذف"));
         });
       })() });
   }
@@ -69,7 +71,7 @@ export function VoucherDetailActions({
       primary={canManage && status === "DRAFT" ? (
         <Button size="sm" disabled={pending}
           onClick={() => run(() => isReceipt ? confirmReceiptVoucherAction(id) : confirmPaymentVoucherAction(id), "تم تأكيد السند وترحيله", false)}>
-          {pending ? <Loader2 className="size-4 animate-spin" /> : <Icon name="Check" className="size-4" />}تأكيد
+          {pending ? <Loader2 className="size-4 animate-spin" /> : <Icon name="Check" className="size-4" />}{t("تأكيد")}
         </Button>
       ) : undefined}
       items={items}

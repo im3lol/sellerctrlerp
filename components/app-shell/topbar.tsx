@@ -10,6 +10,7 @@ import { Logo } from "@/components/brand/logo";
 import { NavList } from "@/components/app-shell/nav-list";
 import { AwesomeBar } from "@/components/app-shell/awesome-bar";
 import { UserMenu } from "@/components/app-shell/user-menu";
+import { useT } from "@/lib/i18n/client";
 import { NotificationBell } from "@/components/app-shell/notification-bell";
 import { OrgSwitcher } from "@/components/app-shell/org-switcher";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -33,6 +34,7 @@ export function Topbar({
   navHidden?: string[];
   platforms?: { id: string; name: string; code: string }[];
 }) {
+  const t = useT();
   const [menuOpen, setMenuOpen] = useState(false);
   // Same rule as the sidebar, so the phone's menu button appears exactly when there's a
   // module list to put in it.
@@ -46,8 +48,8 @@ export function Topbar({
           <Menu className="size-5" />
         </SheetTrigger>
         <SheetContent side="right" className="w-72 overflow-y-auto bg-sidebar p-0 text-sidebar-foreground">
-          <SheetTitle className="sr-only">القائمة</SheetTitle>
-          <Link href="/apps" onClick={() => setMenuOpen(false)} className="flex h-16 items-center px-6" aria-label="التطبيقات">
+          <SheetTitle className="sr-only">{t("القائمة")}</SheetTitle>
+          <Link href="/apps" onClick={() => setMenuOpen(false)} className="flex h-16 items-center px-6" aria-label={t("كل التطبيقات")}>
             <Logo className="text-2xl" variant="white" />
           </Link>
           <div className="px-4 pb-3">

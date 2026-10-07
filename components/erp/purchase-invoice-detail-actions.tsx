@@ -1,9 +1,10 @@
 "use client";
 
 import { useTransition } from "react";
+import { useT } from "@/lib/i18n/client";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "@/lib/i18n/toast";
 import { postPurchaseInvoiceAction, deletePurchaseInvoiceAction, cancelPurchaseInvoiceAction } from "@/app/actions/erp/purchase-invoices";
 import { deleteCancelledDocumentAction } from "@/app/actions/erp/doc-purge";
 import { confirmPurge } from "@/components/erp/purge-confirm";
@@ -14,6 +15,7 @@ import { confirm } from "@/components/erp/confirm";
 
 /** Draft purchase invoice: post / delete. Posted: a "مرتجع" shortcut. */
 export function PurchaseInvoiceDetailActions({ id, number, status, canPost, canManage }: { id: string; number: string; status: string; canPost: boolean; canManage: boolean }) {
+  const t = useT();
   const router = useRouter();
   const [pending, start] = useTransition();
 
@@ -22,8 +24,8 @@ export function PurchaseInvoiceDetailActions({ id, number, status, canPost, canM
       if (!(await confirm({ danger: /حذف|إلغاء|عكس/.test(ok) }))) return;
       start(async () => {
         const r = await fn();
-        if (r.ok) { toast.success(ok); if (dest) router.push(dest); router.refresh(); }
-        else toast.error(r.error ?? "تعذّر التنفيذ");
+        if (r.ok) { toast.success(t(ok)); if (dest) router.push(dest); router.refresh(); }
+        else toast.error(r.error ?? t("تعذّر التنفيذ"));
       });
     })();
   };
@@ -49,7 +51,7 @@ export function PurchaseInvoiceDetailActions({ id, number, status, canPost, canM
           start(async () => {
             const r = await deleteCancelledDocumentAction("invoice", id);
             if (r.ok) { toast.success("تم حذف الفاتورة نهائياً"); router.push("/purchases/invoices"); router.refresh(); }
-            else toast.error(r.error ?? "تعذّر الحذف");
+            else toast.error(r.error ?? t("تعذّر الحذف"));
           });
         })() });
   }
@@ -58,7 +60,7 @@ export function PurchaseInvoiceDetailActions({ id, number, status, canPost, canM
     <DocumentActions
       primary={status === "DRAFT" && canPost ? (
         <Button size="sm" disabled={pending} onClick={() => run(() => postPurchaseInvoiceAction(id), "تم تأكيد الفاتورة وترحيلها محاسبياً")}>
-          {pending ? <Loader2 className="size-4 animate-spin" /> : <Icon name="Check" className="size-4" />}تأكيد
+          {pending ? <Loader2 className="size-4 animate-spin" /> : <Icon name="Check" className="size-4" />}{t("تأكيد")}
         </Button>
       ) : undefined}
       items={items}

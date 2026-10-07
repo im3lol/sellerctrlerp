@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { fill } from "@/lib/i18n";
+import { getT } from "@/lib/i18n/server";
 import { notFound } from "next/navigation";
 import { loadErpPage } from "@/lib/erp/org";
 import { orgFiscalYearStartISO } from "@/lib/erp/fiscal";
@@ -30,6 +32,7 @@ type Row = { settlement_id: string; from_d: string | null; to_d: string | null; 
  * `total`, deductions as their difference — no per-fee-column sign guessing.
  */
 export default async function PlatformStatementsPage({ params, searchParams }: { params: Promise<{ code: string }>; searchParams: Promise<SP> }) {
+  const t = await getT();
   const { code } = await params;
   return loadErpPage("accounting.view", async ({ orgId, can }) => {
     const canReverse = can("accounting.reverse");
@@ -70,47 +73,47 @@ export default async function PlatformStatementsPage({ params, searchParams }: {
     const tot = stmts.reduce((a, s) => ({ gross: a.gross + s.gross, net: a.net + s.net, transferred: a.transferred + s.transferred }), { gross: 0, net: 0, transferred: 0 });
 
     return (
-      <div className="space-y-6" dir="rtl">
+      <div className="space-y-6">
         <ErpPageHeader
           icon="ReceiptText"
-          title={`كشوف تسويات ${platform.name}`}
-          subtitle="كل تسوية: المبيعات − الخصومات = الصافي، مقابل المُحوَّل للبنك — بحيث تُطابِق التسوية إيداعها"
+          title={fill(t("كشوف تسويات {0}"), [platform.name])}
+          subtitle={t("كل تسوية: المبيعات − الخصومات = الصافي، مقابل المُحوَّل للبنك — بحيث تُطابِق التسوية إيداعها")}
           backHref={`/platforms/${code}`}
-          action={<Button variant="outline" asChild><Link href={`/platforms/${code}/payouts`}><Icon name="Wallet" className="size-4" />المحفظة والتحويلات</Link></Button>}
+          action={<Button variant="outline" asChild><Link href={`/platforms/${code}/payouts`}><Icon name="Wallet" className="size-4" />{t("المحفظة والتحويلات")}</Link></Button>}
         />
 
         <Card>
           <CardContent className="pt-6">
             <form className="flex flex-wrap items-end gap-3">
-              <div className="space-y-1"><Label htmlFor="from">من تاريخ</Label><Input id="from" name="from" type="date" defaultValue={fromStr} dir="ltr" className="w-44" /></div>
-              <div className="space-y-1"><Label htmlFor="to">إلى تاريخ</Label><Input id="to" name="to" type="date" defaultValue={toStr} dir="ltr" className="w-44" /></div>
-              <Button type="submit">عرض</Button>
+              <div className="space-y-1"><Label htmlFor="from">{t("من تاريخ")}</Label><Input id="from" name="from" type="date" defaultValue={fromStr} dir="ltr" className="w-44" /></div>
+              <div className="space-y-1"><Label htmlFor="to">{t("إلى تاريخ")}</Label><Input id="to" name="to" type="date" defaultValue={toStr} dir="ltr" className="w-44" /></div>
+              <Button type="submit">{t("عرض")}</Button>
             </form>
           </CardContent>
         </Card>
 
         <div className="grid gap-3 sm:grid-cols-3">
-          <Card><CardContent className="pt-6"><div className="text-sm text-muted-foreground">عدد التسويات</div><div className="text-2xl font-bold tabular-nums">{stmts.length.toLocaleString("ar-EG-u-nu-latn")}</div></CardContent></Card>
-          <Card><CardContent className="pt-6"><div className="text-sm text-muted-foreground">صافي التسويات</div><div className="text-2xl font-bold tabular-nums">{money(tot.net)}</div></CardContent></Card>
-          <Card><CardContent className="pt-6"><div className="text-sm text-muted-foreground">إجمالي المُحوَّل للبنك</div><div className="text-2xl font-bold tabular-nums text-emerald-600">{money(tot.transferred)}</div></CardContent></Card>
+          <Card><CardContent className="pt-6"><div className="text-sm text-muted-foreground">{t("عدد التسويات")}</div><div className="text-2xl font-bold tabular-nums">{stmts.length.toLocaleString("ar-EG-u-nu-latn")}</div></CardContent></Card>
+          <Card><CardContent className="pt-6"><div className="text-sm text-muted-foreground">{t("صافي التسويات")}</div><div className="text-2xl font-bold tabular-nums">{money(tot.net)}</div></CardContent></Card>
+          <Card><CardContent className="pt-6"><div className="text-sm text-muted-foreground">{t("إجمالي المُحوَّل للبنك")}</div><div className="text-2xl font-bold tabular-nums text-emerald-600">{money(tot.transferred)}</div></CardContent></Card>
         </div>
 
         <Card>
           <CardContent className="pt-6">
             {stmts.length === 0 ? (
-              <div className="rounded-xl border border-dashed py-12 text-center text-muted-foreground">لا توجد تسويات في هذه الفترة. اسحب تقرير التسويات من صفحة المنصّة أولًا.</div>
+              <div className="rounded-xl border border-dashed py-12 text-center text-muted-foreground">{t("لا توجد تسويات في هذه الفترة. اسحب تقرير التسويات من صفحة المنصّة أولًا.")}</div>
             ) : (
               <div className="overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead className="text-start">رقم التسوية</TableHead>
-                      <TableHead className="text-start">الفترة</TableHead>
-                      <TableHead className="text-start">المبيعات</TableHead>
-                      <TableHead className="text-start">الرسوم والمرتجعات</TableHead>
-                      <TableHead className="text-start">الصافي</TableHead>
-                      <TableHead className="text-start">المُحوَّل للبنك</TableHead>
-                      <TableHead className="text-start">المطابقة</TableHead>
+                      <TableHead className="text-start">{t("رقم التسوية")}</TableHead>
+                      <TableHead className="text-start">{t("الفترة")}</TableHead>
+                      <TableHead className="text-start">{t("المبيعات")}</TableHead>
+                      <TableHead className="text-start">{t("الرسوم والمرتجعات")}</TableHead>
+                      <TableHead className="text-start">{t("الصافي")}</TableHead>
+                      <TableHead className="text-start">{t("المُحوَّل للبنك")}</TableHead>
+                      <TableHead className="text-start">{t("المطابقة")}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -127,10 +130,10 @@ export default async function PlatformStatementsPage({ params, searchParams }: {
                           <TableCell>
                             <div className="flex items-center gap-2">
                               {s.transferred === 0
-                                ? <Badge variant="secondary">لم تُحوَّل بعد</Badge>
+                                ? <Badge variant="secondary">{t("لم تُحوَّل بعد")}</Badge>
                                 : foots
-                                  ? <Badge variant="outline" className="border-emerald-500/40 text-emerald-600">مطابِقة</Badge>
-                                  : <span className="text-xs text-amber-600" title="غالبًا رصيد مُرحّل من/إلى تسوية أخرى">فرق {money(s.diff)}</span>}
+                                  ? <Badge variant="outline" className="border-emerald-500/40 text-emerald-600">{t("مطابِقة")}</Badge>
+                                  : <span className="text-xs text-amber-600" title={t("غالبًا رصيد مُرحّل من/إلى تسوية أخرى")}>{t("فرق")} {money(s.diff)}</span>}
                               {canReverse && s.posted && <SettlementReverseButton channel={channel} settlementId={s.id} />}
                             </div>
                           </TableCell>
@@ -140,7 +143,7 @@ export default async function PlatformStatementsPage({ params, searchParams }: {
                   </TableBody>
                   <TableFooter>
                     <TableRow className="font-bold">
-                      <TableCell colSpan={2}>الإجمالي</TableCell>
+                      <TableCell colSpan={2}>{t("الإجمالي")}</TableCell>
                       <TableCell className="tabular-nums">{money(tot.gross)}</TableCell>
                       <TableCell className="tabular-nums text-destructive">−{money(tot.gross - tot.net)}</TableCell>
                       <TableCell className="tabular-nums">{money(tot.net)}</TableCell>
@@ -151,7 +154,7 @@ export default async function PlatformStatementsPage({ params, searchParams }: {
                 </Table>
               </div>
             )}
-            <p className="mt-3 text-xs text-muted-foreground">الصافي = المبيعات − (الرسوم + المرتجعات + الخصومات). «المطابقة» تقارن الصافي بالمبلغ المُحوَّل للبنك؛ فرقٌ صغير غالبًا رصيد مُرحّل بين تسويتين. تفاصيل الرسوم في صفحة «مصاريف المنصّة».</p>
+            <p className="mt-3 text-xs text-muted-foreground">{t("الصافي = المبيعات − (الرسوم + المرتجعات + الخصومات). «المطابقة» تقارن الصافي بالمبلغ المُحوَّل للبنك؛ فرقٌ صغير غالبًا رصيد مُرحّل بين تسويتين. تفاصيل الرسوم في صفحة «مصاريف المنصّة».")}</p>
           </CardContent>
         </Card>
       </div>

@@ -1,9 +1,10 @@
 "use client";
 
 import { useTransition } from "react";
+import { useT } from "@/lib/i18n/client";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { toast } from "sonner";
+import { toast } from "@/lib/i18n/toast";
 import {
   confirmSalesOrderAction, convertSalesOrderToInvoiceAction, cancelSalesOrderAction, deleteSalesOrderAction, revertSalesOrderToDraftAction,
 } from "@/app/actions/erp/sales-orders";
@@ -34,6 +35,7 @@ export function OrderRowActions({
   poNeedsApproval?: boolean;
   poApproved?: boolean;
 }) {
+  const t = useT();
   const router = useRouter();
   const [pending, start] = useTransition();
   if (!canManage || status === "INVOICED") return null;
@@ -48,7 +50,7 @@ export function OrderRowActions({
       start(async () => {
         const r = await fn();
         if (r.ok) { toast.success(ok); if (dest) router.push(dest); router.refresh(); }
-        else toast.error(r.error ?? "تعذّر التنفيذ");
+        else toast.error(r.error ?? t("تعذّر التنفيذ"));
       });
     })();
   };
@@ -64,21 +66,21 @@ export function OrderRowActions({
       start(async () => {
         const r = await confirmSalesOrderAction(orderId);
         if (r.ok) { toast.success("تم تأكيد الأمر"); router.refresh(); return; }
-        if (!r.creditBlocked) { toast.error(r.error ?? "تعذّر التنفيذ"); return; }
+        if (!r.creditBlocked) { toast.error(r.error ?? t("تعذّر التنفيذ")); return; }
         const go = await confirm({
           danger: true,
-          title: "تجاوز حد الائتمان",
-          description: `${r.error ?? ""}
+          title: t("تجاوز حد الائتمان"),
+          description: `${r.error ? t(r.error) : ""}
 
-التأكيد هيتسجّل في سجل المراجعة كتجاوز باعتماد مالي.`,
-          confirmText: "أكّد رغم التجاوز",
-          cancelText: "رجوع",
+${t("التأكيد هيتسجّل في سجل المراجعة كتجاوز باعتماد مالي.")}`,
+          confirmText: t("أكّد رغم التجاوز"),
+          cancelText: t("رجوع"),
         });
         if (!go) return;
         start(async () => {
           const r2 = await confirmSalesOrderAction(orderId, { overrideCredit: true });
           if (r2.ok) { toast.success("تم تأكيد الأمر باعتماد مالي"); router.refresh(); }
-          else toast.error(r2.error ?? "تعذّر التنفيذ");
+          else toast.error(r2.error ?? t("تعذّر التنفيذ"));
         });
       });
     })();
@@ -87,8 +89,8 @@ export function OrderRowActions({
   if (status === "CANCELLED") {
     return (
       <Button size="sm" variant="ghost" disabled={pending}
-        onClick={() => run(() => isSales ? deleteSalesOrderAction(orderId) : deletePurchaseOrderAction(orderId), "تم حذف الأمر", isSales ? "/sales/orders" : "/purchases/orders", isSales ? "أمر البيع" : "أمر الشراء")}>
-        <Icon name="Trash2" className="size-4 text-destructive" />حذف
+        onClick={() => run(() => isSales ? deleteSalesOrderAction(orderId) : deletePurchaseOrderAction(orderId), "تم حذف الأمر", isSales ? "/sales/orders" : "/purchases/orders", isSales ? t("أمر البيع") : t("أمر الشراء"))}>
+        <Icon name="Trash2" className="size-4 text-destructive" />{t("حذف")}
       </Button>
     );
   }
@@ -102,21 +104,21 @@ export function OrderRowActions({
         {needApprove ? (
           <Button size="sm" disabled={pending}
             onClick={() => run(() => approvePurchaseOrderAction(orderId), "تم اعتماد الأمر")}>
-            <Icon name="ShieldCheck" className="size-4" />اعتماد
+            <Icon name="ShieldCheck" className="size-4" />{t("اعتماد")}
           </Button>
         ) : (
           <Button size="sm" disabled={pending}
             onClick={() => (isSales ? confirmSales() : run(() => confirmPurchaseOrderAction(orderId), "تم تأكيد الأمر"))}>
-            <Icon name="Check" className="size-4" />تأكيد
+            <Icon name="Check" className="size-4" />{t("تأكيد")}
           </Button>
         )}
         {/* Drafts are freely editable (no stock/GL yet). */}
         <Button asChild size="sm" variant="outline" disabled={pending}>
-          <Link href={`/${isSales ? "sales" : "purchases"}/orders/${orderId}/edit`}><Icon name="Pencil" className="size-4" />تعديل</Link>
+          <Link href={`/${isSales ? "sales" : "purchases"}/orders/${orderId}/edit`}><Icon name="Pencil" className="size-4" />{t("تعديل")}</Link>
         </Button>
         <Button size="sm" variant="ghost" disabled={pending}
           onClick={() => run(() => isSales ? deleteSalesOrderAction(orderId) : deletePurchaseOrderAction(orderId), "تم حذف المسودة")}>
-          <Icon name="X" className="size-4 text-destructive" />إلغاء
+          <Icon name="X" className="size-4 text-destructive" />{t("إلغاء")}
         </Button>
       </div>
     );
@@ -126,7 +128,7 @@ export function OrderRowActions({
   if (status === "PARTIALLY_DELIVERED" || status === "PARTIALLY_RECEIVED") {
     return (
       <Button size="sm" variant="outline" disabled={pending} onClick={() => router.push(fulfillPath)}>
-        <Icon name={isSales ? "Truck" : "PackageCheck"} className="size-4" />{isSales ? "متابعة التسليم" : "متابعة الاستلام"}
+        <Icon name={isSales ? "Truck" : "PackageCheck"} className="size-4" />{isSales ? t("متابعة التسليم") : t("متابعة الاستلام")}
       </Button>
     );
   }
@@ -139,7 +141,7 @@ export function OrderRowActions({
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button size="sm" variant="outline" disabled={pending}>
-          إجراءات<Icon name="ChevronDown" className="size-4" />
+          {t("إجراءات")}<Icon name="ChevronDown" className="size-4" />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-56">
@@ -147,32 +149,32 @@ export function OrderRowActions({
           <>
             <DropdownMenuItem className="font-medium text-emerald-700 focus:text-emerald-700"
               onClick={() => run(() => fulfillOrderAction(orderId), "تم تنفيذ الدورة: إذن صرف + فاتورة مُرحّلة")}>
-              <Icon name="Zap" className="size-4" />الدورة الكاملة (صرف + فاتورة)
+              <Icon name="Zap" className="size-4" />{t("الدورة الكاملة (صرف + فاتورة)")}
             </DropdownMenuItem>
             <DropdownMenuSeparator />
           </>
         )}
         <DropdownMenuItem onClick={() => router.push(fulfillPath)}>
           <Icon name={isSales ? "Truck" : "PackageCheck"} className="size-4" />
-          {isSales ? "إنشاء إذن صرف" : "إنشاء إذن استلام"}
+          {isSales ? t("إنشاء إذن صرف") : t("إنشاء إذن استلام")}
         </DropdownMenuItem>
         {/* Purchases have ONE cycle (أمر ← إذن استلام ← فاتورة) — the direct-to-invoice
             shortcut is sales-only, where no goods-receipt step exists. */}
         {isSales && (
           <DropdownMenuItem
             onClick={() => run(() => convertSalesOrderToInvoiceAction(orderId), "تم التحويل إلى فاتورة (مسودة)", invoiceDest)}>
-            <Icon name="FileText" className="size-4" />إنشاء فاتورة بيع
+            <Icon name="FileText" className="size-4" />{t("إنشاء فاتورة بيع")}
           </DropdownMenuItem>
         )}
         <DropdownMenuItem
           onClick={() => run(() => isSales ? revertSalesOrderToDraftAction(orderId) : revertPurchaseOrderToDraftAction(orderId), "تم إعادة فتح الأمر كمسودة")}>
-          <Icon name="Undo2" className="size-4" />إعادة فتح كمسودة
+          <Icon name="Undo2" className="size-4" />{t("إعادة فتح كمسودة")}
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem
           className="text-destructive focus:text-destructive"
           onClick={() => run(() => isSales ? cancelSalesOrderAction(orderId) : cancelPurchaseOrderAction(orderId), "تم إلغاء الأمر")}>
-          <Icon name="X" className="size-4" />إلغاء الأمر
+          <Icon name="X" className="size-4" />{t("إلغاء الأمر")}
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

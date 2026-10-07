@@ -1,9 +1,11 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
+import { fill } from "@/lib/i18n";
+import { useT } from "@/lib/i18n/client";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "@/lib/i18n/toast";
 import { convertReceiptToInvoiceAction, getReceiptInvoicePreviewAction, type ReceiptInvoicePreview } from "@/app/actions/erp/goods-receipts";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -35,6 +37,7 @@ export function PurchaseInvoiceFromReceiptForm({
   currencies?: CurrencyOption[];
   latestRates?: Record<string, number>;
 }) {
+  const t = useT();
   const router = useRouter();
   const [pending, start] = useTransition();
   const [loading, startLoad] = useTransition();
@@ -67,7 +70,7 @@ export function PurchaseInvoiceFromReceiptForm({
   };
 
   const supplierReceipts = useMemo(() => receipts.filter((r) => r.supplierId === supplierId), [receipts, supplierId]);
-  const supplierOptions = useMemo(() => suppliers.map((s) => ({ id: s.id, label: s.nameAr })), [suppliers]);
+  const supplierOptions = useMemo(() => suppliers.map((s) => ({ id: s.id, label: t(s.nameAr) })), [suppliers, t]);
   const supplierLabelById = useMemo(() => new Map(supplierOptions.map((o) => [o.id, o.label])), [supplierOptions]);
 
   const onSupplier = (id: string) => { setSupplierId(id); setPicked([]); setPreview(null); };
@@ -79,7 +82,7 @@ export function PurchaseInvoiceFromReceiptForm({
     if (ids.length !== 1) return;
     startLoad(async () => {
       const r = await getReceiptInvoicePreviewAction(ids[0]);
-      if (!r.ok || !r.preview) { toast.error(r.error ?? "تعذّر استدعاء الإذن"); return; }
+      if (!r.ok || !r.preview) { toast.error(r.error ?? t("تعذّر استدعاء الإذن")); return; }
       if (r.preview.lines.length === 0) { toast.message("لا توجد كميات قابلة للفوترة في هذا الإذن"); return; }
       setPreview(r.preview);
     });
@@ -118,12 +121,12 @@ export function PurchaseInvoiceFromReceiptForm({
           const label = receipts.find((r) => r.id === id)?.number ?? id;
           const r = await convertReceiptToInvoiceAction(id, date, notes || undefined);
           if (r.ok) done.push(label);
-          else failed.push(`${label}: ${r.error ?? "تعذّر الحفظ"}`);
+          else failed.push(`${label}: ${r.error ?? t("تعذّر الحفظ")}`);
         }
         // Say exactly what happened. A partial run reported as success is how a missing
         // invoice goes unnoticed until the supplier chases it.
-        if (done.length) toast.success(`اتعملت ${done.length} مسودة فاتورة`);
-        if (failed.length) toast.error(`فشل ${failed.length}: ${failed.join(" · ")}`, { duration: 10000 });
+        if (done.length) toast.success(fill(t("اتعملت {0} مسودة فاتورة"), [done.length]));
+        if (failed.length) toast.error(fill(t("فشل {0}: {1}"), [failed.length, failed.join(" · ")]), { duration: 10000 });
         if (done.length) { router.push("/purchases/invoices"); router.refresh(); }
       });
     }
@@ -141,7 +144,7 @@ export function PurchaseInvoiceFromReceiptForm({
         toast.success("تم حفظ الفاتورة (مسودة) — رحّلها لاعتمادها");
         router.push(r.invoiceId ? `/purchases/invoices/${r.invoiceId}` : "/purchases/invoices");
         router.refresh();
-      } else toast.error(r.error ?? "تعذّر الحفظ");
+      } else toast.error(r.error ?? t("تعذّر الحفظ"));
     });
   };
 
@@ -149,15 +152,15 @@ export function PurchaseInvoiceFromReceiptForm({
     <Card>
       <CardHeader>
         <div className="flex w-full items-center justify-between gap-3">
-          <CardTitle>بيانات فاتورة الشراء</CardTitle>
+          <CardTitle>{t("بيانات فاتورة الشراء")}</CardTitle>
           <div className="flex gap-2">
             {/* One receipt needs its preview loaded before saving; several are raised
                 without one, so gate on the selection instead of on the preview. */}
             <Button size="sm" onClick={submit} disabled={pending || (picked.length === 1 ? !preview : picked.length === 0)}>
               {pending && <Loader2 className="size-4 animate-spin" />}
-              {picked.length > 1 ? `حفظ ${picked.length} فاتورة` : "حفظ الفاتورة"}
+              {picked.length > 1 ? fill(t("حفظ {0} فاتورة"), [picked.length]) : t("حفظ الفاتورة")}
             </Button>
-            <Button variant="outline" size="sm" onClick={() => router.push("/purchases/invoices")}>إلغاء</Button>
+            <Button variant="outline" size="sm" onClick={() => router.push("/purchases/invoices")}>{t("إلغاء")}</Button>
           </div>
         </div>
       </CardHeader>
@@ -165,67 +168,67 @@ export function PurchaseInvoiceFromReceiptForm({
         {/* Section 1 — البيانات */}
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           <div className="space-y-2">
-            <Label>الشركة</Label>
+            <Label>{t("الشركة")}</Label>
             <div className="flex h-9 items-center rounded-md border bg-muted/40 px-3 text-sm font-medium">{orgName}</div>
           </div>
           <div className="space-y-2">
-            <Label>المورد</Label>
+            <Label>{t("المورد")}</Label>
             <CellCombobox
               selectedLabel={supplierLabelById.get(supplierId) ?? ""}
               options={supplierOptions}
               onSelect={(id) => onSupplier(id)}
-              placeholder="ابحث عن المورد…"
+              placeholder={t("ابحث عن المورد…")}
             />
           </div>
-          <div className="space-y-2"><Label>تاريخ الفاتورة</Label><Input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></div>
+          <div className="space-y-2"><Label>{t("تاريخ الفاتورة")}</Label><Input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></div>
         </div>
 
         {/* The approved rate, inherited — or, for a receipt that carries none, chosen here. */}
         {inherited ? (
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-3 rounded-xl border bg-muted/20 p-3">
             <div className="space-y-1">
-              <Label>عملة الفاتورة</Label>
+              <Label>{t("عملة الفاتورة")}</Label>
               <div className="flex h-9 items-center rounded-md border bg-muted/40 px-3 text-sm font-medium">{inherited.code}</div>
             </div>
             <div className="space-y-1">
-              <Label>سعر الصرف المعتمد</Label>
+              <Label>{t("سعر الصرف المعتمد")}</Label>
               <div className="flex h-9 items-center rounded-md border bg-muted/40 px-3 text-sm font-medium tabular-nums">
-                ١ {inherited.code} = {ratef(inherited.rate)} {baseCode}
+                {fill(t("١ {0} = {1} {2}"), [inherited.code, ratef(inherited.rate), baseCode])}
               </div>
               <p className="text-xs text-muted-foreground">
-                {inherited.from ? `سعر معتمد من أمر الشراء ${inherited.from}` : "سعر معتمد من إذن الاستلام"} — مبيتغيّرش هنا
+                {inherited.from ? fill(t("سعر معتمد من أمر الشراء {0}"), [inherited.from]) : t("سعر معتمد من إذن الاستلام")} {t("— مبيتغيّرش هنا")}
               </p>
             </div>
             {foreignTotal !== null && (
               <div className="flex flex-col justify-end text-sm text-muted-foreground">
-                <span>إجمالي بالعملة الأجنبية:</span>
+                <span>{t("إجمالي بالعملة الأجنبية:")}</span>
                 <span className="text-base font-semibold text-foreground">{fmt(foreignTotal)} {inherited.code}</span>
-                <span className="text-xs">(الأستاذ يُسجَّل بـ {baseCode})</span>
+                <span className="text-xs">{t("(الأستاذ يُسجَّل بـ")} {baseCode})</span>
               </div>
             )}
           </div>
         ) : needsOwnRate && (
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-3 rounded-xl border border-dashed bg-muted/20 p-3">
             <div className="space-y-2">
-              <Label>عملة الفاتورة</Label>
+              <Label>{t("عملة الفاتورة")}</Label>
               <select className={selectCls} value={currencyCode} onChange={(e) => onCurrencyChange(e.target.value)}>
                 {currencies.map((c) => (
-                  <option key={c.code} value={c.code}>{c.code} — {c.nameAr}{c.isBase ? " (أساسية)" : ""}</option>
+                  <option key={c.code} value={c.code}>{c.code} — {t(c.nameAr)}{c.isBase ? t(" (أساسية)") : ""}</option>
                 ))}
               </select>
             </div>
             {isForeign && (
               <div className="space-y-2">
-                <Label>سعر الصرف (1 {shownCurrency} = ؟ {baseCode})</Label>
-                <Input type="number" min="0.000001" step="0.000001" value={exchangeRate} onChange={(e) => setExchangeRate(e.target.value)} placeholder="مثال: 3.75" />
-                <p className="text-xs text-muted-foreground">الإذن ده مش جاي من أمر شراء، فمفيش سعر معتمد يورثه.</p>
+                <Label>{fill(t("سعر الصرف (1 {0} = ؟ {1})"), [shownCurrency, baseCode])}</Label>
+                <Input type="number" min="0.000001" step="0.000001" value={exchangeRate} onChange={(e) => setExchangeRate(e.target.value)} placeholder={t("مثال: 3.75")} />
+                <p className="text-xs text-muted-foreground">{t("الإذن ده مش جاي من أمر شراء، فمفيش سعر معتمد يورثه.")}</p>
               </div>
             )}
             {isForeign && foreignTotal !== null && (
               <div className="flex flex-col justify-end text-sm text-muted-foreground">
-                <span>إجمالي بالعملة الأجنبية:</span>
+                <span>{t("إجمالي بالعملة الأجنبية:")}</span>
                 <span className="text-base font-semibold text-foreground">{fmt(foreignTotal)} {shownCurrency}</span>
-                <span className="text-xs">(الأستاذ يُسجَّل بـ {baseCode})</span>
+                <span className="text-xs">{t("(الأستاذ يُسجَّل بـ")} {baseCode})</span>
               </div>
             )}
           </div>
@@ -236,27 +239,27 @@ export function PurchaseInvoiceFromReceiptForm({
             clearing to the piastre. */}
         <div className="space-y-3 rounded-xl border bg-muted/30 p-4">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <Label>إذون الاستلام</Label>
+            <Label>{t("إذون الاستلام")}</Label>
             <div className="flex items-center gap-2">
               {supplierReceipts.length > 1 && (
                 <Button type="button" variant="outline" size="sm"
                   onClick={() => selectReceipts(supplierReceipts.map((r) => r.id))}>
-                  اختر الكل ({supplierReceipts.length})
+                  {fill(t("اختر الكل ({0})"), [supplierReceipts.length])}
                 </Button>
               )}
               {picked.length > 0 && (
                 <Button type="button" variant="ghost" size="sm" onClick={() => selectReceipts([])}>
-                  امسح الاختيار
+                  {t("امسح الاختيار")}
                 </Button>
               )}
-              <span className="text-sm text-muted-foreground">محدَّد {picked.length}</span>
+              <span className="text-sm text-muted-foreground">{t("محدَّد")} {picked.length}</span>
             </div>
           </div>
 
           {!supplierId ? (
-            <p className="text-sm text-muted-foreground">اختر المورد أولاً.</p>
+            <p className="text-sm text-muted-foreground">{t("اختر المورد أولاً.")}</p>
           ) : supplierReceipts.length === 0 ? (
-            <p className="text-sm text-muted-foreground">لا توجد إذون استلام مؤكَّدة غير مفوترة لهذا المورد.</p>
+            <p className="text-sm text-muted-foreground">{t("لا توجد إذون استلام مؤكَّدة غير مفوترة لهذا المورد.")}</p>
           ) : (
             <div className="max-h-48 overflow-y-auto rounded-lg border bg-background">
               {supplierReceipts.map((r) => (
@@ -274,9 +277,9 @@ export function PurchaseInvoiceFromReceiptForm({
           )}
 
           <p className="text-sm text-muted-foreground">
-            {loading ? <span className="flex items-center gap-2"><Loader2 className="size-4 animate-spin" />جارٍ تحميل بنود الإذن…</span>
-              : picked.length > 1 ? `هتتعمل ${picked.length} مسودة فاتورة — واحدة لكل إذن، كل واحدة بسعر صرف إذنها.`
-              : "تنزل أصناف الإذن وأسعارها من أمر الشراء في الجدول."}
+            {loading ? <span className="flex items-center gap-2"><Loader2 className="size-4 animate-spin" />{t("جارٍ تحميل بنود الإذن…")}</span>
+              : picked.length > 1 ? fill(t("هتتعمل {0} مسودة فاتورة — واحدة لكل إذن، كل واحدة بسعر صرف إذنها."), [picked.length])
+              : t("تنزل أصناف الإذن وأسعارها من أمر الشراء في الجدول.")}
           </p>
         </div>
 
@@ -285,13 +288,13 @@ export function PurchaseInvoiceFromReceiptForm({
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="text-start">المنتج</TableHead>
-                <TableHead className="w-24 text-start">الكمية</TableHead>
-                <TableHead className="w-28 text-start">السعر</TableHead>
-                <TableHead className="w-28 text-start">شحن/وحدة</TableHead>
-                <TableHead className="w-28 text-start">الخصم</TableHead>
-                <TableHead className="w-28 text-start">الضريبة</TableHead>
-                <TableHead className="w-28 text-start">الإجمالي</TableHead>
+                <TableHead className="text-start">{t("المنتج")}</TableHead>
+                <TableHead className="w-24 text-start">{t("الكمية")}</TableHead>
+                <TableHead className="w-28 text-start">{t("السعر")}</TableHead>
+                <TableHead className="w-28 text-start">{t("شحن/وحدة")}</TableHead>
+                <TableHead className="w-28 text-start">{t("الخصم")}</TableHead>
+                <TableHead className="w-28 text-start">{t("الضريبة")}</TableHead>
+                <TableHead className="w-28 text-start">{t("الإجمالي")}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -300,12 +303,12 @@ export function PurchaseInvoiceFromReceiptForm({
                   {/* With several receipts ticked there is no single set of lines to show —
                       say that, rather than leaving the table looking broken. */}
                   {picked.length > 1
-                    ? `${picked.length} إذون محدَّدة — كل واحد هيطلع مسودة فاتورة بأصنافه. علّم على إذن واحد بس لو عايز تشوف البنود قبل الحفظ.`
-                    : "اختر المورد ثم علّم على إذن استلام لعرض البنود."}
+                    ? fill(t("{0} إذون محدَّدة — كل واحد هيطلع مسودة فاتورة بأصنافه. علّم على إذن واحد بس لو عايز تشوف البنود قبل الحفظ."), [picked.length])
+                    : t("اختر المورد ثم علّم على إذن استلام لعرض البنود.")}
                 </TableCell></TableRow>
               ) : preview.lines.map((l) => (
                 <TableRow key={l.itemId}>
-                  <TableCell className="max-w-[22rem] whitespace-normal"><div dir="ltr" className="line-clamp-2 text-start leading-snug" title={l.name}>{l.name}</div><div className="mt-0.5 font-mono text-xs text-muted-foreground">{l.code}</div></TableCell>
+                  <TableCell className="max-w-[22rem] whitespace-normal"><div dir="ltr" className="line-clamp-2 text-start leading-snug" title={l.name}>{t(l.name)}</div><div className="mt-0.5 font-mono text-xs text-muted-foreground">{l.code}</div></TableCell>
                   <TableCell>{qtyf(l.quantity)}</TableCell>
                   <TableCell>{fmt(l.unitPrice)}</TableCell>
                   <TableCell>{fmt(l.shippingPerUnit)}</TableCell>
@@ -317,7 +320,7 @@ export function PurchaseInvoiceFromReceiptForm({
             </TableBody>
             {preview && (
               <TableFooter>
-                <TableRow className="font-bold"><TableCell colSpan={6}>الإجمالي</TableCell><TableCell>{fmt(preview.total)}</TableCell></TableRow>
+                <TableRow className="font-bold"><TableCell colSpan={6}>{t("الإجمالي")}</TableCell><TableCell>{fmt(preview.total)}</TableCell></TableRow>
               </TableFooter>
             )}
           </Table>
@@ -325,12 +328,12 @@ export function PurchaseInvoiceFromReceiptForm({
 
         {preview && (
           <div className="flex flex-col items-end gap-1 text-sm">
-            <div>الإجمالي الفرعي: <span className="font-medium">{fmt(preview.subtotal)}</span></div>
-            <div>الشحن: <span className="font-medium">{fmt(preview.shipping)}</span></div>
-            <div>الخصم: <span className="font-medium">{fmt(preview.discount)}</span></div>
-            <div>الضريبة: <span className="font-medium">{fmt(preview.tax)}</span></div>
+            <div>{t("الإجمالي الفرعي:")} <span className="font-medium">{fmt(preview.subtotal)}</span></div>
+            <div>{t("الشحن:")} <span className="font-medium">{fmt(preview.shipping)}</span></div>
+            <div>{t("الخصم:")} <span className="font-medium">{fmt(preview.discount)}</span></div>
+            <div>{t("الضريبة:")} <span className="font-medium">{fmt(preview.tax)}</span></div>
             <div className="text-base font-bold text-primary">
-              الإجمالي: {fmt(preview.total)} {baseCode}
+              {t("الإجمالي:")} {fmt(preview.total)} {baseCode}
               {isForeign && foreignTotal !== null && (
                 <span className="ms-2 text-sm font-normal text-muted-foreground">= {fmt(foreignTotal)} {currencyCode}</span>
               )}
@@ -338,7 +341,7 @@ export function PurchaseInvoiceFromReceiptForm({
           </div>
         )}
 
-        <div className="space-y-2"><Label>ملاحظات</Label><Input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="اختياري" /></div>
+        <div className="space-y-2"><Label>{t("ملاحظات")}</Label><Input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder={t("اختياري")} /></div>
       </CardContent>
     </Card>
   );

@@ -1,4 +1,6 @@
 import { notFound } from "next/navigation";
+import { fill } from "@/lib/i18n";
+import { getLocale, getT } from "@/lib/i18n/server";
 import { and, eq } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
@@ -11,6 +13,8 @@ import { unitAllIn, round2 } from "@/lib/erp/money";
 type Params = { params: Promise<{ number: string }> };
 
 export default async function PrintPurchaseInvoicePage({ params }: Params) {
+  const t = await getT();
+  const locale = await getLocale();
   const raw = decodeURIComponent((await params).number);
   return loadErpPage("purchases.view", async ({ orgId }) => {
     const [inv] = await db
@@ -95,13 +99,13 @@ export default async function PrintPurchaseInvoicePage({ params }: Params) {
         org={org}
         hiddenColumns={hiddenFor("purchase-invoice")}
         footerText={footerText}
-        title="فاتورة شراء"
+        title={t("فاتورة شراء")}
         number={inv.number}
-        watermark={inv.status === "DRAFT" ? "مسودة" : undefined}
+        watermark={inv.status === "DRAFT" ? t("مسودة") : undefined}
         backHref={`/purchases/invoices/${encodeURIComponent(raw)}`}
         meta={[
-          { label: "التاريخ", value: dt(inv.date) },
-          ...(inv.dueDate ? [{ label: "الاستحقاق", value: dt(inv.dueDate) }] : []),
+          { label: "التاريخ", value: dt(inv.date, locale) },
+          ...(inv.dueDate ? [{ label: "الاستحقاق", value: dt(inv.dueDate, locale) }] : []),
         ]}
         parties={supp ? [{
           label: "المورّد",
@@ -133,7 +137,7 @@ export default async function PrintPurchaseInvoicePage({ params }: Params) {
             ) : null}
           </span>,
           <span key="n">
-            <b>{l.name}</b>
+            <b>{t(l.name ?? "")}</b>
             {l.code && <span dir="ltr" style={{ color: "#8a93a6", fontSize: 10.5, marginInlineStart: 6 }}>{l.code}</span>}
           </span>,
           qty(l.qty),
@@ -145,21 +149,21 @@ export default async function PrintPurchaseInvoicePage({ params }: Params) {
           <b key="t">{fmt(l.total)}</b>,
         ])}
         totals={[
-          { label: "الإجمالي الفرعي", value: money(subtotal, currency) },
+          { label: "الإجمالي الفرعي", value: money(subtotal, currency, locale) },
           // Charge lines appear only when they carry a value.
-          ...(shipping > 0 ? [{ label: "الشحن", value: money(shipping, currency) }] : []),
-          ...(discount > 0 ? [{ label: "الخصم", value: `− ${money(discount, currency)}`, tone: "danger" as const }] : []),
-          ...(tax > 0 ? [{ label: `ضريبة المدخلات (${inv.taxPercent}%)`, value: money(tax, currency) }] : []),
-          { label: "إجمالي الفاتورة (المستحق للمورد)", value: money(inv.totalAmount, currency), tone: "strong" as const },
+          ...(shipping > 0 ? [{ label: "الشحن", value: money(shipping, currency, locale) }] : []),
+          ...(discount > 0 ? [{ label: "الخصم", value: `− ${money(discount, currency, locale)}`, tone: "danger" as const }] : []),
+          ...(tax > 0 ? [{ label: fill(t("ضريبة المدخلات ({0}%)"), [inv.taxPercent]), value: money(tax, currency, locale) }] : []),
+          { label: "إجمالي الفاتورة (المستحق للمورد)", value: money(inv.totalAmount, currency, locale), tone: "strong" as const },
           // Import costs are owed to somebody else on another document, so the goods'
           // full cost and the supplier's bill are deliberately different figures.
           ...(anyLanded ? [
-            { label: "تكاليف استيراد محمَّلة", value: money(landedTotal, currency) },
-            { label: "التكلفة الشاملة للبضاعة", value: money(costTotal, currency), tone: "strong" as const },
+            { label: "تكاليف استيراد محمَّلة", value: money(landedTotal, currency, locale) },
+            { label: "التكلفة الشاملة للبضاعة", value: money(costTotal, currency, locale), tone: "strong" as const },
           ] : []),
-          ...(paid > 0 ? [{ label: "المسدَّد", value: `− ${money(paid, currency)}`, tone: "success" as const }] : []),
+          ...(paid > 0 ? [{ label: "المسدَّد", value: `− ${money(paid, currency, locale)}`, tone: "success" as const }] : []),
         ]}
-        balance={{ label: "المتبقّي", value: money(inv.balanceDue, currency) }}
+        balance={{ label: "المتبقّي", value: money(inv.balanceDue, currency, locale) }}
         note={inv.notes}
         signatures={["إعداد", "مراجعة", "اعتماد"]}
       />

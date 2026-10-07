@@ -1,9 +1,11 @@
 "use client";
 
 import Link from "next/link";
+import { fill } from "@/lib/i18n";
+import { useT } from "@/lib/i18n/client";
 import { Fragment, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { toast } from "sonner";
+import { toast } from "@/lib/i18n/toast";
 import { bulkReceiptsAction } from "@/app/actions/erp/goods-receipts";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -28,6 +30,7 @@ type ReturnRow = { id: string; number: string; date: Date; qty: number; status: 
 type Row = { id: string; number: string; date: Date; supplier: string | null; order: string | null; invoice: string | null; status: string; returned?: boolean; returns?: ReturnRow[] };
 
 export function GoodsReceiptsTable({ rows, canConfirm, canCreate }: { rows: Row[]; canConfirm: boolean; canCreate: boolean }) {
+  const t = useT();
   const canAct = canConfirm || canCreate;
   const router = useRouter();
   const [pending, start] = useTransition();
@@ -45,11 +48,11 @@ export function GoodsReceiptsTable({ rows, canConfirm, canCreate }: { rows: Row[
 
   const run = (op: "confirm" | "bill" | "delete", verb: string) => {
     void (async () => {
-      if (!(await confirm({ title: `${verb} ${sel.size} إذن`, danger: op === "delete" }))) return;
+      if (!(await confirm({ title: fill(t("{0} {1} إذن"), [verb, sel.size]), danger: op === "delete" }))) return;
       start(async () => {
         const r = await bulkReceiptsAction(op, [...sel]);
-        if (r.ok) { toast.success(`تم ${verb} ${r.count ?? 0} إذن`); setSel(new Set()); router.refresh(); }
-        else toast.error(r.error ?? "تعذّر التنفيذ");
+        if (r.ok) { toast.success(fill(t("تم {0} {1} إذن"), [verb, r.count ?? 0])); setSel(new Set()); router.refresh(); }
+        else toast.error(r.error ?? t("تعذّر التنفيذ"));
       });
     })();
   };
@@ -58,29 +61,29 @@ export function GoodsReceiptsTable({ rows, canConfirm, canCreate }: { rows: Row[
     <div className="space-y-3">
       {canAct && sel.size > 0 && (
         <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-muted/40 px-3 py-2 text-sm">
-          <span className="font-medium">{sel.size.toLocaleString("ar-EG-u-nu-latn")} محدّد</span>
+          <span className="font-medium">{sel.size.toLocaleString("ar-EG-u-nu-latn")} {t("محدّد")}</span>
           <div className="ms-auto flex gap-2">
             <Button size="sm" variant="outline" asChild>
               <a href={`/api/erp/purchases/receipts/export?numbers=${encodeURIComponent(rows.filter((r) => sel.has(r.id)).map((r) => r.number).join(","))}`}>
-                <Icon name="FileSpreadsheet" className="size-4" />تنزيل Excel
+                <Icon name="FileSpreadsheet" className="size-4" />{t("تنزيل Excel")}
               </a>
             </Button>
-            {canConfirm && hasDraft && <Button size="sm" disabled={pending} onClick={() => run("confirm", "تأكيد")}><Icon name="Check" className="size-4" />تأكيد</Button>}
-            {canConfirm && canCreate && hasReceived && <Button size="sm" variant="outline" disabled={pending} onClick={() => run("bill", "تحويل")}><Icon name="FileText" className="size-4" />تحويل لفاتورة</Button>}
-            {canCreate && hasDraft && <Button size="sm" variant="ghost" disabled={pending} onClick={() => run("delete", "حذف")}><Icon name="Trash2" className="size-4 text-destructive" />حذف</Button>}
+            {canConfirm && hasDraft && <Button size="sm" disabled={pending} onClick={() => run("confirm", "تأكيد")}><Icon name="Check" className="size-4" />{t("تأكيد")}</Button>}
+            {canConfirm && canCreate && hasReceived && <Button size="sm" variant="outline" disabled={pending} onClick={() => run("bill", "تحويل")}><Icon name="FileText" className="size-4" />{t("تحويل لفاتورة")}</Button>}
+            {canCreate && hasDraft && <Button size="sm" variant="ghost" disabled={pending} onClick={() => run("delete", "حذف")}><Icon name="Trash2" className="size-4 text-destructive" />{t("حذف")}</Button>}
           </div>
         </div>
       )}
       <Table>
         <TableHeader>
           <TableRow>
-            {canAct && <TableHead className="w-10"><Checkbox checked={allSelected} onCheckedChange={toggleAll} aria-label="تحديد الكل" /></TableHead>}
-            <TableHead className="text-start">الرقم</TableHead>
-            <TableHead className="text-start">التاريخ</TableHead>
-            <TableHead className="text-start">المورد</TableHead>
-            <TableHead className="text-start">أمر الشراء</TableHead>
-            <TableHead className="text-start">الفاتورة</TableHead>
-            <TableHead className="text-start">الحالة</TableHead>
+            {canAct && <TableHead className="w-10"><Checkbox checked={allSelected} onCheckedChange={toggleAll} aria-label={t("تحديد الكل")} /></TableHead>}
+            <TableHead className="text-start">{t("الرقم")}</TableHead>
+            <TableHead className="text-start">{t("التاريخ")}</TableHead>
+            <TableHead className="text-start">{t("المورد")}</TableHead>
+            <TableHead className="text-start">{t("أمر الشراء")}</TableHead>
+            <TableHead className="text-start">{t("الفاتورة")}</TableHead>
+            <TableHead className="text-start">{t("الحالة")}</TableHead>
             <TableHead className="w-10" />
           </TableRow>
         </TableHeader>
@@ -90,7 +93,7 @@ export function GoodsReceiptsTable({ rows, canConfirm, canCreate }: { rows: Row[
             return (
               <Fragment key={r.id}>
                 <TableRow data-state={sel.has(r.id) ? "selected" : undefined}>
-                  {canAct && <TableCell><Checkbox checked={sel.has(r.id)} onCheckedChange={() => toggle(r.id)} aria-label="تحديد" /></TableCell>}
+                  {canAct && <TableCell><Checkbox checked={sel.has(r.id)} onCheckedChange={() => toggle(r.id)} aria-label={t("تحديد")} /></TableCell>}
                   <TableCell>
                     <Link href={`/purchases/receipts/${encodeURIComponent(r.number)}`} className="hover:text-primary">{r.number}</Link>
                   </TableCell>
@@ -98,7 +101,7 @@ export function GoodsReceiptsTable({ rows, canConfirm, canCreate }: { rows: Row[
                   <TableCell className="max-w-[200px] truncate" title={r.supplier ?? undefined}>{r.supplier ?? "—"}</TableCell>
                   <TableCell>{r.order ?? "—"}</TableCell>
                   <TableCell>{r.invoice ?? "—"}</TableCell>
-                  <TableCell><div className="flex items-center gap-1"><Badge variant={st.variant}>{st.label}</Badge>{r.returned && <Badge variant="destructive">مرتجع</Badge>}</div></TableCell>
+                  <TableCell><div className="flex items-center gap-1"><Badge variant={st.variant}>{t(st.label)}</Badge>{r.returned && <Badge variant="destructive">{t("مرتجع")}</Badge>}</div></TableCell>
                   <TableCell>
                     <ReceiptRowMenu id={r.id} number={r.number} status={r.status} canManage={canCreate} />
                   </TableCell>
@@ -108,13 +111,13 @@ export function GoodsReceiptsTable({ rows, canConfirm, canCreate }: { rows: Row[
                     {canAct && <TableCell />}
                     <TableCell className="ps-8">
                       <Link href={`/purchases/returns/${encodeURIComponent(rt.number)}`} className="inline-flex items-center gap-1 text-muted-foreground hover:text-primary"><Icon name="Undo2" className="size-3.5" />{rt.number}</Link>
-                      <span className="ms-2 text-destructive">كمية مرتجعة: {qf(rt.qty)}</span>
+                      <span className="ms-2 text-destructive">{t("كمية مرتجعة:")} {qf(rt.qty)}</span>
                     </TableCell>
                     <TableCell className="text-muted-foreground">{dt(rt.date)}</TableCell>
                     <TableCell className="text-muted-foreground">{r.supplier ?? "—"}</TableCell>
                     <TableCell className="text-muted-foreground">—</TableCell>
                     <TableCell className="text-muted-foreground">—</TableCell>
-                    <TableCell><Badge variant="destructive">{rt.status === "POSTED" ? "مرتجع" : "مرتجع (مسودة)"}</Badge></TableCell>
+                    <TableCell><Badge variant="destructive">{rt.status === "POSTED" ? t("مرتجع") : t("مرتجع (مسودة)")}</Badge></TableCell>
                     <TableCell />
                   </TableRow>
                 ))}

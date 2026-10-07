@@ -1,14 +1,10 @@
-import * as XLSX from "xlsx";
+import { xlsxBuild } from "@/lib/erp/xlsx";
 import { requireErpModule } from "@/lib/erp/org";
 import { withOrgScope } from "@/lib/db-scope";
 import { getStockLedger, MOVE_TYPE, MOVE_REF } from "@/lib/erp/stock-ledger";
 
 export const runtime = "nodejs";
 
-const today = () => {
-  const x = new Date();
-  return `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, "0")}-${String(x.getDate()).padStart(2, "0")}`;
-};
 const fmtDate = (d: Date) => {
   const x = new Date(d);
   return `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, "0")}-${String(x.getDate()).padStart(2, "0")}`;
@@ -45,18 +41,5 @@ export async function GET(req: Request) {
   });
   const totalRow = ["الإجمالي", "", "", "", "", totals.inQty, totals.outQty, "", "", ""];
 
-  const ws = XLSX.utils.aoa_to_sheet([headers, ...body, totalRow]);
-  ws["!cols"] = [{ wch: 12 }, { wch: 26 }, { wch: 10 }, { wch: 18 }, { wch: 18 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 14 }, { wch: 14 }];
-
-  const wb = XLSX.utils.book_new();
-  wb.Workbook = { Views: [{ RTL: true }] };
-  XLSX.utils.book_append_sheet(wb, ws, "حركة المخزون");
-  const buffer = XLSX.write(wb, { type: "buffer", bookType: "xlsx" }) as Buffer;
-
-  return new Response(new Uint8Array(buffer), {
-    headers: {
-      "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-      "Content-Disposition": `attachment; filename="stock-ledger-${today()}.xlsx"`,
-    },
-  });
+  return xlsxBuild([headers, ...body, totalRow], "حركة المخزون", "stock-ledger", [12, 26, 10, 18, 18, 12, 12, 12, 14, 14]);
 }

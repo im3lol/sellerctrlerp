@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { toast } from "sonner";
+import { useT } from "@/lib/i18n/client";
+import { toast } from "@/lib/i18n/toast";
 import { HandCoins, Loader2, Link2 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -18,6 +19,7 @@ const dt = (s: string | null) => (s ? new Date(s).toLocaleDateString("ar-EG-u-nu
  * loss it compensates (a return not received / a disposed removal) when we can match it.
  */
 export function MarketplaceReimbursementsClient({ initial }: { initial: ReimbursementRow[] }) {
+  const t = useT();
   const [rows, setRows] = useState(initial);
   const [pending, start] = useTransition();
   const [busy, setBusy] = useState<string | null>(null);
@@ -31,13 +33,13 @@ export function MarketplaceReimbursementsClient({ initial }: { initial: Reimburs
   });
 
   if (rows.length === 0) {
-    return <Card><CardContent className="py-10 text-center text-muted-foreground">لا توجد تعويضات بانتظار التسجيل ✓</CardContent></Card>;
+    return <Card><CardContent className="py-10 text-center text-muted-foreground">{t("لا توجد تعويضات بانتظار التسجيل ✓")}</CardContent></Card>;
   }
 
   return (
     <div className="space-y-4">
       <p className="text-sm text-muted-foreground">
-        تعويضات من المنصة عن مخزون ضائع/تالف. «سجّل» بيعمل <b>قيد يومية مسودّة</b> (مدين المحفظة / دائن تعويضات المنصات 4103) يراجعه المحاسب ويرحّله — عشان ماتتكرّرش مع التسوية. التعويض العيني (وحدات) بيتعرض وترجّعه من أوامر السحب/التسويات.
+        {t("تعويضات من المنصة عن مخزون ضائع/تالف. «سجّل» بيعمل")} <b>{t("قيد يومية مسودّة")}</b> {t("(مدين المحفظة / دائن تعويضات المنصات 4103) يراجعه المحاسب ويرحّله — عشان ماتتكرّرش مع التسوية. التعويض العيني (وحدات) بيتعرض وترجّعه من أوامر السحب/التسويات.")}
       </p>
       {rows.map((o) => {
         const isBusy = pending && busy === o.id;
@@ -47,19 +49,19 @@ export function MarketplaceReimbursementsClient({ initial }: { initial: Reimburs
               <div className="flex min-w-0 flex-1 flex-col gap-1">
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="font-mono text-sm" dir="ltr">{o.reimbursementId}</span>
-                  {o.orderId && <span className="text-xs text-muted-foreground" dir="ltr">طلب {o.orderId}</span>}
+                  {o.orderId && <span className="text-xs text-muted-foreground" dir="ltr">{t("طلب")} {o.orderId}</span>}
                   <span className="text-xs text-muted-foreground">· {dt(o.approvalDate)}</span>
-                  {o.reason && <Badge variant="outline">{o.reason}</Badge>}
+                  {o.reason && <Badge variant="outline">{t(o.reason)}</Badge>}
                   {o.matchedLoss && <Badge variant="secondary" className="gap-1"><Link2 className="size-3" />{o.matchedLoss}</Badge>}
                 </div>
                 <div className="text-sm">
                   {o.sku && <span dir="ltr">{o.sku} · </span>}
                   <span className="font-semibold">{fmt(o.amountTotal)} {o.currency ?? ""}</span>
-                  {o.qtyInv > 0 && <span className="text-muted-foreground"> · عيني {o.qtyInv} وحدة</span>}
+                  {o.qtyInv > 0 && <span className="text-muted-foreground"> {t("· عيني")} {o.qtyInv} {t("وحدة")}</span>}
                 </div>
               </div>
               <Button size="sm" variant="outline" disabled={isBusy} onClick={() => confirm(o.id)}>
-                {isBusy ? <Loader2 className="size-4 animate-spin" /> : <HandCoins className="size-4 text-emerald-600" />}سجّل
+                {isBusy ? <Loader2 className="size-4 animate-spin" /> : <HandCoins className="size-4 text-emerald-600" />}{t("سجّل")}
               </Button>
             </CardContent>
           </Card>

@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { fill } from "@/lib/i18n";
+import { getT } from "@/lib/i18n/server";
 import { and, desc, eq, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { salesPlatforms, inventoryAudits } from "@/db/schema";
@@ -21,6 +23,7 @@ type Check = { icon: string; title: string; count: number; ok: string; bad: stri
  * its own screen, as a count with the link that fixes it. Read-only.
  */
 export default async function AmazonHealthPage({ params }: { params: Promise<{ code: string }> }) {
+  const t = await getT();
   const { code } = await params;
   const back = `/platforms/${code.toLowerCase()}`;
 
@@ -33,15 +36,15 @@ export default async function AmazonHealthPage({ params }: { params: Promise<{ c
       .where(and(eq(salesPlatforms.organizationId, orgId), eq(salesPlatforms.code, code.toUpperCase())))
       .limit(1);
     const header = (
-      <ErpPageHeader icon="HeartPulse" title="صحة أمازون" backHref={platform ? back : "/platforms"}
-        subtitle="كل اللي محتاج منك حاجة في أمازون النهارده — في صفحة واحدة" />
+      <ErpPageHeader icon="HeartPulse" title={t("صحة أمازون")} backHref={platform ? back : "/platforms"}
+        subtitle={t("كل اللي محتاج منك حاجة في أمازون النهارده — في صفحة واحدة")} />
     );
     if (platform?.integrationType !== "amazon") {
       return (
         <div className="space-y-6">{header}
           <div className="space-y-3 rounded-2xl border border-dashed p-8 text-center text-sm text-muted-foreground">
-            <p>الصفحة دي لمنصة أمازون — اربط حسابك الأول من صفحة المنصات.</p>
-            <Button asChild size="sm"><Link href="/platforms">اربط أمازون</Link></Button>
+            <p>{t("الصفحة دي لمنصة أمازون — اربط حسابك الأول من صفحة المنصات.")}</p>
+            <Button asChild size="sm"><Link href="/platforms">{t("اربط أمازون")}</Link></Button>
           </div>
         </div>
       );
@@ -81,7 +84,7 @@ export default async function AmazonHealthPage({ params }: { params: Promise<{ c
       { icon: "Undo2", title: "مرتجعات مستنية قرارك", count: returns, ok: "مفيش مرتجعات معلّقة", bad: "مرتجعات أمازون مستنية تقرر استلمتها ولا لأ", href: "/sales/marketplace-returns", action: "المرتجعات" },
       { icon: "HandCoins", title: "تعويضات مستنية تسجيل", count: reimbursements, ok: "كل تعويضات أمازون متسجّلة", bad: "تعويضات من أمازون لسه ماتسجّلتش", href: "/sales/marketplace-reimbursements", action: "التعويضات", tone: "warn" },
       ...(canViewInventory ? [audit
-        ? { icon: "ClipboardCheck", title: "فروق مخزون FBA (آخر تدقيق)", count: audit.withDiff, ok: "مخزون أمازون مطابق للنظام", bad: `فرق بين أمازون والنظام${audit.lost + audit.damaged > 0 ? ` — منها ${int(audit.lost + audit.damaged)} مفقود/تالف` : ""}`, href: "/inventory/reconciliation", action: "المطابقة" }
+        ? { icon: "ClipboardCheck", title: "فروق مخزون FBA (آخر تدقيق)", count: audit.withDiff, ok: "مخزون أمازون مطابق للنظام", bad: audit.lost + audit.damaged > 0 ? fill(t("فرق بين أمازون والنظام — منها {0} مفقود/تالف"), [int(audit.lost + audit.damaged)]) : t("فرق بين أمازون والنظام"), href: "/inventory/reconciliation", action: "المطابقة" }
         : { icon: "ClipboardCheck", title: "تدقيق مخزون FBA", count: 1, ok: "", bad: "ماعملتش تدقيق لسه — شغّله من صفحة أمازون", href: back, action: "تدقيق المخزون" }] : []),
     ];
     const open = checks.filter((c) => c.count > 0).length;
@@ -92,7 +95,7 @@ export default async function AmazonHealthPage({ params }: { params: Promise<{ c
         <div className={cn("flex items-center gap-3 rounded-2xl border p-4 text-sm font-medium",
           open === 0 ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-800 dark:text-emerald-300" : "border-amber-500/40 bg-amber-500/10 text-amber-800 dark:text-amber-300")}>
           <Icon name={open === 0 ? "CircleCheck" : "TriangleAlert"} className="size-5 shrink-0" />
-          {open === 0 ? "كله تمام — مفيش حاجة مستنياك في أمازون." : `${int(open)} من ${int(checks.length)} محتاجين منك حاجة.`}
+          {open === 0 ? t("كله تمام — مفيش حاجة مستنياك في أمازون.") : fill(t("{0} من {1} محتاجين منك حاجة."), [int(open), int(checks.length)])}
         </div>
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
           {checks.map((c) => {
@@ -103,7 +106,7 @@ export default async function AmazonHealthPage({ params }: { params: Promise<{ c
                   bad && (c.tone === "warn" ? "border-amber-500/40" : "border-destructive/40"))}>
                 <div className="flex items-center gap-2">
                   <Icon name={c.icon} className="size-4 text-muted-foreground" />
-                  <span className="font-semibold">{c.title}</span>
+                  <span className="font-semibold">{t(c.title)}</span>
                   <span className={cn("ms-auto text-2xl font-bold tabular-nums",
                     !bad ? "text-emerald-600" : c.tone === "warn" ? "text-amber-600" : "text-destructive")}>
                     {bad ? int(c.count) : <Icon name="CircleCheck" className="size-6" />}

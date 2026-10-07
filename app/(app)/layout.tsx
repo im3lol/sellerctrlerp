@@ -1,4 +1,7 @@
 import { and, asc, eq } from "drizzle-orm";
+import { fill } from "@/lib/i18n";
+import { getT } from "@/lib/i18n/server";
+import { cookies } from "next/headers";
 import { getActiveOrg } from "@/lib/erp/org";
 import { getMemberAccess } from "@/lib/erp/auth-guard";
 import { getEnabledModules, ALL_MODULES } from "@/lib/erp/entitlements";
@@ -6,7 +9,7 @@ import { requireUser } from "@/lib/session";
 import { db } from "@/lib/db";
 import { withOrgScope } from "@/lib/db-scope";
 import { salesPlatforms, organizations } from "@/db/schema";
-import { Sidebar } from "@/components/app-shell/sidebar";
+import { Sidebar, NAV_COLLAPSED_COOKIE } from "@/components/app-shell/sidebar";
 import { Topbar } from "@/components/app-shell/topbar";
 import { OnboardingTour } from "@/components/app-shell/onboarding-tour";
 import { LiveRefresh } from "@/components/app-shell/live-refresh";
@@ -20,7 +23,10 @@ import Link from "next/link";
 import type { Role } from "@/lib/rbac";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
+  const t = await getT();
   const user = await requireUser();
+  // Read on the server so a collapsed rail renders collapsed on the first paint.
+  const navCollapsed = (await cookies()).get(NAV_COLLAPSED_COOKIE)?.value === "1";
   const activeOrg = await getActiveOrg();
   const org = activeOrg.org;
 
@@ -54,7 +60,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     <div className="flex min-h-screen bg-muted/30">
       {/* Chrome stays off paper: printing any page (window.print) gives just its content. */}
       <div className="contents print:hidden">
-        <Sidebar role={user.role as Role} erpPermissions={erpPermissions} modules={enabledModules} platforms={platforms} navHidden={navHidden} />
+        <Sidebar role={user.role as Role} erpPermissions={erpPermissions} modules={enabledModules} platforms={platforms} navHidden={navHidden} defaultCollapsed={navCollapsed} />
       </div>
       {/* overflow-x-CLIP, not hidden: `hidden` computes overflow-y to `auto`, which makes
           this div a scroll container — and that silently broke the topbar's `sticky top-0`
@@ -80,8 +86,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         </div>
         {orgRow?.deletion && (
           <div className="flex flex-wrap items-center justify-between gap-2 border-b border-destructive/40 bg-destructive/10 px-4 py-2 text-sm font-medium text-destructive md:px-6">
-            <span>الشركة دي هتتمسح نهائيًا يوم {deletionDueAt(new Date(orgRow.deletion)).toLocaleDateString("ar-EG-u-nu-latn", { dateStyle: "long" })}</span>
-            <Link href="/settings/organization" className="underline">إلغاء الطلب</Link>
+            <span>{t("الشركة دي هتتمسح نهائيًا يوم")} {deletionDueAt(new Date(orgRow.deletion)).toLocaleDateString("ar-EG-u-nu-latn", { dateStyle: "long" })}</span>
+            <Link href="/settings/organization" className="underline">{t("إلغاء الطلب")}</Link>
           </div>
         )}
         {org?.isSandbox && <SandboxBanner realOrgId={activeOrg.orgs.find((o) => !o.isSandbox)?.id ?? null} />}
@@ -89,11 +95,11 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           <div className="flex items-center justify-between gap-3 border-b border-amber-500/40 bg-amber-500/10 px-4 py-2 text-sm md:px-6">
             <span className="flex items-center gap-2 font-medium text-amber-700 dark:text-amber-400">
               <Icon name="ShieldAlert" className="size-4" />
-              وضع الدعم — أنت داخل «{activeOrg.org.nameAr}» كمشرف المنصّة
+              {fill(t("وضع الدعم — أنت داخل «{0}» كمشرف المنصّة"), [t(activeOrg.org.nameAr)])}
             </span>
             <form action={exitImpersonationAction}>
               <button type="submit" className="shrink-0 rounded-md border border-amber-500/50 px-2.5 py-1 text-xs font-medium text-amber-700 transition-colors hover:bg-amber-500/20 dark:text-amber-400">
-                خروج للوحة الإدارة
+                {t("خروج للوحة الإدارة")}
               </button>
             </form>
           </div>

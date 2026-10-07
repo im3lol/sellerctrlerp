@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useT } from "@/lib/i18n/client";
 import { useState, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/icon";
@@ -51,6 +52,7 @@ export function DocumentActions({
   /** Icon-only trigger, no label/chevron — for a dense table row instead of a page header. */
   compact?: boolean;
 }) {
+  const t = useT();
   const [barcodeOpen, setBarcodeOpen] = useState(false);
   const visible = items.filter(Boolean);
   const hasBarcode = !!barcode?.rows.length;
@@ -65,14 +67,14 @@ export function DocumentActions({
 
   const item = (a: DocAction, i: number) =>
     a.href ? (
-      <DropdownMenuItem key={`${a.label}-${i}`} asChild disabled={a.disabled}>
+      <DropdownMenuItem key={`${t(a.label)}-${i}`} asChild disabled={a.disabled}>
         <Link href={a.href} {...(a.newTab ? { target: "_blank", rel: "noopener" } : {})}>
-          <Icon name={a.icon} className={`size-4${a.danger ? " text-destructive" : ""}`} />{a.label}
+          <Icon name={a.icon} className={`size-4${a.danger ? " text-destructive" : ""}`} />{t(a.label)}
         </Link>
       </DropdownMenuItem>
     ) : (
-      <DropdownMenuItem key={`${a.label}-${i}`} disabled={a.disabled} onSelect={a.onSelect}>
-        <Icon name={a.icon} className={`size-4${a.danger ? " text-destructive" : ""}`} />{a.label}
+      <DropdownMenuItem key={`${t(a.label)}-${i}`} disabled={a.disabled} onSelect={a.onSelect}>
+        <Icon name={a.icon} className={`size-4${a.danger ? " text-destructive" : ""}`} />{t(a.label)}
       </DropdownMenuItem>
     );
 
@@ -83,12 +85,12 @@ export function DocumentActions({
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             {compact ? (
-              <Button size="icon" variant="ghost" aria-label="إجراءات">
+              <Button size="icon" variant="ghost" aria-label={t("إجراءات")}>
                 <Icon name="MoreVertical" className="size-4" />
               </Button>
             ) : (
               <Button size="sm" variant="outline">
-                <Icon name="Ellipsis" className="size-4" />إجراءات
+                <Icon name="Ellipsis" className="size-4" />{t("إجراءات")}
                 <Icon name="ChevronDown" className="size-3.5 text-muted-foreground" />
               </Button>
             )}
@@ -97,7 +99,7 @@ export function DocumentActions({
             {printish.map(item)}
             {hasBarcode && (
               <DropdownMenuItem onSelect={() => setBarcodeOpen(true)}>
-                <Icon name="Barcode" className="size-4" />طباعة باركود
+                <Icon name="Barcode" className="size-4" />{t("طباعة باركود")}
               </DropdownMenuItem>
             )}
             {(printish.length > 0 || hasBarcode) && rest.length > 0 && <DropdownMenuSeparator />}

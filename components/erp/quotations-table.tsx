@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useT } from "@/lib/i18n/client";
 import { bulkQuotationsAction } from "@/app/actions/erp/quotations";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -17,6 +18,7 @@ const ST: Record<string, { label: string; variant: "default" | "secondary" | "ou
 };
 
 export function QuotationsTable({ rows, canConfirm, canCreate }: { rows: Row[]; canConfirm: boolean; canCreate: boolean }) {
+  const t = useT();
   const sel = useSelection();
   const ids = rows.map((r) => r.id);
   const showSelect = canConfirm || canCreate;
@@ -27,32 +29,32 @@ export function QuotationsTable({ rows, canConfirm, canCreate }: { rows: Row[]; 
 
   return (
     <div>
-      {showSelect && <BulkBar ids={sel.ids} ops={ops} action={bulkQuotationsAction} onDone={sel.clear} entity="عرض" />}
+      {showSelect && <BulkBar ids={sel.ids} ops={ops} action={bulkQuotationsAction} onDone={sel.clear} entity={t("عرض سعر")} />}
       <Table>
         <TableHeader><TableRow>
           {showSelect && (
-            <TableHead className="w-10"><SelectBox checked={sel.allOf(ids)} indeterminate={sel.someOf(ids)} onChange={() => sel.togglePage(ids)} label="تحديد الكل" /></TableHead>
+            <TableHead className="w-10"><SelectBox checked={sel.allOf(ids)} indeterminate={sel.someOf(ids)} onChange={() => sel.togglePage(ids)} label={t("تحديد الكل")} /></TableHead>
           )}
-          <TableHead className="text-start">الرقم</TableHead>
-          <TableHead className="text-start">التاريخ</TableHead>
-          <TableHead className="text-start">العميل</TableHead>
-          <TableHead className="text-start">صالح حتى</TableHead>
-          <TableHead className="text-end">الإجمالي</TableHead>
-          <TableHead className="text-start">الحالة</TableHead>
-          {showSelect && <TableHead className="text-start">إجراءات</TableHead>}
+          <TableHead className="text-start">{t("الرقم")}</TableHead>
+          <TableHead className="text-start">{t("التاريخ")}</TableHead>
+          <TableHead className="text-start">{t("العميل")}</TableHead>
+          <TableHead className="text-start">{t("صالح حتى")}</TableHead>
+          <TableHead className="text-end">{t("الإجمالي")}</TableHead>
+          <TableHead className="text-start">{t("الحالة")}</TableHead>
+          {showSelect && <TableHead className="text-start">{t("إجراءات")}</TableHead>}
         </TableRow></TableHeader>
         <TableBody>
           {rows.map((r) => {
             const st = ST[r.status] ?? ST.DRAFT;
             return (
               <TableRow key={r.id} data-state={sel.has(r.id) ? "selected" : undefined}>
-                {showSelect && <TableCell><SelectBox checked={sel.has(r.id)} onChange={() => sel.toggle(r.id)} label="تحديد" /></TableCell>}
+                {showSelect && <TableCell><SelectBox checked={sel.has(r.id)} onChange={() => sel.toggle(r.id)} label={t("تحديد")} /></TableCell>}
                 <TableCell><Link href={`/sales/quotations/${encodeURIComponent(r.number)}`} className="font-mono hover:text-primary">{r.number}</Link></TableCell>
                 <TableCell>{dt(r.date)}</TableCell>
                 <TableCell className="max-w-[200px] truncate" title={r.customer ?? undefined}>{r.customer ?? "—"}</TableCell>
                 <TableCell className="text-sm text-muted-foreground">{r.validUntil ? dt(r.validUntil) : "—"}</TableCell>
                 <TableCell className="text-end tabular-nums font-medium">{fmt(r.total)}</TableCell>
-                <TableCell><Badge variant={st.variant}>{st.label}</Badge></TableCell>
+                <TableCell><Badge variant={st.variant}>{t(st.label)}</Badge></TableCell>
                 {showSelect && <TableCell><QuotationRowActions id={r.id} number={r.number} status={r.status} canManage={showSelect} /></TableCell>}
               </TableRow>
             );

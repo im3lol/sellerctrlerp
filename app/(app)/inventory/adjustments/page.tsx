@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { fill } from "@/lib/i18n";
+import { getT } from "@/lib/i18n/server";
 import { and, count, desc, eq, gte, ilike, inArray, lte, sql } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
@@ -21,6 +23,7 @@ type SP = { [k: string]: string | string[] | undefined };
 const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) ?? "";
 
 export default async function AdjustmentsPage({ searchParams }: { searchParams: Promise<SP> }) {
+  const t = await getT();
   return loadErpPage("inventory.view", async ({ orgId, can }) => {
     const canManage = can("inventory.create");
     const sp = await searchParams;
@@ -87,53 +90,53 @@ export default async function AdjustmentsPage({ searchParams }: { searchParams: 
       <div className="space-y-6">
         <ErpPageHeader
           icon="ClipboardCheck"
-          title="تسويات المخزون"
-          subtitle={`${total} تسوية`}
+          title={t("تسويات المخزون")}
+          subtitle={fill(t("{0} تسوية"), [total])}
           action={
             canManage ? (
               <Button asChild>
-                <Link href="/inventory/adjustments/new"><Icon name="Plus" className="size-4" />تسوية جديدة</Link>
+                <Link href="/inventory/adjustments/new"><Icon name="Plus" className="size-4" />{t("تسوية جديدة")}</Link>
               </Button>
             ) : undefined
           }
         />
 
         <div className="grid gap-4 sm:grid-cols-3">
-          <Card><CardContent className="pt-6"><div className="text-sm text-muted-foreground">زيادة القيمة (مرحّلة)</div><p className="mt-1 text-2xl font-bold tabular-nums text-emerald-600">{money(incValue)}</p></CardContent></Card>
-          <Card><CardContent className="pt-6"><div className="text-sm text-muted-foreground">نقص القيمة (مرحّلة)</div><p className="mt-1 text-2xl font-bold tabular-nums text-destructive">{money(Math.abs(decValue))}</p></CardContent></Card>
-          <Card><CardContent className="pt-6"><div className="text-sm text-muted-foreground">صافي الأثر</div><p className={`mt-1 text-2xl font-bold tabular-nums ${netValue >= 0 ? "text-emerald-600" : "text-destructive"}`}>{money(netValue)}</p></CardContent></Card>
+          <Card><CardContent className="pt-6"><div className="text-sm text-muted-foreground">{t("زيادة القيمة (مرحّلة)")}</div><p className="mt-1 text-2xl font-bold tabular-nums text-emerald-600">{money(incValue)}</p></CardContent></Card>
+          <Card><CardContent className="pt-6"><div className="text-sm text-muted-foreground">{t("نقص القيمة (مرحّلة)")}</div><p className="mt-1 text-2xl font-bold tabular-nums text-destructive">{money(Math.abs(decValue))}</p></CardContent></Card>
+          <Card><CardContent className="pt-6"><div className="text-sm text-muted-foreground">{t("صافي الأثر")}</div><p className={`mt-1 text-2xl font-bold tabular-nums ${netValue >= 0 ? "text-emerald-600" : "text-destructive"}`}>{money(netValue)}</p></CardContent></Card>
         </div>
 
         <Card>
           <CardHeader>
-            <CardTitle>سجل التسويات</CardTitle>
-            <CardDescription>فروقات الجرد والتالف والفاقد (متعددة الأصناف). تُحفظ كمسودة ثم تُؤكَّد لتمرّ من دفتر المخزون + قيد محاسبي.</CardDescription>
+            <CardTitle>{t("سجل التسويات")}</CardTitle>
+            <CardDescription>{t("فروقات الجرد والتالف والفاقد (متعددة الأصناف). تُحفظ كمسودة ثم تُؤكَّد لتمرّ من دفتر المخزون + قيد محاسبي.")}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <details open={hasFilters} className="rounded-lg border">
               <summary className="flex cursor-pointer select-none items-center gap-2 px-4 py-2 text-sm font-medium">
-                <Icon name="ListFilter" className="size-4" /> بحث وتصفية
+                <Icon name="ListFilter" className="size-4" /> {t("بحث وتصفية")}
               </summary>
               <form className="grid gap-3 p-4 pt-0 sm:grid-cols-4 items-end">
-                <div className="space-y-1"><Label htmlFor="q">رقم التسوية</Label><Input id="q" name="q" defaultValue={q} placeholder="AJ-2026-..." /></div>
+                <div className="space-y-1"><Label htmlFor="q">{t("رقم التسوية")}</Label><Input id="q" name="q" defaultValue={q} placeholder="AJ-2026-..." /></div>
                 <div className="space-y-1">
-                  <Label htmlFor="status">الحالة</Label>
+                  <Label htmlFor="status">{t("الحالة")}</Label>
                   <select id="status" name="status" defaultValue={fStatus} className={selectCls}>
-                    <option value="">الكل</option>
-                    {STATUS_OPTIONS.map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                    <option value="">{t("الكل")}</option>
+                    {STATUS_OPTIONS.map(([k, v]) => <option key={k} value={k}>{t(v)}</option>)}
                   </select>
                 </div>
-                <div className="space-y-1"><Label htmlFor="from">من تاريخ</Label><Input id="from" name="from" type="date" defaultValue={from} /></div>
-                <div className="space-y-1"><Label htmlFor="to">إلى تاريخ</Label><Input id="to" name="to" type="date" defaultValue={to} /></div>
+                <div className="space-y-1"><Label htmlFor="from">{t("من تاريخ")}</Label><Input id="from" name="from" type="date" defaultValue={from} /></div>
+                <div className="space-y-1"><Label htmlFor="to">{t("إلى تاريخ")}</Label><Input id="to" name="to" type="date" defaultValue={to} /></div>
                 <div className="flex gap-2 sm:col-span-4">
-                  <Button type="submit">تطبيق</Button>
-                  {hasFilters && <Button type="button" variant="outline" asChild><Link href="/inventory/adjustments">مسح</Link></Button>}
+                  <Button type="submit">{t("تطبيق")}</Button>
+                  {hasFilters && <Button type="button" variant="outline" asChild><Link href="/inventory/adjustments">{t("مسح")}</Link></Button>}
                 </div>
               </form>
             </details>
 
             {heads.length === 0 ? (
-              <div className="rounded-xl border border-dashed py-12 text-center text-muted-foreground">{hasFilters ? "لا توجد تسويات مطابقة." : "لا توجد تسويات بعد."}</div>
+              <div className="rounded-xl border border-dashed py-12 text-center text-muted-foreground">{hasFilters ? t("لا توجد تسويات مطابقة.") : t("لا توجد تسويات بعد.")}</div>
             ) : (
               <>
                 <AdjustmentsTable
@@ -147,13 +150,13 @@ export default async function AdjustmentsPage({ searchParams }: { searchParams: 
                   })}
                 />
                 <div className="flex items-center justify-between text-sm text-muted-foreground">
-                  <span>صفحة {safePage} من {pages}</span>
+                  <span>{t("صفحة")} {safePage} {t("من")} {pages}</span>
                   <div className="flex gap-2">
                     <Button variant="outline" size="sm" disabled={safePage <= 1} asChild={safePage > 1}>
-                      {safePage > 1 ? <a href={qs(safePage - 1)}>السابق</a> : <span>السابق</span>}
+                      {safePage > 1 ? <a href={qs(safePage - 1)}>{t("السابق")}</a> : <span>{t("السابق")}</span>}
                     </Button>
                     <Button variant="outline" size="sm" disabled={safePage >= pages} asChild={safePage < pages}>
-                      {safePage < pages ? <a href={qs(safePage + 1)}>التالي</a> : <span>التالي</span>}
+                      {safePage < pages ? <a href={qs(safePage + 1)}>{t("التالي")}</a> : <span>{t("التالي")}</span>}
                     </Button>
                   </div>
                 </div>

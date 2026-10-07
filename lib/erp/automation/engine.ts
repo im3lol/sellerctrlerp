@@ -51,7 +51,7 @@ async function runAction(a: Action, c: Ctx): Promise<string> {
     case "notify": {
       const ids = await recipients(c.orgId, a.to, c.creatorId);
       if (ids.length === 0) return "تنبيه: مفيش حد يوصله";
-      await notifyUsers(c.orgId, ids, `⚙️ ${c.rule.name}`, [fill(a.message, c.facts, extra)], href);
+      await notifyUsers(c.orgId, ids, { heading: `⚙️ ${c.rule.name}`, lines: [fill(a.message, c.facts, extra)] }, href);
       return `تنبيه لـ${ids.length} شخص`;
     }
     case "followUp": {

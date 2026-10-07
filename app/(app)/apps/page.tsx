@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { fill } from "@/lib/i18n";
 import Image from "next/image";
 import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";
@@ -14,6 +15,8 @@ import { Icon } from "@/components/icon";
 import { SubscriptionBanner } from "@/components/erp/subscription-banner";
 import { SandboxStartButton } from "@/components/erp/sandbox-controls";
 import { cn } from "@/lib/utils";
+import { getT, getLocale } from "@/lib/i18n/server";
+import { int as i18nInt } from "@/lib/i18n";
 
 const FEATURED_DESC: Record<string, string> = {
   "/dashboard": "المبيعات والأرباح والفلوس والمخزون في صفحة واحدة",
@@ -30,6 +33,7 @@ const n = (v: number) => v.toLocaleString("ar-EG-u-nu-latn");
  */
 export default async function AppsPage() {
   const { user, org } = await getActiveOrg();
+  const [t, locale] = await Promise.all([getT(), getLocale()]);
   const [modules, access, navHidden, sub] = await Promise.all([
     user?.role === "system_admin" ? [...ALL_MODULES] : org ? getEnabledModules(org.id).then((m) => [...m]) : [],
     org && user ? getMemberAccess(org.id, user) : { permissions: new Set<string>() },
@@ -50,8 +54,8 @@ export default async function AppsPage() {
   // org's own timezone if that stops being true.
   const now = new Date();
   const hour = Number(new Intl.DateTimeFormat("en-US", { hour: "numeric", hourCycle: "h23", timeZone: "Africa/Cairo" }).format(now));
-  const greeting = hour < 12 ? "صباح الخير" : "مساء الخير";
-  const today = now.toLocaleDateString("ar-EG-u-nu-latn", { weekday: "long", day: "numeric", month: "long", year: "numeric", timeZone: "Africa/Cairo" });
+  const greeting = hour < 12 ? t("صباح الخير") : t("مساء الخير");
+  const today = now.toLocaleDateString(locale === "ar" ? "ar-EG-u-nu-latn" : "en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric", timeZone: "Africa/Cairo" });
   const firstName = user?.name?.split(" ")[0] ?? "";
 
   return (
@@ -61,8 +65,8 @@ export default async function AppsPage() {
         <div className="relative flex flex-wrap items-center justify-between gap-4">
           <div>
             <p className="text-sm text-muted-foreground">{today}</p>
-            <h1 className="mt-1 text-2xl font-bold md:text-3xl">{greeting}{firstName ? `، ${firstName}` : ""}</h1>
-            <p className="mt-1 text-muted-foreground">{org?.nameAr ? `${org.nameAr} — ` : ""}اختار الوحدة اللي هتشتغل عليها</p>
+            <h1 className="mt-1 text-2xl font-bold md:text-3xl">{greeting}{firstName ? (locale === "ar" ? fill(t("، {0}"), [firstName]) : `, ${firstName}`) : ""}</h1>
+            <p className="mt-1 text-muted-foreground">{org?.nameAr ? `${org.nameAr} — ` : ""}{t("اختار الوحدة اللي هتشتغل عليها")}</p>
           </div>
           {org && !org.isSandbox && user?.role !== "system_admin" ? <SandboxStartButton /> : (
             <div aria-hidden className="pointer-events-none hidden shrink-0 self-end sm:block">
@@ -100,9 +104,9 @@ export default async function AppsPage() {
                   )}
                 </span>
                 <span className="min-w-0 flex-1">
-                  <span className="block text-lg font-semibold">{f.label}</span>
+                  <span className="block text-lg font-semibold">{t(f.label)}</span>
                   <span className="block text-sm text-muted-foreground">
-                    {badge > 0 ? `${n(badge)} مستند مستني موافقتك` : FEATURED_DESC[f.href] ?? ""}
+                    {badge > 0 ? `${n(badge)} ${t("مستند مستني موافقتك")}` : t(FEATURED_DESC[f.href] ?? "")}
                   </span>
                 </span>
                 <Icon name="ArrowLeft" className="size-5 shrink-0 text-muted-foreground transition-transform group-hover:-translate-x-1 group-hover:text-primary" />
@@ -113,34 +117,34 @@ export default async function AppsPage() {
       )}
 
       <section>
-        <h2 className="mb-3 text-sm font-semibold text-muted-foreground">الوحدات</h2>
+        <h2 className="mb-3 text-sm font-semibold text-muted-foreground">{t("الوحدات")}</h2>
         <div data-tour="app-launcher" className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {tiles.map((t) => (
+          {tiles.map((it) => (
             <div
-              key={t.href}
+              key={it.href}
               className="group relative flex flex-col rounded-2xl border bg-card p-5 shadow-sm transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-md"
             >
               {/* The whole card opens the module; its quick links sit above this layer. */}
-              <Link href={t.href} aria-label={t.label} className="absolute inset-0 rounded-2xl" />
+              <Link href={it.href} aria-label={it.label} className="absolute inset-0 rounded-2xl" />
               <div className="flex items-center gap-3">
-                <span className={cn("grid size-12 shrink-0 place-items-center rounded-xl text-white shadow-sm transition-transform group-hover:scale-105", t.color)}>
-                  <Icon name={t.icon} className="size-6" />
+                <span className={cn("grid size-12 shrink-0 place-items-center rounded-xl text-white shadow-sm transition-transform group-hover:scale-105", it.color)}>
+                  <Icon name={it.icon} className="size-6" />
                 </span>
                 <span className="min-w-0 flex-1">
-                  <span className="block truncate font-semibold">{t.label}</span>
-                  {t.pages > 0 && <span className="block text-xs text-muted-foreground">{n(t.pages)} صفحة</span>}
+                  <span className="block truncate font-semibold">{t(it.label)}</span>
+                  {it.pages > 0 && <span className="block text-xs text-muted-foreground">{n(it.pages)} {t("صفحة")}</span>}
                 </span>
                 <Icon name="ArrowLeft" className="size-4 shrink-0 text-muted-foreground opacity-0 transition-all group-hover:-translate-x-0.5 group-hover:opacity-100" />
               </div>
-              {t.links.length > 0 && (
+              {it.links.length > 0 && (
                 <div className="relative z-10 mt-4 flex flex-wrap gap-1.5">
-                  {t.links.map((l) => (
+                  {it.links.map((l) => (
                     <Link
                       key={l.href}
                       href={l.href}
                       className="rounded-md bg-muted/60 px-2 py-1 text-xs text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary"
                     >
-                      {l.label}
+                      {t(l.label)}
                     </Link>
                   ))}
                 </div>

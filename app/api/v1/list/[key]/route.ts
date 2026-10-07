@@ -6,6 +6,8 @@ import {
   materialRequestList, stockAdjustmentList, stockTransferList, bankAccountList,
   fixedAssetList, chartAccountList, holidayList,
   stockBalanceList, stockLedgerList, salesLedgerList, purchasesLedgerList,
+  serialList, binLocationList, pickListList, qcInspectionList, valuationList,
+  salesReturnList, priceListList, promotionList, rfqList, landedCostList,
 } from "@/lib/erp/mobile-lists";
 
 export const runtime = "nodejs";
@@ -28,6 +30,16 @@ const REGISTRY: Record<string, { perm: ErpPermission; fn: (orgId: string) => Pro
   "stock-ledger": { perm: "inventory.view", fn: stockLedgerList },
   "sales-ledger": { perm: "sales.view", fn: salesLedgerList },
   "purchases-ledger": { perm: "purchases.view", fn: purchasesLedgerList },
+  serials: { perm: "inventory.view", fn: serialList },
+  bins: { perm: "inventory.view", fn: binLocationList },
+  "pick-lists": { perm: "inventory.view", fn: pickListList },
+  quality: { perm: "inventory.view", fn: qcInspectionList },
+  valuation: { perm: "inventory.view", fn: valuationList },
+  "sales-returns": { perm: "sales.view", fn: salesReturnList },
+  "price-lists": { perm: "sales.view", fn: priceListList },
+  promotions: { perm: "sales.view", fn: promotionList },
+  rfqs: { perm: "purchases.view", fn: rfqList },
+  "landed-costs": { perm: "purchases.view", fn: landedCostList },
 };
 
 /** GET /api/v1/list/:key — dispatches to the registered list for that key. */

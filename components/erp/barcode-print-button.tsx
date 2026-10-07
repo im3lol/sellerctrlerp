@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useT } from "@/lib/i18n/client";
 import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/icon";
 
@@ -19,13 +20,14 @@ export function BarcodePrintButton({
   items: BarcodeItem[];
   printPageHref?: string;
 }) {
+  const t = useT();
   const printable = items.filter((i) => i.barcode);
   if (!printPageHref || (printable.length === 0 && !printPageHref)) return null;
 
   return (
     <Button size="sm" variant="outline" asChild>
       <Link href={printPageHref} target="_blank">
-        <Icon name="Tag" className="size-4" />طباعة باركود
+        <Icon name="Tag" className="size-4" />{t("طباعة باركود")}
       </Link>
     </Button>
   );

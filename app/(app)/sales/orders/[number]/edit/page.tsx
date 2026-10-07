@@ -1,4 +1,6 @@
 import { notFound, redirect } from "next/navigation";
+import { fill } from "@/lib/i18n";
+import { getT } from "@/lib/i18n/server";
 import { and, asc, eq } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
@@ -10,6 +12,7 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 const iso = (d: Date | null) => (d ? new Date(d).toISOString().slice(0, 10) : "");
 
 export default async function EditSalesOrderPage({ params }: { params: Promise<{ number: string }> }) {
+  const t = await getT();
   const raw = decodeURIComponent((await params).number);
   return loadErpPage("sales.create", async ({ orgId }) => {
     const [so] = await db.select().from(salesOrders)
@@ -38,7 +41,7 @@ export default async function EditSalesOrderPage({ params }: { params: Promise<{
 
     return (
       <div className="space-y-6">
-        <ErpPageHeader icon="ShoppingCart" title={`تعديل أمر بيع ${so.number}`} subtitle="مسودة — عدّل الأصناف والكميات والأسعار ثم احفظ" backHref={`/sales/orders/${encodeURIComponent(so.number)}`} />
+        <ErpPageHeader icon="ShoppingCart" title={fill(t("تعديل أمر بيع {0}"), [so.number])} subtitle={t("مسودة — عدّل الأصناف والكميات والأسعار ثم احفظ")} backHref={`/sales/orders/${encodeURIComponent(so.number)}`} />
         <SalesOrderForm customers={custList} items={itemList} orgName={org[0]?.nameAr ?? "—"} vatRate={Number(org[0]?.vatRate ?? 0)} initial={initial} />
       </div>
     );

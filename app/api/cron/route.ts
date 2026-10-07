@@ -20,14 +20,17 @@ import { backupOrgToStorage, pruneBackups } from "@/lib/erp/backup";
 import { pruneReportDownloads } from "@/lib/erp/report-downloads-core";
 import { getControlDivergences } from "@/lib/erp/control-reconciliation";
 import { purgeDueOrganizations } from "@/lib/erp/org-deletion";
+import { localeForEmail } from "@/lib/saas/email";
+import { DEFAULT_LOCALE, dirOf, fill, isLocale, translator, type Locale } from "@/lib/i18n";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
-const fmt = (n: number) => n.toLocaleString("ar-EG");
-const row = (label: string, count: number, href: string) =>
-  `<tr style="border-bottom:1px solid #eee"><td style="padding:10px 0"><a href="${href}" style="color:#1e3a8a;text-decoration:none">${label}</a></td><td style="padding:10px 0;text-align:left;font-weight:bold">${fmt(count)}</td></tr>`;
+const fmt = (n: number, locale: Locale) => n.toLocaleString(locale === "en" ? "en-US" : "ar-EG");
+// The count sits at the far end of the row: left in Arabic, right in English.
+const row = (label: string, count: number, href: string, locale: Locale) =>
+  `<tr style="border-bottom:1px solid #eee"><td style="padding:10px 0"><a href="${href}" style="color:#1e3a8a;text-decoration:none">${label}</a></td><td style="padding:10px 0;text-align:${locale === "en" ? "right" : "left"};font-weight:bold">${fmt(count, locale)}</td></tr>`;
 
 /**
  * Daily jobs (driven by the compose cron sidecar, guarded by CRON_SECRET), ending with a
@@ -106,7 +109,7 @@ export async function GET(req: Request) {
       if (bucket == null) continue;             // >7 days out — not in the dunning window yet
       if ((s.stage ?? 999) <= bucket) continue; // this bucket (or a nearer one) already sent
       if (s.email) {
-        const mail = expiryReminderEmail({ orgName: s.name, planName: s.planName ?? "", daysLeft, expiresAt: new Date(s.expiresAt), appUrl: origin });
+        const mail = expiryReminderEmail({ orgName: s.name, planName: s.planName ?? "", daysLeft, expiresAt: new Date(s.expiresAt), appUrl: origin }, await localeForEmail(s.email));
         if (await sendEmail({ to: s.email, subject: mail.subject, html: mail.html, text: mail.text })) reminders++;
       }
       // Mark the threshold consumed (even if email is unconfigured/failed) so it doesn't reprocess daily.
@@ -123,10 +126,13 @@ export async function GET(req: Request) {
   // retries daily — and a missed run sends only the latest stage, never a burst.
   try {
     const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c] ?? c);
-    const companies = await db.select({ id: organizations.id, name: organizations.nameAr, phone: organizations.phone, policy: organizations.approvalPolicy }).from(organizations);
+    const companies = await db.select({ id: organizations.id, name: organizations.nameAr, phone: organizations.phone, email: organizations.email, policy: organizations.approvalPolicy }).from(organizations);
     for (const o of companies) {
       const policy = parseReminderPolicy(o.policy);
       if (!policy.enabled) continue;
+      // The company writes to its customers in the language its owner works in.
+      const loc = await localeForEmail(o.email);
+      const t = translator(loc);
       const overdue = await db.select({
         id: salesInvoices.id, number: salesInvoices.number, dueDate: salesInvoices.dueDate, balance: salesInvoices.balanceDue,
         currency: salesInvoices.currencyCode, stage: salesInvoices.reminderStage, email: customers.email, customer: customers.nameAr,
@@ -140,15 +146,15 @@ export async function GET(req: Request) {
         if (stage == null) continue;
         if (inv.email) {
           const link = docLinkUrl(origin, { o: o.id, k: "SI", id: inv.id });
-          const amount = Number(inv.balance).toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-          const html = `<div dir="rtl" style="font-family:sans-serif;max-width:520px;margin:auto">
+          const amount = Number(inv.balance).toLocaleString(loc === "en" ? "en-US" : "ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+          const html = `<div dir="${dirOf(loc)}" style="font-family:sans-serif;max-width:520px;margin:auto">
             <h2 style="color:#1e3a8a">${esc(o.name)}</h2>
-            <p>أهلاً ${esc(inv.customer)}،</p>
-            <p>ده تذكير ودّي إن فاتورة رقم <b>${esc(inv.number)}</b> عدّى على ميعاد استحقاقها ${days} يوم، والمتبقّي عليها <b>${amount} ${esc(inv.currency)}</b>.</p>
-            <p style="margin-top:16px"><a href="${link}" style="background:#1e3a8a;color:#fff;padding:8px 16px;border-radius:8px;text-decoration:none">عرض الفاتورة</a></p>
-            <p style="color:#777;font-size:12px">لو دفعت خلاص، تجاهل الرسالة دي.${o.phone ? ` لأي استفسار: ${esc(o.phone)}` : ""}</p>
+            <p>${fill(t("أهلاً {0}،"), [esc(inv.customer)])}</p>
+            <p>${fill(t("ده تذكير ودّي إن فاتورة رقم {0} عدّى على ميعاد استحقاقها {1} يوم، والمتبقّي عليها {2}."), [`<b>${esc(inv.number)}</b>`, days, `<b>${amount} ${esc(inv.currency)}</b>`])}</p>
+            <p style="margin-top:16px"><a href="${link}" style="background:#1e3a8a;color:#fff;padding:8px 16px;border-radius:8px;text-decoration:none">${t("عرض الفاتورة")}</a></p>
+            <p style="color:#777;font-size:12px">${t("لو دفعت خلاص، تجاهل الرسالة دي.")}${o.phone ? fill(t(" لأي استفسار: {0}"), [esc(o.phone)]) : ""}</p>
           </div>`;
-          await sendEmail({ to: inv.email, subject: `تذكير: فاتورة ${inv.number} متأخرة`, html });
+          await sendEmail({ to: inv.email, subject: fill(t("تذكير: فاتورة {0} متأخرة"), [inv.number]), html });
         }
         await db.update(salesInvoices).set({ reminderStage: stage }).where(eq(salesInvoices.id, inv.id));
       }
@@ -202,7 +208,7 @@ export async function GET(req: Request) {
   //    runs inside one platform-scope transaction.
   let sent = 0;
   for (const org of orgs) {
-    const members = await db.select({ userId: users.id, email: users.email })
+    const members = await db.select({ userId: users.id, email: users.email, locale: users.locale })
       .from(organizationMembers).innerJoin(users, eq(users.id, organizationMembers.userId))
       .where(and(eq(organizationMembers.organizationId, org.id), eq(organizationMembers.isActive, true)));
     for (const m of members) {
@@ -210,24 +216,29 @@ export async function GET(req: Request) {
         const { permissions } = await getMemberAccess(org.id, { id: m.userId, role: "employee" } as Parameters<typeof getMemberAccess>[1]);
         const n = await computeNotifications(org.id, undefined, permissions, m.userId);
         const stuck = await listStuckDocs(org.id, (p) => permissions.has(p));
+        // Written in the member's own language.
+        const loc: Locale = isLocale(m.locale) ? m.locale : DEFAULT_LOCALE;
+        const t = translator(loc);
+        const item = (label: string, count: number, path: string) => row(t(label), count, `${origin}${path}`, loc);
         const lines: string[] = [];
-        if (n.pendingApprovals) lines.push(row("✋ مستندات مستنية موافقتك", n.pendingApprovals, `${origin}/approvals`));
-        if (n.myFollowUps) lines.push(row("📌 متابعات عليك النهارده", n.myFollowUps, `${origin}/approvals?tab=tasks`));
-        if (stuck.length) lines.push(row("⏳ مستندات واقفة محدش حرّكها", stuck.length, `${origin}/approvals?tab=late`));
-        if (n.overdueAR) lines.push(row(`⏰ فواتير بيع متأخرة (${fmt(n.overdueTotal)})`, n.overdueAR, `${origin}/accounting/aging`));
-        if (n.overdueAP) lines.push(row(`⏰ فواتير شراء متأخرة (${fmt(n.overdueAPTotal)})`, n.overdueAP, `${origin}/accounting/aging`));
-        if (n.lowStock) lines.push(row("📦 أصناف تحت حد الطلب", n.lowStock, `${origin}/inventory/reorder`));
-        if (n.lostBuyBox) lines.push(row("🏆 أصناف خسرت الـBuy Box", n.lostBuyBox, `${origin}/platforms/amazon/buy-box`));
-        if (n.expiring) lines.push(row("📅 أصناف قرب/بعد انتهاء الصلاحية", n.expiring, `${origin}/inventory/expiry`));
+        if (n.pendingApprovals) lines.push(item("✋ مستندات مستنية موافقتك", n.pendingApprovals, "/approvals"));
+        if (n.myFollowUps) lines.push(item("📌 متابعات عليك النهارده", n.myFollowUps, "/approvals?tab=tasks"));
+        if (stuck.length) lines.push(item("⏳ مستندات واقفة محدش حرّكها", stuck.length, "/approvals?tab=late"));
+        if (n.overdueAR) lines.push(row(fill(t("⏰ فواتير بيع متأخرة ({0})"), [fmt(n.overdueTotal, loc)]), n.overdueAR, `${origin}/accounting/aging`, loc));
+        if (n.overdueAP) lines.push(row(fill(t("⏰ فواتير شراء متأخرة ({0})"), [fmt(n.overdueAPTotal, loc)]), n.overdueAP, `${origin}/accounting/aging`, loc));
+        if (n.lowStock) lines.push(item("📦 أصناف تحت حد الطلب", n.lowStock, "/inventory/reorder"));
+        if (n.lostBuyBox) lines.push(item("🏆 أصناف خسرت الـBuy Box", n.lostBuyBox, "/platforms/amazon/buy-box"));
+        if (n.expiring) lines.push(item("📅 أصناف قرب/بعد انتهاء الصلاحية", n.expiring, "/inventory/expiry"));
         if (lines.length === 0) continue;
 
-        const html = `<div dir="rtl" style="font-family:sans-serif;max-width:520px;margin:auto">
-          <h2 style="color:#1e3a8a">تذكير SellerCtrl — ${org.name}</h2>
-          <p style="color:#555">لديك مهام تحتاج مراجعة اليوم:</p>
+        const subject = fill(t("تذكير SellerCtrl — {0}"), [org.name]);
+        const html = `<div dir="${dirOf(loc)}" style="font-family:sans-serif;max-width:520px;margin:auto">
+          <h2 style="color:#1e3a8a">${subject}</h2>
+          <p style="color:#555">${t("لديك مهام تحتاج مراجعة اليوم:")}</p>
           <table style="width:100%;border-collapse:collapse">${lines.join("")}</table>
-          <p style="margin-top:16px"><a href="${origin}/approvals" style="background:#1e3a8a;color:#fff;padding:8px 16px;border-radius:8px;text-decoration:none">فتح النظام</a></p>
+          <p style="margin-top:16px"><a href="${origin}/approvals" style="background:#1e3a8a;color:#fff;padding:8px 16px;border-radius:8px;text-decoration:none">${t("فتح النظام")}</a></p>
         </div>`;
-        if (await sendEmail({ to: m.email, subject: `تذكير SellerCtrl — ${org.name}`, html })) sent++;
+        if (await sendEmail({ to: m.email, subject, html })) sent++;
       } catch (e) { log.warn("cron.digest_failed", { orgId: org.id, err: e }); }
     }
   }

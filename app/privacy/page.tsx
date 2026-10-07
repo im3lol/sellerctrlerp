@@ -1,8 +1,13 @@
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { Logo } from "@/components/brand/logo";
+import { LocaleToggle } from "@/components/brand/locale-toggle";
+import { getT } from "@/lib/i18n/server";
 
-export const metadata = { title: "سياسة الخصوصية — SellerCtrl" };
+export async function generateMetadata() {
+  const t = await getT();
+  return { title: t("سياسة الخصوصية — SellerCtrl") };
+}
 
 const UPDATED = "29 يوليو 2026";
 
@@ -56,35 +61,38 @@ const SECTIONS: { h: string; p: string[] }[] = [
   },
 ];
 
-export default function PrivacyPage() {
+export default async function PrivacyPage() {
+  const t = await getT();
   return (
     <div className="min-h-screen bg-background">
       <header className="sticky top-0 z-30 border-b bg-background/90 backdrop-blur">
         <div className="mx-auto flex h-16 max-w-3xl items-center justify-between px-4 md:px-6">
           <Link href="/"><Logo className="text-2xl text-primary" /></Link>
-          <Link href="/" className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground">
-            الرئيسية <ArrowRight className="size-4" />
-          </Link>
+          <div className="flex items-center gap-2">
+            <LocaleToggle />
+            <Link href="/" className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground">
+              {t("الرئيسية")} <ArrowRight className="size-4 ltr:rotate-180" />
+            </Link>
+          </div>
         </div>
       </header>
 
-      <main className="mx-auto max-w-3xl px-4 py-12 md:px-6" dir="rtl">
-        <h1 className="text-3xl font-bold tracking-tight md:text-4xl">سياسة الخصوصية</h1>
-        <p className="mt-2 text-sm text-muted-foreground">آخر تحديث: {UPDATED}</p>
+      <main className="mx-auto max-w-3xl px-4 py-12 md:px-6">
+        <h1 className="text-3xl font-bold tracking-tight md:text-4xl">{t("سياسة الخصوصية")}</h1>
+        <p className="mt-2 text-sm text-muted-foreground">{t("آخر تحديث:")} {t(UPDATED)}</p>
         <p className="mt-6 leading-relaxed text-muted-foreground">
-          خصوصيتك وأمان بياناتك أولوية عندنا. توضّح هذه السياسة البيانات التي يجمعها نظام SellerCtrl وكيف
-          نستخدمها ونحميها. باستخدامك للنظام فأنت توافق على ما ورد في هذه الصفحة.
+          {t("خصوصيتك وأمان بياناتك أولوية عندنا. توضّح هذه السياسة البيانات التي يجمعها نظام SellerCtrl وكيف نستخدمها ونحميها. باستخدامك للنظام فأنت توافق على ما ورد في هذه الصفحة.")}
         </p>
 
         <div className="mt-10 space-y-8">
           {SECTIONS.map((s) => (
             <section key={s.h}>
-              <h2 className="text-lg font-bold">{s.h}</h2>
+              <h2 className="text-lg font-bold">{t(s.h)}</h2>
               <ul className="mt-3 space-y-2">
                 {s.p.map((line, i) => (
                   <li key={i} className="flex gap-2.5 text-sm leading-relaxed text-muted-foreground">
                     <span className="mt-2 size-1.5 shrink-0 rounded-full bg-primary" />
-                    <span>{line}</span>
+                    <span>{t(line)}</span>
                   </li>
                 ))}
               </ul>
@@ -92,11 +100,11 @@ export default function PrivacyPage() {
           ))}
 
           <section className="rounded-2xl border bg-muted/30 p-6">
-            <h2 className="text-lg font-bold">7. تواصل معنا</h2>
-            <p className="mt-2 text-sm text-muted-foreground">لأي استفسار عن الخصوصية أو بياناتك:</p>
+            <h2 className="text-lg font-bold">{t("7. تواصل معنا")}</h2>
+            <p className="mt-2 text-sm text-muted-foreground">{t("لأي استفسار عن الخصوصية أو بياناتك:")}</p>
             <ul className="mt-3 space-y-1.5 text-sm">
-              <li>البريد الإلكتروني: <a href="mailto:info@sellerctrl.com" className="font-medium text-primary hover:underline" dir="ltr">info@sellerctrl.com</a></li>
-              <li>واتساب/هاتف: <a href="https://wa.me/201025246324" className="font-medium text-primary hover:underline" dir="ltr">+201025246324</a></li>
+              <li>{t("البريد الإلكتروني:")} <a href="mailto:info@sellerctrl.com" className="font-medium text-primary hover:underline" dir="ltr">info@sellerctrl.com</a></li>
+              <li>{t("واتساب/هاتف:")} <a href="https://wa.me/201025246324" className="font-medium text-primary hover:underline" dir="ltr">+201025246324</a></li>
             </ul>
           </section>
         </div>

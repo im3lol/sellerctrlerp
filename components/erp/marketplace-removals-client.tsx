@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { toast } from "sonner";
+import { useT } from "@/lib/i18n/client";
+import { toast } from "@/lib/i18n/toast";
 import { PackageCheck, PackageX, XCircle, Loader2 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -19,6 +20,7 @@ const dt = (s: string | null) => (s ? new Date(s).toLocaleDateString("ar-EG-u-nu
  * Never a revenue reversal — a removal isn't a customer return.
  */
 export function MarketplaceRemovalsClient({ initial }: { initial: PlatformRemovalRow[] }) {
+  const t = useT();
   const [rows, setRows] = useState(initial);
   const [pending, start] = useTransition();
   const [busy, setBusy] = useState<string | null>(null);
@@ -27,18 +29,18 @@ export function MarketplaceRemovalsClient({ initial }: { initial: PlatformRemova
     setBusy(id);
     const r = await confirmRemovalAction(id, outcome);
     if ("error" in r) toast.error(r.error);
-    else { setRows((rs) => rs.filter((x) => x.id !== id)); toast.success(outcome === "IGNORE" ? "تم التجاهل" : "تمّت المعالجة"); }
+    else { setRows((rs) => rs.filter((x) => x.id !== id)); toast.success(outcome === "IGNORE" ? t("تم التجاهل") : t("تمّت المعالجة")); }
     setBusy(null);
   });
 
   if (rows.length === 0) {
-    return <Card><CardContent className="py-10 text-center text-muted-foreground">لا توجد أوامر سحب بانتظار المراجعة ✓</CardContent></Card>;
+    return <Card><CardContent className="py-10 text-center text-muted-foreground">{t("لا توجد أوامر سحب بانتظار المراجعة ✓")}</CardContent></Card>;
   }
 
   return (
     <div className="space-y-4">
       <p className="text-sm text-muted-foreground">
-        دي أوامر سحب من المنصة (ركود/عيب/بطلبك) — مش مرتجعات عملاء. أكّد لكل واحد: استلمت الراجع للمخزن، ولا اتلف. بيتعمل <b>تسوية مخزون مسودّة</b> يراجعها المحاسب ويرحّلها.
+        {t("دي أوامر سحب من المنصة (ركود/عيب/بطلبك) — مش مرتجعات عملاء. أكّد لكل واحد: استلمت الراجع للمخزن، ولا اتلف. بيتعمل")} <b>{t("تسوية مخزون مسودّة")}</b> {t("يراجعها المحاسب ويرحّلها.")}
       </p>
       {rows.map((o) => {
         const isBusy = pending && busy === o.id;
@@ -55,22 +57,22 @@ export function MarketplaceRemovalsClient({ initial }: { initial: PlatformRemova
                 <div className="text-sm">
                   <span dir="ltr">{o.sku}</span>
                   {o.disposition && <span className="text-muted-foreground"> · {o.disposition}</span>}
-                  <span className="text-muted-foreground"> · راجع {o.shippedQty} · متلَف {o.disposedQty}</span>
+                  <span className="text-muted-foreground"> {t("· راجع")} {o.shippedQty} {t("· متلَف")} {o.disposedQty}</span>
                 </div>
               </div>
               <div className="flex flex-wrap items-center gap-2">
                 {o.shippedQty > 0 && (
                   <Button size="sm" variant="outline" disabled={isBusy} onClick={() => act(o.id, "RECEIVED")}>
-                    {isBusy ? <Loader2 className="size-4 animate-spin" /> : <PackageCheck className="size-4 text-emerald-600" />}استلمت {o.shippedQty}
+                    {isBusy ? <Loader2 className="size-4 animate-spin" /> : <PackageCheck className="size-4 text-emerald-600" />}{t("استلمت")} {o.shippedQty}
                   </Button>
                 )}
                 {o.disposedQty > 0 && (
                   <Button size="sm" variant="outline" disabled={isBusy} onClick={() => act(o.id, "DISPOSED")}>
-                    <PackageX className="size-4 text-red-600" />إتلاف {o.disposedQty}
+                    <PackageX className="size-4 text-red-600" />{t("إتلاف")} {o.disposedQty}
                   </Button>
                 )}
                 <Button size="sm" variant="ghost" disabled={isBusy} onClick={() => act(o.id, "IGNORE")}>
-                  <XCircle className="size-4 text-muted-foreground" />تجاهل
+                  <XCircle className="size-4 text-muted-foreground" />{t("تجاهل")}
                 </Button>
               </div>
             </CardContent>

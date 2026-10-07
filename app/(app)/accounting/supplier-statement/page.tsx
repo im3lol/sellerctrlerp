@@ -1,4 +1,7 @@
 import { and, asc, eq, gte, lte, sql } from "drizzle-orm";
+import { fill } from "@/lib/i18n";
+import type { Locale } from "@/lib/i18n";
+import { getLocale, getT } from "@/lib/i18n/server";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
 import { suppliers, purchaseInvoices, paymentVouchers, purchaseReturns } from "@/db/schema";
@@ -14,7 +17,7 @@ type Params = { searchParams: Promise<{ supplierId?: string; from?: string; to?:
 
 const fmt = (n: number) =>
   n.toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-const dateStr = (d: Date) => new Date(d).toLocaleDateString("ar-EG");
+const dateStr = (d: Date, locale: Locale) => new Date(d).toLocaleDateString(locale === "en" ? "en-GB" : "ar-EG");
 
 type TxRow = {
   date: Date;
@@ -26,6 +29,8 @@ type TxRow = {
 };
 
 export default async function SupplierStatementPage({ searchParams }: Params) {
+  const t = await getT();
+  const locale = await getLocale();
   return loadErpPage("accounting.view", async ({ orgId, permissions }) => {
     const currency = await getBaseCurrencyCode(orgId);
     const sp = await searchParams;
@@ -89,7 +94,7 @@ export default async function SupplierStatementPage({ searchParams }: Params) {
       for (const r of invRows) {
         txRows.push({
           date: r.date, number: r.number, type: "invoice",
-          description: `فاتورة شراء ${r.number}`,
+          description: fill(t("فاتورة شراء {0}"), [r.number]),
           debit: 0, credit: Number(r.totalAmount),
         });
       }
@@ -113,7 +118,7 @@ export default async function SupplierStatementPage({ searchParams }: Params) {
       for (const r of payRows) {
         txRows.push({
           date: r.date, number: r.number, type: "payment",
-          description: `سند دفع ${r.number}${r.reference ? ` — ${r.reference}` : ""}`,
+          description: r.reference ? fill(t("سند دفع {0} — {1}"), [r.number, r.reference]) : fill(t("سند دفع {0}"), [r.number]),
           debit: Number(r.amount), credit: 0,
         });
       }
@@ -137,7 +142,7 @@ export default async function SupplierStatementPage({ searchParams }: Params) {
       for (const r of retRows) {
         txRows.push({
           date: r.date, number: r.number, type: "return",
-          description: `مرتجع مشتريات ${r.number}`,
+          description: fill(t("مرتجع مشتريات {0}"), [r.number]),
           debit: Number(r.totalAmount), credit: 0,
         });
       }
@@ -153,27 +158,27 @@ export default async function SupplierStatementPage({ searchParams }: Params) {
     const closingBalance = runBalance;
 
     const typeBadge = (type: TxRow["type"]) => {
-      if (type === "invoice") return <Badge variant="secondary">فاتورة</Badge>;
-      if (type === "payment") return <Badge variant="default" className="bg-emerald-600">دفع</Badge>;
-      return <Badge variant="outline" className="border-amber-500 text-amber-600">مرتجع</Badge>;
+      if (type === "invoice") return <Badge variant="secondary">{t("فاتورة")}</Badge>;
+      if (type === "payment") return <Badge variant="default" className="bg-emerald-600">{t("دفع")}</Badge>;
+      return <Badge variant="outline" className="border-amber-500 text-amber-600">{t("مرتجع")}</Badge>;
     };
 
     return (
       <ReportShell
         reportKey="supplier-statement"
         icon="ScrollText"
-        title="كشف حساب المورّد"
-        subtitle="فواتير ومدفوعات ومرتجعات مورّد خلال فترة"
+        title={t("كشف حساب المورّد")}
+        subtitle={t("فواتير ومدفوعات ومرتجعات مورّد خلال فترة")}
         query={selectedId ? new URLSearchParams({ supplierId: selectedId, from: fromISO, to: toISO }).toString() : ""}
         permissions={permissions}
         filters={
           <>
-            <ReportField label="المورّد">
-              <FormCombobox name="supplierId" defaultValue={selectedId} placeholder="ابحث…"
-                options={supplierRows.map((s) => ({ id: s.id, label: s.nameAr }))} />
+            <ReportField label={t("المورّد")}>
+              <FormCombobox name="supplierId" defaultValue={selectedId} placeholder={t("ابحث…")}
+                options={supplierRows.map((s) => ({ id: s.id, label: t(s.nameAr) }))} />
             </ReportField>
-            <ReportField label="من تاريخ"><input name="from" type="date" defaultValue={fromISO} className={selectCls} /></ReportField>
-            <ReportField label="إلى تاريخ"><input name="to" type="date" defaultValue={toISO} className={selectCls} /></ReportField>
+            <ReportField label={t("من تاريخ")}><input name="from" type="date" defaultValue={fromISO} className={selectCls} /></ReportField>
+            <ReportField label={t("إلى تاريخ")}><input name="to" type="date" defaultValue={toISO} className={selectCls} /></ReportField>
           </>
         }
         kpis={selectedId ? [
@@ -183,21 +188,21 @@ export default async function SupplierStatementPage({ searchParams }: Params) {
           { op: "−" as const },
           { label: "إجمالي المدفوعات", value: money(txRows.reduce((s, r) => s + r.debit, 0), currency), tone: "profit" as const },
           { op: "=" as const },
-          { label: closingBalance >= 0 ? "المستحق للمورّد" : "رصيد زائد (دفعنا زيادة)",
+          { label: closingBalance >= 0 ? t("المستحق للمورّد") : t("رصيد زائد (دفعنا زيادة)"),
             value: money(Math.abs(closingBalance), currency),
             tone: closingBalance > 0 ? "loss" as const : "profit" as const },
         ] : undefined}
       >
         {!selectedId ? (
           <div className="rounded-xl border border-dashed py-16 text-center text-muted-foreground">
-            اختر مورّدًا لعرض كشف حسابه.
+            {t("اختر مورّدًا لعرض كشف حسابه.")}
           </div>
         ) : (
           <>
             <Card>
               <CardHeader>
                 <CardTitle className="text-base">
-                  كشف حساب: {selectedSupp?.nameAr}
+                  {fill(t("كشف حساب: {0}"), [t(selectedSupp?.nameAr ?? "")])}
                   <span className="ms-2 text-sm font-normal text-muted-foreground">
                     ({fromISO} → {toISO})
                   </span>
@@ -206,27 +211,27 @@ export default async function SupplierStatementPage({ searchParams }: Params) {
               <CardContent>
                 {rows.length === 0 ? (
                   <div className="rounded-xl border border-dashed py-10 text-center text-sm text-muted-foreground">
-                    لا توجد حركات في هذه الفترة.
+                    {t("لا توجد حركات في هذه الفترة.")}
                   </div>
                 ) : (
                   <div className="overflow-hidden rounded-xl border">
                     <table className="w-full text-sm">
                       <thead className="bg-muted/30 text-xs text-muted-foreground">
                         <tr className="[&>th]:p-3 [&>th]:text-start">
-                          <th>التاريخ</th>
-                          <th>المستند</th>
-                          <th>البيان</th>
-                          <th>النوع</th>
-                          <th className="text-end">مدين</th>
-                          <th className="text-end">دائن</th>
-                          <th className="text-end">الرصيد</th>
+                          <th>{t("التاريخ")}</th>
+                          <th>{t("المستند")}</th>
+                          <th>{t("البيان")}</th>
+                          <th>{t("النوع")}</th>
+                          <th className="text-end">{t("مدين")}</th>
+                          <th className="text-end">{t("دائن")}</th>
+                          <th className="text-end">{t("الرصيد")}</th>
                         </tr>
                       </thead>
                       <tbody>
                         <tr className="border-t bg-muted/10 font-medium [&>td]:p-3">
                           <td className="text-xs text-muted-foreground">{fromISO}</td>
                           <td>—</td>
-                          <td>رصيد افتتاحي</td>
+                          <td>{t("رصيد افتتاحي")}</td>
                           <td />
                           <td className="text-end tabular-nums">{openingBalance < 0 ? fmt(-openingBalance) : "—"}</td>
                           <td className="text-end tabular-nums">{openingBalance > 0 ? fmt(openingBalance) : "—"}</td>
@@ -234,9 +239,9 @@ export default async function SupplierStatementPage({ searchParams }: Params) {
                         </tr>
                         {rows.map((r, i) => (
                           <tr key={i} className="border-t [&>td]:p-3">
-                            <td className="text-xs text-muted-foreground">{dateStr(r.date)}</td>
+                            <td className="text-xs text-muted-foreground">{dateStr(r.date, locale)}</td>
                             <td className="font-mono text-xs">{r.number}</td>
-                            <td>{r.description}</td>
+                            <td>{t(r.description)}</td>
                             <td>{typeBadge(r.type)}</td>
                             <td className="text-end tabular-nums text-emerald-700 dark:text-emerald-400">
                               {r.debit > 0 ? fmt(r.debit) : "—"}
@@ -250,11 +255,11 @@ export default async function SupplierStatementPage({ searchParams }: Params) {
                           </tr>
                         ))}
                         <tr className="border-t-2 bg-muted/20 font-bold [&>td]:p-3">
-                          <td colSpan={4}>الرصيد الختامي</td>
+                          <td colSpan={4}>{t("الرصيد الختامي")}</td>
                           <td className="text-end tabular-nums">{fmt(txRows.reduce((s, r) => s + r.debit, 0))}</td>
                           <td className="text-end tabular-nums">{fmt(txRows.reduce((s, r) => s + r.credit, 0))}</td>
                           <td className={`text-end tabular-nums ${closingBalance > 0 ? "text-red-700 dark:text-red-400" : closingBalance < 0 ? "text-emerald-700 dark:text-emerald-400" : ""}`}>
-                            {fmt(closingBalance)} {closingBalance > 0 ? "(دائن)" : closingBalance < 0 ? "(مدين)" : ""}
+                            {fmt(closingBalance)} {closingBalance > 0 ? t("(دائن)") : closingBalance < 0 ? t("(مدين)") : ""}
                           </td>
                         </tr>
                       </tbody>

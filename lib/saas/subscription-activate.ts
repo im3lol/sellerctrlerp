@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { plans, orgSubscriptions, subscriptionRequests, subscriptionPayments, organizations } from "@/db/schema";
 import { sendEmail } from "@/lib/erp/email";
 import { receiptEmail } from "@/lib/saas/email-templates";
+import { localeForEmail } from "@/lib/saas/email";
 import { revalidatePath } from "@/lib/safe-revalidate";
 import { isLiveRevenue, normalizeMrr, classifyTransition, recordSubscriptionEvent } from "@/lib/erp/platform-metrics";
 
@@ -84,7 +85,7 @@ export async function activateFromRequest(reqId: string, actorId: string | null,
       const mail = receiptEmail({
         orgName: org.name, planName: req.planName, interval: req.interval,
         amount: Number(req.price), expiresAt: values.expiresAt, appUrl: process.env.APP_URL || "",
-      });
+      }, await localeForEmail(org.email));
       await sendEmail({ to: org.email, subject: mail.subject, html: mail.html, text: mail.text });
     }
   } catch (e) { console.error("[receipt-email]", e); }

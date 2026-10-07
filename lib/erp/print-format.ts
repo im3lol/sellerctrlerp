@@ -12,7 +12,11 @@
  * serves the app UI; documents are their own thing and are not being unified with it.
  */
 
+import type { Locale } from "@/lib/i18n";
+
 const LOCALE = "ar-EG-u-nu-latn";
+/** An English document keeps the same digits and grouping, with English month names. */
+const dateLocale = (l: Locale) => (l === "en" ? "en-GB" : LOCALE);
 
 /** Money-shaped: always 2dp, so a column of amounts lines up. */
 export const fmt = (v: string | number | null | undefined) =>
@@ -23,8 +27,8 @@ export const qty = (v: string | number | null | undefined) =>
   Number(v ?? 0).toLocaleString(LOCALE, { maximumFractionDigits: 3 });
 
 /** Long Arabic date: "١٥ يناير ٢٠٢٦" with Latin digits → "15 يناير 2026". */
-export const dt = (d: Date | string | null | undefined) =>
-  d ? new Date(d).toLocaleDateString(LOCALE, { year: "numeric", month: "long", day: "numeric" }) : "";
+export const dt = (d: Date | string | null | undefined, locale: Locale = "ar") =>
+  d ? new Date(d).toLocaleDateString(dateLocale(locale), { year: "numeric", month: "long", day: "numeric" }) : "";
 
 /**
  * Currency symbols. Only the ones the app actually seeds plus the obvious majors —
@@ -39,6 +43,8 @@ const SYMBOLS: Record<string, string> = {
   AED: "د.إ",
   KWD: "د.ك",
 };
+/** In English the Arabic-script symbols read as noise — print the ISO code instead. */
+const SYMBOLS_EN: Record<string, string> = { USD: "$", EUR: "€", GBP: "£" };
 
 /**
  * Amount with its currency, e.g. `money(240, "EGP")` → "240.00 ج.م".
@@ -49,8 +55,8 @@ const SYMBOLS: Record<string, string> = {
  * The code comes from getBaseCurrencyCode(orgId) (lib/erp/currency.ts), which no print
  * page was calling.
  */
-export const money = (v: string | number | null | undefined, code: string) =>
-  `${fmt(v)} ${SYMBOLS[code?.toUpperCase()] ?? code}`;
+export const money = (v: string | number | null | undefined, code: string, locale: Locale = "ar") =>
+  `${fmt(v)} ${(locale === "en" ? SYMBOLS_EN : SYMBOLS)[code?.toUpperCase()] ?? code}`;
 
 /* ─────────────── amount in words (vouchers) ─────────────── */
 
@@ -97,4 +103,37 @@ export function toArabicWords(n: number): string {
   const whole = Math.floor(Math.abs(Number(n) || 0));
   if (whole === 0) return "صفر";
   return `${n < 0 ? "سالب " : ""}${words(whole)}`;
+}
+
+/* ─────────────── amount in words — English ─────────────── */
+
+const EN_ONES = ["", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten",
+  "eleven", "twelve", "thirteen", "fourteen", "fifteen", "sixteen", "seventeen", "eighteen", "nineteen"];
+const EN_TENS = ["", "", "twenty", "thirty", "forty", "fifty", "sixty", "seventy", "eighty", "ninety"];
+
+function enWords(n: number): string {
+  if (n === 0) return "";
+  if (n < 20) return EN_ONES[n];
+  if (n < 100) return [EN_TENS[Math.floor(n / 10)], EN_ONES[n % 10]].filter(Boolean).join("-");
+  if (n < 1000) return [`${EN_ONES[Math.floor(n / 100)]} hundred`, enWords(n % 100)].filter(Boolean).join(" and ");
+  for (const [size, name] of [[1_000_000_000, "billion"], [1_000_000, "million"], [1000, "thousand"]] as const) {
+    if (n >= size) return [`${enWords(Math.floor(n / size))} ${name}`, enWords(n % size)].filter(Boolean).join(" ");
+  }
+  return "";
+}
+
+/** The whole part spelled out in English — the counterpart of toArabicWords. */
+export function toEnglishWords(n: number): string {
+  const whole = Math.floor(Math.abs(Number(n) || 0));
+  if (whole === 0) return "zero";
+  return `${n < 0 ? "minus " : ""}${enWords(whole)}`;
+}
+
+/**
+ * The «فقط وقدره … لا غير» line in the document's language: "Only … only." reads oddly,
+ * so English gets the cheque convention instead — "Amount in words: … only".
+ */
+export function amountInWords(n: number, locale: Locale = "ar", currencyWord?: string): string {
+  if (locale === "en") return `Amount in words: ${toEnglishWords(n)}${currencyWord ? ` ${currencyWord}` : ""} only`;
+  return `فقط وقدره ${toArabicWords(n)}${currencyWord ? ` ${currencyWord}` : ""} لا غير`;
 }

@@ -5,6 +5,7 @@ import { withOrgScope } from "@/lib/db-scope";
 import { purchaseReceipts, purchaseReceiptLines, suppliers, items, landedCostVouchers, landedCostVoucherLines } from "@/db/schema";
 import { xlsxResponse, xlsxDate } from "@/lib/erp/xlsx";
 import { receiptLineCosts } from "@/lib/erp/receipt-cost";
+import { getT } from "@/lib/i18n/server";
 
 export const runtime = "nodejs";
 
@@ -25,7 +26,7 @@ export async function GET(req: Request) {
   const { orgId, can } = await requireErpModule("purchases.view");
   const canSeeCost = can("purchases.create") || can("accounting.view");
   const numbers = (new URL(req.url).searchParams.get("numbers") ?? "").split(",").map((s) => s.trim()).filter(Boolean);
-  if (!numbers.length) return new Response("لا توجد مستندات محددة", { status: 400 });
+  if (!numbers.length) return new Response((await getT())("لا توجد مستندات محددة"), { status: 400 });
 
   const { receipts, supRows, lineRows, costs, landed } = await withOrgScope(orgId, false, async () => {
     const receipts = await db.select({
@@ -72,7 +73,7 @@ export async function GET(req: Request) {
     }
     return { receipts, supRows, lineRows, costs, landed };
   });
-  if (!receipts.length) return new Response("لا توجد مستندات مطابقة", { status: 404 });
+  if (!receipts.length) return new Response((await getT())("لا توجد مستندات مطابقة"), { status: 404 });
 
   const supById = new Map(supRows.map((s) => [s.id, s]));
   const linesByReceipt = new Map<string, typeof lineRows>();
