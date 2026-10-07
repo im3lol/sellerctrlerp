@@ -1,4 +1,5 @@
 import { notFound, redirect } from "next/navigation";
+import { getT } from "@/lib/i18n/server";
 import { and, eq, inArray } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
@@ -41,6 +42,7 @@ const CHANNEL_STATUS: Record<string, string> = {
 };
 
 export default async function SalesOrderDetailPage({ params }: { params: Promise<{ number: string }> }) {
+  const t = await getT();
   const raw = decodeURIComponent((await params).number);
   return loadErpPage("sales.view", async ({ orgId, role, can }) => {
     if (UUID_RE.test(raw)) {
@@ -139,29 +141,29 @@ export default async function SalesOrderDetailPage({ params }: { params: Promise
             <span className="text-sm text-muted-foreground">رقم طلب {CHANNEL_LABEL[so.channel] ?? "المتجر"}:</span>
             <Copyable text={so.externalOrderId} className="font-mono text-base font-semibold"><span dir="ltr">{so.externalOrderId}</span></Copyable>
             {CHANNEL_LABEL[so.channel] && <Badge variant="secondary">{CHANNEL_LABEL[so.channel]}</Badge>}
-            {so.channelStatus && <Badge variant="outline" title="حالة الطلب على المنصّة">حالة المنصّة: {CHANNEL_STATUS[so.channelStatus] ?? so.channelStatus}</Badge>}
+            {so.channelStatus && <Badge variant="outline" title={t("حالة الطلب على المنصّة")}>حالة المنصّة: {CHANNEL_STATUS[so.channelStatus] ?? so.channelStatus}</Badge>}
           </div>
         )}
 
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <Field label="الحالة"><Badge variant={st.variant}>{st.label}</Badge></Field>
-          <Field label="التاريخ">{dt(so.date)}</Field>
-          <Field label="تاريخ الاستحقاق">{so.dueDate ? dt(so.dueDate) : "—"}</Field>
-          <Field label="الإجمالي">{fmt(so.totalAmount)}</Field>
+          <Field label={t("الحالة")}><Badge variant={st.variant}>{st.label}</Badge></Field>
+          <Field label={t("التاريخ")}>{dt(so.date)}</Field>
+          <Field label={t("تاريخ الاستحقاق")}>{so.dueDate ? dt(so.dueDate) : "—"}</Field>
+          <Field label={t("الإجمالي")}>{fmt(so.totalAmount)}</Field>
         </div>
 
         <Card>
-          <CardHeader><CardTitle>البنود</CardTitle><CardDescription>أصناف الأمر.</CardDescription></CardHeader>
+          <CardHeader><CardTitle>{t("البنود")}</CardTitle><CardDescription>{t("أصناف الأمر.")}</CardDescription></CardHeader>
           <CardContent>
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="text-start">الصنف</TableHead>
-                  <TableHead className="text-start">الكمية</TableHead>
-                  <TableHead className="text-start">السعر</TableHead>
-                  <TableHead className="text-start">الخصم</TableHead>
-                  <TableHead className="text-start">الضريبة</TableHead>
-                  <TableHead className="text-start">الإجمالي</TableHead>
+                  <TableHead className="text-start">{t("الصنف")}</TableHead>
+                  <TableHead className="text-start">{t("الكمية")}</TableHead>
+                  <TableHead className="text-start">{t("السعر")}</TableHead>
+                  <TableHead className="text-start">{t("الخصم")}</TableHead>
+                  <TableHead className="text-start">{t("الضريبة")}</TableHead>
+                  <TableHead className="text-start">{t("الإجمالي")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -199,7 +201,7 @@ export default async function SalesOrderDetailPage({ params }: { params: Promise
               </TableBody>
               <TableFooter>
                 <TableRow className="font-bold">
-                  <TableCell colSpan={5}>الإجمالي</TableCell>
+                  <TableCell colSpan={5}>{t("الإجمالي")}</TableCell>
                   <TableCell>{fmt(so.totalAmount)}</TableCell>
                 </TableRow>
               </TableFooter>
@@ -211,18 +213,18 @@ export default async function SalesOrderDetailPage({ params }: { params: Promise
         {settle.length > 0 && (
           <Card>
             <CardHeader>
-              <CardTitle>التسوية المالية (أمازون)</CardTitle>
-              <CardDescription>تفصيل ما استلمته أمازون لهذا الطلب بعد الرسوم. القيود المحاسبية مُرحّلة مجمّعة وقت الإفراج.</CardDescription>
+              <CardTitle>{t("التسوية المالية (أمازون)")}</CardTitle>
+              <CardDescription>{t("تفصيل ما استلمته أمازون لهذا الطلب بعد الرسوم. القيود المحاسبية مُرحّلة مجمّعة وقت الإفراج.")}</CardDescription>
             </CardHeader>
             <CardContent>
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="text-start">النوع</TableHead>
-                    <TableHead className="text-start">المبيعات</TableHead>
-                    <TableHead className="text-start">الرسوم</TableHead>
-                    <TableHead className="text-start">الصافي</TableHead>
-                    <TableHead className="text-start">الحالة</TableHead>
+                    <TableHead className="text-start">{t("النوع")}</TableHead>
+                    <TableHead className="text-start">{t("المبيعات")}</TableHead>
+                    <TableHead className="text-start">{t("الرسوم")}</TableHead>
+                    <TableHead className="text-start">{t("الصافي")}</TableHead>
+                    <TableHead className="text-start">{t("الحالة")}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -238,7 +240,7 @@ export default async function SalesOrderDetailPage({ params }: { params: Promise
                 </TableBody>
                 <TableFooter>
                   <TableRow className="font-bold">
-                    <TableCell>الإجمالي</TableCell>
+                    <TableCell>{t("الإجمالي")}</TableCell>
                     <TableCell>—</TableCell>
                     <TableCell className="text-destructive">{fmt(-settleFees)}</TableCell>
                     <TableCell>{fmt(settleNet)}</TableCell>

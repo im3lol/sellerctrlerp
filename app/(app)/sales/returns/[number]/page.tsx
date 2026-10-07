@@ -1,4 +1,5 @@
 import { notFound, redirect } from "next/navigation";
+import { getT } from "@/lib/i18n/server";
 import { and, eq } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
@@ -25,6 +26,7 @@ const STATUS: Record<string, { label: string; variant: "default" | "secondary" |
 };
 
 export default async function SalesReturnDetailPage({ params }: { params: Promise<{ number: string }> }) {
+  const t = await getT();
   const raw = decodeURIComponent((await params).number);
   return loadErpPage("sales.view", async ({ orgId, can }) => {
     if (UUID_RE.test(raw)) {
@@ -83,19 +85,19 @@ export default async function SalesReturnDetailPage({ params }: { params: Promis
         />
 
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <Field label="الحالة"><Badge variant={st.variant}>{st.label}</Badge></Field>
-          <Field label="التاريخ">{dt(ret.date)}</Field>
-          <Field label="الإجمالي">{fmt(ret.totalAmount)}</Field>
-          <Field label="المصدر">{ret.channel ? ({ AMAZON: "أمازون", NOON: "نون", SHOPIFY: "شوبيفاي" } as Record<string, string>)[ret.channel] ?? ret.channel : "يدوي"}</Field>
+          <Field label={t("الحالة")}><Badge variant={st.variant}>{st.label}</Badge></Field>
+          <Field label={t("التاريخ")}>{dt(ret.date)}</Field>
+          <Field label={t("الإجمالي")}>{fmt(ret.totalAmount)}</Field>
+          <Field label={t("المصدر")}>{ret.channel ? ({ AMAZON: "أمازون", NOON: "نون", SHOPIFY: "شوبيفاي" } as Record<string, string>)[ret.channel] ?? ret.channel : "يدوي"}</Field>
           {ret.disposition && (
-            <Field label="حالة البضاعة">
+            <Field label={t("حالة البضاعة")}>
               <Badge variant="outline" className={ret.disposition !== "SELLABLE" ? "border-destructive/40 text-destructive" : "border-emerald-500/40 text-emerald-600"}>
                 {ret.disposition !== "SELLABLE" ? "تالف / غير قابل للبيع" : "قابل للبيع"}
               </Badge>
             </Field>
           )}
-          {ret.reason && <Field label="سبب الإرجاع">{ret.reason}</Field>}
-          {ret.externalReturnId && <Field label="رقم الطلب بالمنصّة">{ret.externalReturnId}</Field>}
+          {ret.reason && <Field label={t("سبب الإرجاع")}>{ret.reason}</Field>}
+          {ret.externalReturnId && <Field label={t("رقم الطلب بالمنصّة")}>{ret.externalReturnId}</Field>}
         </div>
         {ret.status === "DRAFT" && ret.disposition && ret.disposition !== "SELLABLE" && (
           <div className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-2 text-sm text-amber-800 dark:bg-amber-950/20">
@@ -104,15 +106,15 @@ export default async function SalesReturnDetailPage({ params }: { params: Promis
         )}
 
         <Card>
-          <CardHeader><CardTitle>البنود المرتجعة</CardTitle><CardDescription>الأصناف والكميات المرتجعة.</CardDescription></CardHeader>
+          <CardHeader><CardTitle>{t("البنود المرتجعة")}</CardTitle><CardDescription>{t("الأصناف والكميات المرتجعة.")}</CardDescription></CardHeader>
           <CardContent>
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="text-start">الصنف</TableHead>
-                  <TableHead className="text-start">الكمية</TableHead>
-                  <TableHead className="text-start">السعر</TableHead>
-                  <TableHead className="text-start">الإجمالي</TableHead>
+                  <TableHead className="text-start">{t("الصنف")}</TableHead>
+                  <TableHead className="text-start">{t("الكمية")}</TableHead>
+                  <TableHead className="text-start">{t("السعر")}</TableHead>
+                  <TableHead className="text-start">{t("الإجمالي")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -126,7 +128,7 @@ export default async function SalesReturnDetailPage({ params }: { params: Promis
                 ))}
               </TableBody>
               <TableFooter>
-                <TableRow className="font-bold"><TableCell colSpan={3}>إجمالي المرتجع</TableCell><TableCell>{fmt(ret.totalAmount)}</TableCell></TableRow>
+                <TableRow className="font-bold"><TableCell colSpan={3}>{t("إجمالي المرتجع")}</TableCell><TableCell>{fmt(ret.totalAmount)}</TableCell></TableRow>
               </TableFooter>
             </Table>
             {ret.notes && <p className="mt-4 text-sm text-muted-foreground">ملاحظات: {ret.notes}</p>}

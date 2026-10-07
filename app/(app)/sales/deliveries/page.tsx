@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { getT } from "@/lib/i18n/server";
 import { and, asc, count, desc, eq, gte, ilike, inArray, lte, ne, sql } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
@@ -21,6 +22,7 @@ type SP = { [k: string]: string | string[] | undefined };
 const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) ?? "";
 
 export default async function DeliveriesPage({ searchParams }: { searchParams: Promise<SP> }) {
+  const t = await getT();
   return loadErpPage("sales.view", async ({ orgId, can }) => {
     const canManage = can("sales.create");
     const canConfirm = can("sales.confirm");
@@ -115,12 +117,12 @@ export default async function DeliveriesPage({ searchParams }: { searchParams: P
       <div className="space-y-6">
         <ErpPageHeader
           icon="Truck"
-          title="إذون الصرف"
+          title={t("إذون الصرف")}
           subtitle={`${total} إذن`}
           action={canManage ? (
             <div className="flex flex-wrap gap-2">
               {canAdjust && shortages.shortages.length > 0 && <ShortageAdjustmentButton items={shortages.shortages.length} />}
-              <Button asChild><Link href="/sales/deliveries/new"><Icon name="Plus" className="size-4" />إذن صرف</Link></Button>
+              <Button asChild><Link href="/sales/deliveries/new"><Icon name="Plus" className="size-4" />{t("إذن صرف")}</Link></Button>
             </div>
           ) : undefined}
         />
@@ -132,7 +134,7 @@ export default async function DeliveriesPage({ searchParams }: { searchParams: P
           {shortages.shortDeliveryIds.length > 0 && (
             <Card className="border-destructive/40">
               <CardContent className="pt-6">
-                <div className="text-sm text-muted-foreground">ناقصة مخزون</div>
+                <div className="text-sm text-muted-foreground">{t("ناقصة مخزون")}</div>
                 <p className="mt-1 text-2xl font-bold tabular-nums text-destructive">{shortages.shortDeliveryIds.length.toLocaleString("ar-EG-u-nu-latn")}</p>
                 <p className="mt-0.5 text-xs text-muted-foreground">إذن مسودة كمياته غير مغطاة ({shortages.shortages.length.toLocaleString("ar-EG-u-nu-latn")} صنف ناقص)</p>
               </CardContent>
@@ -142,8 +144,8 @@ export default async function DeliveriesPage({ searchParams }: { searchParams: P
 
         <Card>
           <CardHeader>
-            <CardTitle>إذون الصرف</CardTitle>
-            <CardDescription>صرف البضاعة + تكلفة البضاعة المباعة تُرحّل عند التأكيد؛ الفاتورة تُرحّل الإيراد فقط. حدّد عدّة إذون لتأكيدها أو تحويلها لفواتير أو حذفها.</CardDescription>
+            <CardTitle>{t("إذون الصرف")}</CardTitle>
+            <CardDescription>{t("صرف البضاعة + تكلفة البضاعة المباعة تُرحّل عند التأكيد؛ الفاتورة تُرحّل الإيراد فقط. حدّد عدّة إذون لتأكيدها أو تحويلها لفواتير أو حذفها.")}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <details open={hasFilters} className="rounded-lg border">
@@ -151,26 +153,26 @@ export default async function DeliveriesPage({ searchParams }: { searchParams: P
                 <Icon name="ListFilter" className="size-4" /> بحث وتصفية
               </summary>
               <form className="grid gap-3 p-4 pt-0 sm:grid-cols-5 items-end">
-                <div className="space-y-1"><Label htmlFor="q">رقم الإذن</Label><Input id="q" name="q" defaultValue={q} placeholder="DLV-2026-..." /></div>
+                <div className="space-y-1"><Label htmlFor="q">{t("رقم الإذن")}</Label><Input id="q" name="q" defaultValue={q} placeholder="DLV-2026-..." /></div>
                 <div className="space-y-1">
-                  <Label htmlFor="status">الحالة</Label>
+                  <Label htmlFor="status">{t("الحالة")}</Label>
                   <select id="status" name="status" defaultValue={fStatus} className={selectCls}>
-                    <option value="">الكل</option>
+                    <option value="">{t("الكل")}</option>
                     {STATUS_OPTIONS.map(([k, v]) => <option key={k} value={k}>{v}</option>)}
                   </select>
                 </div>
                 <div className="space-y-1">
-                  <Label htmlFor="customer">العميل</Label>
+                  <Label htmlFor="customer">{t("العميل")}</Label>
                   <select id="customer" name="customer" defaultValue={fCustomer} className={selectCls}>
-                    <option value="">الكل</option>
+                    <option value="">{t("الكل")}</option>
                     {custList.map((c) => <option key={c.id} value={c.id}>{c.nameAr}</option>)}
                   </select>
                 </div>
-                <div className="space-y-1"><Label htmlFor="from">من تاريخ</Label><Input id="from" name="from" type="date" defaultValue={from} /></div>
-                <div className="space-y-1"><Label htmlFor="to">إلى تاريخ</Label><Input id="to" name="to" type="date" defaultValue={to} /></div>
+                <div className="space-y-1"><Label htmlFor="from">{t("من تاريخ")}</Label><Input id="from" name="from" type="date" defaultValue={from} /></div>
+                <div className="space-y-1"><Label htmlFor="to">{t("إلى تاريخ")}</Label><Input id="to" name="to" type="date" defaultValue={to} /></div>
                 <div className="flex gap-2 sm:col-span-5">
-                  <Button type="submit">تطبيق</Button>
-                  {hasFilters && <Button type="button" variant="outline" asChild><Link href="/sales/deliveries">مسح</Link></Button>}
+                  <Button type="submit">{t("تطبيق")}</Button>
+                  {hasFilters && <Button type="button" variant="outline" asChild><Link href="/sales/deliveries">{t("مسح")}</Link></Button>}
                 </div>
               </form>
             </details>
@@ -184,10 +186,10 @@ export default async function DeliveriesPage({ searchParams }: { searchParams: P
                   <span>صفحة {safePage} من {pages}</span>
                   <div className="flex gap-2">
                     <Button variant="outline" size="sm" disabled={safePage <= 1} asChild={safePage > 1}>
-                      {safePage > 1 ? <a href={qs(safePage - 1)}>السابق</a> : <span>السابق</span>}
+                      {safePage > 1 ? <a href={qs(safePage - 1)}>{t("السابق")}</a> : <span>{t("السابق")}</span>}
                     </Button>
                     <Button variant="outline" size="sm" disabled={safePage >= pages} asChild={safePage < pages}>
-                      {safePage < pages ? <a href={qs(safePage + 1)}>التالي</a> : <span>التالي</span>}
+                      {safePage < pages ? <a href={qs(safePage + 1)}>{t("التالي")}</a> : <span>{t("التالي")}</span>}
                     </Button>
                   </div>
                 </div>

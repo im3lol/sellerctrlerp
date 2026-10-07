@@ -1,4 +1,5 @@
 import { and, asc, desc, eq, isNotNull, sql } from "drizzle-orm";
+import { getT } from "@/lib/i18n/server";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
 import { suppliers, warehouses, items, organizations, materialRequests, materialRequestLines, currencies, exchangeRates, supplierItems } from "@/db/schema";
@@ -11,6 +12,7 @@ type SP = { reorder?: string; fromRequisition?: string; window?: string; lead?: 
 const days = (v: string | undefined, def: number) => (Number(v) > 0 && Number(v) <= 365 ? Number(v) : def);
 
 export default async function NewPurchaseOrderPage({ searchParams }: { searchParams: Promise<SP> }) {
+  const t = await getT();
   return loadErpPage("purchases.view", async ({ orgId }) => {
     const sp = await searchParams;
     const reorder = sp.reorder === "1";
@@ -98,7 +100,7 @@ export default async function NewPurchaseOrderPage({ searchParams }: { searchPar
 
     return (
       <div className="space-y-6">
-        <ErpPageHeader icon="ClipboardList" title="أمر شراء جديد" subtitle={initialLines ? "معبّأ مسبقاً — اختر المورّد وراجِع الكميات" : "التزام شراء — يُحوّل لفاتورة لاحقاً"} backHref="/purchases/orders" />
+        <ErpPageHeader icon="ClipboardList" title={t("أمر شراء جديد")} subtitle={initialLines ? "معبّأ مسبقاً — اختر المورّد وراجِع الكميات" : "التزام شراء — يُحوّل لفاتورة لاحقاً"} backHref="/purchases/orders" />
         <PurchaseOrderForm suppliers={supList} warehouses={whList} items={itemList} unitsByItem={unitsByItem} orgName={org[0]?.nameAr ?? "—"} vatRate={Number(org[0]?.vatRate ?? 0)} initialLines={initialLines} initialSupplierId={initialSupplierId} requisitionId={requisitionId} lastPrices={lastPrices} supplierPrices={supplierPrices} currencies={currRows} latestRates={latestRates}
         rateHistory={rateHistory} />
       </div>

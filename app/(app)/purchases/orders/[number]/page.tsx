@@ -1,4 +1,5 @@
 import { originDisplayLines } from "@/lib/erp/purchase-origin-costs";
+import { getT } from "@/lib/i18n/server";
 import { notFound, redirect } from "next/navigation";
 import { and, eq, inArray } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
@@ -35,6 +36,7 @@ const STATUS: Record<string, { label: string; variant: "default" | "secondary" |
 };
 
 export default async function PurchaseOrderDetailPage({ params }: { params: Promise<{ number: string }> }) {
+  const t = await getT();
   const raw = decodeURIComponent((await params).number);
   return loadErpPage("purchases.view", async ({ orgId, role, can }) => {
     if (UUID_RE.test(raw)) {
@@ -113,20 +115,20 @@ export default async function PurchaseOrderDetailPage({ params }: { params: Prom
           isAdmin={role === "admin" || role === "super_admin"} />
 
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <Field label="الحالة"><Badge variant={st.variant}>{st.label}</Badge></Field>
-          <Field label="التاريخ">{dt(po.date)}</Field>
-          <Field label="الشحن">{dfmt(lines.reduce((sum, l) => sum + Number(l.shipping) * Number(l.qty), 0))}</Field>
-          <Field label="الضريبة">{dfmt(lines.reduce((sum, l) => sum + Number(l.tax), 0))}</Field>
+          <Field label={t("الحالة")}><Badge variant={st.variant}>{st.label}</Badge></Field>
+          <Field label={t("التاريخ")}>{dt(po.date)}</Field>
+          <Field label={t("الشحن")}>{dfmt(lines.reduce((sum, l) => sum + Number(l.shipping) * Number(l.qty), 0))}</Field>
+          <Field label={t("الضريبة")}>{dfmt(lines.reduce((sum, l) => sum + Number(l.tax), 0))}</Field>
           <Field label={`الإجمالي (${cur})`}>{dfmt(po.totalAmount)}</Field>
           {isForeignDoc && (
-            <Field label="الإجمالي بالحسابات (EGP)">
+            <Field label={t("الإجمالي بالحسابات (EGP)")}>
               {fmt(po.totalAmount)} <span className="text-xs text-muted-foreground">@ {Number(po.exchangeRate).toLocaleString("ar-EG-u-nu-latn", { maximumFractionDigits: 6 })}</span>
             </Field>
           )}
         </div>
 
         {!!po.originCostInput?.costs.length && <Card>
-          <CardHeader><CardTitle>مصاريف وخصومات أمر الشراء</CardTitle></CardHeader>
+          <CardHeader><CardTitle>{t("مصاريف وخصومات أمر الشراء")}</CardTitle></CardHeader>
           <CardContent className="space-y-2">
             {po.originCostInput.costs.map((c, i) => <div key={i} className="flex flex-wrap justify-between gap-2 border-b pb-2 text-sm">
               <span>{{ MARKETPLACE_TAX: "ضريبة بلد الشراء", DOMESTIC_FREIGHT: "شحن محلي", PREP: "تجهيز", OTHER: "مصروف آخر", DISCOUNT: "خصم الطلب" }[c.kind]} {c.description && `— ${c.description}`}</span>
@@ -135,20 +137,20 @@ export default async function PurchaseOrderDetailPage({ params }: { params: Prom
           </CardContent>
         </Card>}
         <Card>
-          <CardHeader><CardTitle>البنود</CardTitle><CardDescription>أصناف الأمر.</CardDescription></CardHeader>
+          <CardHeader><CardTitle>{t("البنود")}</CardTitle><CardDescription>{t("أصناف الأمر.")}</CardDescription></CardHeader>
           <CardContent>
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="w-14 text-start">صورة</TableHead>
-                  <TableHead className="text-start">الصنف</TableHead>
-                  <TableHead className="text-start">الكمية</TableHead>
-                  <TableHead className="text-start">السعر</TableHead>
-                  <TableHead className="text-start">الخصم</TableHead>
-                  <TableHead className="text-start">الضريبة</TableHead>
-                  <TableHead className="text-start">شحن/وحدة</TableHead>
-                  {hasOther && <TableHead className="text-start">مصاريف أخرى</TableHead>}
-                  <TableHead className="text-start">الإجمالي</TableHead>
+                  <TableHead className="w-14 text-start">{t("صورة")}</TableHead>
+                  <TableHead className="text-start">{t("الصنف")}</TableHead>
+                  <TableHead className="text-start">{t("الكمية")}</TableHead>
+                  <TableHead className="text-start">{t("السعر")}</TableHead>
+                  <TableHead className="text-start">{t("الخصم")}</TableHead>
+                  <TableHead className="text-start">{t("الضريبة")}</TableHead>
+                  <TableHead className="text-start">{t("شحن/وحدة")}</TableHead>
+                  {hasOther && <TableHead className="text-start">{t("مصاريف أخرى")}</TableHead>}
+                  <TableHead className="text-start">{t("الإجمالي")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>

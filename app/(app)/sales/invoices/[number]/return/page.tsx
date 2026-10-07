@@ -1,4 +1,5 @@
 import { notFound, redirect } from "next/navigation";
+import { getT } from "@/lib/i18n/server";
 import { and, eq } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
@@ -10,6 +11,7 @@ import { UUID_RE } from "@/components/erp/document-detail";
 const round2 = (n: number) => Math.round(n * 100) / 100;
 
 export default async function SalesInvoiceReturnPage({ params }: { params: Promise<{ number: string }> }) {
+  const t = await getT();
   const raw = decodeURIComponent((await params).number);
   return loadErpPage("sales.create", async ({ orgId }) => {
     const [inv] = UUID_RE.test(raw)
@@ -46,7 +48,7 @@ export default async function SalesInvoiceReturnPage({ params }: { params: Promi
 
     return (
       <div className="space-y-6">
-        <ErpPageHeader icon="Undo2" title={`مرتجع مبيعات — ${inv.number}`} subtitle="حدّد كميات المرتجع ثم أكّد — يُسجَّل إشعار دائن ويُرحَّل" backHref={back} />
+        <ErpPageHeader icon="Undo2" title={`مرتجع مبيعات — ${inv.number}`} subtitle={t("حدّد كميات المرتجع ثم أكّد — يُسجَّل إشعار دائن ويُرحَّل")} backHref={back} />
         <InvoiceReturnForm type="sales" invoiceId={inv.id} invoiceNumber={inv.number} backHref={back} lines={lines} />
       </div>
     );

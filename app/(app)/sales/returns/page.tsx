@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { getT } from "@/lib/i18n/server";
 import { and, count, desc, eq, gte, ilike, isNull, lte, ne, or, sql } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
@@ -21,6 +22,7 @@ type SP = { [k: string]: string | string[] | undefined };
 const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) ?? "";
 
 export default async function SalesReturnsPage({ searchParams }: { searchParams: Promise<SP> }) {
+  const t = await getT();
   return loadErpPage("sales.view", async ({ orgId, can }) => {
     const canConfirm = can("sales.confirm");
     const canCreate = can("sales.create");
@@ -89,12 +91,12 @@ export default async function SalesReturnsPage({ searchParams }: { searchParams:
 
     return (
       <div className="space-y-6">
-        <ErpPageHeader icon="Undo2" title="مرتجعات المبيعات" subtitle={`${total} مرتجع`} />
+        <ErpPageHeader icon="Undo2" title={t("مرتجعات المبيعات")} subtitle={`${total} مرتجع`} />
 
         <div className="grid gap-4 sm:grid-cols-3">
-          <Card><CardContent className="pt-6"><div className="text-sm text-muted-foreground">إجمالي قيمة المرتجعات</div><p className="mt-1 text-2xl font-bold tabular-nums">{money(totalValue)}</p></CardContent></Card>
-          <Card><CardContent className="pt-6"><div className="text-sm text-muted-foreground">غير مؤكّدة (مسودة)</div><p className="mt-1 text-2xl font-bold tabular-nums text-amber-600">{draftCount.toLocaleString("ar-EG-u-nu-latn")}</p></CardContent></Card>
-          <Card><CardContent className="pt-6"><div className="text-sm text-muted-foreground">قيمة التالف / غير القابل للبيع</div><p className="mt-1 text-2xl font-bold tabular-nums text-destructive">{money(unsellableValue)}</p></CardContent></Card>
+          <Card><CardContent className="pt-6"><div className="text-sm text-muted-foreground">{t("إجمالي قيمة المرتجعات")}</div><p className="mt-1 text-2xl font-bold tabular-nums">{money(totalValue)}</p></CardContent></Card>
+          <Card><CardContent className="pt-6"><div className="text-sm text-muted-foreground">{t("غير مؤكّدة (مسودة)")}</div><p className="mt-1 text-2xl font-bold tabular-nums text-amber-600">{draftCount.toLocaleString("ar-EG-u-nu-latn")}</p></CardContent></Card>
+          <Card><CardContent className="pt-6"><div className="text-sm text-muted-foreground">{t("قيمة التالف / غير القابل للبيع")}</div><p className="mt-1 text-2xl font-bold tabular-nums text-destructive">{money(unsellableValue)}</p></CardContent></Card>
         </div>
 
         <Card>
@@ -104,34 +106,34 @@ export default async function SalesReturnsPage({ searchParams }: { searchParams:
                 <Icon name="ListFilter" className="size-4" /> بحث وتصفية
               </summary>
               <form className="grid gap-3 p-4 pt-0 sm:grid-cols-6 items-end">
-                <div className="space-y-1"><Label htmlFor="q">الرقم / رقم أمازون</Label><Input id="q" name="q" defaultValue={q} placeholder="SR-2026-... أو 407-..." /></div>
+                <div className="space-y-1"><Label htmlFor="q">{t("الرقم / رقم أمازون")}</Label><Input id="q" name="q" defaultValue={q} placeholder={t("SR-2026-... أو 407-...")} /></div>
                 <div className="space-y-1">
-                  <Label htmlFor="status">المستند</Label>
+                  <Label htmlFor="status">{t("المستند")}</Label>
                   <select id="status" name="status" defaultValue={fStatus} className={selectCls}>
-                    <option value="">الكل</option>
+                    <option value="">{t("الكل")}</option>
                     {STATUS_OPTIONS.map(([k, v]) => <option key={k} value={k}>{v}</option>)}
                   </select>
                 </div>
                 <div className="space-y-1">
-                  <Label htmlFor="channel">المصدر</Label>
+                  <Label htmlFor="channel">{t("المصدر")}</Label>
                   <select id="channel" name="channel" defaultValue={fChannel} className={selectCls}>
-                    <option value="">الكل</option>
+                    <option value="">{t("الكل")}</option>
                     {CHANNEL_OPTIONS.map(([k, v]) => <option key={k} value={k}>{v}</option>)}
                   </select>
                 </div>
                 <div className="space-y-1">
-                  <Label htmlFor="disposition">الحالة</Label>
+                  <Label htmlFor="disposition">{t("الحالة")}</Label>
                   <select id="disposition" name="disposition" defaultValue={fDisposition} className={selectCls}>
-                    <option value="">الكل</option>
-                    <option value="SELLABLE">قابل للبيع</option>
-                    <option value="UNSELLABLE">تالف / غير قابل للبيع</option>
+                    <option value="">{t("الكل")}</option>
+                    <option value="SELLABLE">{t("قابل للبيع")}</option>
+                    <option value="UNSELLABLE">{t("تالف / غير قابل للبيع")}</option>
                   </select>
                 </div>
-                <div className="space-y-1"><Label htmlFor="from">من تاريخ</Label><Input id="from" name="from" type="date" defaultValue={from} /></div>
-                <div className="space-y-1"><Label htmlFor="to">إلى تاريخ</Label><Input id="to" name="to" type="date" defaultValue={to} /></div>
+                <div className="space-y-1"><Label htmlFor="from">{t("من تاريخ")}</Label><Input id="from" name="from" type="date" defaultValue={from} /></div>
+                <div className="space-y-1"><Label htmlFor="to">{t("إلى تاريخ")}</Label><Input id="to" name="to" type="date" defaultValue={to} /></div>
                 <div className="flex gap-2 sm:col-span-6">
-                  <Button type="submit">تطبيق</Button>
-                  {hasFilters && <Button type="button" variant="outline" asChild><Link href="/sales/returns">مسح</Link></Button>}
+                  <Button type="submit">{t("تطبيق")}</Button>
+                  {hasFilters && <Button type="button" variant="outline" asChild><Link href="/sales/returns">{t("مسح")}</Link></Button>}
                 </div>
               </form>
             </details>
@@ -147,10 +149,10 @@ export default async function SalesReturnsPage({ searchParams }: { searchParams:
                   <span>صفحة {safePage} من {pages}</span>
                   <div className="flex gap-2">
                     <Button variant="outline" size="sm" disabled={safePage <= 1} asChild={safePage > 1}>
-                      {safePage > 1 ? <a href={qs(safePage - 1)}>السابق</a> : <span>السابق</span>}
+                      {safePage > 1 ? <a href={qs(safePage - 1)}>{t("السابق")}</a> : <span>{t("السابق")}</span>}
                     </Button>
                     <Button variant="outline" size="sm" disabled={safePage >= pages} asChild={safePage < pages}>
-                      {safePage < pages ? <a href={qs(safePage + 1)}>التالي</a> : <span>التالي</span>}
+                      {safePage < pages ? <a href={qs(safePage + 1)}>{t("التالي")}</a> : <span>{t("التالي")}</span>}
                     </Button>
                   </div>
                 </div>
