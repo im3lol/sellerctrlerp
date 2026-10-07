@@ -169,11 +169,14 @@ export default async function JournalEntryDetailPage({ params }: { params: Promi
   });
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+async function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  // A text value is often a label or a system name (a status, "1101 — النقدية") — show it
+  // in the reader's language; names people typed pass through unchanged.
+  const t = await getT();
   return (
     <div className="rounded-xl border bg-card px-4 py-3">
-      <div className="text-xs text-muted-foreground">{label}</div>
-      <div className="mt-1 font-medium">{children}</div>
+      <div className="text-xs text-muted-foreground">{t(label)}</div>
+      <div className="mt-1 font-medium">{typeof children === "string" ? t(children) : children}</div>
     </div>
   );
 }

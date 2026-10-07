@@ -35,8 +35,8 @@ export function ErpPageHeader({
         <Icon name={icon} className="size-6" />
       </div>
       <div className="flex-1">
-        <h1 className="text-2xl font-bold">{title}</h1>
-        {subtitle && <p className="text-muted-foreground">{subtitle}</p>}
+        <h1 className="text-2xl font-bold">{t(title)}</h1>
+        {subtitle && <p className="text-muted-foreground">{t(subtitle)}</p>}
       </div>
       {action}
     </div>

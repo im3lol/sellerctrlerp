@@ -80,7 +80,7 @@ export function DashboardEditor({ dashboard, reports }: {
 
   const remove = () => void (async () => {
     const go = await confirm({
-      danger: true, title: fill(t("تمسح لوحة «{0}»؟"), [dashboard.nameAr]),
+      danger: true, title: fill(t("تمسح لوحة «{0}»؟"), [t(dashboard.nameAr)]),
       description: "اللوحة بس اللي هتتمسح — التقارير المحفوظة والبيانات مش بتتأثر.",
       confirmText: "امسح", cancelText: "رجوع",
     });

@@ -17,7 +17,7 @@ export default async function ReconciliationPage({ searchParams }: { searchParam
       .where(and(eq(accounts.organizationId, orgId), eq(accounts.isLeaf, true), eq(accounts.isActive, true),
         sql`(${accounts.code} LIKE '1101%' OR ${accounts.code} LIKE '1102%')`))
       .orderBy(asc(accounts.code));
-    const accounts_opt = bankAccs.map((a) => ({ id: a.id, label: `${a.code} — ${a.name}` }));
+    const accounts_opt = bankAccs.map((a) => ({ id: a.id, label: `${a.code} — ${t(a.name)}` }));
 
     let lines: { id: string; date: string; number: string; description: string; debit: number; credit: number; reconciled: boolean }[] = [];
     if (accountId && bankAccs.some((a) => a.id === accountId)) {

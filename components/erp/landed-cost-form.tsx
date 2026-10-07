@@ -53,7 +53,7 @@ export function LandedCostForm({ suppliers, receipts }: { suppliers: Supplier[];
     const counts = new Map<string, number>();
     for (const r of receipts) if (r.supplierId) counts.set(r.supplierId, (counts.get(r.supplierId) ?? 0) + 1);
     return suppliers
-      .map((s) => ({ id: s.id, label: counts.get(s.id) ? fill(t("{0} — {1} إذن"), [s.nameAr, counts.get(s.id)]) : s.nameAr, n: counts.get(s.id) ?? 0 }))
+      .map((s) => ({ id: s.id, label: counts.get(s.id) ? fill(t("{0} — {1} إذن"), [t(s.nameAr), counts.get(s.id)]) : s.nameAr, n: counts.get(s.id) ?? 0 }))
       .sort((a, b) => b.n - a.n);
   }, [suppliers, receipts, t]);
   // Every receipt for the supplier stays listed whether ticked or not: removing a row the

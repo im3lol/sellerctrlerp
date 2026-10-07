@@ -90,7 +90,7 @@ export function ItemUnitsManager({ itemId, canEdit }: { itemId: string; canEdit:
           <div>
             <CardTitle>{t("وحدات القياس")}</CardTitle>
             <CardDescription>
-              {fill(t("اشترِ بالكرتونة وبِع بالقطعة. المعامل = كام وحدة أساسية جوّه الوحدة دي. المخزون والتكلفة بيتخزّنوا بالوحدة الأساسية دايماً{0}."), [baseLabel ? ` (${baseLabel})` : ""])}
+              {fill(t("اشترِ بالكرتونة وبِع بالقطعة. المعامل = كام وحدة أساسية جوّه الوحدة دي. المخزون والتكلفة بيتخزّنوا بالوحدة الأساسية دايماً{0}."), [baseLabel ? ` (${t(baseLabel)})` : ""])}
             </CardDescription>
           </div>
           {canEdit && (
@@ -108,7 +108,7 @@ export function ItemUnitsManager({ itemId, canEdit }: { itemId: string; canEdit:
       <CardContent>
         {rows.length === 0 ? (
           <p className="text-sm text-muted-foreground">
-            {fill(t("مفيش وحدات إضافية — الصنف بيتعامل بوحدته الأساسية بس{0}."), [baseLabel ? ` (${baseLabel})` : ""])}
+            {fill(t("مفيش وحدات إضافية — الصنف بيتعامل بوحدته الأساسية بس{0}."), [baseLabel ? ` (${t(baseLabel)})` : ""])}
           </p>
         ) : (
           <div className="rounded-xl border">

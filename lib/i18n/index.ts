@@ -72,8 +72,16 @@ function patterns(): Map<string, Pattern[]> {
   return index;
 }
 
+// "1101 — النقدية", "ITM-1 — حقيبة": a code, then a name — translate the name part.
+const CODED = /^([A-Za-z0-9][A-Za-z0-9._\-/]*) — ([\s\S]+)$/;
+
 function matchPattern(s: string): string | null {
   if (!AR.test(s) || s.length > 600) return null;
+  const coded = CODED.exec(s);
+  if (coded) {
+    const rest = EN[coded[2]] ?? matchPattern(coded[2]);
+    if (rest) return `${coded[1]} — ${rest}`;
+  }
   const idx = patterns();
   for (const list of [idx.get(firstWord(s)), idx.get("")]) {
     if (!list) continue;

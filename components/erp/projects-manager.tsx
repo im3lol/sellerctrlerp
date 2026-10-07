@@ -569,7 +569,7 @@ export function ProjectsManager({ rows, phases, tasks, sheets, customers, employ
               </Button>
               <Button variant="ghost" size="sm" onClick={() => void (async () => {
                 const go = await confirm({
-                  danger: true, title: fill(t("تمسح «{0}»؟"), [project.nameAr]),
+                  danger: true, title: fill(t("تمسح «{0}»؟"), [t(project.nameAr)]),
                   description: "لو عليه مصروفات أو فواتير أو ساعات، المسح هيترفض — غيّر حالته لملغي بدل كده.",
                   confirmText: "امسح", cancelText: "رجوع",
                 });

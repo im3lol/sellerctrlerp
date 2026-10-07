@@ -174,7 +174,7 @@ export function RfqManager({ items, suppliers, warehouses, canManage }: {
                 </CardDescription>
               </div>
               <div className="flex flex-wrap gap-2">
-                <Badge variant={STATUS[open.rfq.status]?.tone ?? "outline"}>{STATUS[open.rfq.status]?.label ?? open.rfq.status}</Badge>
+                <Badge variant={STATUS[open.rfq.status]?.tone ?? "outline"}>{t(STATUS[open.rfq.status]?.label ?? open.rfq.status)}</Badge>
                 {canManage && open.rfq.status === "DRAFT" && (
                   <Button size="sm" onClick={() => send(open.rfq.id)} disabled={pending}>
                     <Icon name="Send" className="size-4" />{t("أرسل")}
@@ -482,7 +482,7 @@ export function RfqManager({ items, suppliers, warehouses, canManage }: {
                     <TableCell className="text-xs" dir="ltr">{r.date}</TableCell>
                     <TableCell className="tabular-nums">{r.lines}</TableCell>
                     <TableCell className="tabular-nums">{r.quoted} / {r.invited}</TableCell>
-                    <TableCell><Badge variant={STATUS[r.status]?.tone ?? "outline"}>{STATUS[r.status]?.label ?? r.status}</Badge></TableCell>
+                    <TableCell><Badge variant={STATUS[r.status]?.tone ?? "outline"}>{t(STATUS[r.status]?.label ?? r.status)}</Badge></TableCell>
                     <TableCell className="flex gap-1">
                       <Button size="sm" variant="outline" onClick={() => openRfq(r.id)}>{t("افتح")}</Button>
                       {canManage && r.status !== "AWARDED" && r.status !== "CANCELLED" && (

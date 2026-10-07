@@ -87,7 +87,7 @@ export function PromotionsManager({ rows, items, loyalty, canManage, canEditSett
     void (async () => {
       const go = await confirm({
         danger: true,
-        title: fill(t("تمسح «{0}»؟"), [row.nameAr]),
+        title: fill(t("تمسح «{0}»؟"), [t(row.nameAr)]),
         description: "الفواتير اللي اتخصمت بالعرض ده مش هتتغيّر — الخصم اتسجّل عليها خلاص. المسح بيوقف العرض على البيع الجاي بس.",
         confirmText: "امسح", cancelText: "رجوع",
       });

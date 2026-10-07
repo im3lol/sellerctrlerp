@@ -108,7 +108,7 @@ export function SalesReturnsTable({ rows, canConfirm, canCreate }: { rows: Retur
                     : <span className="text-muted-foreground">—</span>}
                 </TableCell>
                 <TableCell className="tabular-nums text-destructive">−{fmt(r.total)}</TableCell>
-                <TableCell><Badge variant={DOC_STATUS[r.status]?.variant ?? "secondary"}>{DOC_STATUS[r.status]?.label ?? r.status}</Badge></TableCell>
+                <TableCell><Badge variant={DOC_STATUS[r.status]?.variant ?? "secondary"}>{t(DOC_STATUS[r.status]?.label ?? r.status)}</Badge></TableCell>
               </TableRow>
             ))}
           </TableBody>

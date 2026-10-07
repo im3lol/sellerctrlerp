@@ -75,7 +75,7 @@ export default async function GrniReconciliationPage() {
               <CardTitle>{t("النتيجة")}</CardTitle>
               <CardDescription>
                 {grniAccount
-                  ? fill(t("حساب {0} — {1}. الاستلام يدائن الحساب والفاتورة تمدينه، فالرصيد يجب أن يساوي قيمة الإذون التي لم تُفوتر بعد."), [grniAccount.code, grniAccount.nameAr])
+                  ? fill(t("حساب {0} — {1}. الاستلام يدائن الحساب والفاتورة تمدينه، فالرصيد يجب أن يساوي قيمة الإذون التي لم تُفوتر بعد."), [grniAccount.code, t(grniAccount.nameAr)])
                   : t("لم يُضبط حساب «بضاعة لم تُفوتر» (2103) في دليل الحسابات.")}
               </CardDescription>
             </div>

@@ -6,11 +6,14 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 export const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /** A labelled read-only field tile. */
-export function Field({ label, children }: { label: string; children: React.ReactNode }) {
+export async function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  // A text value is often a label or a system name (a status, "1101 — النقدية") — show it
+  // in the reader's language; names people typed pass through unchanged.
+  const t = await getT();
   return (
     <div className="rounded-xl border bg-card px-4 py-3">
-      <div className="text-xs text-muted-foreground">{label}</div>
-      <div className="mt-1 font-medium">{children}</div>
+      <div className="text-xs text-muted-foreground">{t(label)}</div>
+      <div className="mt-1 font-medium">{typeof children === "string" ? t(children) : children}</div>
     </div>
   );
 }

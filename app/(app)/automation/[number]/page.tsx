@@ -31,7 +31,7 @@ export default async function AutomationRulePage({ params }: { params: Promise<{
     return (
       <div className="space-y-6">
         <ErpPageHeader icon="Workflow" backHref="/automation"
-          title={rule ? rule.name : "قاعدة أتمتة جديدة"}
+          title={rule ? rule.name : t("قاعدة أتمتة جديدة")}
           subtitle={t("لما ← لو ← اعمل")} />
         <AutomationEditor
           rule={rule ? { id: rule.id, name: rule.name, enabled: rule.enabled, spec: maskSpec(rule.spec as RuleSpec) } : null}

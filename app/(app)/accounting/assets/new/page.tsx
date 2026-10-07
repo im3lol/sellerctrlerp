@@ -146,7 +146,7 @@ export default async function NewFixedAssetPage({ searchParams }: { searchParams
                   ["glDeprecExpenseAccountId", "حساب مصروف الإهلاك"],
                 ].map(([name, label]) => (
                   <div key={name} className="mb-3 space-y-1">
-                    <Label htmlFor={name}>{label}</Label>
+                    <Label htmlFor={name}>{t(label)}</Label>
                     <FormCombobox
                       name={name}
                       placeholder={t("ابحث عن حساب… (اختياري)")}

@@ -105,7 +105,7 @@ export function ReportBuilderUI({ datasets, saved, initialId }: { datasets: Data
                   {r.mine && (
                     <Button size="icon" variant="ghost" aria-label={t("مسح")} onClick={() => void (async () => {
                       const go = await confirm({
-                        danger: true, title: fill(t("تمسح «{0}»؟"), [r.nameAr]),
+                        danger: true, title: fill(t("تمسح «{0}»؟"), [t(r.nameAr)]),
                         description: "التقرير بس اللي هيتمسح — البيانات نفسها مش بتتأثر.",
                         confirmText: "امسح", cancelText: "رجوع",
                       });
@@ -204,7 +204,7 @@ export function ReportBuilderUI({ datasets, saved, initialId }: { datasets: Data
                 {headers.map((h, i) => (
                   <Button key={i} size="sm" variant={spec.columns.includes(i) ? "default" : "outline"}
                     onClick={() => toggleColumn(i)}>
-                    {h}
+                    {t(h)}
                   </Button>
                 ))}
               </div>
@@ -298,7 +298,7 @@ export function ReportBuilderUI({ datasets, saved, initialId }: { datasets: Data
                       title={k != null && !result.grouped ? t("الرسم محتاج «تجميع حسب»") : undefined}
                       onClick={() => setSpec((s) => ({ ...s, chart: k }))}>
                       <Icon name={k == null ? "Table2" : CHART_ICON[k]} className="size-4" />
-                      {k == null ? t("جدول") : CHART_LABEL[k]}
+                      {k == null ? t("جدول") : t(CHART_LABEL[k])}
                     </Button>
                   ))}
                 </div>
@@ -370,7 +370,7 @@ export function ReportBuilderUI({ datasets, saved, initialId }: { datasets: Data
                             setSpec(next);
                             run(dataset, next);
                           }}>
-                          {h}
+                          {t(h)}
                           {spec.sort?.column === i && (spec.sort.dir === "asc" ? " ↑" : " ↓")}
                         </TableHead>
                       ))}
@@ -381,7 +381,7 @@ export function ReportBuilderUI({ datasets, saved, initialId }: { datasets: Data
                       <TableRow key={i}>
                         {row.map((cell, k) => (
                           <TableCell key={k} className={typeof cell === "number" ? "tabular-nums" : ""}>
-                            {fmt(cell)}
+                            {typeof cell === "string" ? t(cell) : fmt(cell)}
                           </TableCell>
                         ))}
                       </TableRow>

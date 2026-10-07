@@ -88,7 +88,7 @@ export function PriceListsManager({
     void (async () => {
       const go = await confirm({
         danger: true,
-        title: fill(t("حذف قائمة «{0}»؟"), [l.nameAr]),
+        title: fill(t("حذف قائمة «{0}»؟"), [t(l.nameAr)]),
         description: l.customerCount > 0
           ? fill(t("{0} عميل مربوطين بالقائمة دي — هيرجعوا للقائمة الافتراضية."), [l.customerCount])
           : t("القائمة وأسعارها هيتمسحوا. الفواتير القديمة مش هتتأثر — سعرها متسجّل فيها."),
@@ -108,7 +108,7 @@ export function PriceListsManager({
         <CardHeader>
           <div className="flex w-full flex-wrap items-start justify-between gap-3">
             <div>
-              <CardTitle>{draft.id ? fill(t("تعديل {0}"), [draft.nameAr || t("قائمة")]) : t("قائمة أسعار جديدة")}</CardTitle>
+              <CardTitle>{draft.id ? fill(t("تعديل {0}"), [t(draft.nameAr) || t("قائمة")]) : t("قائمة أسعار جديدة")}</CardTitle>
               <CardDescription>{t("الأصناف اللي مش في القائمة بتاخد سعر البيع المسجّل على الصنف نفسه.")}</CardDescription>
             </div>
             <div className="flex gap-2">

@@ -152,7 +152,7 @@ export function CycleCountManager({ warehouses, canManage, canPost: mayPost }: {
                 </CardDescription>
               </div>
               <div className="flex flex-wrap gap-2">
-                <Badge variant={STATUS[open.session.status]?.tone ?? "outline"}>{STATUS[open.session.status]?.label ?? open.session.status}</Badge>
+                <Badge variant={STATUS[open.session.status]?.tone ?? "outline"}>{t(STATUS[open.session.status]?.label ?? open.session.status)}</Badge>
                 {canManage && editable && (
                   <Button size="sm" variant="outline" onClick={saveCounts} disabled={pending}>
                     <Icon name="Check" className="size-4" />{t("احفظ العدّ")}
@@ -301,7 +301,7 @@ export function CycleCountManager({ warehouses, canManage, canPost: mayPost }: {
                       <TableCell className="text-xs" dir="ltr">{r.date}</TableCell>
                       <TableCell>{t(r.warehouseName)}</TableCell>
                       <TableCell className="tabular-nums">{r.lines}</TableCell>
-                      <TableCell><Badge variant={STATUS[r.status]?.tone ?? "outline"}>{STATUS[r.status]?.label ?? r.status}</Badge></TableCell>
+                      <TableCell><Badge variant={STATUS[r.status]?.tone ?? "outline"}>{t(STATUS[r.status]?.label ?? r.status)}</Badge></TableCell>
                       <TableCell className="flex gap-1">
                         <Button size="sm" variant="outline" onClick={() => openSession(r.id)}>{t("افتح")}</Button>
                         {canManage && r.status !== "POSTED" && r.status !== "CANCELLED" && (

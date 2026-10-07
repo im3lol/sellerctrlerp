@@ -77,7 +77,7 @@ export function AdjustmentsTable({ rows, canConfirm, canCreate, total, filter }:
                   <Link href={`/inventory/adjustments/${encodeURIComponent(r.number)}`} className="font-mono hover:text-primary">{r.number}</Link>
                 </TableCell>
                 <TableCell className="whitespace-nowrap">{dt(r.date)}</TableCell>
-                <TableCell><Badge variant="secondary">{r.reason ?? "—"}</Badge></TableCell>
+                <TableCell><Badge variant="secondary">{t(r.reason ?? "—")}</Badge></TableCell>
                 <TableCell>{intl(r.count)}</TableCell>
                 <TableCell className={r.delta < 0 ? "text-destructive" : r.delta > 0 ? "text-emerald-600" : ""}>{r.delta > 0 ? "+" : ""}{intl(r.delta)}</TableCell>
                 <TableCell>{fmt(r.totalValue)}</TableCell>

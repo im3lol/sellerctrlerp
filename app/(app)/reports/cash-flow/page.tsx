@@ -99,7 +99,7 @@ export default async function CashFlowPage({
               <span className="tabular-nums text-lg">{fmt(cashEnd)}</span>
             </div>
             <p className="text-xs text-muted-foreground">
-              * النقدية تشمل حسابات الكود 110x فقط. الطريقة غير المباشرة — التغيرات مستخرجة من قيود الأستاذ العام.
+              {t("* النقدية تشمل حسابات الكود 110x فقط. الطريقة غير المباشرة — التغيرات مستخرجة من قيود الأستاذ العام.")}
             </p>
           </CardContent>
         </Card>

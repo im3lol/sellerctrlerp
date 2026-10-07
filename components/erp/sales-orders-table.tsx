@@ -120,7 +120,7 @@ export function SalesOrdersTable({ rows, canConfirm, canCreate, total, filter }:
                         {r.fulfillmentType && <Badge variant="outline" className="text-[10px]" title={t("قناة التنفيذ")}>{r.fulfillmentType}</Badge>}
                         {r.channelStatus && CHANNEL_STATUS[r.channelStatus] && (
                           <Badge variant={CHANNEL_STATUS[r.channelStatus].variant} className={`text-[10px] ${CHANNEL_STATUS[r.channelStatus].cls ?? ""}`}>
-                            {CHANNEL_STATUS[r.channelStatus].label}
+                            {t(CHANNEL_STATUS[r.channelStatus].label)}
                           </Badge>
                         )}
                         <span className="font-mono text-[11px] text-muted-foreground" dir="ltr">{r.externalOrderId}</span>

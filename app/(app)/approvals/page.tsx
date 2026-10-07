@@ -97,7 +97,7 @@ export default async function ApprovalsPage({ searchParams }: { searchParams: Pr
                   const st = followUpState(String(it.dueDate), null, today);
                   return (
                     <div key={it.id} className="flex flex-wrap items-center gap-3 p-4">
-                      {k && <Badge variant="secondary">{CHATTER_DOCS[k].label}</Badge>}
+                      {k && <Badge variant="secondary">{t(CHATTER_DOCS[k].label)}</Badge>}
                       {k && it.entityNumber && (
                         <Link href={docHref(k, it.entityNumber)} className="font-mono text-sm font-medium hover:text-primary hover:underline">{it.entityNumber}</Link>
                       )}

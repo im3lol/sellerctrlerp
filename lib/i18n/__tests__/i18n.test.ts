@@ -67,3 +67,11 @@ describe("sentences with values", () => {
     expect(translator("ar")("فاتورة بيع SI-2026-0005")).toBe("فاتورة بيع SI-2026-0005");
   });
 });
+
+describe("a code, then a name", () => {
+  const t = translator("en");
+  it("translates the name after a code", () => {
+    expect(t("1101 — النقدية")).toBe("1101 — Cash");
+    expect(t("ITM-1001 — ساعة ذكية رياضية")).toBe("ITM-1001 — ساعة ذكية رياضية");
+  });
+});

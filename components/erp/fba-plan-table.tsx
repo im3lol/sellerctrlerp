@@ -151,7 +151,7 @@ export function FbaPlanTable({ rows, fromWarehouseId, toWarehouseId, sourceName,
                   </TableCell>
                   <TableCell>
                     <div className="flex flex-wrap items-center gap-1">
-                      <Badge variant={STATUS[r.status].variant}>{STATUS[r.status].label}</Badge>
+                      <Badge variant={STATUS[r.status].variant}>{t(STATUS[r.status].label)}</Badge>
                       {r.short > 0 && (
                         <Badge variant="outline" title={t("مش موجود في المخزن ده — اشتريه أو ابعته من مخزن تاني")}>{t("ناقص")} {int(r.short)}</Badge>
                       )}

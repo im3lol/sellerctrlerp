@@ -291,7 +291,7 @@ export function CustodyManager({ employees, cashAccounts, expenseAccounts, canMa
                       <TableCell className="tabular-nums">{money(r.amount)}</TableCell>
                       <TableCell className="tabular-nums text-muted-foreground">{money(r.settled)}</TableCell>
                       <TableCell className={`font-bold tabular-nums ${r.left > 0 ? "text-amber-600" : ""}`}>{money(r.left)}</TableCell>
-                      <TableCell><Badge variant={STATUS[r.status]?.tone ?? "outline"}>{STATUS[r.status]?.label ?? r.status}</Badge></TableCell>
+                      <TableCell><Badge variant={STATUS[r.status]?.tone ?? "outline"}>{t(STATUS[r.status]?.label ?? r.status)}</Badge></TableCell>
                       {canManage && (
                         <TableCell className="flex gap-1">
                           {r.status === "OPEN" && (

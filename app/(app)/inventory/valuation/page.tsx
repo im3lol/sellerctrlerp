@@ -45,7 +45,7 @@ export default async function InventoryValuationReconciliationPage() {
               <CardTitle>{t("النتيجة")}</CardTitle>
               <CardDescription>
                 {invAccount
-                  ? fill(t("حساب المخزون: {0} — {1}. القيمتان يجب أن تتطابقا؛ أي فرق يعني خطأً في الترحيل."), [invAccount.code, invAccount.nameAr])
+                  ? fill(t("حساب المخزون: {0} — {1}. القيمتان يجب أن تتطابقا؛ أي فرق يعني خطأً في الترحيل."), [invAccount.code, t(invAccount.nameAr)])
                   : t("لم يُضبط حساب المخزون (1104) في دليل الحسابات.")}
               </CardDescription>
             </div>

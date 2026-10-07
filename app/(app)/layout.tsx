@@ -95,7 +95,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           <div className="flex items-center justify-between gap-3 border-b border-amber-500/40 bg-amber-500/10 px-4 py-2 text-sm md:px-6">
             <span className="flex items-center gap-2 font-medium text-amber-700 dark:text-amber-400">
               <Icon name="ShieldAlert" className="size-4" />
-              {fill(t("وضع الدعم — أنت داخل «{0}» كمشرف المنصّة"), [activeOrg.org.nameAr])}
+              {fill(t("وضع الدعم — أنت داخل «{0}» كمشرف المنصّة"), [t(activeOrg.org.nameAr)])}
             </span>
             <form action={exitImpersonationAction}>
               <button type="submit" className="shrink-0 rounded-md border border-amber-500/50 px-2.5 py-1 text-xs font-medium text-amber-700 transition-colors hover:bg-amber-500/20 dark:text-amber-400">

@@ -348,7 +348,7 @@ export default async function PlatformDetailPage({ params, searchParams }: { par
                       <TableRow key={o.number}>
                         <TableCell><Link href={`/sales/orders/${encodeURIComponent(o.number)}`} className="text-primary hover:underline">{o.number}</Link>{o.ext && <div className="font-mono text-[10px] text-muted-foreground">{o.ext}</div>}</TableCell>
                         <TableCell>{dt(o.date)}</TableCell>
-                        <TableCell><Badge variant="outline">{STATUS[o.status]?.label ?? o.status}</Badge></TableCell>
+                        <TableCell><Badge variant="outline">{t(STATUS[o.status]?.label ?? o.status)}</Badge></TableCell>
                         <TableCell className="tabular-nums">{fmt(o.total)}</TableCell>
                       </TableRow>
                     ))}

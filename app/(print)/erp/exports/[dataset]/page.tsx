@@ -39,7 +39,7 @@ export default async function ExportPrintPage({ params }: { params: Promise<{ da
             {rows.map((r, ri) => (
               <tr key={ri}>
                 {r.map((c, ci) => (
-                  <td key={ci} className="border border-gray-300 px-2 py-1 text-start">{cell(c)}</td>
+                  <td key={ci} className="border border-gray-300 px-2 py-1 text-start">{typeof c === "string" ? t(c) : cell(c)}</td>
                 ))}
               </tr>
             ))}
