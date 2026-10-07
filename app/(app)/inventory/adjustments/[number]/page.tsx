@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { getT } from "@/lib/i18n/server";
 import { and, asc, eq, sql } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
@@ -23,6 +24,7 @@ const q = (v: string | number | null) => Number(v ?? 0).toLocaleString("ar-EG-u-
 const dt = (d: Date) => new Date(d).toLocaleDateString("ar-EG-u-nu-latn", { year: "numeric", month: "2-digit", day: "2-digit" });
 
 export default async function AdjustmentDetailPage({ params }: { params: Promise<{ number: string }> }) {
+  const t = await getT();
   const raw = (await params).number;
   return loadErpPage("inventory.view", async ({ orgId, role, can }) => {
     const number = await docNumberParam(raw, orgId, stockAdjustments,
@@ -118,18 +120,18 @@ export default async function AdjustmentDetailPage({ params }: { params: Promise
           isAdmin={role === "admin" || role === "super_admin"} />
 
         <Card>
-          <CardHeader><CardTitle>بيانات التسوية</CardTitle></CardHeader>
+          <CardHeader><CardTitle>{t("بيانات التسوية")}</CardTitle></CardHeader>
           <CardContent className="grid gap-4 sm:grid-cols-4 text-sm">
-            <div><div className="text-muted-foreground">الرقم</div><div className="font-mono font-medium">{adj.number}</div></div>
-            <div><div className="text-muted-foreground">التاريخ</div><div className="font-medium">{dt(adj.date)}</div></div>
-            <div><div className="text-muted-foreground">الوصف / السبب</div><div className="font-medium">{adj.reason}</div></div>
-            <div><div className="text-muted-foreground">الحالة</div><Badge variant={adj.status === "POSTED" ? "default" : "secondary"}>{adj.status === "POSTED" ? "مرحّل" : "مسودة"}</Badge></div>
+            <div><div className="text-muted-foreground">{t("الرقم")}</div><div className="font-mono font-medium">{adj.number}</div></div>
+            <div><div className="text-muted-foreground">{t("التاريخ")}</div><div className="font-medium">{dt(adj.date)}</div></div>
+            <div><div className="text-muted-foreground">{t("الوصف / السبب")}</div><div className="font-medium">{adj.reason}</div></div>
+            <div><div className="text-muted-foreground">{t("الحالة")}</div><Badge variant={adj.status === "POSTED" ? "default" : "secondary"}>{adj.status === "POSTED" ? "مرحّل" : "مسودة"}</Badge></div>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader>
-            <CardTitle>الأصناف</CardTitle>
+            <CardTitle>{t("الأصناف")}</CardTitle>
             <CardDescription>{isDraft ? "عدّل «الكمية الفعلية» بعد الجرد — الفرق والقيمة تقديريان حتى التأكيد." : "القيم النهائية بعد الترحيل."}</CardDescription>
           </CardHeader>
           <CardContent>
@@ -139,12 +141,12 @@ export default async function AdjustmentDetailPage({ params }: { params: Promise
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="text-start">الصنف</TableHead>
-                  <TableHead className="text-start">المخزن</TableHead>
-                  <TableHead className="text-start">الكمية الفعلية</TableHead>
-                  <TableHead className="text-start">الفرق</TableHead>
-                  <TableHead className="text-start">السعر</TableHead>
-                  <TableHead className="text-start">القيمة</TableHead>
+                  <TableHead className="text-start">{t("الصنف")}</TableHead>
+                  <TableHead className="text-start">{t("المخزن")}</TableHead>
+                  <TableHead className="text-start">{t("الكمية الفعلية")}</TableHead>
+                  <TableHead className="text-start">{t("الفرق")}</TableHead>
+                  <TableHead className="text-start">{t("السعر")}</TableHead>
+                  <TableHead className="text-start">{t("القيمة")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -164,7 +166,7 @@ export default async function AdjustmentDetailPage({ params }: { params: Promise
               </TableBody>
               <TableFooter>
                 <TableRow className="font-bold">
-                  <TableCell colSpan={5}>الإجمالي</TableCell>
+                  <TableCell colSpan={5}>{t("الإجمالي")}</TableCell>
                   <TableCell>{fmt(adj.totalValue)}</TableCell>
                 </TableRow>
               </TableFooter>

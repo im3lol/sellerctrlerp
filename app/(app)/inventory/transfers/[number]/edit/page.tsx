@@ -1,4 +1,5 @@
 import { notFound, redirect } from "next/navigation";
+import { getT } from "@/lib/i18n/server";
 import { and, asc, eq, sql } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
@@ -10,6 +11,7 @@ import { docNumberParam } from "@/lib/erp/doc-route";
 type StockRow = { item_id: string; warehouse_id: string; balance_quantity: string };
 
 export default async function EditTransferPage({ params }: { params: Promise<{ number: string }> }) {
+  const t = await getT();
   const raw = (await params).number;
   return loadErpPage("inventory.create", async ({ orgId }) => {
     const number = await docNumberParam(raw, orgId, stockTransfers,
@@ -41,7 +43,7 @@ export default async function EditTransferPage({ params }: { params: Promise<{ n
 
     return (
       <div className="space-y-6">
-        <ErpPageHeader icon="ArrowLeftRight" title={`تعديل تحويل مخزني ${tr.number}`} subtitle="مسودة — عدّل الأصناف والمستودعات ثم احفظ" backHref={`/inventory/transfers/${encodeURIComponent(tr.number)}`} />
+        <ErpPageHeader icon="ArrowLeftRight" title={`تعديل تحويل مخزني ${tr.number}`} subtitle={t("مسودة — عدّل الأصناف والمستودعات ثم احفظ")} backHref={`/inventory/transfers/${encodeURIComponent(tr.number)}`} />
         <TransferForm
           orgName={org[0]?.nameAr ?? ""}
           warehouses={whList.map((w) => ({ id: w.id, code: w.code, name: w.name }))}

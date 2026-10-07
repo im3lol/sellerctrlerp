@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { getT } from "@/lib/i18n/server";
 import { and, eq, or } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
@@ -7,6 +8,7 @@ import { ErpPageHeader } from "@/components/erp/page-header";
 import { ItemForm } from "@/components/erp/item-form";
 
 export default async function EditItemPage({ params }: { params: Promise<{ id: string }> }) {
+  const t = await getT();
   const { id } = await params;
   const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
   return loadErpPage("inventory.edit", async ({ orgId }) => {
@@ -25,7 +27,7 @@ export default async function EditItemPage({ params }: { params: Promise<{ id: s
 
     return (
       <div className="space-y-6">
-        <ErpPageHeader icon="Package" title={`تعديل ${item.code}`} subtitle="تعديل بيانات الصنف وأكواده وصورته" backHref={`/inventory/items/${encodeURIComponent(item.code)}`} />
+        <ErpPageHeader icon="Package" title={`تعديل ${item.code}`} subtitle={t("تعديل بيانات الصنف وأكواده وصورته")} backHref={`/inventory/items/${encodeURIComponent(item.code)}`} />
         <ItemForm initial={{
           id: item.id, code: item.code, nameAr: item.nameAr ?? "",
           description: item.description ?? "", sellPrice: item.sellPrice ?? "0", minStock: item.minStock ?? "0",

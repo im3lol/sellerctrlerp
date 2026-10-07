@@ -1,4 +1,5 @@
 import { loadErpPage } from "@/lib/erp/org";
+import { getT } from "@/lib/i18n/server";
 import { getExpiryReport } from "@/lib/erp/expiry";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -20,6 +21,7 @@ type SP = { [k: string]: string | string[] | undefined };
 const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) ?? "";
 
 export default async function ExpiryPage({ searchParams }: { searchParams: Promise<SP> }) {
+  const t = await getT();
   return loadErpPage("inventory.view", async ({ orgId, permissions }) => {
     const sp = await searchParams;
     const fProduct = one(sp.product).trim();
@@ -46,28 +48,28 @@ export default async function ExpiryPage({ searchParams }: { searchParams: Promi
       <ReportShell
         reportKey="inv-expiry"
         icon="CalendarClock"
-        title="انتهاء الصلاحية"
+        title={t("انتهاء الصلاحية")}
         subtitle={`${rows.length} دفعة لها تاريخ صلاحية`}
         query={filterQs.toString()}
         permissions={permissions}
         filters={
           <>
-            <ReportField label="المنتج (اسم أو كود)">
-              <LedgerCombobox name="product" defaultValue={fProduct} placeholder="ابحث باسم الصنف أو الكود…" options={productSuggestions} />
+            <ReportField label={t("المنتج (اسم أو كود)")}>
+              <LedgerCombobox name="product" defaultValue={fProduct} placeholder={t("ابحث باسم الصنف أو الكود…")} options={productSuggestions} />
             </ReportField>
-            <ReportField label="المستودع">
+            <ReportField label={t("المستودع")}>
               <select name="warehouse" defaultValue={fWarehouse} className={selectCls}>
-                <option value="">كل المستودعات</option>
+                <option value="">{t("كل المستودعات")}</option>
                 {whList.map((w) => <option key={w.id} value={w.id}>{w.nameAr}</option>)}
               </select>
             </ReportField>
-            <ReportField label="الحالة">
+            <ReportField label={t("الحالة")}>
               <select name="status" defaultValue={fStatus} className={selectCls}>
-                <option value="">الكل</option>
+                <option value="">{t("الكل")}</option>
                 {STATUS_OPTIONS.map(([k, v]) => <option key={k} value={k}>{v}</option>)}
               </select>
             </ReportField>
-            <ReportField label="حد التنبيه (أيام)">
+            <ReportField label={t("حد التنبيه (أيام)")}>
               <Input name="within" type="number" min="1" defaultValue={String(withinDays)} />
             </ReportField>
           </>
@@ -81,8 +83,8 @@ export default async function ExpiryPage({ searchParams }: { searchParams: Promi
       >
         <Card>
           <CardHeader>
-            <CardTitle>الدفعات حسب الصلاحية</CardTitle>
-            <CardDescription>كل دفعة لها رصيد وتاريخ صلاحية، مرتّبة بالأقرب انتهاءً. «منتهي» انقضى تاريخه، «قرب الانتهاء» خلال المدة المحددة.</CardDescription>
+            <CardTitle>{t("الدفعات حسب الصلاحية")}</CardTitle>
+            <CardDescription>{t("كل دفعة لها رصيد وتاريخ صلاحية، مرتّبة بالأقرب انتهاءً. «منتهي» انقضى تاريخه، «قرب الانتهاء» خلال المدة المحددة.")}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
 
@@ -93,14 +95,14 @@ export default async function ExpiryPage({ searchParams }: { searchParams: Promi
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="text-start">الصنف</TableHead>
-                    <TableHead className="text-start">المستودع</TableHead>
-                    <TableHead className="text-start">رقم التشغيلة</TableHead>
-                    <TableHead className="text-start">تاريخ الصلاحية</TableHead>
-                    <TableHead className="text-start">المتبقّي للانتهاء</TableHead>
-                    <TableHead className="text-start">الكمية</TableHead>
-                    <TableHead className="text-start">القيمة</TableHead>
-                    <TableHead className="text-start">الحالة</TableHead>
+                    <TableHead className="text-start">{t("الصنف")}</TableHead>
+                    <TableHead className="text-start">{t("المستودع")}</TableHead>
+                    <TableHead className="text-start">{t("رقم التشغيلة")}</TableHead>
+                    <TableHead className="text-start">{t("تاريخ الصلاحية")}</TableHead>
+                    <TableHead className="text-start">{t("المتبقّي للانتهاء")}</TableHead>
+                    <TableHead className="text-start">{t("الكمية")}</TableHead>
+                    <TableHead className="text-start">{t("القيمة")}</TableHead>
+                    <TableHead className="text-start">{t("الحالة")}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -116,7 +118,7 @@ export default async function ExpiryPage({ searchParams }: { searchParams: Promi
                       <TableCell>{qty(r.remaining)}</TableCell>
                       <TableCell>{fmt(r.value)}</TableCell>
                       <TableCell>
-                        {r.status === "EXPIRED" ? <Badge variant="destructive">منتهي</Badge> : r.status === "NEAR" ? <Badge variant="secondary">قرب الانتهاء</Badge> : <Badge variant="default">سليم</Badge>}
+                        {r.status === "EXPIRED" ? <Badge variant="destructive">{t("منتهي")}</Badge> : r.status === "NEAR" ? <Badge variant="secondary">{t("قرب الانتهاء")}</Badge> : <Badge variant="default">{t("سليم")}</Badge>}
                       </TableCell>
                     </TableRow>
                   ))}

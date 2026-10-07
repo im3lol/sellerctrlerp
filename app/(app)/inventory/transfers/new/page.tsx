@@ -1,4 +1,5 @@
 import { and, asc, eq, sql } from "drizzle-orm";
+import { getT } from "@/lib/i18n/server";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
 import { warehouses, organizations } from "@/db/schema";
@@ -8,6 +9,7 @@ import { TransferForm } from "@/components/erp/transfer-form";
 type StockRow = { item_id: string; warehouse_id: string; balance_quantity: string };
 
 export default async function NewTransferPage() {
+  const t = await getT();
   return loadErpPage("inventory.create", async ({ orgId }) => {
     const [org] = await db.select({ nameAr: organizations.nameAr }).from(organizations).where(eq(organizations.id, orgId)).limit(1);
 
@@ -27,7 +29,7 @@ export default async function NewTransferPage() {
 
     return (
       <div className="space-y-6">
-        <ErpPageHeader icon="ArrowLeftRight" title="تحويل مخزني جديد" subtitle="نقل بين المستودعات" backHref="/inventory/transfers" />
+        <ErpPageHeader icon="ArrowLeftRight" title={t("تحويل مخزني جديد")} subtitle={t("نقل بين المستودعات")} backHref="/inventory/transfers" />
         <TransferForm
           orgName={org?.nameAr ?? ""}
           warehouses={whList.map((w) => ({ id: w.id, code: w.code, name: w.name }))}

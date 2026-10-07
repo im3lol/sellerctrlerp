@@ -1,4 +1,5 @@
 import { loadErpPage } from "@/lib/erp/org";
+import { getT } from "@/lib/i18n/server";
 import { getStockBalances } from "@/lib/erp/stock-balances";
 import { resolveAccountIds } from "@/lib/erp/accounting-config";
 import { accountBalances } from "@/lib/erp/financials";
@@ -12,6 +13,7 @@ const fmt = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { minimumFraction
  *  They must be equal — a non-zero difference means a posting bug (the GL == ledger
  *  invariant). Read-only. */
 export default async function InventoryValuationReconciliationPage() {
+  const t = await getT();
   return loadErpPage("inventory.view", async ({ orgId }) => {
     const [{ totals }, invMap, balances] = await Promise.all([
       getStockBalances(orgId, {}),
@@ -28,18 +30,18 @@ export default async function InventoryValuationReconciliationPage() {
 
     return (
       <div className="space-y-6">
-        <ErpPageHeader icon="Scale" title="مطابقة قيمة المخزون" subtitle="قيمة دفتر المخزون مقابل حساب المخزون في الأستاذ العام" backHref="/inventory" />
+        <ErpPageHeader icon="Scale" title={t("مطابقة قيمة المخزون")} subtitle={t("قيمة دفتر المخزون مقابل حساب المخزون في الأستاذ العام")} backHref="/inventory" />
 
         <div className="grid gap-4 sm:grid-cols-3">
-          <Card><CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">قيمة دفتر المخزون</CardTitle></CardHeader><CardContent><p className="text-2xl font-bold tabular-nums">{fmt(ledgerValue)}</p></CardContent></Card>
-          <Card><CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">رصيد حساب المخزون (GL)</CardTitle></CardHeader><CardContent><p className="text-2xl font-bold tabular-nums">{fmt(glValue)}</p></CardContent></Card>
-          <Card><CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">الفرق</CardTitle></CardHeader><CardContent><p className={`text-2xl font-bold tabular-nums ${matched ? "text-emerald-600" : "text-destructive"}`}>{fmt(diff)}</p></CardContent></Card>
+          <Card><CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">{t("قيمة دفتر المخزون")}</CardTitle></CardHeader><CardContent><p className="text-2xl font-bold tabular-nums">{fmt(ledgerValue)}</p></CardContent></Card>
+          <Card><CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">{t("رصيد حساب المخزون (GL)")}</CardTitle></CardHeader><CardContent><p className="text-2xl font-bold tabular-nums">{fmt(glValue)}</p></CardContent></Card>
+          <Card><CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">{t("الفرق")}</CardTitle></CardHeader><CardContent><p className={`text-2xl font-bold tabular-nums ${matched ? "text-emerald-600" : "text-destructive"}`}>{fmt(diff)}</p></CardContent></Card>
         </div>
 
         <Card>
           <CardHeader className="flex-row items-center justify-between">
             <div>
-              <CardTitle>النتيجة</CardTitle>
+              <CardTitle>{t("النتيجة")}</CardTitle>
               <CardDescription>
                 {invAccount
                   ? `حساب المخزون: ${invAccount.code} — ${invAccount.nameAr}. القيمتان يجب أن تتطابقا؛ أي فرق يعني خطأً في الترحيل.`
@@ -50,7 +52,7 @@ export default async function InventoryValuationReconciliationPage() {
           </CardHeader>
           <CardContent>
             {matched ? (
-              <p className="text-sm text-muted-foreground">دفتر المخزون يطابق حساب الأستاذ العام تماماً.</p>
+              <p className="text-sm text-muted-foreground">{t("دفتر المخزون يطابق حساب الأستاذ العام تماماً.")}</p>
             ) : (
               <p className="text-sm text-destructive">
                 يوجد فرق قدره {fmt(Math.abs(diff))}. راجِع القيود اليدوية على حساب المخزون أو حركات المخزون غير المُرحَّلة محاسبياً.
