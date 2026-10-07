@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
+import { useT } from "@/lib/i18n/client";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -44,6 +45,7 @@ type Entry =
 export function DocChatter({ kind, entityId, entityNumber, audit }: {
   kind: ChatterKind; entityId: string; entityNumber: string; audit: AuditRow[];
 }) {
+  const t = useT();
   const [data, setData] = useState<ChatterData | null>(null);
   const [failed, setFailed] = useState(false);
   const [tab, setTab] = useState<"comment" | "followUp">("comment");
@@ -94,8 +96,8 @@ export function DocChatter({ kind, entityId, entityNumber, audit }: {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center gap-2"><Icon name="MessagesSquare" className="size-4" />المحادثة والسجل</CardTitle>
-        <CardDescription>علّق، اذكر زميل بـ«@»، أو سيب متابعة على حد بموعد — وكل اللي حصل على المستند في مكان واحد.</CardDescription>
+        <CardTitle className="flex items-center gap-2"><Icon name="MessagesSquare" className="size-4" />{t("المحادثة والسجل")}</CardTitle>
+        <CardDescription>{t("علّق، اذكر زميل بـ«@»، أو سيب متابعة على حد بموعد — وكل اللي حصل على المستند في مكان واحد.")}</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         {!data ? (
@@ -113,13 +115,13 @@ export function DocChatter({ kind, entityId, entityNumber, audit }: {
             {tab === "comment" ? (
               <>
                 <textarea
-                  value={body} onChange={(e) => setBody(e.target.value)} rows={3} placeholder="اكتب تعليق…"
+                  value={body} onChange={(e) => setBody(e.target.value)} rows={3} placeholder={t("اكتب تعليق…")}
                   className="w-full resize-y rounded-md border bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 />
                 <div className="flex flex-wrap items-center gap-2">
                   <div className="w-52">
                     <CellCombobox
-                      selectedLabel="" placeholder="@ اذكر زميل…"
+                      selectedLabel="" placeholder={t("@ اذكر زميل…")}
                       options={data.members.filter((m) => m.id !== data.me && !mentions.includes(m.id)).map((m) => ({ id: m.id, label: m.name }))}
                       onSelect={(id, label) => {
                         setMentions((ms) => [...ms, id]);
@@ -130,7 +132,7 @@ export function DocChatter({ kind, entityId, entityNumber, audit }: {
                   {mentions.map((id) => (
                     <Badge key={id} variant="secondary" className="gap-1">
                       @{nameOf(id)}
-                      <button type="button" aria-label="شيل" onClick={() => setMentions((ms) => ms.filter((x) => x !== id))}>
+                      <button type="button" aria-label={t("شيل")} onClick={() => setMentions((ms) => ms.filter((x) => x !== id))}>
                         <Icon name="X" className="size-3" />
                       </button>
                     </Badge>
@@ -144,10 +146,10 @@ export function DocChatter({ kind, entityId, entityNumber, audit }: {
             ) : (
               <div className="flex flex-wrap items-end gap-2">
                 <Input value={summary} onChange={(e) => setSummary(e.target.value)} className="min-w-60 flex-1"
-                  placeholder="المطلوب — مثلاً: كلّم المورد على موعد الشحن" />
+                  placeholder={t("المطلوب — مثلاً: كلّم المورد على موعد الشحن")} />
                 <div className="w-44">
                   <CellCombobox
-                    selectedLabel={assignee ? nameOf(assignee) : ""} placeholder="على مين؟"
+                    selectedLabel={assignee ? nameOf(assignee) : ""} placeholder={t("على مين؟")}
                     options={data.members.map((m) => ({ id: m.id, label: m.id === data.me ? `${m.name} (أنا)` : m.name }))}
                     onSelect={(id) => setAssignee(id)}
                   />
@@ -163,7 +165,7 @@ export function DocChatter({ kind, entityId, entityNumber, audit }: {
         )}
 
         {entries.length === 0 ? (
-          <p className="py-2 text-center text-sm text-muted-foreground">لسه مفيش حاجة على المستند ده.</p>
+          <p className="py-2 text-center text-sm text-muted-foreground">{t("لسه مفيش حاجة على المستند ده.")}</p>
         ) : (
           <ol className="space-y-3">
             {entries.map((e) => (
@@ -179,7 +181,7 @@ export function DocChatter({ kind, entityId, entityNumber, audit }: {
                         <span>{when(e.c.createdAt)}</span>
                         {e.c.userId === data?.me && (
                           <button type="button" className="ms-auto hover:text-destructive" disabled={pending}
-                            onClick={() => run(() => deleteCommentAction(kind, e.c.id), "اتمسح")}>مسح</button>
+                            onClick={() => run(() => deleteCommentAction(kind, e.c.id), "اتمسح")}>{t("مسح")}</button>
                         )}
                       </div>
                       <p className="mt-1 whitespace-pre-wrap text-sm">{e.c.body}</p>

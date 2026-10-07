@@ -1,4 +1,7 @@
+"use client";
+
 import Link from "next/link";
+import { useT } from "@/lib/i18n/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Icon } from "@/components/icon";
@@ -30,13 +33,14 @@ export type DocLink = { label: string; number: string | null; href: string | nul
 
 /** "المستندات المرتبطة" — prev/next documents in the cycle. Renders nothing if all empty. */
 export function LinkedDocsCard({ links }: { links: DocLink[] }) {
+  const t = useT();
   const present = links.filter((l) => l.number);
   if (present.length === 0) return null;
   return (
     <Card>
       <CardHeader>
-        <CardTitle>المستندات المرتبطة</CardTitle>
-        <CardDescription>تنقّل عبر دورة المستند.</CardDescription>
+        <CardTitle>{t("المستندات المرتبطة")}</CardTitle>
+        <CardDescription>{t("تنقّل عبر دورة المستند.")}</CardDescription>
       </CardHeader>
       <CardContent className="flex flex-wrap gap-2">
         {present.map((l) => (
@@ -56,15 +60,16 @@ export function LinkedDocsCard({ links }: { links: DocLink[] }) {
 
 /** "سجل التدقيق" for one document. */
 export function DocAuditCard({ rows }: { rows: AuditRow[] }) {
+  const t = useT();
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center gap-2"><Icon name="ScrollText" className="size-4" /> سجل التدقيق</CardTitle>
-        <CardDescription>كل حدث على هذا المستند.</CardDescription>
+        <CardTitle className="flex items-center gap-2"><Icon name="ScrollText" className="size-4" /> {t("سجل التدقيق")}</CardTitle>
+        <CardDescription>{t("كل حدث على هذا المستند.")}</CardDescription>
       </CardHeader>
       <CardContent>
         {rows.length === 0 ? (
-          <div className="py-4 text-center text-sm text-muted-foreground">لا توجد أحداث مسجّلة.</div>
+          <div className="py-4 text-center text-sm text-muted-foreground">{t("لا توجد أحداث مسجّلة.")}</div>
         ) : (
           <ol className="space-y-3">
             {rows.map((r) => (
