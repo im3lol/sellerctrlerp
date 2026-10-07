@@ -1,4 +1,8 @@
-﻿# SellerCtrl watchdog — a Task Scheduler job every 5 minutes, independent of everything else.
+﻿# NOTE: the copy that actually runs lives in C:\Users\3lyge\sellerctrl-tunnel\ and is
+# started by the 'SellerCtrl Watchdog' scheduled task every 5 minutes. This one is here
+# so the logic is reviewable and recoverable - after editing it, copy it back there;
+# the scheduler does not read the repository.
+# SellerCtrl watchdog — a Task Scheduler job every 5 minutes, independent of everything else.
 #
 # Why it exists: on 12 Sep 2026 the tunnel supervisor (supervise-tunnel.ps1) died with the
 # process that had launched it and took cloudflared with it. The app and the containers
