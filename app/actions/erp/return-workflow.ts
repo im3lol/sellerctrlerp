@@ -62,10 +62,10 @@ export async function getReturnWorkspaceAction(caseId?:string,page=1){
    .where(and(eq(stockMovements.organizationId,auth.orgId),eq(stockMovements.type,"OUT"),
     inArray(stockMovements.referenceId,[...new Set(detail.record.state.lines.map(l=>l.deliveryId??l.invoiceId))]))):[];
   const visibleDetail=detail&&"error"in finance?{...detail,
-   record:{...detail.record,state:{...detail.record.state,claims:detail.record.state.claims.map(c=>({...c,expectedAmount:null,acceptedAmount:null}))}},
+   record:{...detail.record,state:{...detail.record.state,claims:detail.record.state.claims.map(c=>({...c,expectedAmount:null,acceptedAmount:null,reconciledCash:undefined}))}},
    events:detail.events.filter(e=>!["REFUND","REIMBURSEMENT"].includes(e.kind)),
-   operations:detail.operations.map(o=>["FINANCIAL","REIMBURSEMENT","FEES"].includes(o.kind)?{...o,payload:{}}:o)}:detail;
-  return {page,config,list:list.map(r=>({...r,state:"error"in finance?{...r.state,claims:r.state.claims.map(c=>({...c,expectedAmount:null,acceptedAmount:null}))}:r.state,closure:caseClosure(r.state)})),
+   operations:detail.operations.map(o=>["FINANCIAL","REIMBURSEMENT","FEES","CLAIM"].includes(o.kind)?{...o,payload:{}}:o)}:detail;
+  return {page,config,list:list.map(r=>({...r,state:"error"in finance?{...r.state,claims:r.state.claims.map(c=>({...c,expectedAmount:null,acceptedAmount:null,reconciledCash:undefined}))}:r.state,closure:caseClosure(r.state)})),
    platforms,warehouses:wh,items:itemList,losses,evidencePool:evidencePool.filter(e=>!("error"in finance)||e.kind!=="REIMBURSEMENT").map(e=>({...e,payload:undefined})),detail:visibleDetail,available,movements:moves,capabilities,canFinance:!("error"in finance),canConfigure:permissions.has("settings.edit")&&permissions.has("approvals.decide")};
  });
 }

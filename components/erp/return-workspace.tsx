@@ -16,7 +16,7 @@ const opLabels:Partial<Record<ReturnOperationKind,string>>={MATCH:"مطابقة 
 export function ReturnWorkspace({initial}:{initial:Data}){
  const t=useT();const [data,setData]=useState(initial);const [busy,start]=useTransition();
  const [query,setQuery]=useState("");const [filter,setFilter]=useState("OPEN");
- const [platform,setPlatform]=useState(data.platforms[0]?.id??"");const [kind,setKind]=useState<ReturnOperationKind>("MATCH");
+ const [platform,setPlatform]=useState(data.platforms[0]?.id??"");const [kind,setKind]=useState<ReturnOperationKind>(()=>(Object.keys(opLabels).find(k=>initial.capabilities[k as ReturnOperationKind])??"MATCH")as ReturnOperationKind);
  const [feedback,setFeedback]=useState<string|null>(null);
  const commandRef=useRef<{signature:string;key:string}|null>(null);
  const detail=data.detail;const state=detail?.record.state;const progress=state?caseClosure(state):null;
