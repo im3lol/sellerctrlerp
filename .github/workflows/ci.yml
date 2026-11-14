@@ -101,9 +101,11 @@ jobs:
         run: npm run db:rls
 
       - name: Returns workflow against an isolated empty database
+        env:
+          PG_CONTAINER: ${{ job.services.postgres.id }}
         run: |
-          PGPASSWORD=sellerctrl createdb -h localhost -U sellerctrl sellerctrl_returns_test
-          pg_dump "$DATABASE_URL" --schema-only --no-owner --no-acl | PGPASSWORD=sellerctrl psql -h localhost -U sellerctrl -d sellerctrl_returns_test -v ON_ERROR_STOP=1 > /dev/null
+          docker exec "$PG_CONTAINER" createdb -U sellerctrl sellerctrl_returns_test
+          docker exec "$PG_CONTAINER" pg_dump -U sellerctrl -d sellerctrl --schema-only --no-owner --no-acl | docker exec -i "$PG_CONTAINER" psql -U sellerctrl -d sellerctrl_returns_test -v ON_ERROR_STOP=1 > /dev/null
           RETURNS_TEST_DATABASE_URL=postgres://sellerctrl:sellerctrl@localhost:5432/sellerctrl_returns_test npx vitest run lib/erp/return-workflow/__tests__/database.integration.test.ts
 
       # Every org-scoped table must have enforced RLS (fails if a new table slips through).
