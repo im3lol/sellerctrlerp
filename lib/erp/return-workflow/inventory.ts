@@ -13,6 +13,7 @@ import { workflowSettings } from "./store";
 import {caseEvidence}from "./evidence";
 import {normalizeCode}from "@/lib/erp/amazon-import";
 import {physicalReceiptCapacity}from "./physical-proof";
+import {originalReceiptCost}from "./original-cost";
 
 export type ReceiptDecision={lineId:string;quantity:string;movementId:string;warehouseId:string;
  condition:"SELLABLE"|"QUARANTINE"|"WRITE_OFF";location:"AMAZON"|"LOCAL";
@@ -76,9 +77,7 @@ export async function applyReturnReceipt(orgId:string,userId:string,caseId:strin
   const date=new Date(d.date+"T12:00:00Z");if(!Number.isFinite(date.getTime()))throw new Error("Invalid receipt date");
   const config=await workflowSettings(orgId);
   if(!config.cutoverAt||d.date<config.cutoverAt.toISOString().slice(0,10))throw new Error("Historical receipts require a separately approved reconciliation");
-  const cost=Number(movement.totalCost)/Number(movement.quantity),quantity=Number(d.quantity);
-  const value=Math.round(cost*quantity*100)/100;
-  if(scaled(d.quantity)<scaled(movement.quantity)&&Math.abs(cost*quantity-value)>0.0000001)throw new Error("A partial return with fractional-cent original cost needs an explicit rounding-allocation review");
+  const {unitCost:cost,value}=originalReceiptCost(movement.totalCost,movement.quantity,d.quantity),quantity=Number(d.quantity);
   const A=await resolveAccountIds(orgId,["1104","5101","5301"]);
   if(!A["1104"]||!A["5101"]||(d.condition==="WRITE_OFF"&&!A["5301"]))throw new Error("Missing inventory/return accounts");
   const scope=scopeStore.getStore();if(!scope)throw new Error("Tenant scope required");

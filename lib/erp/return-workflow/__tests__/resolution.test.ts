@@ -3,6 +3,7 @@ import {emptyCaseState,caseClosure,scaled,decimal,refundAmount,assertReceiptCapa
 import {refundReconciliation,allocationFingerprint}from "../finance-math";
 import {projectReturnState}from "../projection";
 import {physicalReceiptCapacity}from "../physical-proof";
+import {originalReceiptCost}from "../original-cost";
 const line=(over:Partial<ReturnCaseLine>={}):ReturnCaseLine=>({id:"l",itemId:"i",invoiceId:"s",invoiceLineId:"l",deliveryId:"d",soldQuantity:"2",expectedQuantity:"2",receivedQuantity:"0",waivedQuantity:"0",writtenOffQuantity:"0",...over});
 describe("independent return resolution",()=>{
  it("does not add the ledger and return report for the same physical quantity",()=>{
@@ -48,6 +49,12 @@ describe("independent return resolution",()=>{
  });
 });
 describe("refund accounting precision",()=>{
+ it("holds indivisible partial cost rather than reversing 9.99 from an original 10.00",()=>{
+  expect(()=>originalReceiptCost("10","3","1")).toThrow("rounding-allocation");
+  expect(originalReceiptCost("10","3","3").value).toBe(10);
+  expect(originalReceiptCost("40","2","1")).toMatchObject({unitCost:20,value:20});
+  expect(originalReceiptCost("0","2","1").value).toBe(0);
+ });
  it("compares JSONB decisions by value instead of object key order",()=>{
   expect(allocationFingerprint([{invoiceId:"i",lineId:"l",quantity:"1",parts:{principal:"100",discount:"0",tax:"14",shipping:"0"}}]))
    .toBe(allocationFingerprint([{lineId:"l",invoiceId:"i",parts:{shipping:"0.0000",tax:"14.0000",discount:"0.0000",principal:"100.0000"},quantity:"1.0000"}]));
