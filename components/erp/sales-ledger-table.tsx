@@ -65,6 +65,7 @@ export function SalesLedgerTable({
             <th className="px-3 py-2 text-left font-medium">{t("السعر")}</th>
             <th className="px-3 py-2 text-left font-medium">{t("الخصم")}</th>
             <th className="px-3 py-2 text-left font-medium">{t("الضريبة")}</th>
+            <th className="px-3 py-2 text-left font-medium">{t("الشحن")}</th>
             <th className="px-3 py-2 text-left font-medium">{t("الإجمالي")}</th>
           </tr>
         </thead>
@@ -97,6 +98,7 @@ export function SalesLedgerTable({
                 <td className="px-3 py-2 text-left"><MoneyCell v={r.subtotal} /></td>
                 <td className="px-3 py-2 text-left"><MoneyCell v={r.discount} /></td>
                 <td className="px-3 py-2 text-left"><MoneyCell v={r.tax} /></td>
+                <td className="px-3 py-2 text-left"><MoneyCell v={r.shipping} /></td>
                 <td className="px-3 py-2 text-left font-medium"><MoneyCell v={r.total} /></td>
               </tr>
             );
@@ -105,13 +107,14 @@ export function SalesLedgerTable({
         <tfoot className="border-t-2 border-border bg-muted/40">
           <tr className="font-semibold text-sm">
             <td colSpan={5} className="px-3 py-2.5 text-start text-muted-foreground">
-              {t("الإجمالي الكلي")}
+              {t(totals.label)}
             </td>
             <td className="px-3 py-2.5 text-left tabular-nums">{fmtQty(totals.qtyTotal)}</td>
             <td className="px-3 py-2.5 text-left tabular-nums text-emerald-700">{fmtQty(totals.qtyDelivered)}</td>
             <td className="px-3 py-2.5 text-left tabular-nums">{fmtMoney(totals.subtotal)}</td>
             <td className="px-3 py-2.5 text-left tabular-nums">{fmtMoney(totals.discount)}</td>
             <td className="px-3 py-2.5 text-left tabular-nums">{fmtMoney(totals.tax)}</td>
+            <td className="px-3 py-2.5 text-left tabular-nums">{fmtMoney(totals.shipping)}</td>
             <td className="px-3 py-2.5 text-left tabular-nums">{fmtMoney(totals.total)}</td>
           </tr>
         </tfoot>

@@ -1,4 +1,5 @@
 import "server-only";
+import { documentLedgerTotals, documentLedgerTotalLabel } from "@/lib/erp/document-ledger-totals";
 import { and, asc, eq, gte, inArray, lte, sql, type SQL } from "drizzle-orm";
 import type { PgColumn, PgTable } from "drizzle-orm/pg-core";
 import { db } from "@/lib/db";
@@ -17,9 +18,11 @@ export type SalesLedgerRow = {
   customerName: string;
   docType: SalesLedgerDocType;
   status: string;
+  financialReturn?: boolean;
   qtyTotal: number | null;
   qtyDelivered: number | null;
   subtotal: number | null;
+  shipping: number | null;
   discount: number | null;
   tax: number | null;
   total: number | null;
@@ -27,9 +30,11 @@ export type SalesLedgerRow = {
 };
 
 export type SalesLedgerTotals = {
+  label: string;
   qtyTotal: number;
   qtyDelivered: number;
   subtotal: number;
+  shipping: number;
   discount: number;
   tax: number;
   total: number;
@@ -128,7 +133,7 @@ export async function getSalesLedger(orgId: string, filters: SalesLedgerFilters)
       .select({
         id: salesOrders.id, number: salesOrders.number, date: salesOrders.date,
         status: salesOrders.status, customerId: salesOrders.customerId,
-        subtotal: salesOrders.subtotal, discount: salesOrders.discountAmount,
+        subtotal: salesOrders.subtotal, discount: salesOrders.discountAmount, shipping: salesOrders.shippingAmount,
         tax: salesOrders.taxAmount, total: salesOrders.totalAmount,
       })
       .from(salesOrders)
@@ -150,7 +155,7 @@ export async function getSalesLedger(orgId: string, filters: SalesLedgerFilters)
         id: `ORDER-${r.id}`, number: r.number, date: r.date,
         customerName: custMap.get(r.customerId) ?? "—", docType: "ORDER", status: r.status,
         qtyTotal: Number(q?.total ?? 0), qtyDelivered: Number(q?.delivered ?? 0),
-        subtotal: num(r.subtotal), discount: num(r.discount), tax: num(r.tax), total: num(r.total),
+        subtotal: num(r.subtotal), shipping: num(r.shipping), discount: num(r.discount), tax: num(r.tax), total: num(r.total),
         href: `/sales/orders/${r.number}`,
       });
     }
@@ -186,7 +191,7 @@ export async function getSalesLedger(orgId: string, filters: SalesLedgerFilters)
         id: `DELIVERY-${r.id}`, number: r.number, date: r.date,
         customerName: (r.customerId && custMap.get(r.customerId)) || "—", docType: "DELIVERY", status: r.status,
         qtyTotal: Number(qm.get(r.id)?.total ?? 0), qtyDelivered: null,
-        subtotal: null, discount: null, tax: null, total: null,
+        subtotal: null, shipping: null, discount: null, tax: null, total: null,
         href: `/sales/deliveries/${r.number}`,
       });
     }
@@ -204,7 +209,7 @@ export async function getSalesLedger(orgId: string, filters: SalesLedgerFilters)
       .select({
         id: salesInvoices.id, number: salesInvoices.number, date: salesInvoices.date,
         status: salesInvoices.status, customerId: salesInvoices.customerId,
-        subtotal: salesInvoices.subtotal, discount: salesInvoices.discountAmount,
+        subtotal: salesInvoices.subtotal, discount: salesInvoices.discountAmount, shipping: salesInvoices.shippingAmount,
         tax: salesInvoices.taxAmount, total: salesInvoices.totalAmount,
       })
       .from(salesInvoices)
@@ -224,7 +229,7 @@ export async function getSalesLedger(orgId: string, filters: SalesLedgerFilters)
         id: `INVOICE-${r.id}`, number: r.number, date: r.date,
         customerName: custMap.get(r.customerId) ?? "—", docType: "INVOICE", status: r.status,
         qtyTotal: Number(qm.get(r.id)?.total ?? 0), qtyDelivered: null,
-        subtotal: num(r.subtotal), discount: num(r.discount), tax: num(r.tax), total: num(r.total),
+        subtotal: num(r.subtotal), shipping: num(r.shipping), discount: num(r.discount), tax: num(r.tax), total: num(r.total),
         href: `/sales/invoices/${r.number}`,
       });
     }
@@ -241,7 +246,7 @@ export async function getSalesLedger(orgId: string, filters: SalesLedgerFilters)
     const list = await db
       .select({
         id: salesReturns.id, number: salesReturns.number, date: salesReturns.date,
-        status: salesReturns.status, customerId: salesReturns.customerId, total: salesReturns.totalAmount,
+        status: salesReturns.status, invoiceId: salesReturns.salesInvoiceId, customerId: salesReturns.customerId, total: salesReturns.totalAmount,
       })
       .from(salesReturns)
       .where(and(...conds));
@@ -249,6 +254,7 @@ export async function getSalesLedger(orgId: string, filters: SalesLedgerFilters)
     const agg = ids.length
       ? await db.select({
           pid: salesReturnLines.salesReturnId,
+          net: sql<string>`round(coalesce(sum(${salesReturnLines.quantity} * ${salesReturnLines.unitPrice}),0),2)`,
           total: sql<string>`coalesce(sum(${salesReturnLines.quantity}),0)`,
         }).from(salesReturnLines)
           .where(inArray(salesReturnLines.salesReturnId, ids))
@@ -258,9 +264,9 @@ export async function getSalesLedger(orgId: string, filters: SalesLedgerFilters)
     for (const r of list) {
       rows.push({
         id: `RETURN-${r.id}`, number: r.number, date: r.date,
-        customerName: custMap.get(r.customerId) ?? "—", docType: "RETURN", status: r.status,
-        qtyTotal: Number(qm.get(r.id)?.total ?? 0), qtyDelivered: null,
-        subtotal: null, discount: null, tax: null, total: num(r.total),
+        customerName: custMap.get(r.customerId) ?? "—", docType: "RETURN", status: r.status, financialReturn: Boolean(r.invoiceId),
+        qtyTotal: Number(qm.get(r.id)?.total ?? 0), qtyDelivered: r.invoiceId ? null : Number(qm.get(r.id)?.total ?? 0),
+        subtotal: r.invoiceId ? Number(qm.get(r.id)?.net ?? 0) : null, shipping: null, discount: null, tax: r.invoiceId ? Math.round((Number(r.total) - Number(qm.get(r.id)?.net ?? 0)) * 100) / 100 : null, total: r.invoiceId ? num(r.total) : null,
         href: `/sales/returns/${r.number}`,
       });
     }
@@ -269,18 +275,7 @@ export async function getSalesLedger(orgId: string, filters: SalesLedgerFilters)
   // Newest-first.
   rows.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
-  const totals = rows.reduce(
-    (acc, r) => {
-      acc.qtyTotal += r.qtyTotal ?? 0;
-      acc.qtyDelivered += r.qtyDelivered ?? 0;
-      acc.subtotal += r.subtotal ?? 0;
-      acc.discount += r.discount ?? 0;
-      acc.tax += r.tax ?? 0;
-      acc.total += r.total ?? 0;
-      return acc;
-    },
-    { qtyTotal: 0, qtyDelivered: 0, subtotal: 0, discount: 0, tax: 0, total: 0 } as SalesLedgerTotals,
-  );
+  const totals = { ...documentLedgerTotals(rows, fType), label: documentLedgerTotalLabel(fType) };
 
   return { rows, totals, customers: custList, items: itemList };
 }

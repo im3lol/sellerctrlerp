@@ -76,6 +76,7 @@ export default async function PrintSalesLedgerPage({ searchParams }: { searchPar
             { label: "السعر", align: "end", width: "8%" },
             { label: "الخصم", align: "end", width: "7%" },
             { label: "الضريبة", align: "end", width: "7%" },
+            { label: "الشحن", align: "end", width: "7%" },
             { label: "الإجمالي", align: "end", width: "8%" },
           ],
           rows: shown.map((r) => [
@@ -89,12 +90,13 @@ export default async function PrintSalesLedgerPage({ searchParams }: { searchPar
             cell(r.subtotal, fmt),
             cell(r.discount, fmt),
             cell(r.tax, fmt),
+            cell(r.shipping, fmt),
             <b key="t">{cell(r.total, fmt)}</b>,
           ]),
           footerRow: [
-            "الإجمالي الكلي", "", "", "", "",
+            totals.label, "", "", "", "",
             qty(totals.qtyTotal), qty(totals.qtyDelivered),
-            fmt(totals.subtotal), fmt(totals.discount), fmt(totals.tax), fmt(totals.total),
+            fmt(totals.subtotal), fmt(totals.discount), fmt(totals.tax), fmt(totals.shipping), fmt(totals.total),
           ],
         }]}
         note={

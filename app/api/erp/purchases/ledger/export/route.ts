@@ -61,7 +61,7 @@ export async function GET(req: Request) {
   ]);
 
   const totalRow = [
-    "الإجمالي الكلي", "", "", "", "",
+    totals.label, "", "", "", "",
     totals.qtyTotal, totals.qtyReceived, totals.qtyRejected,
     totals.subtotal, totals.shipping, totals.discount, totals.tax, totals.total,
   ];

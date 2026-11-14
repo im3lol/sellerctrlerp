@@ -1,5 +1,5 @@
 import "server-only";
-import { and, desc, eq, gte, inArray, lte, sql } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, isNull, lte, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import {
   salesInvoiceLines, salesInvoices, salesOrderLines, salesOrders,
@@ -64,7 +64,14 @@ export async function getItemPnl(orgId: string, itemId: string, itemCode: string
       ))
     : [{ referral: "0", fba: "0", other: "0", n: "0" }];
 
-  const revenue = Number(sales?.revenue ?? 0);
+  const [returned] = await db.select({
+    units: sql<string>`coalesce(sum(${salesReturnLines.quantity}), 0)`,
+    revenue: sql<string>`coalesce(sum(${salesReturnLines.totalAmount}), 0)`,
+  }).from(salesReturnLines)
+    .innerJoin(salesReturns, eq(salesReturns.id, salesReturnLines.salesReturnId))
+    .where(and(eq(salesReturns.organizationId, orgId), eq(salesReturnLines.itemId, itemId),
+      eq(salesReturns.status, "POSTED"), isNull(salesReturns.deliveryNoteId)));
+  const revenue = Number(sales?.revenue ?? 0) - Number(returned?.revenue ?? 0);
   // From the stock ledger, not the invoice line: nothing writes `cost_amount`, so the
   // old `sum(costAmount)` reported every product as pure profit. See lib/erp/sales-cogs.ts.
   const cogs = await itemSalesCogs(orgId, itemId);
@@ -74,7 +81,7 @@ export async function getItemPnl(orgId: string, itemId: string, itemCode: string
   const amazonFees = referralFee + fbaFee + otherFee;
   const net = revenue - cogs - amazonFees;
   return {
-    units: Number(sales?.units ?? 0), revenue, cogs, referralFee, fbaFee, otherFee, amazonFees,
+    units: Number(sales?.units ?? 0) - Number(returned?.units ?? 0), revenue, cogs, referralFee, fbaFee, otherFee, amazonFees,
     net, margin: revenue > 0 ? (net / revenue) * 100 : 0,
     hasSettlement: Number(fees?.n ?? 0) > 0,
   };
