@@ -32,14 +32,15 @@ const permission:Record<ReturnOperationKind,ErpPermission>={MATCH:"sales.confirm
   TRANSFER:"inventory.confirm",WRITE_OFF:"accounting.post",WAIVE_RETURN:"approvals.decide",CLAIM:"sales.confirm",REIMBURSEMENT:"accounting.post",
   FEES:"accounting.post",EXCEPTION:"approvals.decide",REOPEN:"approvals.decide",REVERSE:"accounting.reverse"};
 
-export async function getReturnWorkspaceAction(caseId?:string){
+export async function getReturnWorkspaceAction(caseId?:string,page=1){
+ page=z.number().int().min(1).max(100000).catch(1).parse(page);
  const auth=await authorizeErp("sales.view","marketplace");if("error"in auth)return auth;
  const permissions=getErpContext()?.permissions??await withPlatformScope(async()=>{const {user}=await getActiveOrg();return user?(await getMemberAccess(auth.orgId,user)).permissions:new Set<ErpPermission>();});
  const finance=permissions.has("accounting.view")?{}:{error:"forbidden"};
  const capabilities:Partial<Record<ReturnOperationKind,boolean>>={};
  for(const [kind,p]of Object.entries(permission))capabilities[kind as ReturnOperationKind]=permissions.has(p);
  return withOrgScope(auth.orgId,false,async()=>{
-  const [config,list,platforms,wh]=await Promise.all([workflowSettings(auth.orgId),listReturnCases(auth.orgId),
+  const [config,list,platforms,wh]=await Promise.all([workflowSettings(auth.orgId),listReturnCases(auth.orgId,page),
    db.select({id:salesPlatforms.id,name:salesPlatforms.name}).from(salesPlatforms).where(and(eq(salesPlatforms.organizationId,auth.orgId),eq(salesPlatforms.code,"AMAZON"))),
    db.select({id:warehouses.id,name:warehouses.nameAr}).from(warehouses).where(and(eq(warehouses.organizationId,auth.orgId),eq(warehouses.isActive,true)))]);
   const storedDetail=caseId?await returnCaseDetail(auth.orgId,caseId):null;
@@ -64,7 +65,7 @@ export async function getReturnWorkspaceAction(caseId?:string){
    record:{...detail.record,state:{...detail.record.state,claims:detail.record.state.claims.map(c=>({...c,expectedAmount:null,acceptedAmount:null}))}},
    events:detail.events.filter(e=>!["REFUND","REIMBURSEMENT"].includes(e.kind)),
    operations:detail.operations.map(o=>["FINANCIAL","REIMBURSEMENT","FEES"].includes(o.kind)?{...o,payload:{}}:o)}:detail;
-  return {config,list:list.map(r=>({...r,state:"error"in finance?{...r.state,claims:r.state.claims.map(c=>({...c,expectedAmount:null,acceptedAmount:null}))}:r.state,closure:caseClosure(r.state)})),
+  return {page,config,list:list.map(r=>({...r,state:"error"in finance?{...r.state,claims:r.state.claims.map(c=>({...c,expectedAmount:null,acceptedAmount:null}))}:r.state,closure:caseClosure(r.state)})),
    platforms,warehouses:wh,items:itemList,losses,evidencePool:evidencePool.filter(e=>!("error"in finance)||e.kind!=="REIMBURSEMENT").map(e=>({...e,payload:undefined})),detail:visibleDetail,available,movements:moves,capabilities,canFinance:!("error"in finance),canConfigure:permissions.has("settings.edit")&&permissions.has("approvals.decide")};
  });
 }

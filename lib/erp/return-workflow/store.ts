@@ -13,8 +13,8 @@ export async function workflowSettings(orgId: string) {
   return (await db.select().from(settings).where(eq(settings.organizationId, orgId)).limit(1))[0]
     ?? { organizationId: orgId, mode: "DISABLED" as const, cutoverAt: null, updatedBy: null, updatedAt: new Date(0) };
 }
-export async function listReturnCases(orgId: string) {
-  const list=await db.select().from(cases).where(and(eq(cases.organizationId, orgId),sql`${cases.externalOrderId} not like 'LEDGER:%'`)).orderBy(desc(cases.updatedAt)).limit(200);
+export async function listReturnCases(orgId: string,page=1) {
+  const list=await db.select().from(cases).where(and(eq(cases.organizationId, orgId),sql`${cases.externalOrderId} not like 'LEDGER:%'`)).orderBy(desc(cases.updatedAt),desc(cases.id)).limit(200).offset((page-1)*200);
   if(!list.length)return list;
   const ids=list.map(c=>c.id);
   const [e,o]=await Promise.all([db.select().from(events).where(and(eq(events.organizationId,orgId),inArray(events.caseId,ids))).orderBy(desc(events.createdAt)),db.select().from(operations).where(and(eq(operations.organizationId,orgId),inArray(operations.caseId,ids)))]);

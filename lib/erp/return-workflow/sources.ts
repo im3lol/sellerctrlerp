@@ -2,7 +2,7 @@ import "server-only";
 import { and, eq, gte, isNull, or, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { salesPlatforms, salesOrders, platformReturns, marketplaceSettlementTxns,
-  fbaReimbursements, platformRemovals, fbaLedgerEvents } from "@/db/schema";
+  fbaReimbursements, platformRemovals, fbaLedgerEvents,returnWorkflowEvents } from "@/db/schema";
 import { digest, observeReturnSource, workflowSettings } from "./store";
 import type { ReturnSource } from "./model";
 
@@ -14,23 +14,25 @@ export async function captureReturnSources(orgId: string, platformId: string, fr
   const [platform] = await db.select().from(salesPlatforms)
     .where(and(eq(salesPlatforms.organizationId, orgId), eq(salesPlatforms.id, platformId))).limit(1);
   if (!platform||platform.code!=="AMAZON") throw new Error("This return workflow currently supports Amazon accounts only");
-  const siblings = await db.select({ id: salesPlatforms.id }).from(salesPlatforms)
+  const siblings = await db.select({ id: salesPlatforms.id,fulfillmentType:salesPlatforms.fulfillmentType }).from(salesPlatforms)
     .where(and(eq(salesPlatforms.organizationId, orgId), eq(salesPlatforms.code, platform.code)));
   const orders = await db.select({ external: salesOrders.externalOrderId }).from(salesOrders)
     .where(and(eq(salesOrders.organizationId, orgId), or(eq(salesOrders.platformId, platformId),
       siblings.length === 1 ? eq(salesOrders.channel, platform.code) : eq(salesOrders.platformId, platformId))));
   const orderIds = new Set(orders.map(o => o.external).filter(Boolean));
   const [returns, refunds, reimbursements, removals, ledger] = await Promise.all([
-    db.select().from(platformReturns).where(and(eq(platformReturns.organizationId,orgId),eq(platformReturns.channel,platform.code),gte(platformReturns.createdAt,from))),
+    db.select().from(platformReturns).where(and(eq(platformReturns.organizationId,orgId),eq(platformReturns.channel,platform.code),or(gte(platformReturns.createdAt,from),sql`exists(select 1 from ${returnWorkflowEvents} e where e.organization_id=${orgId} and e.kind='RETURN' and e.source_id=${platformReturns.id})`))),
     db.select().from(marketplaceSettlementTxns).where(and(eq(marketplaceSettlementTxns.organizationId,orgId),eq(marketplaceSettlementTxns.channel,platform.code),eq(marketplaceSettlementTxns.type,"Refund"),
       or(gte(marketplaceSettlementTxns.postedAt,from),gte(marketplaceSettlementTxns.releaseDate,from),gte(marketplaceSettlementTxns.createdAt,from)))),
     db.select().from(fbaReimbursements).where(and(eq(fbaReimbursements.organizationId,orgId),eq(fbaReimbursements.channel,platform.code),or(gte(fbaReimbursements.createdAt,from),gte(fbaReimbursements.updatedAt,from)))),
     db.select().from(platformRemovals).where(and(eq(platformRemovals.organizationId,orgId),eq(platformRemovals.channel,platform.code),or(gte(platformRemovals.createdAt,from),gte(platformRemovals.updatedAt,from)))),
-    db.select().from(fbaLedgerEvents).where(and(eq(fbaLedgerEvents.organizationId,orgId),eq(fbaLedgerEvents.channel,platform.code),gte(fbaLedgerEvents.createdAt,from))),
+    db.select().from(fbaLedgerEvents).where(and(eq(fbaLedgerEvents.organizationId,orgId),eq(fbaLedgerEvents.channel,platform.code),or(gte(fbaLedgerEvents.createdAt,from),sql`exists(select 1 from ${returnWorkflowEvents} e where e.organization_id=${orgId} and e.kind='LEDGER' and e.source_id=${fbaLedgerEvents.id})`))),
   ]);
   let observed=0,unmatched=0;
   const capture=async(order: string|null, source: Omit<ReturnSource,"sourceVersion">)=>{
-    if(siblings.length>1 && (!order || !orderIds.has(order))){unmatched++;return;}
+    const fba=siblings.filter(s=>s.fulfillmentType==="FBA");
+    const uniqueFbaSource=!order&&["REMOVAL","REIMBURSEMENT","LEDGER"].includes(source.kind)&&fba.length===1&&fba[0].id===platformId;
+    if(siblings.length>1 && (!order || !orderIds.has(order))&&!uniqueFbaSource){unmatched++;return;}
     const external=order || `${source.kind}:${source.sourceId}`;
     const {salesReturnId:_return,journalEntryId:_journal,updatedAt:_updated,status:_status,stockAdjustmentId:_stock,...facts}=source.payload;
     const canonical={...source,payload:facts};

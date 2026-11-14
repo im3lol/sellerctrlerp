@@ -293,10 +293,12 @@ export async function syncOrdersCore(p: SyncPrep, userId: string | null, range: 
 export type SettlementsSync = { ok: true; imported: number; updated: number; posted: number; deferredHeld: number; returnsCreated: number } | { ok: false; error: string };
 
 async function observeReturnWorkflow(p: SyncPrep, from: Date) {
-  if(p.connector.code!=="AMAZON"||!p.ctx.platformId)return;
-  const platformId=p.ctx.platformId;
+  if(p.connector.code!=="AMAZON")return;
   const {captureReturnSources}=await import("@/lib/erp/return-workflow/sources");
-  await withOrgScope(p.orgId,false,()=>captureReturnSources(p.orgId,platformId,from));
+  await withOrgScope(p.orgId,false,async()=>{
+    const platforms=await db.select({id:salesPlatforms.id}).from(salesPlatforms).where(and(eq(salesPlatforms.organizationId,p.orgId),eq(salesPlatforms.code,"AMAZON")));
+    for(const platform of platforms)await captureReturnSources(p.orgId,platform.id,from);
+  });
 }
 
 /**
@@ -427,6 +429,7 @@ export async function syncRemovalsCore(p: SyncPrep, range: DateRange): Promise<{
   try {
     const rows = await p.connector.fetchRemovals(p.cred, range);
     const up = await withOrgScope(p.orgId, false, () => upsertPlatformRemovals(p.orgId, rows, p.connector.code));
+    await observeReturnWorkflow(p,range.from);
     return { ok: true, imported: up.imported };
   } catch (e) {
     return coreFail(p, e, "فشل سحب أوامر السحب");

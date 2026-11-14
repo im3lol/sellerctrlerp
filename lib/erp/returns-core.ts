@@ -61,7 +61,9 @@ export async function upsertPlatformReturns(orgId: string, rows: PlatformReturnR
   let imported = 0;
   for (let i = 0; i < merged.length; i += 500) {
     const inserted = await db.insert(platformReturns).values(merged.slice(i, i + 500))
-      .onConflictDoNothing({ target: [platformReturns.organizationId, platformReturns.dedupKey] })
+      .onConflictDoUpdate({ target: [platformReturns.organizationId, platformReturns.dedupKey],set:{
+        quantity:sql`excluded.quantity`,disposition:sql`excluded.disposition`,reason:sql`excluded.reason`,raw:sql`excluded.raw`,
+      }})
       .returning({ id: platformReturns.id });
     imported += inserted.length;
   }
