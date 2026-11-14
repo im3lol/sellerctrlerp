@@ -1,6 +1,6 @@
 import "server-only";
 import { randomUUID } from "node:crypto";
-import { and, eq, sql } from "drizzle-orm";
+import { and,desc, eq,inArray,or, sql } from "drizzle-orm";
 import { db, scopeStore } from "@/lib/db";
 import { stockMovements, stockMovementBatches,items,itemCodes,salesPlatforms,returnWorkflowCases, salesReturns, salesReturnLines, salesInvoices, deliveryNotes, warehouses,
   returnWorkflowOperations as operations, returnWorkflowEvents as events } from "@/db/schema";
@@ -12,6 +12,7 @@ import { assertReceiptCapacity, decimal, scaled, type ReturnCaseState } from "./
 import { workflowSettings } from "./store";
 import {caseEvidence}from "./evidence";
 import {normalizeCode}from "@/lib/erp/amazon-import";
+import {physicalReceiptCapacity}from "./physical-proof";
 
 export type ReceiptDecision={lineId:string;quantity:string;movementId:string;warehouseId:string;
  condition:"SELLABLE"|"QUARANTINE"|"WRITE_OFF";location:"AMAZON"|"LOCAL";
@@ -43,7 +44,7 @@ export async function applyReturnReceipt(orgId:string,userId:string,caseId:strin
   if(lots.length>1&&scaled(d.quantity)!==scaled(movement.quantity))throw new Error("A partial return from several original lots requires a separate lot-cost allocation review");
   if(lots.length>1&&new Set(lots.map(l=>l.expiryDate?.toISOString()??"")).size>1)throw new Error("Separate the original expiry lots before returning them");
   if(d.condition==="SELLABLE"&&lots.some(l=>l.expiryDate&&l.expiryDate.toISOString().slice(0,10)<=d.date))throw new Error("Expired returns require quarantine or approved disposal");
-  if(d.condition==="QUARANTINE"&&d.warehouseId===movement.warehouseId)throw new Error("Unsellable goods require a separate quarantine warehouse");
+  if(d.condition==="QUARANTINE"&&(!warehouse.isQuarantine||d.warehouseId===movement.warehouseId))throw new Error("Unsellable goods require a separate designated quarantine warehouse");
   if(d.location==="AMAZON"){
     if(state.fulfillment!=="FBA"||!d.eventIds.length)throw new Error("An Amazon receipt requires FBA source evidence");
     const config=await workflowSettings(orgId);
@@ -56,13 +57,21 @@ export async function applyReturnReceipt(orgId:string,userId:string,caseId:strin
     for(const id of d.eventIds){
       const e=await caseEvidence(orgId,caseId,state,id);
       if(!e||!["RETURN","LEDGER"].includes(e.kind)||!e.happenedAt||!config.cutoverAt||e.happenedAt<config.cutoverAt)throw new Error("Historical or invalid receipt evidence is observation-only");
+      if(e.kind==="RETURN"&&e.payload.fulfillment!=="FBA")throw new Error("A seller-fulfilled return does not prove receipt at Amazon");
+      if(d.condition==="SELLABLE"&&String(e.payload.disposition??"").toUpperCase()!=="SELLABLE")throw new Error("Amazon source does not confirm sellable condition; quarantine the goods for review");
       const sku=String(e.payload.sku??e.payload.msku??"");
       if(!sku||!aliases.includes(normalizeCode(sku)))throw new Error("Receipt evidence SKU does not match the original item");
+      if(e.kind==="LEDGER"&&e.payload.eventType!=="CustomerReturns")throw new Error("Only a customer-return ledger event proves this return receipt");
+      if(e.kind==="LEDGER"&&e.payload.referenceId&&e.payload.referenceId!==owner.externalOrderId)throw new Error("The return ledger reference does not match the original order");
       const revisions=await db.select({id:events.id}).from(events).where(and(eq(events.organizationId,orgId),eq(events.kind,e.kind),eq(events.sourceId,e.sourceId)));
       const ids=new Set(revisions.map(r=>r.id));
       const allocated=prior.filter(o=>!o.reversedBy&&(o.payload.eventIds as string[]|undefined)?.some(id=>ids.has(id))).reduce((sum,o)=>sum+scaled(String(o.payload.quantity)),BigInt(0));
       if(e.quantity===null||allocated+scaled(d.quantity)>scaled(e.quantity))throw new Error("Receipt quantity exceeds the remaining source evidence");
     }
+    const allProof=await db.select().from(events).where(and(eq(events.organizationId,orgId),or(eq(events.caseId,caseId),state.evidenceIds?.length?inArray(events.id,state.evidenceIds):eq(events.caseId,caseId)))).orderBy(desc(events.createdAt));
+    const relevant=allProof.filter(e=>e.happenedAt&&config.cutoverAt&&e.happenedAt>=config.cutoverAt&&aliases.includes(normalizeCode(String(e.payload.sku??""))));
+    const received=state.lines.filter(l=>l.itemId===line.itemId).reduce((s,l)=>s+scaled(l.receivedQuantity),BigInt(0));
+    if(received+scaled(d.quantity)>physicalReceiptCapacity(relevant))throw new Error("Return report and ledger describe the same goods; receipt evidence cannot be counted twice");
   }
   const date=new Date(d.date+"T12:00:00Z");if(!Number.isFinite(date.getTime()))throw new Error("Invalid receipt date");
   const config=await workflowSettings(orgId);

@@ -75,6 +75,7 @@ export async function executeReturnOperation<T extends Record<string, unknown>>(
       throw new Error("Return workflow is in observation mode; posting is disabled");
     }
     if (record.version !== input.version) throw new Error("Return case changed; refresh the preview");
+    if(record.state.exception&&["FINANCIAL","RECEIPT","TRANSFER","WRITE_OFF","REIMBURSEMENT"].includes(input.kind))throw new Error("Review and clear the source exception before posting another stage");
     const operationId=randomUUID();
     const result = await apply(record,operationId);
     const [operation] = await db.insert(operations).values({ id:operationId,organizationId: input.orgId, caseId: record.id, key: input.key,

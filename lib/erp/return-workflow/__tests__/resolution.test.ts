@@ -2,8 +2,16 @@ import {describe,it,expect}from "vitest";
 import {emptyCaseState,caseClosure,scaled,decimal,refundAmount,assertReceiptCapacity,type ReturnCaseLine}from "../model";
 import {refundReconciliation,allocationFingerprint}from "../finance-math";
 import {projectReturnState}from "../projection";
+import {physicalReceiptCapacity}from "../physical-proof";
 const line=(over:Partial<ReturnCaseLine>={}):ReturnCaseLine=>({id:"l",itemId:"i",invoiceId:"s",invoiceLineId:"l",deliveryId:"d",soldQuantity:"2",expectedQuantity:"2",receivedQuantity:"0",waivedQuantity:"0",writtenOffQuantity:"0",...over});
 describe("independent return resolution",()=>{
+ it("does not add the ledger and return report for the same physical quantity",()=>{
+  const r={kind:"RETURN",sourceId:"r",quantity:"1",payload:{}};
+  const ledger={kind:"LEDGER",sourceId:"l",quantity:"1",payload:{eventType:"CustomerReturns",sku:"X",referenceId:"O",eventDate:"2026-11-15",fulfillmentCenter:"FC",disposition:"SELLABLE"}};
+  expect(physicalReceiptCapacity([r,ledger])).toBe(scaled("1"));
+  expect(physicalReceiptCapacity([{...ledger,sourceId:"revised",quantity:"2"},ledger])).toBe(scaled("2"));
+  expect(physicalReceiptCapacity([{...r,sourceId:"another"},r,ledger])).toBe(scaled("2"));
+ });
  it("does not infer a receipt or quantity from a refund",()=>{
   const s={...emptyCaseState("FBA"),matched:true,financial:"POSTED"as const,fees:"RECONCILED"as const,lines:[line({expectedQuantity:null})]};
   expect(caseClosure(s)).toMatchObject({financialClosed:true,inventoryClosed:false,closed:false});

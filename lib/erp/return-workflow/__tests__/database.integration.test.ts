@@ -90,7 +90,7 @@ describe.skipIf(!url)("returns PostgreSQL isolation and transaction contract",()
   const id=(await scope.withOrgScope(org,false,()=>store.observeReturnSource(org,platform,"TEST-FIN",{kind:"REFUND",sourceId:source,sourceVersion:"v1",happenedAt:date.toISOString(),sourceStatus:"Released",currency:"EGP",quantity:null,payload:{}})))!;
   const event=(await pg.query("select id from return_workflow_events where case_id=$1",[id])).rows[0].id;
   const decision={phase:"CREDIT"as "CREDIT"|"SETTLEMENT",eventId:event,invoiceId:invoice,lineId:line,parts:{principal:"50",discount:"0",tax:"7",shipping:"0"},quantity:"1",date:day,evidence:"TEST verified source",verified:true};
-  await scope.withOrgScope(org,false,()=>store.executeReturnOperation({...command("MATCH"),caseId:id},async r=>({state:{...r.state,matched:true,invoiceIds:[invoice],lines:[{id:line,itemId:item,invoiceId:invoice,invoiceLineId:line,deliveryId:null,soldQuantity:"2",expectedQuantity:"1",receivedQuantity:"0",waivedQuantity:"0",writtenOffQuantity:"0"}]}})));
+  await scope.withOrgScope(org,false,()=>store.executeReturnOperation({...command("MATCH"),caseId:id},async r=>({state:{...r.state,fulfillment:"FBA",matched:true,invoiceIds:[invoice],lines:[{id:line,itemId:item,invoiceId:invoice,invoiceLineId:line,deliveryId:null,soldQuantity:"2",expectedQuantity:"2",receivedQuantity:"0",waivedQuantity:"0",writtenOffQuantity:"0"}]}})));
   const finance=(phase:"CREDIT"|"SETTLEMENT",version:number,fail=false)=>scope.withOrgScope(org,false,()=>store.executeReturnOperation({...command("FINANCIAL",version),caseId:id,payload:{sourceId:source,phase,decision:{...decision,phase}}},async(r,operationId)=>{
    const result=await applyReturnFinance(org,user,id,r.state,{...decision,phase},operationId);if(fail)throw new Error("injected after financial posting");return result;
   }));
@@ -131,6 +131,18 @@ describe.skipIf(!url)("returns PostgreSQL isolation and transaction contract",()
   expect((await stock(warehouse)).value+(await stock(destination)).value).toBe(140);
   const detail=await scope.withOrgScope(org,false,()=>store.returnCaseDetail(org,removalCase));
   expect(detail.record.state.transfers?.[0]).toMatchObject({dispatched:"3",received:"2.0000",lost:"1.0000"});
+  await pg.query("update warehouses set is_quarantine=true where id=$1",[destination]);
+  await expect(scope.withOrgScope(org,false,()=>postStockMovement(scopeStore.getStore()!.tx,{orgId:org,itemId:item,warehouseId:destination,type:"OUT",quantity:1,date,referenceType:"DELIVERY",referenceId:randomUUID()}))).rejects.toThrow("Quarantined goods");
+  for(const [kind,sourceId,payload]of [["RETURN",randomUUID(),{sku:"TEST",fulfillment:"FBA",disposition:"SELLABLE"}],["LEDGER",randomUUID(),{sku:"TEST",fulfillment:"FBA",disposition:"SELLABLE",eventType:"CustomerReturns",referenceId:"TEST-FIN",eventDate:date.toISOString(),fulfillmentCenter:"FC"}]]as const){
+   await scope.withOrgScope(org,false,()=>store.observeReturnSource(org,platform,"TEST-FIN",{kind,sourceId,sourceVersion:"v1",happenedAt:date.toISOString(),sourceStatus:null,currency:null,quantity:"1",payload}));
+  }
+  const version=()=>pg.query("select version from return_workflow_cases where id=$1",[id]).then(r=>r.rows[0].version);
+  await scope.withOrgScope(org,false,()=>store.executeReturnOperation({...command("MATCH"),kind:"EXCEPTION",caseId:id,version:8},r=>Promise.resolve({state:{...r.state,exception:null}})));
+  const proofs=(await pg.query("select id,kind from return_workflow_events where case_id=$1 and kind in ('RETURN','LEDGER')",[id])).rows;
+  const amazonReceipt=async(eventId:string)=>{const v=await version();return scope.withOrgScope(org,false,()=>store.executeReturnOperation({...command("MATCH",v),kind:"RECEIPT",caseId:id,payload:{movementId:originalMovement,quantity:"1",eventIds:[eventId]}},r=>applyReturnReceipt(org,user,id,r.state,{lineId:line,quantity:"1",movementId:originalMovement,warehouseId:warehouse,condition:"SELLABLE",location:"AMAZON",eventIds:[eventId],evidence:"TEST FBA customer receipt",date:day})));};
+  await amazonReceipt(proofs.find(p=>p.kind==="RETURN").id);
+  await expect(amazonReceipt(proofs.find(p=>p.kind==="LEDGER").id)).rejects.toThrow("cannot be counted twice");
+  expect((await stock(warehouse)).quantity).toBe(6);
  },120000);
  it("matches reimbursement cash without recognizing the same income twice",async()=>{
   const {scopeStore}=await import("@/lib/db"),{postEntry}=await import("@/lib/erp/posting"),{applyReimbursement}=await import("../reimbursements");

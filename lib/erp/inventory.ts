@@ -1,7 +1,7 @@
 import { and, asc, desc, eq, gte, inArray, lte, sql } from "drizzle-orm";
 import { round4 } from "@/lib/erp/money";
 import { db } from "@/lib/db";
-import { stockMovements, stockBatches, stockMovementBatches, items, fiscalPeriods } from "@/db/schema";
+import { stockMovements, stockBatches, stockMovementBatches, items, fiscalPeriods,warehouses } from "@/db/schema";
 import { nextDocumentNumber } from "@/lib/erp/sequence";
 import { log } from "@/lib/log";
 
@@ -195,6 +195,10 @@ async function loadPinned(tx: Tx, allocs: BatchAllocationInput[]): Promise<PlanL
  * depletes lots FEFO (or pinned via `allocations`).
  */
 export async function postStockMovement(tx: Tx, input: StockInput): Promise<StockResult> {
+  if(input.type==="OUT"&&["DELIVERY","SALES_INVOICE"].includes(input.referenceType??"")){
+    const [warehouse]=await tx.select({quarantine:warehouses.isQuarantine}).from(warehouses).where(and(eq(warehouses.organizationId,input.orgId),eq(warehouses.id,input.warehouseId))).limit(1);
+    if(warehouse?.quarantine)throw new Error("Quarantined goods require inspection and release before a customer shipment");
+  }
   // Serialize concurrent movements on the same (org,item,warehouse). The running balance
   // is read (priorBalance) then written; without this lock two documents shipping the same
   // item can both read the same prior balance and oversell / corrupt the quantity & WAC.
