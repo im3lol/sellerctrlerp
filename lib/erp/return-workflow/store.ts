@@ -70,7 +70,8 @@ export async function executeReturnOperation<T extends Record<string, unknown>>(
       if (existing.inputHash !== hash) throw new Error("Idempotency key was reused with different data");
       return { id: existing.id, documents: existing.documents, replay: true };
     }
-    const config = await workflowSettings(input.orgId);
+    const [lockedConfig]=await db.select().from(settings).where(eq(settings.organizationId,input.orgId)).for("share");
+    const config = lockedConfig??await workflowSettings(input.orgId);
     if (config.mode === "DISABLED" || (config.mode !== "MANUAL" && !["MATCH","CLAIM","EXCEPTION","REOPEN"].includes(input.kind))) {
       throw new Error("Return workflow is in observation mode; posting is disabled");
     }

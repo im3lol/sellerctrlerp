@@ -9,6 +9,20 @@ CREATE TABLE return_workflow_settings (
  CHECK(mode <> 'MANUAL' OR cutover_at IS NOT NULL)
 );
 --> statement-breakpoint
+-- return-workflow-cutover-guard-start
+CREATE FUNCTION return_workflow_cutover_guard() RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+ IF OLD.cutover_at IS NOT NULL AND NEW.cutover_at IS DISTINCT FROM OLD.cutover_at THEN
+  RAISE EXCEPTION 'Return workflow cutover is immutable';
+ END IF;
+ IF NEW.cutover_at IS NOT NULL AND NEW.mode='DISABLED' THEN
+  RAISE EXCEPTION 'Return to observation mode; the legacy writer must not resume';
+ END IF;
+ RETURN NEW;
+END $$;
+CREATE TRIGGER return_workflow_cutover_guard BEFORE UPDATE ON return_workflow_settings FOR EACH ROW EXECUTE FUNCTION return_workflow_cutover_guard();
+-- return-workflow-cutover-guard-end
+--> statement-breakpoint
 CREATE TABLE return_workflow_cases (
  id text PRIMARY KEY DEFAULT gen_random_uuid()::text,
  organization_id text NOT NULL REFERENCES organizations(id), platform_id text NOT NULL REFERENCES sales_platforms(id),

@@ -76,7 +76,8 @@ export async function configureReturnWorkflowAction(input:unknown){
  const p=z.object({mode:z.enum(["MONITOR","MANUAL","DISABLED"]),acknowledged:z.boolean()}).safeParse(input);
  if(!p.success||!p.data.acknowledged)return {error:"Confirm the observation/cutover policy first"};
  return withOrgScope(auth.orgId,false,async()=>{
-  const prior=await workflowSettings(auth.orgId);
+  const [locked]=await db.select().from(settings).where(eq(settings.organizationId,auth.orgId)).for("update");
+  const prior=locked??await workflowSettings(auth.orgId);
   if(p.data.mode==="DISABLED"&&prior.cutoverAt)return {error:"Disable posting by returning to MONITOR; the legacy writer must not resume"};
   await db.insert(settings).values({organizationId:auth.orgId,mode:p.data.mode,cutoverAt:p.data.mode==="MANUAL"?prior.cutoverAt??new Date():prior.cutoverAt,updatedBy:auth.userId})
    .onConflictDoUpdate({target:settings.organizationId,set:{mode:p.data.mode,cutoverAt:p.data.mode==="MANUAL"?prior.cutoverAt??new Date():prior.cutoverAt,updatedBy:auth.userId,updatedAt:new Date()}});

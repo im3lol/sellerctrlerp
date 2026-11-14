@@ -70,6 +70,7 @@ describe.skipIf(!url)("returns PostgreSQL isolation and transaction contract",()
   const customer=randomUUID(),warehouse=randomUUID(),item=randomUUID(),invoice=randomUUID(),line=randomUUID(),source=randomUUID();
   const date=new Date(),day=date.toISOString().slice(0,10),ids:Record<string,string>={};
   await pg.query("update return_workflow_settings set mode='MANUAL',cutover_at='2000-01-01' where organization_id=$1",[org]);
+  await expect(pg.query("update return_workflow_settings set mode='DISABLED',cutover_at=null where organization_id=$1",[org])).rejects.toThrow("cutover is immutable");
   await pg.query("insert into customers(id,organization_id,code,name_ar) values($1,$2,'TEST','TEST')",[customer,org]);
   await pg.query("insert into warehouses(id,organization_id,code,name_ar) values($1,$2,'TEST','TEST')",[warehouse,org]);
   await pg.query("insert into items(id,organization_id,code,name_ar) values($1,$2,'TEST','TEST')",[item,org]);
