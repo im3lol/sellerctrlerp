@@ -10,6 +10,7 @@ import { loginDestination } from "./lib/auth/login-destination";
  * users off the landing/login pages. A default export is a valid proxy handler.
  */
 const { auth } = NextAuth(authConfig);
+const publicBrandMetadataPaths = new Set(["/favicon.ico", "/icon.png", "/apple-icon.png", "/manifest.webmanifest"]);
 const publicMarketingPaths = new Set(["/", "/signup", "/privacy", "/privacy-policy", "/robots.txt", "/sitemap.xml"]);
 
 export default auth((req) => {
@@ -44,6 +45,7 @@ export default auth((req) => {
   }
 
   const isPublic =
+    publicBrandMetadataPaths.has(path) ||
     path === "/" ||
     path.startsWith("/login") ||
     path.startsWith("/signup") ||

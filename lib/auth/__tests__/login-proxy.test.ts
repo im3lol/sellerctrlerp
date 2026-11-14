@@ -77,3 +77,11 @@ describe("login proxy continuation", () => {
   });
 });
 
+
+it.each(["/favicon.ico","/icon.png","/apple-icon.png","/manifest.webmanifest"])("serves brand metadata without sign-in on every public host: %s",path=>{
+ for(const origin of ["https://sellerctrl.com","https://app.sellerctrl.com","https://storage.sellerctrl.com"])expect(request(path+"?v=brand",undefined,origin)).toBeUndefined();
+});
+it("does not turn metadata-looking business paths into public routes",()=>{
+ expect(new URL(request("/icon.png/private")!.headers.get("location")!).pathname).toBe("/login");
+ expect(new URL(request("/manifest.webmanifest/private")!.headers.get("location")!).pathname).toBe("/login");
+});
