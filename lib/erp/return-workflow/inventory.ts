@@ -78,6 +78,7 @@ export async function applyReturnReceipt(orgId:string,userId:string,caseId:strin
   if(!config.cutoverAt||d.date<config.cutoverAt.toISOString().slice(0,10))throw new Error("Historical receipts require a separately approved reconciliation");
   const cost=Number(movement.totalCost)/Number(movement.quantity),quantity=Number(d.quantity);
   const value=Math.round(cost*quantity*100)/100;
+  if(scaled(d.quantity)<scaled(movement.quantity)&&Math.abs(cost*quantity-value)>0.0000001)throw new Error("A partial return with fractional-cent original cost needs an explicit rounding-allocation review");
   const A=await resolveAccountIds(orgId,["1104","5101","5301"]);
   if(!A["1104"]||!A["5101"]||(d.condition==="WRITE_OFF"&&!A["5301"]))throw new Error("Missing inventory/return accounts");
   const scope=scopeStore.getStore();if(!scope)throw new Error("Tenant scope required");

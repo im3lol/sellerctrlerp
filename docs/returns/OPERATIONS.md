@@ -56,7 +56,8 @@ duplicating the existing stock, credit-note, transfer and journal document engin
 
 Ambiguous legacy account assignments are held for review, not guessed. Partial
 returns from several old lots with no reliable individual cost snapshot, mixed expiry
-lots, and serial-tracked items are held for a separate allocation review. Posting to a
+lots, serial-tracked items and partial original costs below currency-cent precision are
+held for a separate allocation review. Posting to a
 closed period, missing FX rates, component rounding differences and already processed
 legacy sources are refused. These holds are intentional; they are not completed
 reconciliations. No historical settlement rewrite, external refund issuance or automatic
