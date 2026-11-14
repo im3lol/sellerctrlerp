@@ -6,12 +6,17 @@ CREATE TABLE return_workflow_settings (
  organization_id text PRIMARY KEY REFERENCES organizations(id),
  mode text NOT NULL DEFAULT 'MONITOR' CHECK(mode IN ('DISABLED','MONITOR','MANUAL')),
  cutover_at timestamptz, updated_by text, updated_at timestamptz NOT NULL DEFAULT now(),
- CHECK(mode <> 'MANUAL' OR cutover_at IS NOT NULL)
+ CHECK(mode <> 'MANUAL' OR cutover_at IS NOT NULL),
+ CHECK(cutover_at IS NULL OR mode <> 'DISABLED')
 );
 --> statement-breakpoint
 -- return-workflow-cutover-guard-start
 CREATE FUNCTION return_workflow_cutover_guard() RETURNS trigger LANGUAGE plpgsql AS $$
 BEGIN
+ IF TG_OP='DELETE' THEN
+  IF OLD.cutover_at IS NOT NULL THEN RAISE EXCEPTION 'Return workflow cutover cannot be deleted'; END IF;
+  RETURN OLD;
+ END IF;
  IF OLD.cutover_at IS NOT NULL AND NEW.cutover_at IS DISTINCT FROM OLD.cutover_at THEN
   RAISE EXCEPTION 'Return workflow cutover is immutable';
  END IF;
@@ -20,7 +25,7 @@ BEGIN
  END IF;
  RETURN NEW;
 END $$;
-CREATE TRIGGER return_workflow_cutover_guard BEFORE UPDATE ON return_workflow_settings FOR EACH ROW EXECUTE FUNCTION return_workflow_cutover_guard();
+CREATE TRIGGER return_workflow_cutover_guard BEFORE UPDATE OR DELETE ON return_workflow_settings FOR EACH ROW EXECUTE FUNCTION return_workflow_cutover_guard();
 -- return-workflow-cutover-guard-end
 --> statement-breakpoint
 CREATE TABLE return_workflow_cases (

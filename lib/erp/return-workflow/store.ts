@@ -71,7 +71,7 @@ export async function executeReturnOperation<T extends Record<string, unknown>>(
       return { id: existing.id, documents: existing.documents, replay: true };
     }
     const [lockedConfig]=await db.select().from(settings).where(eq(settings.organizationId,input.orgId)).for("share");
-    const config = lockedConfig??await workflowSettings(input.orgId);
+    const config = lockedConfig??{mode:"DISABLED"as const};
     if (config.mode === "DISABLED" || (config.mode !== "MANUAL" && !["MATCH","CLAIM","EXCEPTION","REOPEN"].includes(input.kind))) {
       throw new Error("Return workflow is in observation mode; posting is disabled");
     }
