@@ -1,4 +1,5 @@
 import "server-only";
+import { documentLedgerTotals, documentLedgerTotalLabel } from "@/lib/erp/document-ledger-totals";
 import { and, asc, eq, gte, inArray, lte, sql, type SQL } from "drizzle-orm";
 import type { PgColumn, PgTable } from "drizzle-orm/pg-core";
 import { db } from "@/lib/db";
@@ -17,6 +18,7 @@ export type LedgerRow = {
   supplierName: string;
   docType: LedgerDocType;
   status: string;
+  financialReturn?: boolean;
   qtyTotal: number | null;
   qtyReceived: number | null;
   qtyRejected: number | null;
@@ -29,6 +31,7 @@ export type LedgerRow = {
 };
 
 export type LedgerTotals = {
+  label: string;
   qtyTotal: number;
   qtyReceived: number;
   qtyRejected: number;
@@ -250,7 +253,7 @@ export async function getPurchasesLedger(orgId: string, filters: LedgerFilters) 
     const list = await db
       .select({
         id: purchaseReturns.id, number: purchaseReturns.number, date: purchaseReturns.date,
-        status: purchaseReturns.status, supplierId: purchaseReturns.supplierId, total: purchaseReturns.totalAmount,
+        status: purchaseReturns.status, invoiceId: purchaseReturns.purchaseInvoiceId, supplierId: purchaseReturns.supplierId, total: purchaseReturns.totalAmount,
       })
       .from(purchaseReturns)
       .where(and(...conds));
@@ -258,6 +261,7 @@ export async function getPurchasesLedger(orgId: string, filters: LedgerFilters) 
     const agg = ids.length
       ? await db.select({
           pid: purchaseReturnLines.purchaseReturnId,
+          net: sql<string>`round(coalesce(sum(${purchaseReturnLines.quantity} * ${purchaseReturnLines.unitPrice}),0),2)`,
           total: sql<string>`coalesce(sum(${purchaseReturnLines.quantity}),0)`,
         }).from(purchaseReturnLines)
           .where(inArray(purchaseReturnLines.purchaseReturnId, ids))
@@ -267,9 +271,9 @@ export async function getPurchasesLedger(orgId: string, filters: LedgerFilters) 
     for (const r of list) {
       rows.push({
         id: `RETURN-${r.id}`, number: r.number, date: r.date,
-        supplierName: supMap.get(r.supplierId) ?? "—", docType: "RETURN", status: r.status,
-        qtyTotal: Number(qm.get(r.id)?.total ?? 0), qtyReceived: null, qtyRejected: null,
-        subtotal: null, shipping: null, discount: null, tax: null, total: num(r.total),
+        supplierName: supMap.get(r.supplierId) ?? "—", docType: "RETURN", status: r.status, financialReturn: Boolean(r.invoiceId),
+        qtyTotal: Number(qm.get(r.id)?.total ?? 0), qtyReceived: r.invoiceId ? null : Number(qm.get(r.id)?.total ?? 0), qtyRejected: null,
+        subtotal: r.invoiceId ? Number(qm.get(r.id)?.net ?? 0) : null, shipping: null, discount: null, tax: r.invoiceId ? Math.round((Number(r.total) - Number(qm.get(r.id)?.net ?? 0)) * 100) / 100 : null, total: r.invoiceId ? num(r.total) : null,
         href: `/purchases/returns/${r.number}`,
       });
     }
@@ -278,20 +282,7 @@ export async function getPurchasesLedger(orgId: string, filters: LedgerFilters) 
   // Newest-first.
   rows.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
-  const totals = rows.reduce(
-    (acc, r) => {
-      acc.qtyTotal += r.qtyTotal ?? 0;
-      acc.qtyReceived += r.qtyReceived ?? 0;
-      acc.qtyRejected += r.qtyRejected ?? 0;
-      acc.subtotal += r.subtotal ?? 0;
-      acc.shipping += r.shipping ?? 0;
-      acc.discount += r.discount ?? 0;
-      acc.tax += r.tax ?? 0;
-      acc.total += r.total ?? 0;
-      return acc;
-    },
-    { qtyTotal: 0, qtyReceived: 0, qtyRejected: 0, subtotal: 0, shipping: 0, discount: 0, tax: 0, total: 0 } as LedgerTotals,
-  );
+  const totals = { ...documentLedgerTotals(rows, fType), label: documentLedgerTotalLabel(fType) };
 
   return { rows, totals, suppliers: supList, items: itemList };
 }

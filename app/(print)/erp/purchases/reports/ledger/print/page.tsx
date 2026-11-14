@@ -91,7 +91,7 @@ export default async function PrintPurchasesLedgerPage({ searchParams }: { searc
             <b key="t">{m(r.total)}</b>,
           ]),
           footerRow: [
-            "الإجمالي الكلي", "", "", "", "",
+            totals.label, "", "", "", "",
             qty(totals.qtyTotal), qty(totals.qtyReceived), qty(totals.qtyRejected),
             fmt(totals.subtotal), fmt(totals.shipping), fmt(totals.discount), fmt(totals.tax), fmt(totals.total),
           ],

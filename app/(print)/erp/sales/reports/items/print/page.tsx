@@ -32,7 +32,7 @@ export default async function PrintItemSalesReportPage({ searchParams }: { searc
           totalQty: sql<string>`sum(${salesInvoiceLines.quantity})`,
           totalRevenue: sql<string>`sum(${salesInvoiceLines.totalAmount})`,
           totalTax: sql<string>`sum(${salesInvoiceLines.taxAmount})`,
-          avgPrice: sql<string>`avg(${salesInvoiceLines.unitPrice})`,
+          avgPrice: sql<string>`coalesce(sum(${salesInvoiceLines.totalAmount} - ${salesInvoiceLines.taxAmount}) / nullif(sum(${salesInvoiceLines.quantity}), 0), 0)`,
           txnCount: sql<string>`count(distinct ${salesInvoices.id})`,
         })
         .from(salesInvoiceLines)

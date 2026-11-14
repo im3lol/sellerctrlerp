@@ -40,7 +40,7 @@ export async function GET(req: Request) {
   const headers = [
     "الرقم", "التاريخ", "العميل", "النوع", "الحالة",
     "الكلي", "المُسلّم",
-    "السعر", "الخصم", "الضريبة", "الإجمالي",
+    "السعر", "الخصم", "الضريبة", "الشحن", "الإجمالي",
   ];
 
   const body = rows.map((r) => [
@@ -54,14 +54,15 @@ export async function GET(req: Request) {
     r.subtotal ?? "",
     r.discount ?? "",
     r.tax ?? "",
+    r.shipping ?? "",
     r.total ?? "",
   ]);
 
   const totalRow = [
-    "الإجمالي الكلي", "", "", "", "",
+    totals.label, "", "", "", "",
     totals.qtyTotal, totals.qtyDelivered,
-    totals.subtotal, totals.discount, totals.tax, totals.total,
+    totals.subtotal, totals.discount, totals.tax, totals.shipping, totals.total,
   ];
 
-  return xlsxBuild([headers, ...body, totalRow], "دفتر المبيعات", "sales-ledger", [16, 12, 24, 12, 14, 10, 10, 12, 12, 12, 14]);
+  return xlsxBuild([headers, ...body, totalRow], "دفتر المبيعات", "sales-ledger", [16, 12, 24, 12, 14, 10, 10, 12, 12, 12, 12, 14]);
 }

@@ -2,6 +2,7 @@
 
 import { withOrgScope } from "@/lib/db-scope";
 import { revalidatePath } from "@/lib/safe-revalidate";
+import { effectiveOrderDiscounts } from "@/lib/erp/order-discounts";
 import { round2 } from "@/lib/erp/money";
 import { and, eq, gte, ilike, inArray, lte, ne, or, sql } from "drizzle-orm";
 import { z } from "zod";
@@ -307,9 +308,15 @@ export async function convertSalesOrderToInvoiceAction(id: string): Promise<Acti
       discountAmount: salesOrderLines.discountAmount, taxAmount: salesOrderLines.taxAmount,
     }).from(salesOrderLines).where(eq(salesOrderLines.salesOrderId, so.id));
 
+    let discounts: number[];
+    try {
+      discounts = effectiveOrderDiscounts(Number(so.discountAmount), lines.map(l => ({
+        quantity: Number(l.quantity), unitPrice: Number(l.unitPrice), discountAmount: Number(l.discountAmount),
+      })));
+    } catch (e) { return { error: e instanceof Error ? e.message : "تعذّر توزيع خصم الأمر" }; }
     const r = await createSalesInvoiceAction({
       customerId: so.customerId, date: new Date(so.date).toISOString().slice(0, 10), notes: `من أمر بيع ${so.number}`,
-      lines: lines.map((l) => ({ itemId: l.itemId, quantity: Number(l.quantity), unitPrice: Number(l.unitPrice), discountAmount: Number(l.discountAmount), taxAmount: Number(l.taxAmount) })),
+      lines: lines.map((l, i) => ({ itemId: l.itemId, quantity: Number(l.quantity), unitPrice: Number(l.unitPrice), discountAmount: discounts[i], taxAmount: Number(l.taxAmount) })),
     });
     if (!r.ok) return { error: r.error ?? "تعذّر إنشاء الفاتورة" };
 

@@ -2,6 +2,7 @@
 
 import { withOrgScope } from "@/lib/db-scope";
 import { revalidatePath } from "@/lib/safe-revalidate";
+import { effectiveOrderDiscounts } from "@/lib/erp/order-discounts";
 import { round2 } from "@/lib/erp/money";
 import { and, asc, desc, eq, gte, ilike, inArray, lte, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
@@ -457,7 +458,13 @@ async function buildDeliveryInvoice(dn: typeof deliveryNotes.$inferSelect): Prom
   const [so] = await db.select().from(salesOrders).where(eq(salesOrders.id, dn.salesOrderId)).limit(1);
   if (!so) return { error: "أمر البيع غير موجود" };
   const soLines = await db.select().from(salesOrderLines).where(eq(salesOrderLines.salesOrderId, so.id));
-  const soByItem = new Map(soLines.map((l) => [l.itemId, l]));
+  let discounts: number[];
+  try {
+    discounts = effectiveOrderDiscounts(Number(so.discountAmount), soLines.map(l => ({
+      quantity: Number(l.quantity), unitPrice: Number(l.unitPrice), discountAmount: Number(l.discountAmount),
+    })));
+  } catch (e) { return { error: e instanceof Error ? e.message : "تعذّر توزيع خصم الأمر" }; }
+  const soByItem = new Map(soLines.map((l, i) => [l.itemId, { ...l, discountAmount: String(discounts[i]) }]));
   const dnLines = await db.select({ itemId: deliveryNoteLines.itemId, quantity: deliveryNoteLines.quantity, code: items.code, name: items.nameAr })
     .from(deliveryNoteLines).leftJoin(items, eq(items.id, deliveryNoteLines.itemId))
     .where(eq(deliveryNoteLines.deliveryNoteId, dn.id));

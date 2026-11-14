@@ -78,6 +78,8 @@ export default async function PurchasesLedgerPage({ searchParams }: { searchPara
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
+            <p className="text-sm text-muted-foreground">{t("الإجماليات المالية للفواتير المعتمدة ناقص مرتجعات الفواتير فقط؛ أوامر البيع والشراء وأذون المخزون مراحل مستقلة لا تُجمع معها. عند اختيار نوع وثيقة تُعرض إجماليات هذا النوع المعتمد فقط.")}</p>
+            {fProduct && <p className="text-sm text-muted-foreground">{t("فلتر المنتج يعرض المستندات التي تحتوي عليه؛ القيم المعروضة تخص المستند كاملًا وليست قيمة المنتج وحده.")}</p>}
             <details open={hasFilters} className="rounded-lg border">
               <summary className="flex cursor-pointer select-none items-center gap-2 px-4 py-2 text-sm font-medium">
                 <Icon name="ListFilter" className="size-4" /> {t("بحث وتصفية")}

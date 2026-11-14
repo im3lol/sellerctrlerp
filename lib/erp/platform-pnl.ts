@@ -1,7 +1,7 @@
 import "server-only";
-import { and, eq, or, sql } from "drizzle-orm";
+import { and, eq, isNull, or, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { salesInvoiceLines, salesInvoices, salesOrders, deliveryNotes, marketplaceSettlementTxns } from "@/db/schema";
+import { salesInvoiceLines, salesInvoices, salesOrders, deliveryNotes, marketplaceSettlementTxns, salesReturnLines, salesReturns } from "@/db/schema";
 import { platformSalesCogs } from "@/lib/erp/sales-cogs";
 import { liveInvoice } from "@/lib/erp/invoice-status";
 import { cached, orgKey } from "@/lib/cache";
@@ -63,14 +63,25 @@ async function computePlatformPnl(orgId: string, channel: string, platformId: st
     eq(marketplaceSettlementTxns.type, "Order"),
   ));
 
-  const revenue = Number(sales[0]?.revenue ?? 0);
+  const [returned] = await db.select({
+    units: sql<string>`coalesce(sum(${salesReturnLines.quantity}), 0)`,
+    revenue: sql<string>`coalesce(sum(${salesReturnLines.totalAmount}), 0)`,
+  }).from(salesReturnLines)
+    .innerJoin(salesReturns, eq(salesReturns.id, salesReturnLines.salesReturnId))
+    .innerJoin(salesInvoices, eq(salesInvoices.id, salesReturns.salesInvoiceId))
+    .leftJoin(deliveryNotes, eq(deliveryNotes.id, salesInvoices.deliveryNoteId))
+    .innerJoin(salesOrders, or(eq(salesOrders.id, salesInvoices.salesOrderId), eq(salesOrders.id, deliveryNotes.salesOrderId)))
+    .where(and(eq(salesReturns.organizationId, orgId), eq(salesReturns.status, "POSTED"),
+      isNull(salesReturns.deliveryNoteId),
+      platformId ? or(eq(salesOrders.platformId, platformId), eq(salesOrders.channel, channel)) : eq(salesOrders.channel, channel)));
+  const revenue = Number(sales[0]?.revenue ?? 0) - Number(returned?.revenue ?? 0);
   const referralFee = Number(fees?.referral ?? 0);
   const fbaFee = Number(fees?.fba ?? 0);
   const otherFee = Number(fees?.other ?? 0);
   const feeTotal = referralFee + fbaFee + otherFee;
   const net = revenue - cogs - feeTotal;
   return {
-    units: Number(sales[0]?.units ?? 0), revenue, cogs, referralFee, fbaFee, otherFee, fees: feeTotal,
+    units: Number(sales[0]?.units ?? 0) - Number(returned?.units ?? 0), revenue, cogs, referralFee, fbaFee, otherFee, fees: feeTotal,
     net, margin: revenue > 0 ? (net / revenue) * 100 : 0,
     hasSettlement: Number(fees?.n ?? 0) > 0,
   };
