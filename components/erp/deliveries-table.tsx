@@ -1,7 +1,9 @@
 "use client";
 
+import { formatErpDate } from "@/lib/erp/dates";
+
 import Link from "next/link";
-import { fill } from "@/lib/i18n";
+import { translateName, fill } from "@/lib/i18n";
 import { useT } from "@/lib/i18n/client";
 import { Fragment, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
@@ -16,7 +18,7 @@ import { Icon } from "@/components/icon";
 import { confirm } from "@/components/erp/confirm";
 import { DeliveryRowMenu } from "@/components/erp/delivery-row-menu";
 
-const dt = (d: Date) => new Date(d).toLocaleDateString("en-GB", { year: "numeric", month: "2-digit", day: "2-digit" });
+const dt = (d: Date) => formatErpDate(d, "en-GB", { year: "numeric", month: "2-digit", day: "2-digit" });
 const qf = (v: number) => v.toLocaleString("ar-EG-u-nu-latn", { maximumFractionDigits: 3 });
 
 const STATUS: Record<string, { label: string; variant: "default" | "secondary" | "destructive" }> = {
@@ -116,7 +118,7 @@ export function DeliveriesTable({ rows, canConfirm, canCreate, total, filter, sh
                     <Link href={`/sales/deliveries/${encodeURIComponent(r.number)}`} className="hover:text-primary">{r.number}</Link>
                   </TableCell>
                   <TableCell>{dt(r.date)}</TableCell>
-                  <TableCell className="max-w-[200px] truncate" title={r.customer ?? undefined}>{r.customer ?? "—"}</TableCell>
+                  <TableCell className="max-w-[200px] truncate" title={translateName(r.customer ?? "", t) || undefined}>{translateName(r.customer ?? "—", t)}</TableCell>
                   <TableCell>{r.order ?? "—"}</TableCell>
                   <TableCell>{r.invoice ?? "—"}</TableCell>
                   <TableCell><div className="flex items-center gap-1"><Badge variant={st.variant}>{t(st.label)}</Badge>{r.status === "DRAFT" && short.has(r.id) && <Badge variant="destructive" title={t("المخزون الحالي لا يغطي كميات هذا الإذن (مع باقي المسودات)")}>{t("نقص مخزون")}</Badge>}{r.returned && <Badge variant="destructive">{t("مرتجع")}</Badge>}</div></TableCell>
@@ -132,7 +134,7 @@ export function DeliveriesTable({ rows, canConfirm, canCreate, total, filter, sh
                       <span className="ms-2 text-destructive">{t("كمية مرتجعة:")} {qf(rt.qty)}</span>
                     </TableCell>
                     <TableCell className="text-muted-foreground">{dt(rt.date)}</TableCell>
-                    <TableCell className="text-muted-foreground">{r.customer ?? "—"}</TableCell>
+                    <TableCell className="text-muted-foreground">{translateName(r.customer ?? "—", t)}</TableCell>
                     <TableCell className="text-muted-foreground">—</TableCell>
                     <TableCell className="text-muted-foreground">—</TableCell>
                     <TableCell><Badge variant="destructive">{rt.status === "POSTED" ? t("مرتجع") : t("مرتجع (مسودة)")}</Badge></TableCell>

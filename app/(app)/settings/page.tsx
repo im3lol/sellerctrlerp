@@ -25,7 +25,7 @@ export default async function ErpSettingsPage() {
             <CardContent>
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 {g.items.map((it) => (
-                  <Link key={it.href} href={it.href} className="group flex items-start gap-3 rounded-xl border bg-card p-4 transition-colors hover:border-primary hover:bg-accent">
+                  <Link key={it.href} href={it.href} target={it.newTab ? "_blank" : undefined} rel={it.newTab ? "noopener noreferrer" : undefined} className="group flex items-start gap-3 rounded-xl border bg-card p-4 transition-colors hover:border-primary hover:bg-accent">
                     <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary group-hover:bg-primary group-hover:text-primary-foreground">
                       <Icon name={it.icon} className="size-4" />
                     </div>

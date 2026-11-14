@@ -17,7 +17,7 @@ type Agg = { currency: string; kind: "AR" | "AP"; foreignRemaining: number; book
 
 export default async function PrintFxRevaluationPage() {
   const t = await getT();
-  return loadErpPage("reports.view", async ({ orgId }) => {
+  return loadErpPage("accounting.view", async ({ orgId }) => {
     const [{ org }, base] = await Promise.all([loadPrintHeader(orgId), getBaseCurrencyCode(orgId)]);
 
     const [rateRows, arRows, apRows] = await Promise.all([

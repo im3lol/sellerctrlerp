@@ -214,7 +214,7 @@ export function LicensingManager({ orgs, plans }: { orgs: OrgSub[]; plans: PlanO
                 <TableRow key={o.id}>
                   <TableCell className="font-medium"><Link href={`/admin/tenants/${o.slug || o.id}`} className="hover:text-primary hover:underline">{t(o.name)}</Link></TableCell>
                   <TableCell><Badge variant={st.variant}>{t(st.label)}</Badge></TableCell>
-                  <TableCell>{o.planName || <span className="text-muted-foreground">—</span>}</TableCell>
+                  <TableCell>{o.planName ? t(o.planName) : <span className="text-muted-foreground">—</span>}</TableCell>
                   <TableCell className="text-sm tabular-nums">{o.members.toLocaleString("ar-EG-u-nu-latn")}{o.maxUsers != null ? ` / ${o.maxUsers}` : ""}</TableCell>
                   <TableCell className="text-sm tabular-nums">{fmtBytes(o.storageBytes, locale)}{o.storageGb != null ? " / " + fill(t("{0} ج.ب"), [o.storageGb]) : ""}</TableCell>
                   <TableCell className="text-sm">{o.expiresAt || <span className="text-muted-foreground">{t("بلا انتهاء")}</span>}</TableCell>

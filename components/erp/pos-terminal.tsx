@@ -1,5 +1,9 @@
 "use client";
 
+import { formatErpDateTime } from "@/lib/erp/dates";
+
+import { useLocale } from "@/lib/i18n/client";
+
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { fill } from "@/lib/i18n";
 import { useT } from "@/lib/i18n/client";
@@ -45,6 +49,7 @@ export function PosTerminal({ warehouses, cashAccounts, customers, defaultCustom
   promotions: Promotion[]; loyalty: LoyaltyProgram;
 }) {
   const t = useT();
+  const locale = useLocale();
   const [state, setState] = useState<ShiftState | null>(null);
   const [pending, start] = useTransition();
   const scanRef = useRef<HTMLInputElement>(null);
@@ -521,13 +526,13 @@ export function PosTerminal({ warehouses, cashAccounts, customers, defaultCustom
                   {q.queue.filter((x) => x.status !== "SYNCED").map((x) => (
                     <TableRow key={x.clientRef}>
                       <TableCell className="whitespace-nowrap text-xs tabular-nums">
-                        {new Date(x.soldAt).toLocaleString("ar-EG-u-nu-latn", { dateStyle: "short", timeStyle: "short" })}
+                        {formatErpDateTime(x.soldAt, locale === "en" ? "en-GB" : "ar-EG-u-nu-latn", { dateStyle: "short", timeStyle: "short" })}
                       </TableCell>
                       <TableCell className="text-sm">{x.lines.map((l) => `${t(l.label)} ×${l.quantity}`).join(" · ")}</TableCell>
                       <TableCell className="font-medium tabular-nums">{money(x.total)}</TableCell>
                       <TableCell>
                         {x.status === "FAILED"
-                          ? <span className="text-sm text-destructive">{x.error}</span>
+                          ? <span className="text-sm text-destructive">{t(x.error ?? "")}</span>
                           : <Badge variant="outline">{t("في الطابور")}</Badge>}
                       </TableCell>
                       <TableCell>

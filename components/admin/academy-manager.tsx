@@ -2,7 +2,8 @@
 
 import { useMemo, useRef, useState, useTransition } from "react";
 import { fill } from "@/lib/i18n";
-import { useT } from "@/lib/i18n/client";
+import { useLocale, useT } from "@/lib/i18n/client";
+import { translateContent } from "@/lib/i18n/content";
 import { useRouter } from "next/navigation";
 import { toast } from "@/lib/i18n/toast";
 import { Loader2, Plus, Trash2, Pencil, Eye, EyeOff, ArrowRight, ImagePlus } from "lucide-react";
@@ -234,6 +235,7 @@ function EditDialog({ lesson, preset, onClose }: { lesson: AdminLesson | null; p
 
 export function AcademyManager({ lessons }: { lessons: AdminLesson[] }) {
   const t = useT();
+  const locale = useLocale();
   const router = useRouter();
   const [pending, start] = useTransition();
   const [open, setOpen] = useState<string | null>(null);
@@ -292,7 +294,7 @@ export function AcademyManager({ lessons }: { lessons: AdminLesson[] }) {
       {confirmDel && (
         <Dialog open onOpenChange={() => setConfirmDel(null)}>
           <DialogContent>
-            <DialogHeader><DialogTitle>{t("حذف «")}{t(confirmDel.title)}{t("»؟")}</DialogTitle></DialogHeader>
+            <DialogHeader><DialogTitle>{t("حذف «")}{translateContent(confirmDel.title, locale)}{t("»؟")}</DialogTitle></DialogHeader>
             <p className="text-sm text-muted-foreground">
               {t("لو الدرس هيرجع تاني، «إخفاء» أفضل — بيحتفظ بالمعرّف فالروابط المتشاركة ماتكسرش.")}
             </p>
@@ -355,7 +357,7 @@ export function AcademyManager({ lessons }: { lessons: AdminLesson[] }) {
                 {c.rows.map((l) => (
                   <TableRow key={l.id} className={l.isActive ? "" : "opacity-50"}>
                     <TableCell>
-                      <div className="font-medium">{t(l.title)}</div>
+                      <div className="font-medium">{translateContent(l.title, locale)}</div>
                       <div className="text-xs text-muted-foreground" dir="ltr">{l.slug}</div>
                     </TableCell>
                     <TableCell>
@@ -461,7 +463,7 @@ export function AcademyManager({ lessons }: { lessons: AdminLesson[] }) {
                 {orphans.map((l) => (
                   <TableRow key={l.id}>
                     <TableCell>
-                      <div className="font-medium">{t(l.title)}</div>
+                      <div className="font-medium">{translateContent(l.title, locale)}</div>
                       <div className="text-xs text-muted-foreground" dir="ltr">{l.slug} · {l.module}</div>
                     </TableCell>
                     <TableCell className="w-28">

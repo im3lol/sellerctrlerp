@@ -163,7 +163,10 @@ let timer: NodeJS.Timeout | null = null;
  */
 export function startScheduler(intervalMs = 60_000): void {
   if (timer) return;
-  const tick = () => enqueueDueSyncs().catch((e) => console.error("[scheduler] enqueue failed:", e));
+  const tick = () => {
+    void enqueueDueSyncs().catch((e) => console.error("[scheduler] enqueue failed:", e));
+    void import("@/lib/erp/cloud-backup-jobs").then(m=>m.scheduleCloudBackups()).catch(()=>console.error("[scheduler] cloud backup scheduling failed"));
+  };
   timer = setInterval(tick, intervalMs);
   void tick(); // fire once on boot
   console.log(`[scheduler] auto-sync every ${Math.round(intervalMs / 1000)}s`);

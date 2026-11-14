@@ -165,7 +165,7 @@ export function SettlementImport({ code, rows = [], unpostedReleased = 0, isAmaz
       {/* API automatic pull */}
       <Card>
         <CardHeader>
-          <CardTitle>{t("سحب المدفوعات من")} {label}</CardTitle>
+          <CardTitle>{t("سحب المدفوعات من")} {t(label)}</CardTitle>
           <CardDescription>
             {isAmazon
               ? t("يسحب تقارير التسويات مباشرة من أمازون — تفاصيل الطلبات + التحويلات البنكية + الرسوم/العمولات. التقارير تُصدرها أمازون كل ~أسبوعين عند إقفال فترة تسوية. الترحيل المحاسبي حسب إعداد المنصة (تلقائي أو مراجعة يدوية). إعادة السحب لا تُكرّر (منع تكرار بالمفتاح الفريد).")

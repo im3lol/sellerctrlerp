@@ -80,7 +80,7 @@ export function QuotationDetailActions({
 
   const step = (label: string, icon: string, onClick: () => void) => (
     <Button size="sm" disabled={pending} onClick={onClick}>
-      {pending ? <Loader2 className="size-4 animate-spin" /> : <Icon name={icon} className="size-4" />}{label}
+      {pending ? <Loader2 className="size-4 animate-spin" /> : <Icon name={icon} className="size-4" />}{t(label)}
     </Button>
   );
 

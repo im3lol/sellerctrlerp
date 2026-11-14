@@ -1,0 +1,51 @@
+# Always combine with docker-compose.yml; deploy.sh selects this via COMPOSE_FILE.
+services:
+  redis:
+    volumes:
+      - redisdata_cutover:/data
+  minio:
+    image: pgsty/minio@sha256:b6bfe7239bfc83fb90d31612d9704d86039dd714f7904b3f1ad68f211e602372
+  minio-init:
+    image: pgsty/mc@sha256:ce62c9053c69ce12a527a322345b5ad9f44b5f8a7b8189f82e516f2e3f30f1d8
+  caddy:
+    image: caddy:2
+    profiles: ["edge"]
+    container_name: sellerctrl-caddy
+    restart: unless-stopped
+    # Host networking preserves the client IP for the administration allowlist.
+    # Caddy proxies to the existing loopback-only published application ports.
+    network_mode: host
+    environment:
+      APP_DOMAIN: ${APP_DOMAIN:?set APP_DOMAIN}
+      MARKETING_DOMAIN: ${MARKETING_DOMAIN:?set MARKETING_DOMAIN}
+      STORAGE_DOMAIN: ${STORAGE_DOMAIN:?set STORAGE_DOMAIN}
+      TLS_EMAIL: ${TLS_EMAIL:?set TLS_EMAIL}
+    volumes:
+      # Mount the directory so replacing Caddyfile during deployment is visible.
+      - ../scripts/vps:/etc/caddy:ro
+      - caddydata:/data
+      - caddyconfig:/config
+  app:
+    environment:
+      S3_ENDPOINT: https://${STORAGE_DOMAIN:?set STORAGE_DOMAIN}
+      SIGNUP_OPEN: ${SIGNUP_OPEN:-0}
+  worker:
+    image: sellerctrl-app:latest
+    environment:
+      S3_ENDPOINT: https://${STORAGE_DOMAIN:?set STORAGE_DOMAIN}
+  backup:
+    volumes:
+      - ../scripts/vps/backup.sh:/usr/local/bin/vps-backup.sh:ro
+    command: ["sh", "/usr/local/bin/vps-backup.sh"]
+    healthcheck:
+      test: ["CMD-SHELL", "test -n \"$$(find /backups -maxdepth 1 -name last-backup-success -mmin -1560)\" && { test \"$${BACKUP_REQUIRE_OFFSITE:-1}\" = 0 || test -n \"$$(find /backups -maxdepth 1 -name last-offsite-success -mmin -1560)\"; }"]
+      interval: 5m
+      timeout: 10s
+      retries: 1
+      start_period: 30m
+
+volumes:
+  redisdata_cutover:
+    name: docker_redisdata_cutover
+  caddydata:
+  caddyconfig:

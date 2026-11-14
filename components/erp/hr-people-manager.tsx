@@ -254,7 +254,7 @@ export function RecruitmentManager({ openings, applicants, employees, canManage 
               {PIPELINE.map((s) => (
                 <Badge key={s} variant="outline">{t(STAGE_LABEL[s])}: {f.counts[s]}</Badge>
               ))}
-              <Badge variant="outline">{STAGE_LABEL.REJECTED}: {f.counts.REJECTED}</Badge>
+              <Badge variant="outline">{t(STAGE_LABEL.REJECTED)}: {f.counts.REJECTED}</Badge>
               {mine.length > 0 && (
                 <Button size="sm" variant="outline" className="ms-auto" onClick={() => setBoard((b) => !b)}>
                   <Icon name={board ? "List" : "Columns3"} className="size-4" />{board ? t("قائمة") : t("كانبان")}

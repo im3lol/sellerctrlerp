@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { fill } from "@/lib/i18n";
+import { translateName, fill } from "@/lib/i18n";
 import { getT } from "@/lib/i18n/server";
 import { count, desc, eq } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
@@ -93,7 +93,7 @@ export default async function LandedCostsPage({ searchParams }: { searchParams: 
                             <Link href={`/purchases/landed-costs/${encodeURIComponent(r.number)}`} className="font-mono text-sm text-primary hover:underline">{r.number}</Link>
                           </TableCell>
                           <TableCell>{dt(r.date)}</TableCell>
-                          <TableCell>{r.supplier ?? "—"}</TableCell>
+                          <TableCell>{translateName(r.supplier ?? "—", t)}</TableCell>
                           <TableCell>{r.method === "weight" ? t("بالوزن") : r.method === "qty" ? t("بالكمية") : t("بالقيمة")}</TableCell>
                           <TableCell className="tabular-nums">{fmt(r.totalAmount)}</TableCell>
                           <TableCell><Badge variant={st.variant}>{t(st.label)}</Badge></TableCell>

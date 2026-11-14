@@ -1,5 +1,7 @@
 "use client";
 
+import { formatErpDate } from "@/lib/erp/dates";
+
 import { useState, useTransition } from "react";
 import { useT } from "@/lib/i18n/client";
 import { useRouter } from "next/navigation";
@@ -14,7 +16,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Icon } from "@/components/icon";
 
 type Holiday = { id: string; date: string; nameAr: string };
-const dt = (d: string) => new Date(d).toLocaleDateString("en-GB", { year: "numeric", month: "2-digit", day: "2-digit" });
+const dt = (d: string) => formatErpDate(d, "en-GB", { year: "numeric", month: "2-digit", day: "2-digit" });
 
 export function HolidaysManager({ holidays, canManage }: { holidays: Holiday[]; canManage: boolean }) {
   const t = useT();

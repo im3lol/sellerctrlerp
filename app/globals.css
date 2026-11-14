@@ -1,5 +1,6 @@
 @import "tailwindcss";
 @import "tw-animate-css";
+@import "./legacy-colors.css";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -10,6 +11,7 @@
   Background: #FFFFFF   Text: #101828   Cards: rounded 16px
 */
 :root {
+  color-scheme: light;
   --radius: 1rem; /* 16px cards */
 
   --background: 0 0% 100%;
@@ -55,31 +57,6 @@
   --sidebar-accent: 228 80% 50%;
   --sidebar-accent-foreground: 0 0% 100%;
   --sidebar-border: 228 70% 55%;
-}
-
-.dark {
-  --background: 222 47% 9%;
-  --foreground: 0 0% 98%;
-  --card: 222 44% 12%;
-  --card-foreground: 0 0% 98%;
-  --popover: 222 44% 12%;
-  --popover-foreground: 0 0% 98%;
-  --primary: 228 91% 60%;
-  --primary-foreground: 222 47% 9%;
-  --secondary: 222 30% 18%;
-  --secondary-foreground: 0 0% 98%;
-  --muted: 222 30% 18%;
-  --muted-foreground: 220 9% 65%;
-  --accent: 222 30% 18%;
-  --accent-foreground: 0 0% 98%;
-  --border: 222 30% 20%;
-  --input: 222 30% 20%;
-  --ring: 228 91% 60%;
-  --sidebar: 222 47% 7%;
-  --sidebar-foreground: 0 0% 98%;
-  --sidebar-accent: 222 30% 18%;
-  --sidebar-accent-foreground: 0 0% 98%;
-  --sidebar-border: 222 30% 20%;
 }
 
 @theme inline {
@@ -190,4 +167,18 @@ td input:not([type="checkbox"]):not([type="radio"]):focus,
 td input:not([type="checkbox"]):not([type="radio"]):focus-visible {
   background-color: hsl(var(--ring) / 0.09) !important;
   border-radius: 6px;
+}
+
+/* Receiving is an explicit selection form: enabled quantity/lot fields must look
+   editable, rather than inheriting the borderless spreadsheet-cell convention. */
+[data-receipt-entry] th,
+[data-receipt-entry] td { padding-inline: 0.75rem; }
+[data-receipt-entry] td input[data-slot="input"]:not(:disabled) {
+  border-color: hsl(var(--input)) !important;
+  background-color: hsl(var(--background)) !important;
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.04) !important;
+}
+[data-receipt-entry] td input[data-slot="input"]:not(:disabled):focus-visible {
+  border-color: hsl(var(--ring)) !important;
+  box-shadow: 0 0 0 3px hsl(var(--ring) / 0.18) !important;
 }

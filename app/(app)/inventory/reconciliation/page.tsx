@@ -1,3 +1,5 @@
+
+import { getLocale } from "@/lib/i18n/server";
 import { and, desc, eq, ilike, or, sql } from "drizzle-orm";
 import { getT } from "@/lib/i18n/server";
 import { loadErpPage } from "@/lib/erp/org";
@@ -13,7 +15,7 @@ import { AuditAdjustmentButton } from "@/components/erp/audit-adjustment-button"
 import { selectCls } from "@/lib/utils";
 
 const PER_PAGE = 100;
-const dt = (d: Date | null) => (d ? new Date(d).toLocaleString("ar-EG-u-nu-latn", { dateStyle: "short", timeStyle: "short" }) : "—");
+const dt = (d: Date | null, locale: import("@/lib/i18n").Locale) => (d ? new Date(d).toLocaleString(locale === "en" ? "en-GB" : "ar-EG-u-nu-latn", { dateStyle: "short", timeStyle: "short" }) : "—");
 const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) ?? "";
 
 // Filter dropdown options (value → Arabic label), in a useful order.
@@ -28,6 +30,7 @@ type SP = { page?: string; status?: string; q?: string };
 
 export default async function InventoryReconciliationPage({ searchParams }: { searchParams: Promise<SP> }) {
   const t = await getT();
+  const locale = await getLocale();
   const sp = await searchParams;
   const fStatus = one(sp.status);
   const fQ = one(sp.q).trim();
@@ -80,7 +83,7 @@ export default async function InventoryReconciliationPage({ searchParams }: { se
         ) : (
           <>
             <AuditStats audit={audit} />
-            <div className="text-xs text-muted-foreground">{t("آخر تدقيق:")} {dt(audit.finishedAt ?? audit.createdAt)} {t("· يشمل فقط أصناف FBA اللي ليها كمية أو حالة (باقي الكتالوج لا يظهر). الأحمر (مفقود/تالف) يحتاج مراجعة؛ المؤقت (استلام/محجوز/بحث) طبيعي.")}</div>
+            <div className="text-xs text-muted-foreground">{t("آخر تدقيق:")} {dt(audit.finishedAt ?? audit.createdAt, locale)} {t("· يشمل فقط أصناف FBA اللي ليها كمية أو حالة (باقي الكتالوج لا يظهر). الأحمر (مفقود/تالف) يحتاج مراجعة؛ المؤقت (استلام/محجوز/بحث) طبيعي.")}</div>
 
             <Card>
               <CardContent className="pt-6">

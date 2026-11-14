@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { fill } from "@/lib/i18n";
+import { translateName, fill } from "@/lib/i18n";
 import { useT } from "@/lib/i18n/client";
 import { useRouter } from "next/navigation";
 import { toast } from "@/lib/i18n/toast";
@@ -209,7 +209,7 @@ export function BundlesManager({ bundles, warehouses, assemblies, canManage }: {
                     <TableCell className="font-mono">{a.number}</TableCell>
                     <TableCell>{a.date}</TableCell>
                     <TableCell>{a.kit}</TableCell>
-                    <TableCell>{a.warehouse}</TableCell>
+                    <TableCell>{translateName(a.warehouse ?? "", t)}</TableCell>
                     <TableCell className="text-end tabular-nums">{a.quantity.toLocaleString("ar-EG-u-nu-latn")}</TableCell>
                     <TableCell className="text-end tabular-nums">{fmt(a.totalCost)}</TableCell>
                   </TableRow>

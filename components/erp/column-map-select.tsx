@@ -31,7 +31,7 @@ export function ColumnMapSelect({
   return (
     <div className="space-y-1.5">
       <Label>
-        {label}
+        {t(label)}
         {optional && <span className="text-muted-foreground"> {t("(اختياري)")}</span>}
       </Label>
       <select className={selectCls} value={value} onChange={(e) => onChange(e.target.value)}>

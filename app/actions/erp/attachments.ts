@@ -5,7 +5,7 @@ import { and, asc, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { documentAttachments } from "@/db/schema";
 import { authorizeErp } from "@/lib/erp/action-auth";
-import type { ErpPermission } from "@/lib/erp/permissions";
+import { attachmentPermissions as permsFor } from "@/lib/erp/attachment-policy";
 import { getActiveOrg } from "@/lib/erp/org";
 import { storageLimitError } from "@/lib/erp/plans";
 import { putObject, deleteObject } from "@/lib/storage";
@@ -15,16 +15,6 @@ const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
 // Attachments hang off documents across modules; gate them on the owning
 // module's capability (not just org membership) so a viewer can't upload/delete/
 // download. Reads need `.view`, writes need `.edit`/`.create`.
-function permsFor(entityType: string): { view: ErpPermission; write: ErpPermission } {
-  const t = entityType.toUpperCase();
-  if (t.startsWith("SALES")) return { view: "sales.view", write: "sales.edit" };
-  if (t.startsWith("PURCHASE")) return { view: "purchases.view", write: "purchases.edit" };
-  if (t.startsWith("STOCK") || t.startsWith("ITEM") || t.startsWith("GOODS") || t.startsWith("ADJUST") || t.startsWith("TRANSFER"))
-    return { view: "inventory.view", write: "inventory.edit" };
-  // accounting + any unmapped type: safe default that still requires a write cap.
-  return { view: "accounting.view", write: "accounting.create" };
-}
-
 export type AttachmentMeta = {
   id: string;
   fileName: string;

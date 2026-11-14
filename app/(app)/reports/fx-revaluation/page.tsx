@@ -11,7 +11,7 @@ const fmt = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { minimumFraction
 
 export default async function FxRevaluationPage() {
   const t = await getT();
-  return loadErpPage("reports.view", async ({ orgId, can, permissions }) => {
+  return loadErpPage("accounting.view", async ({ orgId, can, permissions }) => {
     // Shared with the posting action so the number the accountant sees is the number posted.
     const { base, rows, netGain } = await computeFxRevaluation(orgId);
     const canPost = can("accounting.create") && Math.abs(netGain) >= 0.01;

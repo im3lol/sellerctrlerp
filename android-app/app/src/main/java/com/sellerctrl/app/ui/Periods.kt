@@ -1,5 +1,7 @@
 package com.sellerctrl.app.ui
 
+import com.sellerctrl.app.tr
+
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -41,7 +43,7 @@ import com.sellerctrl.app.ServiceLocator
 import com.sellerctrl.app.data.DocRow
 import kotlinx.coroutines.launch
 
-private val PERIOD_STATUSES = listOf("OPEN" to "مفتوحة", "SOFT_CLOSED" to "مغلقة مؤقتاً", "CLOSED" to "مقفلة")
+private val PERIOD_STATUSES = listOf("OPEN" to tr("مفتوحة"), "SOFT_CLOSED" to tr("مغلقة مؤقتاً"), "CLOSED" to tr("مقفلة"))
 
 /** Fiscal periods: list + change status (open / soft-close / close). */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -56,14 +58,14 @@ fun PeriodsScreen(nav: NavController) {
     LaunchedEffect(reload, tick) { rows = try { ServiceLocator.repo.docList("api/v1/accounting/periods") } catch (e: Exception) { emptyList() } }
 
     Scaffold(topBar = {
-        TopAppBar(title = { Text("الفترات المالية") },
+        TopAppBar(title = { Text(tr("الفترات المالية")) },
             navigationIcon = { IconButton(onClick = { nav.popBackStack() }) { Icon(Icons.AutoMirrored.Filled.ArrowBack, null) } })
     }) { pad ->
         Box(Modifier.fillMaxSize().padding(pad)) {
             val r = rows
             when {
                 r == null -> CircularProgressIndicator(Modifier.align(Alignment.Center))
-                r.isEmpty() -> Text("لا توجد فترات مالية", Modifier.align(Alignment.Center), color = MaterialTheme.colorScheme.outline)
+                r.isEmpty() -> Text(tr("لا توجد فترات مالية"), Modifier.align(Alignment.Center), color = MaterialTheme.colorScheme.outline)
                 else -> Column(Modifier.fillMaxSize().padding(12.dp)) {
                     message?.let { Text(it, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(bottom = 6.dp)) }
                     LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -90,16 +92,16 @@ fun PeriodsScreen(nav: NavController) {
             title = { Text(p.title) },
             text = {
                 Column {
-                    Text("غيّر حالة الفترة:", modifier = Modifier.padding(bottom = 8.dp))
+                    Text(tr("غيّر حالة الفترة:"), modifier = Modifier.padding(bottom = 8.dp))
                     PERIOD_STATUSES.forEach { (value, label) ->
                         Text(label, Modifier.fillMaxWidth().clickable {
                             pickFor = null
-                            scope.launch { try { ServiceLocator.repo.periodStatus(p.id, value); message = "تم التحديث ✓"; reload++ } catch (e: Exception) { message = e.message ?: "خطأ" } }
+                            scope.launch { try { ServiceLocator.repo.periodStatus(p.id, value); message = tr("تم التحديث ✓"); reload++ } catch (e: Exception) { message = e.message ?: tr("خطأ") } }
                         }.padding(vertical = 12.dp), style = MaterialTheme.typography.bodyLarge)
                     }
                 }
             },
-            confirmButton = { OutlinedButton(onClick = { pickFor = null }) { Text("إلغاء") } },
+            confirmButton = { OutlinedButton(onClick = { pickFor = null }) { Text(tr("إلغاء")) } },
         )
     }
 }

@@ -1,3 +1,5 @@
+
+import { getLocale } from "@/lib/i18n/server";
 import { sql } from "drizzle-orm";
 import { fill } from "@/lib/i18n";
 import { getT } from "@/lib/i18n/server";
@@ -9,8 +11,8 @@ import { ReportSheet } from "@/components/erp/print/report-sheet";
 
 const CAP = 3000;
 const intl = (n: number) => n.toLocaleString("ar-EG-u-nu-latn");
-const sdt = (d: string | null) =>
-  d ? new Date(d).toLocaleDateString("ar-EG-u-nu-latn", { year: "numeric", month: "2-digit", day: "2-digit" }) : "—";
+const sdt = (d: string | null, locale: import("@/lib/i18n").Locale) =>
+  d ? new Date(d).toLocaleDateString(locale === "en" ? "en-GB" : "ar-EG-u-nu-latn", { year: "numeric", month: "2-digit", day: "2-digit" }) : "—";
 
 type SP = { days?: string; q?: string };
 const DAYS = [30, 60, 90, 180, 365];
@@ -18,6 +20,7 @@ type Row = { code: string | null; name: string | null; qty: number; val: number;
 
 export default async function PrintDeadStockPage({ searchParams }: { searchParams: Promise<SP> }) {
   const t = await getT();
+  const locale = await getLocale();
   return loadErpPage("inventory.view", async ({ orgId }) => {
     const sp = await searchParams;
     const days = DAYS.includes(Number(sp.days)) ? Number(sp.days) : 90;
@@ -35,7 +38,7 @@ export default async function PrintDeadStockPage({ searchParams }: { searchParam
           SELECT item_id, SUM(bq) AS qty, SUM(bv) AS val FROM (
             SELECT DISTINCT ON (item_id, warehouse_id) item_id, balance_quantity bq, balance_value bv
             FROM stock_movements WHERE organization_id = ${orgId}
-            ORDER BY item_id, warehouse_id, created_at DESC, split_part(number, '-', 3)::int DESC
+            ORDER BY item_id, warehouse_id, created_at DESC, CASE WHEN split_part(number, '-', 3) ~ '^[0-9]+$' THEN split_part(number, '-', 3)::numeric ELSE 0 END DESC
           ) t GROUP BY item_id
         ) s ON s.item_id = i.id
         LEFT JOIN (
@@ -103,7 +106,7 @@ export default async function PrintDeadStockPage({ searchParams }: { searchParam
             qty(r.qty),
             fmt(r.val),
             qty(r.sold),
-            sdt(r.last),
+            sdt(r.last, locale),
             Number.isFinite(r.cover) ? intl(Math.round(r.cover)) : "∞",
             r.status,
           ]),

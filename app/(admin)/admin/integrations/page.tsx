@@ -1,3 +1,5 @@
+import { getPageNotice } from "@/lib/ui-notice";
+import { NoticeConsumed } from "@/components/ui/notice-consumed";
 import { PageHeader } from "@/components/page-header";
 import { getT } from "@/lib/i18n/server";
 import { getXpaySettingsAdmin, getEmailSettingsAdmin, getIntegrationSettingsAdmin, getAiSettingsAdmin, getTelegramSettingsAdmin } from "@/app/actions/admin/platform-settings";
@@ -8,11 +10,14 @@ import { SettingsTile } from "@/components/admin/settings-tile";
 import { XpaySettingsForm } from "@/components/admin/xpay-settings-form";
 import { EmailSettingsForm } from "@/components/admin/email-settings-form";
 import { TelegramSettingsForm } from "@/components/admin/telegram-settings-form";
+import { StorageCloudSetup } from "@/components/erp/storage-cloud-setup";
 
 export const dynamic = "force-dynamic";
 
-export default async function IntegrationsPage() {
+export default async function IntegrationsPage({ searchParams }: { searchParams: Promise<{ cloudSaved?: string; cloudError?: string }> }) {
   const t = await getT();
+  const notice = await getPageNotice("/admin/integrations");
+  const params = { ...await searchParams, ...notice.values };
   // Every registered connector that declares config fields shows a tile — click to connect.
   // A new connector appears automatically with no page change.
   const connectors = registeredConnectors().filter((c) => c.configFields?.length);
@@ -26,6 +31,7 @@ export default async function IntegrationsPage() {
   const appUrl = process.env.APP_URL ?? "";
   return (
     <div className="space-y-8">
+        <NoticeConsumed path={"/admin/integrations"} id={notice.id} />
       <PageHeader title={t("التكاملات")} description={t("منصّات البيع، بوابات الدفع، ومفاتيح الربط والبريد على مستوى المنصّة.")} />
 
       <section className="space-y-3">
@@ -57,6 +63,12 @@ export default async function IntegrationsPage() {
             <AiSettingsForm initial={ai} />
           </SettingsTile>
         </div>
+      </section>
+      <section className="space-y-3">
+        <h2 className="text-sm font-semibold text-muted-foreground">{t("التخزين السحابي")}</h2>
+        {params.cloudSaved && <p role="status" className="rounded-xl border border-primary/20 bg-primary/5 p-4 text-sm">{t("تم حفظ إعداد Google Drive")}</p>}
+        {params.cloudError && <p role="alert" className="rounded-xl border border-destructive p-4 text-sm">{t("راجع Client ID وClient Secret وأعد المحاولة")}</p>}
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3"><StorageCloudSetup source="admin-integrations" defaultOpen={!!params.cloudError} /></div>
       </section>
     </div>
   );

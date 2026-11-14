@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
-import { fill } from "@/lib/i18n";
+import { translateName, fill } from "@/lib/i18n";
 import { useT } from "@/lib/i18n/client";
 import { useRouter } from "next/navigation";
 import { toast } from "@/lib/i18n/toast";
@@ -190,7 +190,7 @@ export function RfqManager({ items, suppliers, warehouses, canManage }: {
                 <div>
                   <div className="text-muted-foreground">{t("الأفضل (عرض كامل)")}</div>
                   <div className="font-bold">
-                    {c.suppliers.find((s) => s.id === c.recommendedId)?.supplierName} — {money(c.suppliers.find((s) => s.id === c.recommendedId)?.total ?? 0)}
+                    {translateName(c.suppliers.find((s) => s.id === c.recommendedId)?.supplierName ?? "", t)} — {money(c.suppliers.find((s) => s.id === c.recommendedId)?.total ?? 0)}
                   </div>
                 </div>
               )}
@@ -224,7 +224,7 @@ export function RfqManager({ items, suppliers, warehouses, canManage }: {
                     <TableHead className="text-start">{t("الكمية")}</TableHead>
                     {c.suppliers.map((s) => (
                       <TableHead key={s.id} className="text-start">
-                        <div className="font-medium">{s.supplierName}</div>
+                        <div className="font-medium">{translateName(s.supplierName ?? "", t)}</div>
                         <div className="text-xs font-normal text-muted-foreground">
                           {s.status === "DECLINED" ? t("اعتذر") : s.quotedLines === 0 ? t("لسه مردّش") : s.complete ? t("عرض كامل") : fill(t("ناقص ({0}/{1})"), [s.quotedLines, open.lines.length])}
                         </div>

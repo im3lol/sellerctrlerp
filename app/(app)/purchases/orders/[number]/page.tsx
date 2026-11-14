@@ -164,7 +164,7 @@ export default async function PurchaseOrderDetailPage({ params }: { params: Prom
               </TableBody>
               <TableFooter>
                 <TableRow className="font-bold">
-                  <TableCell colSpan={6}>{t("الإجمالي (")}{cur})</TableCell>
+                  <TableCell colSpan={7}>{t("الإجمالي (")}{cur})</TableCell>
                   <TableCell>{dfmt(po.totalAmount)}</TableCell>
                 </TableRow>
               </TableFooter>

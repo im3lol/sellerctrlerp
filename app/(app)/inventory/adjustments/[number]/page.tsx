@@ -1,5 +1,7 @@
+
+import { getLocale } from "@/lib/i18n/server";
 import { notFound } from "next/navigation";
-import { fill } from "@/lib/i18n";
+import { translateName, fill } from "@/lib/i18n";
 import { getT } from "@/lib/i18n/server";
 import { and, asc, eq, sql } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
@@ -22,10 +24,11 @@ import { PaginatedTableRows } from "@/components/erp/paginated-table-rows";
 
 const fmt = (v: string | number | null) => Number(v ?? 0).toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const q = (v: string | number | null) => Number(v ?? 0).toLocaleString("ar-EG-u-nu-latn", { maximumFractionDigits: 3 });
-const dt = (d: Date) => new Date(d).toLocaleDateString("ar-EG-u-nu-latn", { year: "numeric", month: "2-digit", day: "2-digit" });
+const dt = (d: Date, locale: import("@/lib/i18n").Locale) => new Date(d).toLocaleDateString(locale === "en" ? "en-GB" : "ar-EG-u-nu-latn", { year: "numeric", month: "2-digit", day: "2-digit" });
 
 export default async function AdjustmentDetailPage({ params }: { params: Promise<{ number: string }> }) {
   const t = await getT();
+  const locale = await getLocale();
   const raw = (await params).number;
   return loadErpPage("inventory.view", async ({ orgId, role, can }) => {
     const number = await docNumberParam(raw, orgId, stockAdjustments,
@@ -67,7 +70,7 @@ export default async function AdjustmentDetailPage({ params }: { params: Promise
         SELECT DISTINCT ON (item_id, warehouse_id) item_id, warehouse_id, balance_quantity AS qty, balance_value AS value
         FROM stock_movements
         WHERE organization_id = ${orgId} AND item_id IN (${sql.join(itemIds.map((i) => sql`${i}`), sql`, `)})
-        ORDER BY item_id, warehouse_id, created_at DESC, split_part(number, '-', 3)::int DESC
+        ORDER BY item_id, warehouse_id, created_at DESC, CASE WHEN split_part(number, '-', 3) ~ '^[0-9]+$' THEN split_part(number, '-', 3)::numeric ELSE 0 END DESC
       `);
       const balBy = new Map(bal.rows.map((b) => [`${b.item_id}|${b.warehouse_id}`, { qty: Number(b.qty), value: Number(b.value) }]));
       // Org-wide WAC per item (sum of every warehouse's latest balance) — the
@@ -84,7 +87,7 @@ export default async function AdjustmentDetailPage({ params }: { params: Promise
         FROM stock_movements
         WHERE organization_id = ${orgId} AND item_id IN (${sql.join(itemIds.map((i) => sql`${i}`), sql`, `)})
           AND type = 'IN' AND unit_cost > 0
-        ORDER BY item_id, created_at DESC, split_part(number, '-', 3)::int DESC
+        ORDER BY item_id, created_at DESC, CASE WHEN split_part(number, '-', 3) ~ '^[0-9]+$' THEN split_part(number, '-', 3)::numeric ELSE 0 END DESC
       `);
       const lastInBy = new Map(lastIn.rows.map((r) => [r.item_id, Number(r.cost)]));
       const r2 = (n: number) => Math.round(n * 100) / 100;
@@ -124,7 +127,7 @@ export default async function AdjustmentDetailPage({ params }: { params: Promise
           <CardHeader><CardTitle>{t("بيانات التسوية")}</CardTitle></CardHeader>
           <CardContent className="grid gap-4 sm:grid-cols-4 text-sm">
             <div><div className="text-muted-foreground">{t("الرقم")}</div><div className="font-mono font-medium">{adj.number}</div></div>
-            <div><div className="text-muted-foreground">{t("التاريخ")}</div><div className="font-medium">{dt(adj.date)}</div></div>
+            <div><div className="text-muted-foreground">{t("التاريخ")}</div><div className="font-medium">{dt(adj.date, locale)}</div></div>
             <div><div className="text-muted-foreground">{t("الوصف / السبب")}</div><div className="font-medium">{t(adj.reason)}</div></div>
             <div><div className="text-muted-foreground">{t("الحالة")}</div><Badge variant={adj.status === "POSTED" ? "default" : "secondary"}>{adj.status === "POSTED" ? t("مرحّل") : t("مسودة")}</Badge></div>
           </CardContent>
@@ -156,7 +159,7 @@ export default async function AdjustmentDetailPage({ params }: { params: Promise
                   return (
                     <TableRow key={l.id}>
                       <TableCell className="max-w-[320px] whitespace-normal"><div className="line-clamp-2 leading-snug" title={l.itemName ?? undefined}><span className="font-mono text-xs text-muted-foreground">{l.itemCode}</span> {l.itemName}</div></TableCell>
-                      <TableCell>{l.warehouse ?? "—"}</TableCell>
+                      <TableCell>{translateName(l.warehouse ?? "—", t)}</TableCell>
                       <TableCell>{q(l.entered)}</TableCell>
                       <TableCell className={delta < 0 ? "text-destructive" : delta > 0 ? "text-emerald-600" : ""}>{delta > 0 ? "+" : ""}{q(delta)}</TableCell>
                       <TableCell>{l.unitCost != null ? fmt(l.unitCost) : "—"}</TableCell>

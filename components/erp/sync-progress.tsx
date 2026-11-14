@@ -153,8 +153,8 @@ export function SyncProgress({ code, label = "المنصة", flags, auditInvento
             </span>
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-1.5">{t(s.label)}</div>
-              {s.detail && <div className={`whitespace-pre-line text-xs ${s.status === "error" ? "text-destructive" : "text-muted-foreground"}`}>{s.detail}</div>}
-              {s.href && <Link href={s.href} className="text-xs text-primary hover:underline">{s.hrefLabel ?? t("التفاصيل ←")}</Link>}
+              {s.detail && <div className={`whitespace-pre-line text-xs ${s.status === "error" ? "text-destructive" : "text-muted-foreground"}`}>{t(s.detail)}</div>}
+              {s.href && <Link href={s.href} className="text-xs text-primary hover:underline">{t(s.hrefLabel ?? "التفاصيل ←")}</Link>}
             </div>
           </li>
         ))}

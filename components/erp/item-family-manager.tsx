@@ -1,5 +1,6 @@
 "use client";
 
+import { itemHref } from "@/lib/erp/item-href";
 import { useState, useTransition } from "react";
 import { useT } from "@/lib/i18n/client";
 import Link from "next/link";
@@ -93,7 +94,7 @@ export function ItemFamilyManager({
                           {isCurrent ? (
                             <span className="font-medium"><span className="font-mono text-xs text-muted-foreground">{m.code}</span> {t(m.name)}</span>
                           ) : (
-                            <Link href={`/inventory/items/${encodeURIComponent(m.code)}`} className="hover:text-primary"><span className="font-mono text-xs text-muted-foreground">{m.code}</span> {t(m.name)}</Link>
+                            <Link href={itemHref(m.code)} className="hover:text-primary"><span className="font-mono text-xs text-muted-foreground">{m.code}</span> {t(m.name)}</Link>
                           )}
                         </div>
                       </div>

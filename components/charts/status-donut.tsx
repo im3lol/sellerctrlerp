@@ -25,7 +25,7 @@ export function StatusDonut({ data, unit = "عنصر" }: { data: Slice[]; unit?:
             </Pie>
             <Tooltip
               contentStyle={{ borderRadius: 12, border: "1px solid hsl(var(--border))", fontSize: 12 }}
-              formatter={(v, n) => [`${v}`, n]}
+              formatter={(v, n) => [`${v}`, t(String(n))]}
             />
           </PieChart>
         </ResponsiveContainer>

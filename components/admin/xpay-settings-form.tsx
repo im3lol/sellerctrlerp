@@ -1,4 +1,5 @@
 "use client";
+import { PageActions } from "@/components/erp/page-actions";
 
 import { useState, useTransition } from "react";
 import { fill } from "@/lib/i18n";
@@ -48,6 +49,12 @@ export function XpaySettingsForm({ initial, appUrl }: { initial: Initial; appUrl
 
   return (
     <div className="space-y-5">
+      <PageActions className="static">
+          <Button onClick={save} disabled={pending}>
+            {pending && <Loader2 className="size-4 animate-spin" />}{t("حفظ الإعدادات")}
+          </Button>
+        </PageActions>
+
       <p className="text-xs text-muted-foreground">{t("مفاتيح حساب xpay لتحصيل اشتراكات المؤسسات أونلاين. تُخزَّن الأسرار مشفّرة. اترك حقل السر فارغًا للإبقاء على المحفوظ.")}</p>
         <div className="space-y-2">
           <Label htmlFor="sk">{t("المفتاح السري (Secret key)")}</Label>
@@ -73,11 +80,7 @@ export function XpaySettingsForm({ initial, appUrl }: { initial: Initial; appUrl
           <CopyRow label="Webhook URL" value={`${base}/api/subscription/xpay/webhook`} />
         </div>
 
-        <div className="flex justify-end">
-          <Button onClick={save} disabled={pending}>
-            {pending && <Loader2 className="size-4 animate-spin" />}{t("حفظ الإعدادات")}
-          </Button>
-        </div>
+
     </div>
   );
 }

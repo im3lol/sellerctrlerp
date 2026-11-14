@@ -15,6 +15,7 @@
 
 # next.js
 /.next/
+/.next-local/
 /out/
 
 # production
@@ -60,3 +61,41 @@ docker/.next/
 # Local database dumps — never in git (see docs/BACKUPS.md)
 dbbackups/
 *.dump
+
+# Private operations, customer audits, and migration artifacts
+/.migration/
+/.ops-data/
+/.codex/
+/docs/SYSTEM_*
+/docs/SOURCE_*
+/docs/VPS-MIGRATION*
+/docs/ERP_AMAZON_REVIEW*
+/docs/BACKUP_RELIABILITY_20261114.md
+/docs/RELEASE-2026-11-14.md
+/docs/MCP_PREPARATION_STATUS*
+/docs/MCP_SYSTEM_REVIEW*
+/docs/AMAZON_CURRENT_PRODUCTS_FIX.md
+/docs/SPREADSHEET_PASTE_AR.md
+/scripts/check-source-fba*
+/scripts/cleanup-source-fba*
+/scripts/sync-source-fba*
+/scripts/checks/recover-fba-operation-identity*
+/scripts/checks/resequence-source-item-codes*
+/scripts/checks/audit-live-integrity*
+/scripts/checks/audit-system-*
+/scripts/checks/chk-core-cycle-audit*
+/scripts/checks/chk-live-api-security*
+/scripts/checks/chk-item-route-write*
+/scripts/checks/chk-stock-number-order*
+/scripts/vps/check-rotated-logins*
+/scripts/vps/smoke-login*
+/scripts/vps/verify-data*
+/scripts/vps/verify-storage*
+/scripts/vps/rotate-demo-passwords*
+/scripts/vps/final-restore*
+/scripts/vps/restore-initial*
+/scripts/vps/restore-redis*
+/scripts/vps/prepare-env*
+/scripts/vps/rewrite-storage-urls*
+/scripts/vps/build-stage.sh
+/scripts/vps/install-proxy.sh

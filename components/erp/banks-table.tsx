@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { fill } from "@/lib/i18n";
+import { fill, translateName } from "@/lib/i18n";
 import { useT } from "@/lib/i18n/client";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -114,14 +114,14 @@ export function BanksTable({ rows, accounts, canEdit }: { rows: BankRow[]; accou
               <TableRow key={r.id} data-state={canEdit && sel.has(r.id) ? "selected" : undefined}>
                 {canEdit && <TableCell><SelectBox checked={sel.has(r.id)} onChange={() => sel.toggle(r.id)} label={t("تحديد")} /></TableCell>}
                 <TableCell>
-                  <div className="font-medium">{t(r.nameAr)}</div>
-                  {r.bankName && <div className="text-xs text-muted-foreground">{r.bankName}</div>}
+                  <div className="font-medium">{translateName(r.nameAr, t)}</div>
+                  {r.bankName && <div className="text-xs text-muted-foreground">{translateName(r.bankName, t)}</div>}
                 </TableCell>
                 <TableCell className="text-xs text-muted-foreground">
                   <div>{r.accountNumber || "—"}</div>
                   {r.iban && <div className="font-mono">{r.iban}</div>}
                 </TableCell>
-                <TableCell className="text-xs">{r.glCode ? `${r.glCode} — ${r.glName}` : <span className="text-muted-foreground">{t("غير مربوط")}</span>}</TableCell>
+                <TableCell className="text-xs">{r.glCode ? `${r.glCode} — ${translateName(r.glName ?? "", t)}` : <span className="text-muted-foreground">{t("غير مربوط")}</span>}</TableCell>
                 <TableCell className={`tabular-nums ${r.balance < 0 ? "text-destructive" : ""}`}>{fmt(r.balance)}</TableCell>
                 <TableCell><Badge variant={r.isActive ? "default" : "outline"}>{r.isActive ? t("نشط") : t("غير نشط")}</Badge></TableCell>
                 <TableCell>

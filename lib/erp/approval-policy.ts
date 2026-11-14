@@ -1,3 +1,4 @@
+import { type Locale } from "@/lib/i18n";
 /**
  * Manager approvals — the rules, with no database.
  *
@@ -97,12 +98,13 @@ export function needsApproval(p: ApprovalPolicy, f: ApprovalFacts): string | nul
   }
 }
 
-const rtf = new Intl.RelativeTimeFormat("ar-EG", { numeric: "auto" });
+
 /** "منذ يومين" — how long a request has been waiting. Shared by the inbox (server) and
  *  the banner (client), so it lives here rather than in a "use client" file. */
-export function timeAgo(d: string | Date): string {
+export function timeAgo(d: string | Date, locale: Locale = "ar"): string {
+  const rtf = new Intl.RelativeTimeFormat(locale === "en" ? "en" : "ar-EG-u-nu-latn", { numeric: "auto" });
   const s = Math.round((Date.now() - new Date(d).getTime()) / 1000);
-  if (s < 60) return "الآن";
+  if (s < 60) return locale === "en" ? "now" : "الآن";
   const m = Math.round(s / 60); if (m < 60) return rtf.format(-m, "minute");
   const h = Math.round(m / 60); if (h < 24) return rtf.format(-h, "hour");
   return rtf.format(-Math.round(h / 24), "day");

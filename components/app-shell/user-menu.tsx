@@ -1,6 +1,6 @@
 "use client";
 
-import { LogOut, User as UserIcon, ShieldCheck, CreditCard } from "lucide-react";
+import { LogOut, User as UserIcon, ShieldCheck, CreditCard, FolderArchive } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   DropdownMenu,
@@ -47,7 +47,7 @@ export function UserMenu({
         </Avatar>
         <div className="hidden text-start leading-tight md:block">
           <p className="text-sm font-semibold">{name}</p>
-          {subtitle && <p className="text-xs text-muted-foreground">{subtitle}</p>}
+          {subtitle && <p className="text-xs text-muted-foreground">{t(subtitle)}</p>}
         </div>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-56">
@@ -56,6 +56,9 @@ export function UserMenu({
           <p className="text-xs font-normal text-muted-foreground" dir="ltr">{email}</p>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
+        <DropdownMenuItem asChild>
+          <a href={role === "system_admin" ? "/storage/admin" : "/storage"} target="_blank" rel="noopener noreferrer" className="cursor-pointer"><FolderArchive className="size-4" />{t("الملفات والبيانات")}</a>
+        </DropdownMenuItem>
         <DropdownMenuItem asChild>
           <a href="/profile" className="cursor-pointer">
             <UserIcon className="size-4" />

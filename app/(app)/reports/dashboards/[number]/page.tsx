@@ -9,6 +9,7 @@ import { loadErpPage } from "@/lib/erp/org";
 import { docNumberParam } from "@/lib/erp/doc-route";
 import { requireUser } from "@/lib/session";
 import { EXPORT_DATASETS } from "@/lib/erp/export-datasets";
+import { canExportDataset } from "@/lib/erp/data-access";
 import { runReport, type Cell, type ChartKind, type ReportResult } from "@/lib/erp/report-builder";
 import { listSavedReportsAction } from "@/app/actions/erp/report-builder";
 import { ErpPageHeader } from "@/components/erp/page-header";
@@ -74,7 +75,7 @@ export default async function DashboardPage({ params, searchParams }: {
         tiles.push({ reportId: w.reportId, title: "تقرير مش متاح", wide: !!w.wide, note: "اتمسح، أو صاحبه ماشاركهوش مع الفريق." });
         continue;
       }
-      if (!can(ds.module)) {
+      if (!canExportDataset(ds, can)) {
         tiles.push({ reportId: r.id, title: r.nameAr, wide: !!w.wide, note: "البيانات دي مش ضمن صلاحياتك." });
         continue;
       }
@@ -92,7 +93,7 @@ export default async function DashboardPage({ params, searchParams }: {
     const editing = mine && edit === "1";
     const options = editing
       ? ((await listSavedReportsAction()).rows ?? [])
-          .filter((r) => can(EXPORT_DATASETS[r.dataset].module))
+          .filter((r) => canExportDataset(EXPORT_DATASETS[r.dataset], can))
           .map((r) => ({ id: r.id, nameAr: r.nameAr, datasetTitle: r.datasetTitle, isShared: r.isShared }))
       : [];
 

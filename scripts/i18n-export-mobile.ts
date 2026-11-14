@@ -8,7 +8,9 @@ import { mkdirSync, writeFileSync } from "fs";
 import { dirname } from "path";
 import { EN } from "@/lib/i18n/en";
 
-const out = "mobile-app/app/src/main/assets/i18n/en.json";
-mkdirSync(dirname(out), { recursive: true });
-writeFileSync(out, JSON.stringify(EN));
-console.log(`${Object.keys(EN).length} entries → ${out}`);
+for (const app of ["mobile-app", "android-app"]) {
+  const out = `${app}/app/src/main/assets/i18n/en.json`;
+  mkdirSync(dirname(out), { recursive: true });
+  writeFileSync(out, JSON.stringify(EN));
+  console.log(`${Object.keys(EN).length} entries → ${out}`);
+}

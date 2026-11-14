@@ -147,7 +147,7 @@ export default async function ErpSalesPage() {
 
         {/* Every page in this module, straight from the sidebar config — see
             ModuleWorkspace for why this is derived and not another hand-kept list. */}
-        <ModuleWorkspace heading={t("المبيعات")} permissions={permissions} counts={counts}
+        <ModuleWorkspace heading="المبيعات" permissions={permissions} counts={counts}
           actions={[{ label: "أمر بيع جديد", href: "/sales/orders/new", icon: "Plus" }, { label: "فاتورة بيع جديدة", href: "/sales/invoices/new", icon: "Plus" }]} />
       </div>
     );

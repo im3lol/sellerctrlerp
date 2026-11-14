@@ -16,6 +16,7 @@ import { ExportCsvButton } from "@/components/erp/export-csv-button";
 import { exportItemsCsvAction } from "@/app/actions/erp/exports";
 import { selectCls } from "@/lib/utils";
 import { itemMatches } from "@/lib/erp/item-match";
+import { ResponsiveFilters } from "@/components/erp/responsive-filters";
 
 const PER_PAGE = 20;
 
@@ -99,7 +100,7 @@ export default async function ItemsPage({ searchParams }: { searchParams: Promis
           SELECT DISTINCT ON (item_id, warehouse_id) item_id, balance_quantity AS bq
           FROM stock_movements
           WHERE organization_id = ${orgId} AND item_id IN (${idList})
-          ORDER BY item_id, warehouse_id, created_at DESC, split_part(number, '-', 3)::int DESC
+          ORDER BY item_id, warehouse_id, created_at DESC, CASE WHEN split_part(number, '-', 3) ~ '^[0-9]+$' THEN split_part(number, '-', 3)::numeric ELSE 0 END DESC
         ) t GROUP BY item_id`);
       for (const r of stockRes.rows as { item_id: string; qty: string }[]) onHandById.set(r.item_id, Number(r.qty));
     }
@@ -131,10 +132,13 @@ export default async function ItemsPage({ searchParams }: { searchParams: Promis
           }
         />
         <Card>
-          <CardHeader><CardTitle>{t("قائمة الأصناف")}</CardTitle><CardDescription>{t("ابحث بالاسم أو الكود الداخلي أو أي كود خارجي (SKU/ASIN/باركود). اضغط الصنف لعرض تفاصيله.")}</CardDescription></CardHeader>
+          <CardHeader className="hidden sm:grid"><CardTitle>{t("قائمة الأصناف")}</CardTitle><CardDescription>{t("ابحث بالاسم أو الكود الداخلي أو أي كود خارجي (SKU/ASIN/باركود). اضغط الصنف لعرض تفاصيله.")}</CardDescription></CardHeader>
           <CardContent className="space-y-4">
-            <form className="grid gap-3 sm:grid-cols-5 items-end">
-              <div className="space-y-1 sm:col-span-2"><Label htmlFor="q">{t("بحث")}</Label><Input id="q" name="q" defaultValue={q} placeholder={t("اسم / كود / SKU / ASIN / باركود")} /></div>
+            <form className="grid grid-cols-[1fr_auto] items-end gap-3 sm:grid-cols-5">
+              <div className="min-w-0 space-y-1 sm:col-span-4"><Label className="sr-only sm:not-sr-only" htmlFor="q">{t("بحث")}</Label><Input id="q" name="q" defaultValue={q} placeholder={t("اسم / كود / SKU / ASIN / باركود")} /></div>
+              <Button type="submit"><Icon name="Search" className="size-4" />{t("بحث")}</Button>
+              <div className="col-span-2 sm:col-span-5">
+              <ResponsiveFilters active={[fCategory, fStatus, fMissing, showRelated].filter(Boolean).length}>
               <div className="space-y-1">
                 <Label htmlFor="category">{t("الفئة")}</Label>
                 <select id="category" name="category" defaultValue={fCategory} className={selectCls}>
@@ -158,13 +162,14 @@ export default async function ItemsPage({ searchParams }: { searchParams: Promis
                   <option value="codes">{t("بدون أكواد")}</option>
                 </select>
               </div>
-              <div className="flex flex-wrap items-center gap-3 sm:col-span-5">
-                <Button type="submit"><Icon name="Search" className="size-4" />{t("بحث")}</Button>
+              <div className="col-span-2 flex flex-wrap items-center gap-3 sm:col-span-3">
                 {hasFilters && <Button type="button" variant="outline" asChild><Link href="/inventory/items">{t("مسح")}</Link></Button>}
                 <label className="flex cursor-pointer items-center gap-2 text-sm" title={t("عند البحث بكود صنف، أظهر معه بقية عائلته (الأب والتنويعات الأخرى)")}>
                   <input type="checkbox" name="related" value="1" defaultChecked={showRelated} className="size-4 rounded border-input" />
                   {t("إظهار المنتجات المرتبطة")}
                 </label>
+              </div>
+              </ResponsiveFilters>
               </div>
             </form>
 

@@ -1,3 +1,4 @@
+import { formatBackupDate } from "@/lib/erp/backup-date";
 import { loadErpPage } from "@/lib/erp/org";
 import { fill, type Locale, type T } from "@/lib/i18n";
 import { getLocale, getT } from "@/lib/i18n/server";
@@ -7,7 +8,7 @@ import { Icon } from "@/components/icon";
 import { listBackups } from "@/lib/erp/backup";
 
 const fmtBytes = (b: number, t: T) => (b < 1024 * 1024 ? fill(t("{0} ك.ب"), [(b / 1024).toFixed(0)]) : fill(t("{0} م.ب"), [(b / 1024 / 1024).toFixed(1)]));
-const bdt = (d: Date, locale: Locale = "ar") => new Date(d).toLocaleDateString((locale === "en" ? "en-GB" : "ar-EG-u-nu-latn"), { year: "numeric", month: "short", day: "numeric" });
+const bdt = (d:Date,locale:Locale="ar") => formatBackupDate(d,locale);
 
 export default async function BackupSettingsPage() {
   const locale = await getLocale();

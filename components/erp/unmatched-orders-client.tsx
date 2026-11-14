@@ -1,5 +1,9 @@
 "use client";
 
+import { formatErpDateTime } from "@/lib/erp/dates";
+
+import { useLocale } from "@/lib/i18n/client";
+
 import { useState, useTransition } from "react";
 import { useT } from "@/lib/i18n/client";
 import Link from "next/link";
@@ -11,7 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { resolveUnmatchedAction, type UnmatchedOrder } from "@/app/actions/erp/unmatched-orders";
 
 const fmt = (n: number) => Number(n || 0).toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-const dt = (s: string) => new Date(s).toLocaleString("ar-EG-u-nu-latn", { dateStyle: "short", timeStyle: "short" });
+const dt = (s: string, locale: import("@/lib/i18n").Locale) => formatErpDateTime(s, locale === "en" ? "en-GB" : "ar-EG-u-nu-latn", { dateStyle: "short", timeStyle: "short" });
 
 /**
  * The parked marketplace orders whose product isn't in the catalog. For each, the seller
@@ -21,6 +25,7 @@ const dt = (s: string) => new Date(s).toLocaleString("ar-EG-u-nu-latn", { dateSt
  */
 export function UnmatchedOrdersClient({ initial }: { initial: UnmatchedOrder[] }) {
   const t = useT();
+  const locale = useLocale();
   const [rows, setRows] = useState(initial);
   const [pending, start] = useTransition();
   const [busy, setBusy] = useState<string | null>(null);
@@ -49,7 +54,7 @@ export function UnmatchedOrdersClient({ initial }: { initial: UnmatchedOrder[] }
               <CardTitle className="flex items-center gap-2 text-base">
                 <Badge variant="secondary">{o.channel}</Badge>
                 <span dir="ltr" className="font-mono">{o.externalId}</span>
-                <span className="text-sm font-normal text-muted-foreground">· {dt(o.createdAt)} {t("· الإجمالي")} {fmt(o.total)}</span>
+                <span className="text-sm font-normal text-muted-foreground">· {dt(o.createdAt, locale)} {t("· الإجمالي")} {fmt(o.total)}</span>
               </CardTitle>
               <Button size="sm" variant="outline" onClick={() => resolve(o.id)} disabled={pending && busy === o.id}>
                 {pending && busy === o.id ? <Loader2 className="size-4 animate-spin" /> : <Check className="size-4" />}{t("تمّت المعالجة")}

@@ -1,3 +1,7 @@
+import { getPageNotice } from "@/lib/ui-notice";
+import { NoticeConsumed } from "@/components/ui/notice-consumed";
+import { noticeTarget } from "@/lib/ui-notice";
+import { PageActions } from "@/components/erp/page-actions";
 import { redirect } from "next/navigation";
 import { getT } from "@/lib/i18n/server";
 import Link from "next/link";
@@ -23,7 +27,8 @@ const CATEGORIES = [
 export default async function NewFixedAssetPage({ searchParams }: { searchParams: Promise<{ error?: string }> }) {
   const t = await getT();
   return loadErpPage("accounting.create", async ({ orgId }) => {
-    const { error } = await searchParams;
+    const notice = await getPageNotice("/accounting/assets/new");
+    const { error } = { ...await searchParams, ...notice.values };
 
     const glAccounts = await db
       .select({ id: accounts.id, code: accounts.code, nameAr: accounts.nameAr, type: accounts.type })
@@ -38,6 +43,9 @@ export default async function NewFixedAssetPage({ searchParams }: { searchParams
 
     async function create(fd: FormData) {
       "use server";
+      // Resolve translations in the action request; capturing the render's `t`
+      // function makes the action closure non-serializable and breaks this page.
+      const actionT = await getT();
       const res = await createAssetAction({
         code:            String(fd.get("code") ?? ""),
         nameAr:          String(fd.get("nameAr") ?? ""),
@@ -57,11 +65,12 @@ export default async function NewFixedAssetPage({ searchParams }: { searchParams
       // Bounce back with the reason. This used to redirect to the list on failure,
       // discarding the error — which now matters, since capitalizing refuses rather
       // than silently registering the asset without its entry.
-      redirect(`/accounting/assets/new?error=${encodeURIComponent(res.error ?? t("تعذّر حفظ الأصل"))}`);
+      redirect(await noticeTarget(`/accounting/assets/new?error=${encodeURIComponent(res.error ?? actionT("تعذّر حفظ الأصل"))}`));
     }
 
     return (
       <div className="space-y-6">
+        <NoticeConsumed path={"/accounting/assets/new"} id={notice.id} />
         <ErpPageHeader icon="Building2" title={t("أصل ثابت جديد")} backHref="/accounting/assets" />
 
         <Card className="max-w-2xl">
@@ -69,10 +78,17 @@ export default async function NewFixedAssetPage({ searchParams }: { searchParams
           <CardContent>
             {error && (
               <p className="mb-4 rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
-                {error}
+                {t(error)}
               </p>
             )}
             <form action={create} className="space-y-4">
+      <PageActions>
+                <Button type="submit">{t("حفظ الأصل")}</Button>
+                <Button type="button" variant="ghost" asChild>
+                  <Link href="/accounting/assets">{t("إلغاء")}</Link>
+                </Button>
+              </PageActions>
+
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
                   <Label htmlFor="code">{t("الكود *")}</Label>
@@ -161,12 +177,7 @@ export default async function NewFixedAssetPage({ searchParams }: { searchParams
                 <Input id="notes" name="notes" />
               </div>
 
-              <div className="flex gap-2 pt-2">
-                <Button type="submit">{t("حفظ الأصل")}</Button>
-                <Button type="button" variant="ghost" asChild>
-                  <Link href="/accounting/assets">{t("إلغاء")}</Link>
-                </Button>
-              </div>
+              
             </form>
           </CardContent>
         </Card>

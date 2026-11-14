@@ -1,3 +1,4 @@
+import { itemHref } from "@/lib/erp/item-href";
 import Link from "next/link";
 import { fill } from "@/lib/i18n";
 import { getT } from "@/lib/i18n/server";
@@ -36,7 +37,7 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
             .where(and(eq(suppliers.organizationId, org.id), or(ilike(suppliers.nameAr, like), ilike(suppliers.code, like)))).limit(25),
         ]);
         return [
-          { key: "items", title: "الأصناف", icon: Boxes, href: (r) => `/inventory/items/${r.id}`, rows: it },
+          { key: "items", title: "الأصناف", icon: Boxes, href: (r) => (r.code ? itemHref(r.code) : "/inventory/items"), rows: it },
           { key: "customers", title: "العملاء", icon: Users, href: () => `/sales/customers`, rows: cu },
           { key: "suppliers", title: "الموردون", icon: Truck, href: () => `/purchases/suppliers`, rows: su },
         ];

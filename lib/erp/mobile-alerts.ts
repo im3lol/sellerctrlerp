@@ -23,7 +23,7 @@ async function reorderAlertsImpl(orgId: string): Promise<DocRow[]> {
     WITH latest AS (
       SELECT DISTINCT ON (item_id, warehouse_id) item_id, balance_quantity
       FROM stock_movements WHERE organization_id = ${orgId}
-      ORDER BY item_id, warehouse_id, created_at DESC, split_part(number, '-', 3)::int DESC
+      ORDER BY item_id, warehouse_id, created_at DESC, CASE WHEN split_part(number, '-', 3) ~ '^[0-9]+$' THEN split_part(number, '-', 3)::numeric ELSE 0 END DESC
     )
     SELECT i.code, coalesce(i.name_ar, i.code) AS name,
            coalesce(i.min_stock, 0) AS min_stock,
@@ -51,7 +51,7 @@ async function deadStockAlertsImpl(orgId: string, days = 90): Promise<DocRow[]> 
       SELECT item_id, SUM(bq) AS qty FROM (
         SELECT DISTINCT ON (item_id, warehouse_id) item_id, balance_quantity bq
         FROM stock_movements WHERE organization_id = ${orgId}
-        ORDER BY item_id, warehouse_id, created_at DESC, split_part(number, '-', 3)::int DESC
+        ORDER BY item_id, warehouse_id, created_at DESC, CASE WHEN split_part(number, '-', 3) ~ '^[0-9]+$' THEN split_part(number, '-', 3)::numeric ELSE 0 END DESC
       ) t GROUP BY item_id
     ) s ON s.item_id = i.id
     LEFT JOIN (

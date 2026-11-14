@@ -112,8 +112,8 @@ export default async function AmazonHealthPage({ params }: { params: Promise<{ c
                     {bad ? int(c.count) : <Icon name="CircleCheck" className="size-6" />}
                   </span>
                 </div>
-                <p className="text-sm text-muted-foreground">{bad ? c.bad : c.ok}</p>
-                <span className="mt-auto text-sm text-primary group-hover:underline">{c.action} ←</span>
+                <p className="text-sm text-muted-foreground">{t(bad ? c.bad : c.ok)}</p>
+                <span className="mt-auto text-sm text-primary group-hover:underline">{t(c.action)} ←</span>
               </Link>
             );
           })}

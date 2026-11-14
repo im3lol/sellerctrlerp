@@ -120,7 +120,7 @@ export async function getStockLedger(orgId: string, filters: StockLedgerFilters)
     FROM (
       SELECT type, date, quantity,
         balance_quantity - lag(balance_quantity, 1, 0::numeric)
-          OVER (PARTITION BY item_id, warehouse_id ORDER BY created_at, split_part(number, '-', 3)::int) AS delta
+          OVER (PARTITION BY item_id, warehouse_id ORDER BY created_at, CASE WHEN split_part(number, '-', 3) ~ '^[0-9]+$' THEN split_part(number, '-', 3)::numeric ELSE 0 END) AS delta
       FROM stock_movements
       WHERE ${sql.join(innerConds, sql` AND `)}
     ) t

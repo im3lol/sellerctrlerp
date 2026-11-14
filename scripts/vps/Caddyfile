@@ -1,0 +1,61 @@
+{
+    email {$TLS_EMAIL}
+    admin localhost:2019
+}
+
+{$APP_DOMAIN}, {$MARKETING_DOMAIN}, www.{$MARKETING_DOMAIN} {
+    encode zstd gzip
+    # SaaS administration is authenticated by the application, from any client IP.
+    @appRoot {
+        host {$APP_DOMAIN}
+        path /
+    }
+    redir @appRoot /dashboard 302
+    @logo path /brand/sellerctrl-3d-blue-logo-640.webp /brand/sellerctrl-logo-white-640.webp
+    header @logo {
+        Cache-Control "public, max-age=86400"
+        defer
+    }
+    @mascot path /brand/mascot-welcome-640-8c9e31137104.webp
+    header @mascot {
+        Cache-Control "public, max-age=31536000, immutable"
+        defer
+    }
+    header {
+        Strict-Transport-Security "max-age=31536000"
+        X-Content-Type-Options nosniff
+        Referrer-Policy strict-origin-when-cross-origin
+        -Server
+    }
+    reverse_proxy 127.0.0.1:3001
+}
+
+# File portal and path-style S3 share the host. Preserve bucket paths and Host
+# verbatim so existing signed downloads/uploads keep working.
+{$STORAGE_DOMAIN} {
+    header Strict-Transport-Security "max-age=31536000"
+    @objects path /sellerctrl /sellerctrl/* /sellerctrl-private /sellerctrl-private/* /minio/health/*
+    handle @objects {
+        reverse_proxy 127.0.0.1:9000 {
+            header_up -Cookie
+        }
+    }
+    @s3Auth header Authorization AWS4-HMAC-SHA256*
+    handle @s3Auth {
+        reverse_proxy 127.0.0.1:9000 {
+            header_up -Cookie
+        }
+    }
+    @s3Signed query X-Amz-Algorithm=AWS4-HMAC-SHA256
+    handle @s3Signed {
+        reverse_proxy 127.0.0.1:9000 {
+            header_up -Cookie
+        }
+    }
+    handle {
+        encode zstd gzip
+        @portalRoot path /
+        rewrite @portalRoot /storage
+        reverse_proxy 127.0.0.1:3001
+    }
+}

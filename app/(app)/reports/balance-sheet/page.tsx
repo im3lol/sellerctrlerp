@@ -16,7 +16,7 @@ export default async function BalanceSheetPage({
   searchParams: Promise<{ to?: string }>;
 }) {
   const t = await getT();
-  return loadErpPage("reports.view", async ({ orgId, permissions }) => {
+  return loadErpPage("accounting.view", async ({ orgId, permissions }) => {
     const sp = await searchParams;
     const to = sp.to || iso(new Date());
 

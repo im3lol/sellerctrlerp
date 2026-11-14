@@ -12,10 +12,15 @@ const fmt = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { maximumFraction
 export function ItemPicker({
   selectedLabel,
   selected,
+  selectionKey,
+  selectionRevision,
   onSelect,
   placeholder,
 }: {
   selectedLabel?: string;
+  /** External changes (for example a grid paste) finish an in-progress search. */
+  selectionKey?: string;
+  selectionRevision?: number;
   /** Detail for the RESTING cell (thumbnail + code under the name). Optional: callers that
    *  only have a label keep the plain single-line display they always had. */
   selected?: { name: string; code?: string | null; image?: string | null } | null;
@@ -25,7 +30,7 @@ export function ItemPicker({
   const t = useT();
   const [q, setQ] = useState(selectedLabel ?? "");
   // The picked row carries image + code; the parent only knows an id, so keep it here.
-  const [picked, setPicked] = useState<{ name: string; code?: string | null; image?: string | null } | null>(null);
+  const [picked, setPicked] = useState<{ id: string; name: string; code?: string | null; image?: string | null } | null>(null);
   const [results, setResults] = useState<ItemSearchResult[]>([]);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -37,6 +42,19 @@ export function ItemPicker({
 
   useEffect(() => setMounted(true), []);
   useEffect(() => { if (!editing) setQ(selectedLabel ?? ""); }, [selectedLabel, editing]);
+  const previousSelection = useRef(selectionKey);
+  useEffect(() => {
+    if (previousSelection.current === selectionKey) return;
+    previousSelection.current = selectionKey;
+    setEditing(false); setOpen(false); setResults([]); setQ(selectedLabel ?? "");
+    setPicked(current => current?.id === selectionKey ? current : null);
+  }, [selectionKey, selectedLabel]);
+  const previousRevision = useRef(selectionRevision);
+  useEffect(() => {
+    if (previousRevision.current === selectionRevision) return;
+    previousRevision.current = selectionRevision;
+    setEditing(false); setOpen(false); setResults([]); setQ(selectedLabel ?? "");
+  }, [selectionRevision, selectedLabel]);
 
   useEffect(() => {
     if (!editing) return;
@@ -70,7 +88,7 @@ export function ItemPicker({
   }, []);
 
   const pick = (it: ItemSearchResult) => {
-    setPicked({ name: it.name, code: it.code, image: it.image });
+    setPicked({ id: it.id, name: it.name, code: it.code, image: it.image });
     onSelect(it);
     setEditing(false); setOpen(false); setResults([]);
     setQ(`${it.code} — ${it.name}`);

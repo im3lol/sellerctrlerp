@@ -56,7 +56,7 @@ export default function XpayCheckoutPage() {
       if (r.type === "success") {
         sessionStorage.removeItem("xpay_checkout");
         toast.success("تم الدفع بنجاح ✅");
-        router.replace("/settings/subscription?xpay=paid");
+        router.replace("/settings/subscription");
       } else {
         setErr(r.error?.message ?? t("فشل الدفع — تحقق من بيانات البطاقة"));
         setPaying(false);
@@ -105,7 +105,7 @@ export default function XpayCheckoutPage() {
             </div>
           </div>
 
-          {err && <div className="rounded-lg border border-destructive/40 bg-destructive/5 px-3 py-2 text-sm text-destructive">{err}</div>}
+          {err && <div className="rounded-lg border border-destructive/40 bg-destructive/5 px-3 py-2 text-sm text-destructive">{t(err)}</div>}
 
           <Button onClick={pay} disabled={paying || mounting || !canPay || !email} size="lg" className="w-full">
             {paying ? <Loader2 className="size-4 animate-spin" /> : <Lock className="size-4" />}

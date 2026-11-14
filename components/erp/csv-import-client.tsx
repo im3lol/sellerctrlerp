@@ -99,17 +99,17 @@ function ImportPane<R>({
 
   return (
     <div className="space-y-4">
-      <p className="text-sm text-muted-foreground">{description}</p>
+      <p className="text-sm text-muted-foreground">{t(description)}</p>
       {draftNote && (
         <div className="flex items-start gap-2 rounded-lg border border-amber-300/60 bg-amber-50 px-3 py-2 text-xs text-amber-700 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-400">
-          <Icon name="Info" className="mt-0.5 size-3.5 shrink-0" /><span>{draftNote}</span>
+          <Icon name="Info" className="mt-0.5 size-3.5 shrink-0" /><span>{t(draftNote)}</span>
         </div>
       )}
 
       <Button
         variant="outline" size="sm"
         onClick={() => {
-          const blob = new Blob([template], { type: "text/csv;charset=utf-8;" });
+          const blob = new Blob([t(template)], { type: "text/csv;charset=utf-8;" });
           const url = URL.createObjectURL(blob);
           const a = document.createElement("a"); a.href = url; a.download = templateName; a.click();
           URL.revokeObjectURL(url);

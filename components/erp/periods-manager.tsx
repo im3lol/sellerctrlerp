@@ -1,5 +1,7 @@
 "use client";
 
+import { formatErpDate } from "@/lib/erp/dates";
+
 import { useEffect, useState, useTransition } from "react";
 import { useT } from "@/lib/i18n/client";
 import { useRouter } from "next/navigation";
@@ -21,7 +23,7 @@ const STATUS: Record<string, { label: string; variant: "default" | "secondary" |
   CLOSED:      { label: "مقفلة",        variant: "destructive" },
 };
 
-const dt  = (d: Date) => new Date(d).toLocaleDateString("en-GB", { year: "numeric", month: "2-digit", day: "2-digit" });
+const dt  = (d: Date) => formatErpDate(d, "en-GB", { year: "numeric", month: "2-digit", day: "2-digit" });
 const fmt = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2 });
 
 function YearClosingDialog({

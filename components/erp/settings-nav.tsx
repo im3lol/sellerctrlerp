@@ -22,7 +22,7 @@ export function SettingsNav({ groups }: { groups: SettingsGroup[] }) {
       <div className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1 lg:hidden">
         <Chip href="/settings" label={t("الرئيسية")} icon="Settings" active={pathname === "/settings"} />
         {groups.flatMap((g) => g.items).map((it) => (
-          <Chip key={it.href} href={it.href} label={t(it.label)} icon={it.icon} active={active(it.href)} />
+          <Chip key={it.href} href={it.href} label={t(it.label)} icon={it.icon} active={active(it.href)} newTab={it.newTab} />
         ))}
       </div>
 
@@ -48,6 +48,8 @@ export function SettingsNav({ groups }: { groups: SettingsGroup[] }) {
                     <Link
                       key={it.href}
                       href={it.href}
+                      target={it.newTab ? "_blank" : undefined}
+                      rel={it.newTab ? "noopener noreferrer" : undefined}
                       className={cn(
                         "flex items-center gap-2.5 rounded-lg px-3 py-1.5 text-sm transition-colors",
                         isActive ? "bg-primary/10 font-medium text-primary" : "text-foreground/80 hover:bg-accent hover:text-foreground",
@@ -68,10 +70,12 @@ export function SettingsNav({ groups }: { groups: SettingsGroup[] }) {
   );
 }
 
-function Chip({ href, label, icon, active }: { href: string; label: string; icon: string; active: boolean }) {
+function Chip({ href, label, icon, active, newTab }: { href: string; label: string; icon: string; active: boolean; newTab?: boolean }) {
   return (
     <Link
       href={href}
+      target={newTab ? "_blank" : undefined}
+      rel={newTab ? "noopener noreferrer" : undefined}
       className={cn(
         "flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors",
         active ? "border-primary bg-primary text-primary-foreground" : "bg-card hover:bg-accent",

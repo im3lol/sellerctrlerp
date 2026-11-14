@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
-import { fill } from "@/lib/i18n";
+import { translateName, fill } from "@/lib/i18n";
 import { useT } from "@/lib/i18n/client";
 import { toast } from "@/lib/i18n/toast";
 import {
@@ -244,7 +244,7 @@ export function CommissionsManager({ reps, canManage }: { reps: Rep[]; canManage
                             {r.sourceType === "RECEIPT" ? t("تحصيل") : t("فاتورة")}
                           </span>
                         </TableCell>
-                        <TableCell>{r.customerName}</TableCell>
+                        <TableCell>{translateName(r.customerName ?? "", t)}</TableCell>
                         <TableCell className="tabular-nums">{money(r.base)}</TableCell>
                         <TableCell className="tabular-nums">{r.percent}%</TableCell>
                         <TableCell className="font-medium tabular-nums">{money(r.commission)}</TableCell>

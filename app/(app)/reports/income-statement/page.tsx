@@ -21,7 +21,7 @@ export default async function IncomeStatementPage({
 }) {
   const locale = await getLocale();
   const t = await getT();
-  return loadErpPage("reports.view", async ({ orgId, permissions }) => {
+  return loadErpPage("accounting.view", async ({ orgId, permissions }) => {
     const sp = await searchParams;
 
     const now = new Date();

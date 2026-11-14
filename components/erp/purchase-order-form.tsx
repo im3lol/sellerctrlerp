@@ -18,6 +18,7 @@ import { ItemThumb } from "@/components/erp/item-thumb";
 import { BarcodeScan } from "@/components/erp/barcode-scan";
 import { CellCombobox } from "@/components/erp/cell-combobox";
 import { QuickCreateParty, type NewParty } from "@/components/erp/quick-create-party";
+import { useLinePaste, LinePasteHint } from "@/components/erp/line-paste";
 import { SortableLineRows } from "@/components/erp/sortable-line-rows";
 import { lineVat } from "@/lib/erp/vat";
 import type { ItemSearchResult } from "@/app/actions/erp/item-search";
@@ -136,6 +137,23 @@ export function PurchaseOrderForm({ suppliers, warehouses, items, unitsByItem = 
   const [allocationError, setAllocationError] = useState("");
   const distributionPending = (originCosts.length > 0 || applied.costs.length > 0) && allocationKey !== applied.key;
   const shareOf = (l: Line) => applied.shares[l.itemId] ?? emptyOriginShare();
+  const clipboard = useLinePaste({ rows: lines, setRows: setLines, newRow: newLine, context: JSON.stringify([supplierId, currency, rate, applyVat, applied]),
+    columns: [{ key: "itemId", kind: "item" }, ...["quantity", "unitPrice", "shippingPerUnit", "discountPerUnit"].map(key => ({ key, kind: "number" as const }))],
+    apply: (row, values, item) => {
+      if (item && item.id !== row.itemId) row = { ...row, itemId: item.id, unitPrice: priceOf(item.id), uomId: "", uomFactor: 1 };
+      if (typeof values.quantity === "number") row.quantity = toBaseQuantity(values.quantity, row.uomFactor);
+      if (typeof values.unitPrice === "number") row.unitPrice = toBasePrice(values.unitPrice, row.uomFactor);
+      if (typeof values.shippingPerUnit === "number") {
+        if (shareOf(row).shipping !== 0) throw new Error("ألغِ توزيع المصاريف قبل تعديل الشحن يدويًا");
+        row.shippingPerUnit = toBasePrice(values.shippingPerUnit, row.uomFactor);
+      }
+      if (typeof values.discountPerUnit === "number") {
+        if (shareOf(row).discount !== 0) throw new Error("ألغِ توزيع المصاريف قبل تعديل الخصم يدويًا");
+        row.discountPerUnit = values.discountPerUnit;
+      }
+      return row;
+    },
+  });
   const applyDistribution = () => {
     try {
       if (lines.some(l => !l.itemId)) throw new Error("اختر الصنف في كل بند");
@@ -189,11 +207,11 @@ export function PurchaseOrderForm({ suppliers, warehouses, items, unitsByItem = 
 
   return (
     <Card>
-      <CardHeader>
+      <CardHeader data-page-actions="" className="sticky top-16 z-20 rounded-t-xl border-b bg-card/95 py-3 backdrop-blur print:static [&>div]:flex-wrap [&_button]:max-w-full [&_button]:whitespace-normal">
         <div className="flex w-full items-center justify-between gap-3">
           <CardTitle>{t("بيانات أمر الشراء")}</CardTitle>
           <div className="flex gap-2">
-            <Button size="sm" onClick={submit} disabled={pending}>{pending && <Loader2 className="size-4 animate-spin" />}{isEdit ? t("حفظ التعديلات") : t("حفظ الأمر")}</Button>
+            <Button size="sm" onClick={submit} disabled={pending || clipboard.busy}>{pending && <Loader2 className="size-4 animate-spin" />}{isEdit ? t("حفظ التعديلات") : t("حفظ الأمر")}</Button>
             <Button variant="outline" size="sm" onClick={() => router.push(isEdit ? `/purchases/orders/${initial!.id}` : "/purchases/orders")}>{t("إلغاء")}</Button>
           </div>
         </div>
@@ -330,11 +348,20 @@ export function PurchaseOrderForm({ suppliers, warehouses, items, unitsByItem = 
 
 
 
+        <LinePasteHint busy={clipboard.busy} />
         <div className="rounded-xl border">
           <Table>
             <TableHeader>
               <TableRow>
                 <TableHead className="w-8" />
+                <TableHead className="w-14 text-start">{t("صورة")}</TableHead>
+                <TableHead className="w-72 min-w-64 text-start">{t("الصنف")}</TableHead>
+                <TableHead className="w-24 text-start">{t("الوحدة")}</TableHead>
+                <TableHead className="w-24 text-start">{t("الكمية")}</TableHead>
+                <TableHead className="w-32 text-start">{t("السعر")}</TableHead>
+                <TableHead className="w-32 text-start">{t("شحن/وحدة")}</TableHead>
+                <TableHead className="w-32 text-start">{t("خصم")}</TableHead>
+                <TableHead className="w-28 text-start">{t("الضريبة")}</TableHead>
                 <TableHead className="w-28 text-start">{t("الإجمالي")}</TableHead>
                 {hasOther && <TableHead className="w-28 text-start">{t("مصاريف/وحدة")}</TableHead>}
                 <TableHead className="w-10"></TableHead>
@@ -345,13 +372,14 @@ export function PurchaseOrderForm({ suppliers, warehouses, items, unitsByItem = 
               <SortableLineRows
                 items={lines}
                 onReorder={setLines}
+                clipboard={clipboard}
                 renderCells={(l, i) => (
                   <>
                     <TableCell>
                       <ItemThumb src={itemById.get(l.itemId)?.image} />
                     </TableCell>
-                    <TableCell className="min-w-64 max-w-72">
-                      <ItemPicker
+                    <TableCell data-paste-column="itemId" className="min-w-64 max-w-72">
+                      <ItemPicker selectionRevision={clipboard.revision} selectionKey={l.itemId}
                         selected={itemById.get(l.itemId) ? { name: itemById.get(l.itemId)!.nameAr ?? "", code: itemById.get(l.itemId)!.code, image: itemById.get(l.itemId)!.image } : null}
                         onSelect={(it) => setLine(i, { itemId: it.id, ...(l.unitPrice === 0 && priceOf(it.id) ? { unitPrice: priceOf(it.id) } : {}) })}
                       />
@@ -364,12 +392,12 @@ export function PurchaseOrderForm({ suppliers, warehouses, items, unitsByItem = 
                       />
                     </TableCell>
                     {/* Shown in the chosen unit, stored in base: 5 cartons writes 60 pieces. */}
-                    <TableCell><Input type="number" step="any" min="0" value={fromBaseQuantity(l.quantity, l.uomFactor)} onChange={(e) => setLine(i, { quantity: toBaseQuantity(Math.max(0, Number(e.target.value) || 0), l.uomFactor) })} className="w-20 min-w-20 text-start tabular-nums" /></TableCell>
-                    <TableCell><Input type="number" step="0.01" inputMode="decimal" value={round2(l.unitPrice * l.uomFactor)} onChange={(e) => setLine(i, { unitPrice: toBasePrice(Number(e.target.value) || 0, l.uomFactor) })} className="w-24 min-w-24 text-start tabular-nums" /></TableCell>
+                    <TableCell><Input data-paste-column="quantity" type="number" step="any" min="0" value={fromBaseQuantity(l.quantity, l.uomFactor)} onChange={(e) => setLine(i, { quantity: toBaseQuantity(Math.max(0, Number(e.target.value) || 0), l.uomFactor) })} className="w-20 min-w-20 text-start tabular-nums" /></TableCell>
+                    <TableCell><Input data-paste-column="unitPrice" type="number" step="0.01" inputMode="decimal" value={round2(l.unitPrice * l.uomFactor)} onChange={(e) => setLine(i, { unitPrice: toBasePrice(Number(e.target.value) || 0, l.uomFactor) })} className="w-24 min-w-24 text-start tabular-nums" /></TableCell>
                     {/* Internal freight agreed with the supplier — shown per the chosen unit
                         like the price, stored per base unit. The receipt inherits it. */}
-                    <TableCell><Input type="number" step="0.01" min="0" inputMode="decimal" readOnly={shareOf(l).shipping !== 0} value={Math.round((l.shippingPerUnit + shareOf(l).shipping / l.quantity) * l.uomFactor * 10000) / 10000} onChange={(e) => setLine(i, { shippingPerUnit: toBasePrice(Math.max(0, Number(e.target.value) || 0), l.uomFactor) })} className="w-24 min-w-24 text-start tabular-nums" /></TableCell>
-                    <TableCell><Input type="number" step="0.01" min="0" inputMode="decimal" readOnly={shareOf(l).discount !== 0} value={Math.round((l.discountPerUnit + shareOf(l).discount / l.quantity) * 10000) / 10000} onChange={(e) => setLine(i, { discountPerUnit: Number(e.target.value) })} className="w-24 min-w-24 text-start tabular-nums" /></TableCell>
+                    <TableCell><Input data-paste-column="shippingPerUnit" type="number" step="0.01" min="0" inputMode="decimal" readOnly={shareOf(l).shipping !== 0} value={Math.round((l.shippingPerUnit + shareOf(l).shipping / l.quantity) * l.uomFactor * 10000) / 10000} onChange={(e) => setLine(i, { shippingPerUnit: toBasePrice(Math.max(0, Number(e.target.value) || 0), l.uomFactor) })} className="w-24 min-w-24 text-start tabular-nums" /></TableCell>
+                    <TableCell><Input data-paste-column="discountPerUnit" type="number" step="0.01" min="0" inputMode="decimal" readOnly={shareOf(l).discount !== 0} value={Math.round((l.discountPerUnit + shareOf(l).discount / l.quantity) * 10000) / 10000} onChange={(e) => setLine(i, { discountPerUnit: Number(e.target.value) })} className="w-24 min-w-24 text-start tabular-nums" /></TableCell>
                     {/* VAT is the document-level choice, not a per-line entry — read only. */}
                     <TableCell className="tabular-nums text-muted-foreground">{fmt(lineTax(l, vatRate, applyVat) + shareOf(l).tax)}</TableCell>
                     <TableCell className="font-medium">{fmt(rowTotal(l))}</TableCell>
@@ -408,35 +436,35 @@ export function PurchaseOrderForm({ suppliers, warehouses, items, unitsByItem = 
             )}
           </div>
         </div>
-        <section className="space-y-4 rounded-xl border border-primary/20 bg-primary/5 p-4" aria-label="مصاريف وخصومات أمر الشراء">
+        <section className="space-y-4 rounded-xl border border-primary/20 bg-primary/5 p-4" aria-label={t("مصاريف وخصومات أمر الشراء")}>
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
-              <h3 className="font-semibold">مصاريف وخصومات أمر الشراء</h3>
+              <h3 className="font-semibold">{t("مصاريف وخصومات أمر الشراء")}</h3>
             </div>
-            <Button size="sm" variant="outline" onClick={() => setOriginCosts(cs => [...cs, { kind: "DOMESTIC_FREIGHT", amount: 0, allocationMethod: "VALUE", description: "", manual: {} }])}><Plus className="size-4" />إضافة مصروف أو خصم</Button>
+            <Button size="sm" variant="outline" onClick={() => setOriginCosts(cs => [...cs, { kind: "DOMESTIC_FREIGHT", amount: 0, allocationMethod: "VALUE", description: "", manual: {} }])}><Plus className="size-4" />{t("إضافة مصروف أو خصم")}</Button>
           </div>
           {originCosts.map((c, i) => (
             <div key={i} className="space-y-3 rounded-lg border bg-background p-3">
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[1fr_1fr_1fr_1fr_auto]">
-                <label className="space-y-1 text-sm"><span>نوع البند</span><select aria-label="نوع المصروف" className={selectCls} value={c.kind} onChange={e => setCost(i, { kind: e.target.value as OriginCost["kind"] })}>
-                  <option value="MARKETPLACE_TAX">ضريبة بلد الشراء</option><option value="DOMESTIC_FREIGHT">شحن محلي</option><option value="PREP">تجهيز</option><option value="OTHER">مصروف آخر</option><option value="DISCOUNT">خصم على الطلب</option>
+                <label className="space-y-1 text-sm"><span>{t("نوع البند")}</span><select aria-label={t("نوع المصروف")} className={selectCls} value={c.kind} onChange={e => setCost(i, { kind: e.target.value as OriginCost["kind"] })}>
+                  <option value="MARKETPLACE_TAX">{t("ضريبة بلد الشراء")}</option><option value="DOMESTIC_FREIGHT">{t("شحن محلي")}</option><option value="PREP">{t("تجهيز")}</option><option value="OTHER">{t("مصروف آخر")}</option><option value="DISCOUNT">{t("خصم على الطلب")}</option>
                 </select></label>
-                <label className="space-y-1 text-sm"><span>المبلغ ({currency})</span><Input aria-label="قيمة المصروف أو الخصم" type="number" step="0.01" min="0" value={c.amount} onChange={e => setCost(i, { amount: Number(e.target.value) })} /></label>
-                <label className="space-y-1 text-sm"><span>طريقة التوزيع</span><select aria-label="طريقة التوزيع" className={selectCls} value={c.allocationMethod} onChange={e => setCost(i, { allocationMethod: e.target.value as OriginCost["allocationMethod"] })}><option value="VALUE">حسب صافي قيمة الأصناف</option><option value="QUANTITY">حسب الكمية</option><option value="MANUAL">يدويًا لكل صنف</option></select></label>
-                <label className="space-y-1 text-sm"><span>الوصف (اختياري)</span><Input maxLength={300} value={c.description} onChange={e => setCost(i, { description: e.target.value })} /></label>
-                <Button className="self-end" size="icon" variant="ghost" aria-label="حذف المصروف" onClick={() => setOriginCosts(cs => cs.filter((_, n) => n !== i))}><Trash2 className="size-4 text-destructive" /></Button>
+                <label className="space-y-1 text-sm"><span>{t("المبلغ")} ({currency})</span><Input aria-label={t("قيمة المصروف أو الخصم")} type="number" step="0.01" min="0" value={c.amount} onChange={e => setCost(i, { amount: Number(e.target.value) })} /></label>
+                <label className="space-y-1 text-sm"><span>{t("طريقة التوزيع")}</span><select aria-label={t("طريقة التوزيع")} className={selectCls} value={c.allocationMethod} onChange={e => setCost(i, { allocationMethod: e.target.value as OriginCost["allocationMethod"] })}><option value="VALUE">{t("حسب صافي قيمة الأصناف")}</option><option value="QUANTITY">{t("حسب الكمية")}</option><option value="MANUAL">{t("يدويًا لكل صنف")}</option></select></label>
+                <label className="space-y-1 text-sm"><span>{t("الوصف (اختياري)")}</span><Input maxLength={300} value={c.description} onChange={e => setCost(i, { description: e.target.value })} /></label>
+                <Button className="self-end" size="icon" variant="ghost" aria-label={t("حذف المصروف")} onClick={() => setOriginCosts(cs => cs.filter((_, n) => n !== i))}><Trash2 className="size-4 text-destructive" /></Button>
               </div>
               {c.allocationMethod === "MANUAL" && <div className="grid gap-3 border-t pt-3 sm:grid-cols-2">
-                {lines.filter(l => l.itemId).map(l => <label key={l.id} className="space-y-1 text-sm"><span>{itemById.get(l.itemId)?.nameAr ?? l.itemId}</span><Input aria-label={`نصيب ${itemById.get(l.itemId)?.nameAr ?? l.itemId}`} type="number" step="0.01" min="0" value={c.manual[l.itemId] ?? 0} onChange={e => setCost(i, { manual: { ...c.manual, [l.itemId]: Number(e.target.value) } })} /></label>)}
-                <p className="text-sm sm:col-span-2">الموزّع: {fmt(Object.values(c.manual).reduce((sum, n) => sum + n, 0))} / {fmt(c.amount)} {currency}</p>
+                {lines.filter(l => l.itemId).map(l => <label key={l.id} className="space-y-1 text-sm"><span>{itemById.get(l.itemId)?.nameAr ?? l.itemId}</span><Input aria-label={fill(t("نصيب {0}"), [itemById.get(l.itemId)?.nameAr ?? l.itemId])} type="number" step="0.01" min="0" value={c.manual[l.itemId] ?? 0} onChange={e => setCost(i, { manual: { ...c.manual, [l.itemId]: Number(e.target.value) } })} /></label>)}
+                <p className="text-sm sm:col-span-2">{t("الموزّع:")} {fmt(Object.values(c.manual).reduce((sum, n) => sum + n, 0))} / {fmt(c.amount)} {currency}</p>
               </div>}
             </div>
           ))}
           <div className="flex items-center gap-3">
-            <Button type="button" onClick={applyDistribution} disabled={pending}>توزيع</Button>
-            {distributionPending && <span className="text-xs text-amber-700">بانتظار التوزيع</span>}
+            <Button type="button" onClick={applyDistribution} disabled={pending || clipboard.busy}>{t("توزيع")}</Button>
+            {distributionPending && <span className="text-xs text-amber-700">{t("بانتظار التوزيع")}</span>}
           </div>
-          {allocationError && <p role="alert" className="text-sm text-destructive">{allocationError}</p>}
+          {allocationError && <p role="alert" className="text-sm text-destructive">{t(allocationError)}</p>}
         </section>
       </CardContent>
     </Card>

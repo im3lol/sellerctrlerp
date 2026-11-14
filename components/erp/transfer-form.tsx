@@ -1,4 +1,6 @@
 "use client";
+import { PageActions } from "@/components/erp/page-actions";
+
 
 import { useMemo, useState, useTransition } from "react";
 import { fill } from "@/lib/i18n";
@@ -15,6 +17,7 @@ import { Label } from "@/components/ui/label";
 import { Icon } from "@/components/icon";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { useLinePaste, LinePasteHint } from "@/components/erp/line-paste";
 import { SortableLineRows } from "@/components/erp/sortable-line-rows";
 
 type Option = { id: string; code: string; name: string };
@@ -60,6 +63,11 @@ export function TransferForm({
     for (const s of stock) m.set(`${s.itemId}|${s.warehouseId}`, s.quantity);
     return m;
   }, [stock]);
+  const clipboard = useLinePaste({ rows: lines, setRows: setLines,
+    newRow: () => ({ id: newId(), itemId: "", itemLabel: "", fromWh: defFrom, toWh: defTo, quantity: "" }),
+    columns: [{ key: "itemId", kind: "item" }, { key: "quantity", kind: "number", integer: true }],
+    apply: (row, values, item) => ({ ...row, ...(item ? { itemId: item.id, itemLabel: `${item.code} — ${item.name}` } : {}), ...(typeof values.quantity === "number" ? { quantity: String(values.quantity) } : {}) }),
+  });
   const available = (l: Line) => stockMap.get(`${l.itemId}|${l.fromWh}`) ?? 0;
 
   const whOptions = useMemo(() => warehouses.map((w) => ({ id: w.id, label: w.name, hint: w.code })), [warehouses]);
@@ -109,6 +117,10 @@ export function TransferForm({
 
   return (
     <div className="space-y-6">
+      <PageActions>
+            <Button disabled={pending || clipboard.busy} onClick={submit}>{isEdit ? t("حفظ التعديلات") : t("حفظ التحويل (مسودة)")}</Button>
+
+      </PageActions>
       <Card>
         <CardHeader><CardTitle>{t("بيانات التحويل")}</CardTitle></CardHeader>
         <CardContent className="grid gap-4 sm:grid-cols-3">
@@ -146,7 +158,8 @@ export function TransferForm({
             <Button type="button" variant="outline" onClick={() => addLine()}><Icon name="Plus" className="size-4" />{t("إضافة سطر")}</Button>
           </div>
 
-          <div className="overflow-x-auto rounded-lg border">
+          <LinePasteHint busy={clipboard.busy} />
+        <div className="overflow-x-auto rounded-lg border">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -164,13 +177,14 @@ export function TransferForm({
                 <SortableLineRows
                   items={lines}
                   onReorder={setLines}
+                clipboard={clipboard}
                   renderCells={(l) => {
                     const avail = available(l);
                     const over = l.itemId && Number(l.quantity) > avail + 1e-9;
                     return (
                       <>
-                        <TableCell>
-                          <ItemPicker selectedLabel={l.itemLabel} placeholder={t("ابحث بالاسم أو أي كود…")}
+                        <TableCell data-paste-column="itemId">
+                          <ItemPicker selectionRevision={clipboard.revision} selectionKey={l.itemId} selectedLabel={l.itemLabel} placeholder={t("ابحث بالاسم أو أي كود…")}
                             onSelect={(it) => updateLine(l.id, { itemId: it.id, itemLabel: `${it.code} — ${it.name}` })} />
                         </TableCell>
                         <TableCell>
@@ -182,7 +196,7 @@ export function TransferForm({
                             onSelect={(id) => updateLine(l.id, { toWh: id })} />
                         </TableCell>
                         <TableCell><div className="flex h-9 items-center rounded-md border bg-muted/40 px-3 text-sm">{l.itemId ? q(avail) : "—"}</div></TableCell>
-                        <TableCell><Input type="number" step="1" min="1" className={`w-28 ${over ? "border-destructive text-destructive" : ""}`} value={l.quantity} onChange={(e) => updateLine(l.id, { quantity: e.target.value.replace(/[^\d]/g, "") })} /></TableCell>
+                        <TableCell><Input data-paste-column="quantity" type="number" step="1" min="1" className={`w-28 ${over ? "border-destructive text-destructive" : ""}`} value={l.quantity} onChange={(e) => updateLine(l.id, { quantity: e.target.value.replace(/[^\d]/g, "") })} /></TableCell>
                         <TableCell>
                           <Button type="button" variant="ghost" size="icon" onClick={() => removeLine(l.id)} aria-label={t("حذف")}><Icon name="Trash2" className="size-4 text-destructive" /></Button>
                         </TableCell>
@@ -194,9 +208,7 @@ export function TransferForm({
             </Table>
           </div>
 
-          <div className="flex justify-end">
-            <Button disabled={pending} onClick={submit}>{isEdit ? t("حفظ التعديلات") : t("حفظ التحويل (مسودة)")}</Button>
-          </div>
+
         </CardContent>
       </Card>
     </div>

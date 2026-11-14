@@ -1,3 +1,4 @@
+import { noticeTarget } from "@/lib/ui-notice";
 import { redirect } from "next/navigation";
 import { getCheckoutSession } from "@/lib/saas/xpay";
 import { settleXpaySession } from "@/lib/saas/xpay-settle";
@@ -20,5 +21,5 @@ export async function GET(req: Request) {
       paid = r.ok;
     }
   }
-  redirect(`/settings/subscription?xpay=${paid ? "paid" : "pending"}`);
+  redirect(await noticeTarget(`/settings/subscription?xpay=${paid ? "paid" : "pending"}`));
 }

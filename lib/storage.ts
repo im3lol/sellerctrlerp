@@ -75,3 +75,10 @@ export async function presignDownload(key: string, expiresIn = 600) {
   const cmd = new GetObjectCommand({ Bucket: privateBucket, Key: key });
   return getSignedUrl(s3, cmd, { expiresIn });
 }
+
+/** Read a staged private snapshot; callers must first authorize its tenant-owned key. */
+export async function readPrivateObject(key: string): Promise<Buffer> {
+  const result = await s3.send(new GetObjectCommand({ Bucket: privateBucket, Key: key }));
+  if (!result.Body) throw new Error("Snapshot object unavailable");
+  return Buffer.from(await result.Body.transformToByteArray());
+}

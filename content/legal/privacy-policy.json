@@ -1,0 +1,280 @@
+{
+  "en": {
+    "title": "Privacy Policy",
+    "description": "How SellerCtrl handles account, business and connected marketplace data, your choices, and requests for access or deletion.",
+    "eyebrow": "SellerCtrl · Privacy & data",
+    "updated": "Last updated",
+    "date": "20 October 2026",
+    "home": "Home",
+    "contents": "On this page",
+    "skip": "Skip to the privacy policy",
+    "otherLanguage": "العربية",
+    "contact": "Contact SellerCtrl",
+    "contactText": "For privacy questions, access, correction, export, deletion or integration concerns, email info@sellerctrl.com. Include your account email and the company concerned. Do not send passwords, access tokens or unnecessary identity documents.",
+    "summary": "SellerCtrl provides business management, accounting, inventory and marketplace reporting tools. This notice covers information handled on sellerctrl.com, app.sellerctrl.com and through the SellerCtrl services you use.",
+    "sections": [
+      {
+        "id": "scope",
+        "title": "1. Who this notice covers",
+        "paragraphs": [
+          "SellerCtrl (\"we\", \"us\") handles information about visitors, account holders, business contacts and people whose details a business enters into the service. Our privacy contact is info@sellerctrl.com.",
+          "We determine how account administration, subscription, security and support information is used. We process business records to provide the services requested by the business and follow its authorized instructions. That business is responsible for its lawful collection and use of customer, supplier, employee and other records and for informing the people concerned. If an employer or seller entered your information, contact that business first; we can help route your request."
+        ]
+      },
+      {
+        "id": "information",
+        "title": "2. Information we collect",
+        "paragraphs": [
+          "Account and company information: names, email addresses, usernames, password hashes, business and contact details, addresses, tax identifiers, roles, membership, preferences and optional profile images. We also handle authentication records and, when enabled, multi-factor authentication information.",
+          "Records you enter, import or generate: products, SKUs and ASINs, stock, purchases, sales, invoices, returns, fees, accounting entries, bank or payment references and reports. These may contain customer and supplier names, contact details, addresses and tax information; or employee details, attendance and payroll when those modules are used. Documents, attachments and support messages may contain further information you provide.",
+          "Connected service information: seller, store and marketplace identifiers, authorized permissions, integration credentials or OAuth tokens, synchronization records and data returned by enabled integrations. Marketplace records can include order IDs, dates, items, quantities, amounts, currencies, fulfilment status, inventory, settlements, reimbursements, returns, catalog and competitive-offer information. Availability depends on your authorization and the provider's API. Reports or files you supply may contain additional buyer or business details.",
+          "Subscription and technical information: plans, subscription status, transaction amounts, payment methods and references, receipts or transfer evidence, correspondence, IP addresses used for abuse prevention, request and error details, timestamps, security and audit events, and limited referral information described below."
+        ]
+      },
+      {
+        "id": "purposes",
+        "title": "3. How and why we use information",
+        "paragraphs": [
+          "We use information to administer accounts and workspaces; authenticate users and enforce permissions; provide selected business tools; synchronize authorized marketplace data; reconcile transactions and prepare reports; manage subscriptions and payments; answer support requests and send service messages; maintain backups; investigate errors, fraud and misuse; and meet applicable legal obligations.",
+          "Where applicable law requires a legal basis, it depends on the purpose: performing our agreement, legitimate interests in operating and protecting the service, legal obligations, or consent where required. Businesses are responsible for the basis for their operational records. Integration authorization permits specified API access; it is not consent to unrelated marketing. Optional authorizations can be withdrawn as described below."
+        ]
+      },
+      {
+        "id": "amazon",
+        "title": "4. Amazon and Login with Amazon",
+        "paragraphs": [
+          "SellerCtrl currently implements Amazon Selling Partner API (SP-API) connections for authorized seller workflows. Login with Amazon (LwA) is used to authorize that connection and exchange tokens. Current SellerCtrl account login uses SellerCtrl credentials; linking a seller account does not mean your Amazon shopping profile is used to sign you into SellerCtrl.",
+          "Amazon handles its sign-in and consent process. We receive connection identifiers and tokens for the permissions granted to our application, not your Amazon password. Stored connection refresh tokens are encrypted; access tokens are used for authorized API requests.",
+          "We use connected Amazon data for requested seller services, including order, inventory, financial and marketplace reporting and permitted offer comparisons. We do not sell or rent that data or use it for unrelated advertising. It is not available to another business's workspace. Authorized users within your business and authorized support personnel may access it as needed to provide the service."
+        ]
+      },
+      {
+        "id": "planned-ads",
+        "title": "5. Planned Amazon Ads features",
+        "paragraphs": [
+          "Amazon Ads API access and advertising analytics are planned additions. They are not currently implemented as an active Ads API integration. This notice does not represent Amazon approval or partnership. Preparing an LwA security profile does not activate advertising access or change your existing ERP workflows.",
+          "If introduced after the necessary approval and implementation, these features will require an appropriate authorized connection. Depending on approved scopes, they may process advertising profile and account IDs, campaigns, ad groups, advertised products, targeting or keywords, budgets, spend and performance reports such as impressions, clicks and attributed results, for requested reporting and analysis. We will update this notice and explain access and controls before processing starts. This section does not assert that these data categories are collected today."
+        ]
+      },
+      {
+        "id": "sharing",
+        "title": "6. When information is shared",
+        "paragraphs": [
+          "We do not sell or rent personal information or business records. Information is available to authorized workspace members according to their permissions and to personnel who need it for administration, support or security, including controlled workspace support access.",
+          "Service providers process information needed for hosting, network delivery and security, databases, file storage, backups, email and enabled payments. Our implementation includes SMTP or Resend for transactional email, xpay for configured checkout, and optional Telegram or configured webhook destinations for notifications and operational alerts. Which providers process your information depends on the configuration and features used. Payment details entered in provider checkout are handled by that provider; SellerCtrl subscription records store transaction and billing information rather than card numbers or card security codes.",
+          "We exchange relevant information with Amazon and other providers when you use enabled connections. Document links, email or WhatsApp sharing, exports, notifications and configured automations/webhooks deliver selected content to the recipient or destination you choose. Recipients can retain copies outside SellerCtrl. We may also disclose information to comply with applicable law or valid legal requests, protect people and the service, investigate misuse, or support a business transfer with appropriate confidentiality and notice where required. External services have their own privacy notices."
+        ]
+      },
+      {
+        "id": "ai",
+        "title": "7. Optional AI and assistant connections",
+        "paragraphs": [
+          "When you choose AI invoice reading, the document or image you select is sent to Anthropic's API to extract its contents. The feature sends that file and extraction instructions; matching existing suppliers and products takes place within SellerCtrl. Extracted drafts and usage information may be stored. Do not submit unnecessary personal information. Availability depends on configuration; an ordinary Claude subscription is not itself this API service.",
+          "If you authorize an external assistant through SellerCtrl's MCP connection, its provider receives results of permitted tool requests. Grants are tied to the authorizing user and one company, are currently read-only, and can be revoked in personal assistant connection settings. SellerCtrl records tool activity. Review the external provider's privacy and retention settings; revoking access does not erase copies it already received."
+        ]
+      },
+      {
+        "id": "cookies",
+        "title": "8. Cookies, local storage and external content",
+        "paragraphs": [
+          "We use authentication/session and security cookies, a selected-company cookie and language preferences. Language preferences can persist for up to one year. Browser local storage supports preferences such as theme and notification sounds. Blocking or clearing these technologies may sign you out or reset preferences.",
+          "The marketing site uses a first-party referral cookie, sc_src, for up to 30 days. It records a source/referral parameter, referring website host or \"direct\" to associate later signup with its acquisition source. It is not a third-party advertising pixel. You can remove cookies through browser controls.",
+          "The current application does not embed a general third-party advertising pixel or a dedicated third-party website analytics SDK. External checkout, support links and embedded learning videos, including YouTube's privacy-enhanced player, can still cause providers to receive connection or usage information when used. We will explain new non-essential tracking and obtain consent where applicable law requires it before enabling it."
+        ]
+      },
+      {
+        "id": "security",
+        "title": "9. Security and access controls",
+        "paragraphs": [
+          "Safeguards include HTTPS for public access, hashed passwords, encryption of stored integration secrets, role and company access controls, database tenant isolation, audit records and restricted access to private attachments and backups. Some images, such as product images and company logos, are intentionally served as public display assets; do not put sensitive documents in public-image fields.",
+          "No service guarantees absolute security. Protect your credentials and connected accounts, use multi-factor authentication where available, and contact info@sellerctrl.com if you suspect unauthorized access. We assess incidents and provide notifications where applicable law requires. This notice does not claim a security certification or encryption of every category of stored information."
+        ]
+      },
+      {
+        "id": "retention",
+        "title": "10. Retention and deletion",
+        "paragraphs": [
+          "We keep information for the purposes described, considering the account relationship, business instructions, applicable recordkeeping obligations, security, disputes and recovery needs. Subscription expiry does not itself immediately delete all company records. Business records, support correspondence, logs, files and backups can have different retention needs.",
+          "An authorized company administrator can request company deletion in organization settings. The current workflow provides a 14-day cancellation window before company-record deletion is scheduled for processing. Export needed records first. Company deletion is distinct from personal-user-account deletion: a user can belong to several companies. Contact us for personal-account deletion or records outside that company workflow.",
+          "Deletion from the active service is not instantaneous deletion from every file store, log, backup or third-party recipient. Residual copies may remain pending separate cleanup or backup rotation; off-site copies and user exports can have different lifecycles. Contact us to request handling of residual files and copies. Where retention is required for law, security or a dispute, we explain the limitation when responding. We do not promise one deletion deadline for every category."
+        ]
+      },
+      {
+        "id": "disconnect",
+        "title": "11. Disconnecting an integration",
+        "paragraphs": [
+          "Subject to your role, disconnect a marketplace connection in its connection settings and revoke the application's authorization through the provider's account controls. Disconnection removes saved connection credentials in SellerCtrl and prevents their future use; an already-running request may finish. Individual MCP grants can be revoked in personal assistant connection settings.",
+          "Disconnection or revocation does not automatically delete imported orders, invoices, reports or other business records. Request deletion separately when required. Revoking a connection does not delete your SellerCtrl account or your Amazon account."
+        ]
+      },
+      {
+        "id": "rights",
+        "title": "12. Your choices and privacy requests",
+        "paragraphs": [
+          "Depending on applicable law, you may have rights to access, correct, delete or obtain a portable copy of personal information; restrict or object to certain processing; withdraw consent for optional processing; and complain to a competent data protection authority. Exceptions may apply, including other people's privacy and lawful recordkeeping obligations.",
+          "Email info@sellerctrl.com with your request. We may proportionately verify your identity and authority and coordinate with the business responsible for the records. We respond within applicable legal time limits and explain if a request cannot be fulfilled in full. Account settings and authorized exports also provide some direct controls."
+        ]
+      },
+      {
+        "id": "international",
+        "title": "13. International processing",
+        "paragraphs": [
+          "SellerCtrl and the providers or integrations you use may process information outside your country. Locations depend on hosting and provider configuration and may change. We do not promise storage in one particular country. Where applicable law requires safeguards for a cross-border transfer, those requirements must be addressed for that transfer. Contact us about the arrangements relevant to your account."
+        ]
+      },
+      {
+        "id": "children",
+        "title": "14. Business use and children",
+        "paragraphs": [
+          "SellerCtrl is intended for business use and is not directed to children. We do not knowingly invite children to create consumer accounts. Contact us if you believe a child provided personal information without appropriate authority so we can assess and address it."
+        ]
+      },
+      {
+        "id": "changes",
+        "title": "15. Changes to this notice",
+        "paragraphs": [
+          "We may update this notice when the service, integrations or requirements change. We publish the updated notice here with its date and provide additional notice or request consent for material changes where required. Planned Ads features do not authorize new processing before those features are introduced and appropriately authorized."
+        ]
+      }
+    ]
+  },
+  "ar": {
+    "title": "سياسة الخصوصية",
+    "description": "كيف يتعامل SellerCtrl مع بيانات الحساب والأعمال والمنصات المرتبطة، وخياراتك وطلبات الوصول أو الحذف.",
+    "eyebrow": "SellerCtrl · الخصوصية والبيانات",
+    "updated": "آخر تحديث",
+    "date": "20 أكتوبر 2026",
+    "home": "الرئيسية",
+    "contents": "محتويات الصفحة",
+    "skip": "انتقل إلى سياسة الخصوصية",
+    "otherLanguage": "English",
+    "contact": "التواصل مع SellerCtrl",
+    "contactText": "للأسئلة المتعلقة بالخصوصية أو الوصول أو التصحيح أو التصدير أو الحذف أو التكاملات، راسل info@sellerctrl.com مع بريد حسابك والشركة المعنية. لا ترسل كلمات مرور أو رموز وصول أو وثائق هوية غير ضرورية.",
+    "summary": "يوفر SellerCtrl أدوات لإدارة الأعمال والمحاسبة والمخزون وتقارير منصات البيع. تغطي هذه السياسة المعلومات على sellerctrl.com وapp.sellerctrl.com ومن خلال خدمات SellerCtrl التي تستخدمها.",
+    "sections": [
+      {
+        "id": "scope",
+        "title": "1. نطاق هذه السياسة",
+        "paragraphs": [
+          "يتعامل SellerCtrl («نحن») مع معلومات الزوار وأصحاب الحسابات وجهات الاتصال والأشخاص الذين تدخل المنشآت بياناتهم في الخدمة. للتواصل بشأن الخصوصية: info@sellerctrl.com.",
+          "نحدد كيفية استخدام معلومات إدارة الحساب والاشتراك والأمان والدعم. ونعالج سجلات الأعمال لتقديم الخدمات التي تطلبها المنشأة ووفق تعليماتها المعتمدة. وتتحمل المنشأة مسؤولية مشروعية جمع سجلات العملاء والموردين والموظفين وغيرها واستخدامها وإبلاغ أصحابها. إذا أدخل صاحب عملك أو أحد البائعين معلوماتك، فتواصل معه أولًا؛ ويمكننا المساعدة في توجيه طلبك."
+        ]
+      },
+      {
+        "id": "information",
+        "title": "2. المعلومات التي نجمعها",
+        "paragraphs": [
+          "بيانات الحساب والشركة: الأسماء والبريد الإلكتروني وأسماء المستخدمين وبصمات كلمات المرور وبيانات الأعمال والتواصل والعناوين والمعرّفات الضريبية والأدوار والعضويات والتفضيلات وصور الملف الاختيارية. ونتعامل مع سجلات المصادقة ومعلومات المصادقة متعددة العوامل عند تفعيلها.",
+          "السجلات التي تدخلها أو تستوردها أو تنشئها: المنتجات وأكواد SKU وASIN والمخزون والمشتريات والمبيعات والفواتير والمرتجعات والرسوم والقيود المحاسبية والمراجع البنكية ومراجع الدفع والتقارير. وقد تتضمن أسماء العملاء والموردين ووسائل تواصلهم وعناوينهم وبياناتهم الضريبية، أو بيانات الموظفين والحضور والرواتب عند استخدام تلك الوحدات. وقد تتضمن المستندات والمرفقات ورسائل الدعم معلومات أخرى تقدمها.",
+          "معلومات الخدمات المتصلة: معرّفات البائع والمتجر والسوق والصلاحيات المفوضة وبيانات اعتماد التكامل أو رموز OAuth وسجلات المزامنة والبيانات التي تعيدها التكاملات المفعلة. وقد تشمل معرّفات الطلبات وتواريخها وأصنافها وكمياتها ومبالغها وعملاتها وحالة التنفيذ والمخزون والتسويات والتعويضات والمرتجعات والكتالوج والعروض المنافسة. ويتحدد المتاح وفق تفويضك وواجهة المزود. وقد تتضمن التقارير أو الملفات التي تقدمها بيانات إضافية عن المشترين أو الأعمال.",
+          "معلومات الاشتراك والجوانب الفنية: الباقات وحالة الاشتراك والمبالغ وطرق الدفع ومراجعها والإيصالات أو إثباتات التحويل والمراسلات وعناوين IP المستخدمة لمنع الإساءة وتفاصيل الطلبات والأخطاء والتوقيتات وأحداث الأمان والتدقيق ومعلومات الإحالة المحدودة الموضحة أدناه."
+        ]
+      },
+      {
+        "id": "purposes",
+        "title": "3. أغراض استخدام المعلومات",
+        "paragraphs": [
+          "نستخدم المعلومات لإدارة الحسابات ومساحات العمل؛ والتحقق من المستخدمين وتطبيق الصلاحيات؛ وتقديم أدوات الأعمال المختارة؛ ومزامنة بيانات المنصات بتفويض؛ ومطابقة المعاملات وإعداد التقارير؛ وإدارة الاشتراكات والمدفوعات؛ والاستجابة للدعم وإرسال رسائل الخدمة؛ وصيانة النسخ الاحتياطية؛ والتحقيق في الأخطاء والاحتيال وإساءة الاستخدام؛ والوفاء بالالتزامات القانونية المنطبقة.",
+          "حيث يتطلب القانون أساسًا للمعالجة، يتحدد بحسب الغرض: تنفيذ اتفاقنا، أو المصالح المشروعة لتشغيل الخدمة وحمايتها، أو الالتزامات القانونية، أو الموافقة حين تلزم. وتتحمل المنشآت مسؤولية أساس معالجة سجلاتها التشغيلية. يجيز تفويض التكامل الوصول المحدد للواجهة ولا يعد موافقة على تسويق غير مرتبط. ويمكن سحب التفويضات الاختيارية كما هو موضح أدناه."
+        ]
+      },
+      {
+        "id": "amazon",
+        "title": "4. أمازون وLogin with Amazon",
+        "paragraphs": [
+          "يتضمن SellerCtrl حاليًا ربط Amazon Selling Partner API ‏(SP-API) لخدمات البائع المصرح بها. ويستخدم Login with Amazon ‏(LwA) لتفويض هذا الربط وتبادل الرموز. أما دخول SellerCtrl الحالي فيستخدم بيانات حساب SellerCtrl؛ ولا يعني ربط حساب البائع استخدام ملف تسوقك على أمازون لتسجيل دخولك إلى SellerCtrl.",
+          "تتولى أمازون تسجيل الدخول وشاشة الموافقة لديها. ونتلقى معرّفات الاتصال والرموز للصلاحيات الممنوحة لتطبيقنا، وليس كلمة مرور أمازون. تخزن رموز التجديد الخاصة بالربط مشفرة، وتستخدم رموز الوصول لطلبات الواجهة المصرح بها.",
+          "نستخدم بيانات أمازون المرتبطة لخدمات البائع المطلوبة، ومنها تقارير الطلبات والمخزون والمال والمنصة ومقارنات العروض المسموح بها. ولا نبيعها أو نؤجرها أو نستخدمها لإعلانات غير مرتبطة، ولا تتاح لمساحة عمل منشأة أخرى. ويمكن للمستخدمين المخولين داخل منشأتك ولموظفي الدعم المخولين الوصول إليها بالقدر اللازم لتقديم الخدمة."
+        ]
+      },
+      {
+        "id": "planned-ads",
+        "title": "5. ميزات Amazon Ads المخطط لها",
+        "paragraphs": [
+          "الوصول إلى Amazon Ads API وتحليلات الإعلانات إضافات مخطط لها، وليست حاليًا تكاملًا منفذًا ونشطًا لواجهة الإعلانات. ولا تمثل هذه السياسة موافقة أو شراكة من أمازون. وتجهيز ملف أمان LwA لا يفعّل الوصول للإعلانات ولا يغيّر دورة ERP الحالية.",
+          "إذا أتيحت بعد الموافقة والتنفيذ اللازمين، فستتطلب اتصالًا مفوضًا مناسبًا. وبحسب النطاقات المعتمدة قد تعالج معرّفات الحسابات والملفات الإعلانية والحملات والمجموعات الإعلانية والمنتجات المعلن عنها والاستهداف أو الكلمات المفتاحية والميزانيات والإنفاق وتقارير الأداء مثل مرات الظهور والنقرات والنتائج المنسوبة، للتقارير والتحليل المطلوبين. سنحدّث هذه السياسة ونوضح الوصول وأدوات التحكم قبل بدء المعالجة. ولا يعني هذا القسم أن هذه الفئات تجمع اليوم."
+        ]
+      },
+      {
+        "id": "sharing",
+        "title": "6. مشاركة المعلومات",
+        "paragraphs": [
+          "لا نبيع المعلومات الشخصية أو سجلات الأعمال ولا نؤجرها. تتاح المعلومات لأعضاء مساحة العمل المخولين بحسب صلاحياتهم ولمن يحتاجها من العاملين للإدارة أو الدعم أو الأمان، بما في ذلك الوصول المنضبط إلى مساحة العمل لتقديم الدعم.",
+          "يعالج مزودو الخدمة المعلومات اللازمة للاستضافة وتوصيل الشبكة وأمانها وقواعد البيانات والملفات والنسخ الاحتياطي والبريد والمدفوعات المفعلة. يتضمن التنفيذ SMTP أو Resend للبريد التشغيلي، وxpay للدفع المهيأ، وTelegram أو وجهات webhook اختيارية للإشعارات والتنبيهات التشغيلية. ويتحدد المزود المعالج وفق الميزات والإعدادات المستخدمة. يتولى مزود الدفع بيانات الدفع المدخلة في واجهته؛ وتخزن سجلات اشتراك SellerCtrl بيانات المعاملة والفوترة بدلًا من أرقام البطاقات أو رموز أمانها.",
+          "نتبادل المعلومات ذات الصلة مع أمازون والمزودين الآخرين عند استخدام الاتصالات المفعلة. وتوصل روابط المستندات والمشاركة بالبريد أو WhatsApp والتصديرات والإشعارات والأتمتة أو webhook المحتوى المحدد للجهة التي تختارها، وقد تحتفظ به خارج SellerCtrl. وقد نفصح عن معلومات للامتثال للقانون أو طلب قانوني صحيح، أو حماية الأشخاص والخدمة، أو التحقيق في الإساءة، أو في إطار انتقال أعمال مع السرية والإخطار المناسبين حيث يلزم. وتخضع الخدمات الخارجية لسياساتها الخاصة."
+        ]
+      },
+      {
+        "id": "ai",
+        "title": "7. الذكاء الاصطناعي وروابط المساعد الاختيارية",
+        "paragraphs": [
+          "عندما تختار قراءة فاتورة بالذكاء الاصطناعي، يرسل المستند أو الصورة التي تختارها إلى واجهة Anthropic لاستخراج المحتوى. ترسل الميزة الملف وتعليمات الاستخراج، وتتم مطابقته مع الموردين والأصناف الموجودة داخل SellerCtrl. وقد تخزن المسودات المستخرجة ومعلومات الاستخدام. لا ترفع معلومات شخصية غير ضرورية. تتوقف الإتاحة على الإعداد؛ ولا يعد اشتراك Claude المعتاد هذه الخدمة البرمجية.",
+          "إذا فوضت مساعدًا خارجيًا عبر اتصال MCP في SellerCtrl، يتلقى مزوده نتائج طلبات الأدوات المسموح بها. ترتبط التفويضات بالمستخدم الذي وافق وبشركة واحدة، وهي حاليًا للقراءة فقط، ويمكن إلغاؤها من إعدادات روابط المساعد الشخصية. يسجل SellerCtrl نشاط الأدوات. راجع سياسة المزود وإعدادات احتفاظه؛ فإلغاء الوصول لا يمحو النسخ التي تلقاها سابقًا."
+        ]
+      },
+      {
+        "id": "cookies",
+        "title": "8. ملفات الارتباط والتخزين المحلي والمحتوى الخارجي",
+        "paragraphs": [
+          "نستخدم ملفات ارتباط الجلسة والمصادقة والأمان والشركة المختارة وتفضيلات اللغة. وقد تستمر تفضيلات اللغة حتى سنة. ويدعم التخزين المحلي للمتصفح تفضيلات مثل المظهر وأصوات الإشعارات. وقد يؤدي حظرها أو مسحها إلى تسجيل خروجك أو إعادة ضبط تفضيلاتك.",
+          "يستخدم الموقع التسويقي ملف إحالة من الطرف الأول باسم sc_src لمدة تصل إلى 30 يومًا. ويسجل مصدرًا من معاملات الرابط أو اسم نطاق الموقع المحيل أو «مباشر» لربط التسجيل اللاحق بمصدر التعرف على الخدمة. وهو ليس بكسلًا إعلانيًا لطرف ثالث. ويمكنك إزالة ملفات الارتباط من إعدادات المتصفح.",
+          "لا يتضمن التطبيق الحالي بكسلًا إعلانيًا عامًا لطرف ثالث أو حزمة مخصصة لتحليلات زيارات الموقع من طرف ثالث. ومع ذلك قد تتلقى خدمات الدفع وروابط الدعم وفيديوهات التعلم المضمنة، ومنها مشغّل YouTube المحسن للخصوصية، معلومات اتصال أو استخدام عند استعمالها. سنوضح أي تتبع جديد غير ضروري ونطلب الموافقة حيث يفرضها القانون قبل تفعيله."
+        ]
+      },
+      {
+        "id": "security",
+        "title": "9. الأمان والتحكم في الوصول",
+        "paragraphs": [
+          "تشمل التدابير HTTPS للوصول العام وبصمات كلمات المرور وتشفير أسرار التكامل المخزنة والتحكم بحسب الأدوار والشركة وعزل بيانات المنشآت في قاعدة البيانات وسجلات التدقيق وتقييد الوصول للمرفقات والنسخ الاحتياطية الخاصة. وتقدم بعض الصور، مثل صور المنتجات وشعارات الشركات، كأصول عرض عامة عمدًا؛ فلا تضع مستندات حساسة في حقول الصور العامة.",
+          "لا توجد خدمة تضمن الأمان المطلق. حافظ على بيانات دخولك وحساباتك المرتبطة واستخدم المصادقة متعددة العوامل حيث تتاح، وراسل info@sellerctrl.com عند الاشتباه في وصول غير مصرح به. نقيّم الحوادث ونقدم الإخطارات التي يفرضها القانون. ولا تدّعي السياسة شهادة أمنية أو تشفير جميع فئات المعلومات المخزنة."
+        ]
+      },
+      {
+        "id": "retention",
+        "title": "10. الاحتفاظ بالمعلومات وحذفها",
+        "paragraphs": [
+          "نحتفظ بالمعلومات للأغراض الموضحة مع مراعاة علاقة الحساب وتعليمات المنشأة والتزامات السجلات المنطبقة والأمان والنزاعات والاسترداد. ولا يعني انتهاء الاشتراك حذف جميع سجلات الشركة فورًا. وقد تختلف احتياجات الاحتفاظ بين سجلات الأعمال والدعم والسجلات الفنية والملفات والنسخ الاحتياطية.",
+          "يمكن لمسؤول الشركة المخول طلب حذفها من إعدادات المنشأة. وتتيح الآلية الحالية مهلة 14 يومًا لإلغاء الطلب قبل جدولة معالجة حذف سجلات الشركة. صدّر ما تحتاجه أولًا. يختلف حذف الشركة عن حذف حساب المستخدم الذي قد ينتمي لعدة شركات. تواصل معنا لحذف الحساب الشخصي أو السجلات الواقعة خارج هذه الآلية.",
+          "لا يعني الحذف من الخدمة النشطة محوًا فوريًا من كل مخزن ملفات أو سجل أو نسخة احتياطية أو مستلم خارجي. فقد تبقى نسخ إلى حين التنظيف المنفصل أو تدوير النسخ الاحتياطية، وقد تختلف دورة النسخ الخارجية وتصديرات المستخدمين. تواصل معنا لطلب التعامل مع الملفات والنسخ المتبقية. وحين يلزم الاحتفاظ لمتطلبات القانون أو الأمان أو نزاع، نوضح القيد عند الرد. ولا نعد بموعد حذف موحد لكل الفئات."
+        ]
+      },
+      {
+        "id": "disconnect",
+        "title": "11. فصل التكامل وسحب التفويض",
+        "paragraphs": [
+          "بحسب دورك، يمكنك فصل اتصال منصة من إعدادات الاتصال وسحب تفويض التطبيق من أدوات حسابك لدى المزود. يزيل الفصل بيانات اعتماد الاتصال المحفوظة في SellerCtrl ويمنع استخدامها مستقبلًا؛ وقد يكتمل طلب بدأ بالفعل. ويمكن إلغاء كل تفويض MCP منفردًا من إعدادات روابط المساعد الشخصية.",
+          "لا يؤدي الفصل أو سحب التفويض تلقائيًا إلى حذف الطلبات أو الفواتير أو التقارير المستوردة أو سجلات الأعمال الأخرى. اطلب الحذف بشكل منفصل عند الحاجة. كما لا يحذف سحب الربط حساب SellerCtrl أو حساب أمازون."
+        ]
+      },
+      {
+        "id": "rights",
+        "title": "12. خياراتك وطلبات الخصوصية",
+        "paragraphs": [
+          "بحسب القانون المنطبق، قد تكون لك حقوق الوصول إلى المعلومات الشخصية وتصحيحها وحذفها أو الحصول على نسخة قابلة للنقل، وتقييد بعض المعالجة أو الاعتراض عليها، وسحب الموافقة على المعالجة الاختيارية، والشكوى إلى جهة حماية بيانات مختصة. وقد تنطبق استثناءات، منها خصوصية الآخرين والتزامات حفظ السجلات المشروعة.",
+          "أرسل طلبك إلى info@sellerctrl.com. قد نتحقق من هويتك وصلاحيتك بمعلومات متناسبة ونتعاون مع المنشأة المسؤولة عن السجلات. نرد خلال المواعيد القانونية المنطبقة ونوضح إن تعذر تنفيذ الطلب بالكامل. وتوفر إعدادات الحساب والتصديرات المصرح بها بعض أدوات التحكم المباشرة."
+        ]
+      },
+      {
+        "id": "international",
+        "title": "13. المعالجة عبر الحدود",
+        "paragraphs": [
+          "قد يعالج SellerCtrl والمزودون أو التكاملات التي تستخدمها المعلومات خارج دولتك. وتتوقف المواقع على إعدادات الاستضافة والمزودين وقد تتغير. ولا نعد بالتخزين في دولة بعينها. وحيث يشترط القانون ضمانات لنقل عبر الحدود، يلزم استيفاء متطلباته للنقل المعني. تواصل معنا بشأن الترتيبات المرتبطة بحسابك."
+        ]
+      },
+      {
+        "id": "children",
+        "title": "14. الاستخدام التجاري والأطفال",
+        "paragraphs": [
+          "SellerCtrl مخصص للاستخدام التجاري وغير موجه للأطفال. ولا ندعو الأطفال عن علم لإنشاء حسابات استهلاكية. تواصل معنا إن اعتقدت أن طفلًا قدم معلومات شخصية دون صلاحية مناسبة لتقييم الأمر ومعالجته."
+        ]
+      },
+      {
+        "id": "changes",
+        "title": "15. تحديث هذه السياسة",
+        "paragraphs": [
+          "قد نحدّث السياسة عند تغير الخدمة أو التكاملات أو المتطلبات. ننشر النسخة المحدّثة هنا مع تاريخها ونقدم إخطارًا إضافيًا أو نطلب الموافقة على التغييرات الجوهرية حيث يلزم. ولا يجيز وصف ميزات الإعلانات المخطط لها معالجة جديدة قبل تقديمها وتفويضها على النحو المناسب."
+        ]
+      }
+    ]
+  }
+}

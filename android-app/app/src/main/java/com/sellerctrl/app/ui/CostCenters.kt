@@ -1,5 +1,7 @@
 package com.sellerctrl.app.ui
 
+import com.sellerctrl.app.tr
+
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -59,45 +61,45 @@ fun CostCenterFormScreen(nav: NavController, id: String) {
             try {
                 val c = ServiceLocator.repo.costCenterEdit(id)
                 code = c.code; nameAr = c.nameAr; nameEn = c.nameEn; isActive = c.isActive
-            } catch (e: Exception) { error = e.message ?: "تعذّر التحميل" }
+            } catch (e: Exception) { error = e.message ?: tr("تعذّر التحميل") }
             loaded = true
         }
     }
 
     fun save() {
-        if (code.isBlank()) { error = "الكود مطلوب"; return }
-        if (nameAr.trim().length < 2) { error = "الاسم قصير جداً"; return }
+        if (code.isBlank()) { error = tr("الكود مطلوب"); return }
+        if (nameAr.trim().length < 2) { error = tr("الاسم قصير جداً"); return }
         busy = true; error = null
         scope.launch {
             try { ServiceLocator.repo.costCenterSave(CostCenterSaveReq(if (isNew) null else id, code.trim(), nameAr.trim(), nameEn.ifBlank { null }, isActive)); nav.popBackStack() }
-            catch (e: Exception) { error = e.message ?: "خطأ"; busy = false }
+            catch (e: Exception) { error = e.message ?: tr("خطأ"); busy = false }
         }
     }
 
     Scaffold(topBar = {
-        TopAppBar(title = { Text(if (isNew) "مركز تكلفة جديد" else "تعديل مركز تكلفة") },
+        TopAppBar(title = { Text(if (isNew) tr("مركز تكلفة جديد") else tr("تعديل مركز تكلفة")) },
             navigationIcon = { IconButton(onClick = { nav.popBackStack() }) { Icon(Icons.AutoMirrored.Filled.ArrowBack, null) } })
     }) { pad ->
         Column(Modifier.fillMaxSize().padding(pad).verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            OutlinedTextField(code, { code = it }, label = { Text("الكود *") }, singleLine = true, modifier = Modifier.fillMaxWidth())
-            OutlinedTextField(nameAr, { nameAr = it }, label = { Text("الاسم بالعربية *") }, singleLine = true, modifier = Modifier.fillMaxWidth())
-            OutlinedTextField(nameEn, { nameEn = it }, label = { Text("الاسم بالإنجليزية") }, singleLine = true, modifier = Modifier.fillMaxWidth())
-            Row(verticalAlignment = Alignment.CenterVertically) { Checkbox(isActive, { isActive = it }); Text("نشط") }
+            OutlinedTextField(code, { code = it }, label = { Text(tr("الكود *")) }, singleLine = true, modifier = Modifier.fillMaxWidth())
+            OutlinedTextField(nameAr, { nameAr = it }, label = { Text(tr("الاسم بالعربية *")) }, singleLine = true, modifier = Modifier.fillMaxWidth())
+            OutlinedTextField(nameEn, { nameEn = it }, label = { Text(tr("الاسم بالإنجليزية")) }, singleLine = true, modifier = Modifier.fillMaxWidth())
+            Row(verticalAlignment = Alignment.CenterVertically) { Checkbox(isActive, { isActive = it }); Text(tr("نشط")) }
             error?.let { Text(it, color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.SemiBold) }
-            Button(onClick = { save() }, enabled = !busy && loaded, modifier = Modifier.fillMaxWidth()) { Text(if (busy) "جارٍ الحفظ…" else "حفظ") }
+            Button(onClick = { save() }, enabled = !busy && loaded, modifier = Modifier.fillMaxWidth()) { Text(if (busy) tr("جارٍ الحفظ…") else tr("حفظ")) }
             if (!isNew) OutlinedButton(onClick = { confirmDelete = true }, enabled = !busy, modifier = Modifier.fillMaxWidth(),
-                colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)) { Text("حذف") }
+                colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)) { Text(tr("حذف")) }
         }
     }
 
     if (confirmDelete) AlertDialog(
-        onDismissRequest = { confirmDelete = false }, title = { Text("حذف") }, text = { Text("متأكد من حذف المركز؟ (يُرفض لو مستخدم في قيود)") },
+        onDismissRequest = { confirmDelete = false }, title = { Text(tr("حذف")) }, text = { Text(tr("متأكد من حذف المركز؟ (يُرفض لو مستخدم في قيود)")) },
         confirmButton = {
             TextButton(onClick = {
                 confirmDelete = false; busy = true; error = null
-                scope.launch { try { ServiceLocator.repo.postAction("api/v1/accounting/cost-centers/$id/delete"); nav.popBackStack() } catch (e: Exception) { error = e.message ?: "خطأ" } finally { busy = false } }
-            }) { Text("حذف", color = MaterialTheme.colorScheme.error) }
+                scope.launch { try { ServiceLocator.repo.postAction("api/v1/accounting/cost-centers/$id/delete"); nav.popBackStack() } catch (e: Exception) { error = e.message ?: tr("خطأ") } finally { busy = false } }
+            }) { Text(tr("حذف"), color = MaterialTheme.colorScheme.error) }
         },
-        dismissButton = { OutlinedButton(onClick = { confirmDelete = false }) { Text("إلغاء") } },
+        dismissButton = { OutlinedButton(onClick = { confirmDelete = false }) { Text(tr("إلغاء")) } },
     )
 }

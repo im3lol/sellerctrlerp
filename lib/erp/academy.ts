@@ -1,3 +1,6 @@
+import { getLocale } from "@/lib/i18n/server";
+import { translateContent } from "@/lib/i18n/content";
+import { type Locale } from "@/lib/i18n";
 import { and, asc, eq } from "drizzle-orm";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
@@ -41,17 +44,17 @@ export async function requireAcademyAccess(): Promise<void> {
   if (!(await canSeeAcademy())) redirect("/apps");
 }
 
-const row = (r: typeof academyLessons.$inferSelect): Lesson => ({
+const row = (r: typeof academyLessons.$inferSelect, locale: Locale): Lesson => ({
   id: r.id,
   slug: r.slug,
-  title: r.title,
+  title: translateContent(r.title, locale),
   module: r.module as ModuleKey,
   // An unknown kind would slip past both catalogue filters and vanish; videos are the
   // default, so an odd row shows up as a قريباً video rather than disappearing.
   kind: isLessonKind(r.kind) ? r.kind : "video",
-  outcome: r.outcome,
+  outcome: r.outcome ? translateContent(r.outcome, locale) : r.outcome,
   url: r.url,
-  body: r.body,
+  body: r.body ? translateContent(r.body, locale) : r.body,
   minutes: r.minutes,
   level: (r.level === "advanced" ? "advanced" : "basic"),
 });
@@ -61,7 +64,8 @@ export async function listLessons(): Promise<Lesson[]> {
   const rows = await db.select().from(academyLessons)
     .where(eq(academyLessons.isActive, true))
     .orderBy(asc(academyLessons.module), asc(academyLessons.sortOrder), asc(academyLessons.title));
-  return rows.map(row);
+  const locale = await getLocale();
+  return rows.map((r) => row(r, locale));
 }
 
 /** One module's lessons, both catalogues — the module page splits them by kind. */
@@ -69,7 +73,8 @@ export async function listLessonsFor(module: ModuleKey): Promise<Lesson[]> {
   const rows = await db.select().from(academyLessons)
     .where(and(eq(academyLessons.isActive, true), eq(academyLessons.module, module)))
     .orderBy(asc(academyLessons.sortOrder), asc(academyLessons.title));
-  return rows.map(row);
+  const locale = await getLocale();
+  return rows.map((r) => row(r, locale));
 }
 
 /** One lesson by its slug — the lesson page. Active only; a hidden lesson 404s. */
@@ -77,7 +82,7 @@ export async function getLesson(slug: string): Promise<Lesson | null> {
   const [r] = await db.select().from(academyLessons)
     .where(and(eq(academyLessons.slug, slug), eq(academyLessons.isActive, true)))
     .limit(1);
-  return r ? row(r) : null;
+  return r ? row(r, await getLocale()) : null;
 }
 
 /** Every lesson including hidden ones — the admin list. */

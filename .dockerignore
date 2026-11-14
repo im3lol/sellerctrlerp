@@ -6,5 +6,18 @@ _brand
 *.md
 .env
 .env.local
+# Next standalone tracing copies environment files below .next. Exclude them
+# before COPY so secrets cannot survive in an earlier image layer.
+.next/standalone/.env*
+.next/standalone/**/.env*
+.next-local
+!.next-local/standalone
+.next-local/standalone/.env*
+.next-local/standalone/**/.env*
 npm-debug.log*
 .DS_Store
+
+.ops-data
+.migration
+dbbackups
+*.dump

@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 
 /** Creates one stock-adjustment DRAFT from only LOST/FOUND audit lines. */
 export async function POST(req: Request, { params }: { params: Promise<{ code: string }> }) {
-  const auth = await authorizeApi(req, "inventory.create");
+  const auth = await authorizeApi(req, "inventory.create", "marketplace");
   if (isApiError(auth)) return Response.json({ error: auth.error }, { status: auth.status });
   if (auth.role !== "super_admin" && !(await orgHasModule(auth.orgId, "marketplace"))) return Response.json({ error: "module_unavailable" }, { status: 403 });
   const { code } = await params;

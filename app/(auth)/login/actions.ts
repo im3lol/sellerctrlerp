@@ -3,6 +3,7 @@
 import { unstable_rethrow } from "next/navigation";
 import { signIn } from "@/auth";
 import { passwordLoginStep } from "@/lib/auth/verify-credentials";
+import { applicationLoginDestination } from "@/lib/auth/login-destination";
 
 export type LoginState = { error?: string; mfaRequired?: boolean };
 
@@ -10,7 +11,7 @@ export async function loginAction(
   _prev: LoginState,
   formData: FormData,
 ): Promise<LoginState> {
-  const callbackUrl = (formData.get("callbackUrl") as string) || "/apps";
+  const callbackUrl = applicationLoginDestination(formData.get("callbackUrl"));
   const email = String(formData.get("email") ?? "");
   const password = String(formData.get("password") ?? "");
   const token = String(formData.get("token") ?? "").trim();

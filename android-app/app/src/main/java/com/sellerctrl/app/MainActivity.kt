@@ -14,8 +14,8 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         setContent {
             AppTheme {
-                // Arabic UI — force RTL for the whole tree.
-                CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
+                // The layout follows the selected device language.
+                CompositionLocalProvider(LocalLayoutDirection provides if (I18n.english) LayoutDirection.Ltr else LayoutDirection.Rtl) {
                     AppNav()
                 }
             }

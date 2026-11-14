@@ -13,12 +13,12 @@ type LogoProps = {
 // while keeping the visual mark at one consistent height across the product.
 const artwork = {
   blue: {
-    src: "/brand/sellerctrl-3d-blue-logo.png",
+    src: "/brand/sellerctrl-3d-blue-logo-640.webp",
     width: "4.715em",
     style: { height: "1.792em", width: "5.376em", maxWidth: "none", transform: "translate(-0.324em, -0.446em)" },
   },
   white: {
-    src: "/brand/sellerctrl-logo-white.png",
+    src: "/brand/sellerctrl-logo-white-640.webp",
     width: "4.655em",
     style: { height: "1.920em", width: "5.761em", maxWidth: "none", transform: "translate(-0.538em, -0.469em)" },
   },
@@ -32,6 +32,8 @@ export function Logo({ className, variant = "blue" }: LogoProps) {
       <span dir="ltr" className={cn("relative block h-[1em] overflow-hidden", className)} style={{ width: current.width }}>
         <Image
           src={current.src}
+          unoptimized
+          loading="eager"
           alt="SellerCtrl"
           width={2172}
           height={724}
@@ -51,6 +53,8 @@ export function LogoMark({ className, variant = "blue" }: { className?: string; 
     <span dir="ltr" className={cn("relative block h-[1em] w-[1.329em] shrink-0 overflow-hidden", className)}>
       <Image
         src={current.src}
+        unoptimized
+        loading="eager"
         alt=""
         width={2172}
         height={724}

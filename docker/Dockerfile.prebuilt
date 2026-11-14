@@ -10,23 +10,28 @@ ENV NEXT_TELEMETRY_DISABLED=1
 RUN addgroup --system --gid 1001 nodejs && adduser --system --uid 1001 nextjs
 
 # The host build already copies .next/static + public into the standalone dir.
-COPY --chown=nextjs:nodejs .next/standalone ./
+ARG STANDALONE_DIR=.next/standalone
+COPY --chown=nextjs:nodejs ${STANDALONE_DIR} ./
 
 # Repair the artifact for Linux:
-#  1. Drop the host-baked .env (env comes from compose).
+#  1. Refuse environment files (excluded by .dockerignore; env comes from compose).
 #  2. Drop the Windows-only sharp binary (Next falls back to wasm optimizer).
 #  3. Next traces serverExternalPackages as symlinks pointing to ABSOLUTE host
 #     (Windows) paths under .next/node_modules — they dangle on Linux. Re-point
 #     each to the real package under /app/node_modules.
 RUN set -e; \
-    rm -f .env; \
+    if find . -type f -name '.env*' -print -quit | grep -q .; then \
+      echo "Refusing to ship environment files in the standalone image" >&2; exit 1; \
+    fi; \
     rm -rf node_modules/@img node_modules/sharp; \
-    if [ -d .next/node_modules ]; then \
-      for L in $(find .next/node_modules -type l); do \
+    for trace_dir in .next/node_modules .next-local/node_modules; do \
+      if [ -d "$trace_dir" ]; then \
+      for L in $(find "$trace_dir" -type l); do \
         pkg=$(readlink "$L"); pkg=${pkg##*node_modules/}; \
         rm -f "$L"; ln -s "/app/node_modules/$pkg" "$L"; \
       done; \
-    fi
+      fi; \
+    done
 
 USER nextjs
 EXPOSE 3000

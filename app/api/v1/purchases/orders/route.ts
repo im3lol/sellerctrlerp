@@ -1,6 +1,7 @@
 import { authorizeApi, isApiError, runAsErp } from "@/lib/erp/api-auth";
 import { emitErpEvent } from "@/lib/erp/realtime";
 import { purchaseOrderList } from "@/lib/erp/mobile-lists";
+import { purchaseRowsForCaller } from "@/lib/erp/data-access";
 import { createPurchaseOrderAction } from "@/app/actions/erp/purchase-orders";
 
 export const runtime = "nodejs";
@@ -9,7 +10,7 @@ export const dynamic = "force-dynamic";
 export async function GET(req: Request) {
   const auth = await authorizeApi(req, "purchases.view");
   if (isApiError(auth)) return Response.json({ error: auth.error }, { status: auth.status });
-  return Response.json({ data: await purchaseOrderList(auth.orgId) });
+  return Response.json({ data: purchaseRowsForCaller(await purchaseOrderList(auth.orgId), auth.can) });
 }
 
 /** POST /api/v1/purchases/orders — create a DRAFT PO. Body: { supplierId, warehouseId, date, notes?, lines:[{itemId,quantity,unitPrice}] }. */

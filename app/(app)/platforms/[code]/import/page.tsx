@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
-import { fill } from "@/lib/i18n";
-import { getT } from "@/lib/i18n/server";
+import { fill, translateName } from "@/lib/i18n";
+import { getT, getLocale } from "@/lib/i18n/server";
 import { and, desc, eq, isNull, sql } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
@@ -21,6 +21,7 @@ export default async function PlatformImportPage({
   params, searchParams,
 }: { params: Promise<{ code: string }>; searchParams: Promise<{ tab?: string }> }) {
   const t = await getT();
+  const locale = await getLocale();
   const { code: codeParam } = await params;
   const { tab } = await searchParams;
   return loadErpPage("sales.create", async ({ orgId }) => {
@@ -61,7 +62,7 @@ export default async function PlatformImportPage({
       <div className="space-y-6">
         <ErpPageHeader
           icon="Upload"
-          title={fill(t("استيراد — {0}"), [platform.name])}
+          title={fill(t("استيراد — {0}"), [translateName(platform.name, locale)])}
           subtitle={t("استيراد الأوامر والمرتجعات والمدفوعات والمخزون للمنصة")}
           backHref={`/platforms/${platform.code.toLowerCase()}`}
         />

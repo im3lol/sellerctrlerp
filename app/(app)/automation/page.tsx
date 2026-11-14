@@ -1,3 +1,5 @@
+
+import { getLocale } from "@/lib/i18n/server";
 import Link from "next/link";
 import { fill } from "@/lib/i18n";
 import { getT } from "@/lib/i18n/server";
@@ -17,10 +19,11 @@ import { AddTemplateButton, RuleDelete, RuleToggle } from "@/components/erp/auto
 export const dynamic = "force-dynamic";
 
 const int = (n: number) => n.toLocaleString("ar-EG-u-nu-latn");
-const when = (d: Date) => new Date(d).toLocaleString("ar-EG-u-nu-latn", { dateStyle: "short", timeStyle: "short" });
+const when = (d: Date, locale: import("@/lib/i18n").Locale) => new Date(d).toLocaleString(locale === "en" ? "en-GB" : "ar-EG-u-nu-latn", { dateStyle: "short", timeStyle: "short" });
 
 export default async function AutomationPage() {
   const t = await getT();
+  const locale = await getLocale();
   return loadErpPage("automation.manage", async ({ orgId }) => {
     const rules = await db.select().from(automationRules)
       .where(eq(automationRules.organizationId, orgId)).orderBy(desc(automationRules.createdAt));
@@ -72,7 +75,7 @@ export default async function AutomationPage() {
                       {" ← "}{spec.actions.map((a) => t(ACTION_LABEL[a.type])).join(t("، "))}
                     </p>
                     <p className="text-xs text-muted-foreground">
-                      {fill(t("اشتغلت {0} مرة"), [int(r.runCount)])}{r.lastRunAt ? fill(t(" · آخر مرة {0}"), [when(r.lastRunAt)]) : ""}
+                      {fill(t("اشتغلت {0} مرة"), [int(r.runCount)])}{r.lastRunAt ? fill(t(" · آخر مرة {0}"), [when(r.lastRunAt, locale)]) : ""}
                     </p>
                   </CardContent>
                 </Card>
@@ -122,7 +125,7 @@ export default async function AutomationPage() {
                       const def = DOCS[x.entity];
                       return (
                         <TableRow key={x.id}>
-                          <TableCell className="whitespace-nowrap text-xs">{when(x.at)}</TableCell>
+                          <TableCell className="whitespace-nowrap text-xs">{when(x.at, locale)}</TableCell>
                           <TableCell className="text-sm">{x.rule}</TableCell>
                           <TableCell className="text-sm">
                             {def && x.number

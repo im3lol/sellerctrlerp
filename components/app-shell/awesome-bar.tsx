@@ -63,7 +63,7 @@ export function AwesomeBar({
 
   const needle = q.trim().toLowerCase();
   const pageHits = needle
-    ? pages.filter((p) => p.item.label.toLowerCase().includes(needle) || p.heading.toLowerCase().includes(needle)).slice(0, 6)
+    ? pages.filter((p) => [p.item.label, p.heading, t(p.item.label), t(p.heading)].some((label) => label.toLowerCase().includes(needle))).slice(0, 6)
     : [];
 
   // Records are a query per keystroke, so wait for a pause. The page half above already
@@ -117,7 +117,7 @@ export function AwesomeBar({
   return (
     <div ref={boxRef} className={cn("relative w-full", className ?? "hidden max-w-sm md:block")} data-tour="topbar-search">
       <form onSubmit={(e) => { e.preventDefault(); full(); }} role="search">
-        <Search className="pointer-events-none absolute top-1/2 right-3 size-4 -translate-y-1/2 text-muted-foreground" />
+        <Search className="pointer-events-none absolute top-1/2 end-3 size-4 -translate-y-1/2 text-muted-foreground" />
         <Input
           ref={inputRef}
           value={q}
@@ -125,8 +125,8 @@ export function AwesomeBar({
           onFocus={() => setOpen(true)}
           onKeyDown={(e) => { if (e.key === "Escape") { setOpen(false); inputRef.current?.blur(); } }}
           placeholder={`${t("ابحث عن صفحة أو صنف أو عميل…")}  /`}
-          className="bg-muted/50 pr-9"
-          aria-label="بحث"
+          className="bg-muted/50 ps-9"
+          aria-label={t("بحث")}
         />
       </form>
 
@@ -138,7 +138,7 @@ export function AwesomeBar({
                 <Row key={item.href} onClick={() => go(item.href)}>
                   <Icon name={item.icon} className="size-4 shrink-0 text-muted-foreground" />
                   <span className="min-w-0 flex-1 truncate">{t(item.label)}</span>
-                  {heading && <span className="shrink-0 text-xs text-muted-foreground">{heading}</span>}
+                  {heading && <span className="shrink-0 text-xs text-muted-foreground">{t(heading)}</span>}
                 </Row>
               ))}
             </Section>

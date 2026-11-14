@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { Locale } from "@/lib/i18n";
-import { fill } from "@/lib/i18n";
+import { translateName, fill } from "@/lib/i18n";
 import { getLocale, getT } from "@/lib/i18n/server";
 import { notFound } from "next/navigation";
 import { and, desc, eq, sql } from "drizzle-orm";
@@ -124,7 +124,7 @@ export default async function PickListsPage({ searchParams }: { searchParams: Pr
                       <TableRow key={r.id}>
                         <TableCell><Link href={`/inventory/pick-lists?n=${encodeURIComponent(r.number)}`} className="font-mono font-medium text-primary hover:underline">{r.number}</Link></TableCell>
                         <TableCell>{dt(r.date, locale)}</TableCell>
-                        <TableCell>{r.warehouse ?? "—"}</TableCell>
+                        <TableCell>{translateName(r.warehouse ?? "—", t)}</TableCell>
                         <TableCell className="tabular-nums">{n(r.deliveries)}</TableCell>
                         <TableCell className="tabular-nums">{n(r.itemCount)}</TableCell>
                         <TableCell><Badge variant={st.variant}>{t(st.label)}</Badge></TableCell>

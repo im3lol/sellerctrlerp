@@ -1,4 +1,5 @@
 "use client";
+import { PageActions } from "@/components/erp/page-actions";
 
 import { useState, useTransition } from "react";
 import { fill } from "@/lib/i18n";
@@ -91,6 +92,10 @@ export function IntegrationSettingsForm({ code, label, fields, hasOAuth, appUrl,
   // Rendered inside the connector dialog (chrome + title live there).
   return (
     <div className="space-y-5">
+      <PageActions className="static">
+        <Button onClick={save} disabled={pending}>{pending && <Loader2 className="size-4 animate-spin" />}{t("حفظ الإعدادات")}</Button>
+      </PageActions>
+
       <div className="flex items-center justify-between gap-2 rounded-lg border bg-muted/20 px-3 py-2">
         <span className="text-sm text-muted-foreground">{t("حالة التكامل")}</span>
         <label className="flex items-center gap-2 text-sm"><Switch checked={enabled} onCheckedChange={setEnabled} />{enabled ? t("مُفعّلة") : t("موقوفة")}</label>
@@ -141,9 +146,7 @@ export function IntegrationSettingsForm({ code, label, fields, hasOAuth, appUrl,
       )}
 
       <p className="text-xs text-muted-foreground">{t("مفاتيح التطبيق (تطبيق واحد يخدم كل العملاء). تُخزَّن الأسرار مشفّرة. اترك حقل السر فارغًا للإبقاء على المحفوظ.")}</p>
-      <div className="flex justify-end">
-        <Button onClick={save} disabled={pending}>{pending && <Loader2 className="size-4 animate-spin" />}{t("حفظ الإعدادات")}</Button>
-      </div>
+
     </div>
   );
 }

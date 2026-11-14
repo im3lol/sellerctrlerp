@@ -1,5 +1,7 @@
 package com.sellerctrl.app.ui
 
+import com.sellerctrl.app.tr
+
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -45,7 +47,7 @@ fun AgingScreen(nav: NavController, title: String, kind: String) {
     var error by remember { mutableStateOf<String?>(null) }
     val tick by ServiceLocator.repo.tick.collectAsState()
     LaunchedEffect(kind, tick) {
-        try { r = ServiceLocator.repo.agingReport(kind) } catch (e: Exception) { error = "تعذّر التحميل"; r = AgingReportDto("") }
+        try { r = ServiceLocator.repo.agingReport(kind) } catch (e: Exception) { error = tr("تعذّر التحميل"); r = AgingReportDto("") }
     }
 
     Scaffold(topBar = {
@@ -56,18 +58,18 @@ fun AgingScreen(nav: NavController, title: String, kind: String) {
             val rep = r
             when {
                 rep == null -> CircularProgressIndicator(Modifier.align(Alignment.Center))
-                rep.rows.isEmpty() -> Text(error ?: "لا توجد أرصدة مستحقة", Modifier.align(Alignment.Center), color = MaterialTheme.colorScheme.outline)
+                rep.rows.isEmpty() -> Text(error ?: tr("لا توجد أرصدة مستحقة"), Modifier.align(Alignment.Center), color = MaterialTheme.colorScheme.outline)
                 else -> Column(Modifier.fillMaxSize().padding(12.dp)) {
                     AppCard(Modifier.fillMaxWidth().padding(bottom = 8.dp)) {
                         Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                                Text("الإجمالي المستحق", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.outline)
+                                Text(tr("الإجمالي المستحق"), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.outline)
                                 Text(money(rep.grand), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
                             }
                             Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-                                Bucket("جارٍ", rep.current); Bucket("١-٣٠", rep.d30); Bucket("٣١-٦٠", rep.d60); Bucket("٦١-٩٠", rep.d90); Bucket("+٩٠", rep.d90plus, warn = true)
+                                Bucket(tr("جارٍ"), rep.current); Bucket(tr("١-٣٠"), rep.d30); Bucket(tr("٣١-٦٠"), rep.d60); Bucket(tr("٦١-٩٠"), rep.d90); Bucket(tr("+٩٠"), rep.d90plus, warn = true)
                             }
-                            Text("حتى ${rep.asOf}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
+                            Text(tr("حتى ${rep.asOf}"), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
                         }
                     }
                     LazyColumn(verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -79,11 +81,11 @@ fun AgingScreen(nav: NavController, title: String, kind: String) {
                                         Text(money(p.total), fontWeight = FontWeight.SemiBold)
                                     }
                                     Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                                        if (p.current > 0) MiniBucket("جارٍ", p.current)
-                                        if (p.d30 > 0) MiniBucket("١-٣٠", p.d30)
-                                        if (p.d60 > 0) MiniBucket("٣١-٦٠", p.d60)
-                                        if (p.d90 > 0) MiniBucket("٦١-٩٠", p.d90)
-                                        if (p.d90plus > 0) MiniBucket("+٩٠", p.d90plus, warn = true)
+                                        if (p.current > 0) MiniBucket(tr("جارٍ"), p.current)
+                                        if (p.d30 > 0) MiniBucket(tr("١-٣٠"), p.d30)
+                                        if (p.d60 > 0) MiniBucket(tr("٣١-٦٠"), p.d60)
+                                        if (p.d90 > 0) MiniBucket(tr("٦١-٩٠"), p.d90)
+                                        if (p.d90plus > 0) MiniBucket(tr("+٩٠"), p.d90plus, warn = true)
                                     }
                                 }
                             }

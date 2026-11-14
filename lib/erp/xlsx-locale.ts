@@ -5,8 +5,8 @@ type Cell = string | number | null | undefined;
 /**
  * An export sheet in the reader's language. Export routes build their headers, labels and
  * sheet names in Arabic like the rest of the server code; this translates them on the way
- * out instead of touching ~30 routes. A text cell is translated only when the whole cell is
- * a dictionary entry — names, notes and numbers pass through untouched. A header that ends
+ * out instead of touching ~30 routes. Known system labels and composed descriptions are
+ * translated; unknown names, notes and numbers pass through untouched. A header that ends
  * in a parenthesised suffix the route filled in, e.g. "إجمالي البند (EGP)", is translated by
  * its prefix and keeps the suffix as is.
  */

@@ -19,7 +19,7 @@ type CatalogItem = {
   // Browse-node classification per marketplace → we take the leaf display name as category.
   classifications?: { classifications?: { displayName?: string }[] }[];
 };
-type CatalogResponse = { items?: CatalogItem[] };
+type CatalogResponse = { items?: CatalogItem[]; pagination?: { nextToken?: string } };
 
 const INCLUDED = "summaries,identifiers,images,dimensions,relationships,classifications";
 // Amazon identifier types we store as barcodes (mapped to our item_codes types).
@@ -72,11 +72,17 @@ export async function fetchCatalog(cred: Credential, asins: string[]): Promise<C
   const unique = [...new Set(asins.map((a) => a.trim()).filter(Boolean))];
   const out: CatalogRecord[] = [];
   for (const batch of chunk(unique, 20)) {
-    const qs = new URLSearchParams({ identifiers: batch.join(","), identifiersType: "ASIN", marketplaceIds: cred.marketplaceId, includedData: INCLUDED });
+    const qs = new URLSearchParams({ identifiers: batch.join(","), identifiersType: "ASIN", marketplaceIds: cred.marketplaceId, includedData: INCLUDED, pageSize: "20" });
     try {
-      // searchCatalogItems is 2/s — pace batches proactively.
-      out.push(...parseCatalog(await paced(`amazon-catalog:${credKey(cred)}`, 550, () =>
-        spJson<CatalogResponse>(cred, `/catalog/2022-04-01/items?${qs}`))));
+      let next: string | undefined;
+      const seen = new Set<string>();
+      do {
+        if (next) { if (seen.has(next)) throw new Error("Repeated Amazon catalog page"); seen.add(next); qs.set("pageToken", next); }
+        const response = await paced(`amazon-catalog:${credKey(cred)}`, 550, () =>
+          spJson<CatalogResponse>(cred, `/catalog/2022-04-01/items?${qs}`));
+        out.push(...parseCatalog(response).filter((r) => batch.includes(r.asin)));
+        next = response.pagination?.nextToken;
+      } while (next);
     } catch {
       // A failed batch shouldn't abort the whole enrichment; skip it.
     }

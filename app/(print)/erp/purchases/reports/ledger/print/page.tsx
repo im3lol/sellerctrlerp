@@ -17,7 +17,7 @@ const STATUS: Record<string, string> = {
   PAID: "مدفوعة", CANCELLED: "ملغاة",
 };
 
-const d2 = (d: Date) => new Date(d).toLocaleDateString("ar-EG-u-nu-latn", { year: "numeric", month: "2-digit", day: "2-digit" });
+const d2 = (d: Date, locale: import("@/lib/i18n").Locale) => new Date(d).toLocaleDateString(locale === "en" ? "en-GB" : "ar-EG-u-nu-latn", { year: "numeric", month: "2-digit", day: "2-digit" });
 const q = (v: number | null) => (v !== null ? qty(v) : "—");
 const m = (v: number | null) => (v !== null ? fmt(v) : "—");
 
@@ -77,7 +77,7 @@ export default async function PrintPurchasesLedgerPage({ searchParams }: { searc
           ],
           rows: shown.map((r) => [
             <span key="n" dir="ltr" style={{ fontSize: 9.5 }}>{r.number}</span>,
-            d2(r.date),
+            d2(r.date, locale),
             r.supplierName,
             DOC_LABEL[r.docType],
             STATUS[r.status] ?? r.status,

@@ -1,4 +1,4 @@
-﻿# NOTE: the copy that actually runs lives in C:\Users\3lyge\sellerctrl-tunnel\ and is
+﻿# NOTE: the copy that actually runs lives in %USERPROFILE%\sellerctrl-tunnel\ and is
 # started by the 'SellerCtrl Watchdog' scheduled task every 5 minutes. This one is here
 # so the logic is reviewable and recoverable - after editing it, copy it back there;
 # the scheduler does not read the repository.
@@ -21,14 +21,18 @@
 #      (reboot) leaves `restart: unless-stopped` containers down, which is how 6 Oct 2026
 #      stayed broken for 36 hours while this branch only checked for the process.
 #   4. One message when it goes wrong, one when it's back.
+# Never resurrect the retired workstation stack after the production migration.
+$dir = Join-Path $env:USERPROFILE 'sellerctrl-tunnel'
+if (Test-Path (Join-Path $dir 'production-moved-to-vps.disabled')) { return }
 $ErrorActionPreference = 'SilentlyContinue'
 
-$dir    = 'C:\Users\3lyge\sellerctrl-tunnel'
+# $dir is resolved per operator above.
 $state  = Join-Path $dir 'watchdog-state.json'
 $log    = Join-Path $dir 'watchdog.log'
 $public = 'https://app.sellerctrl.com/api/health'
 $local  = 'http://localhost:3001/api/health'
-$supervisorCmd = 'powershell.exe -WindowStyle Hidden -ExecutionPolicy Bypass -NonInteractive -File "C:\Users\3lyge\sellerctrl-tunnel\supervise-tunnel.ps1"'
+$supervisorPath = Join-Path $dir 'supervise-tunnel.ps1'
+$supervisorCmd = 'powershell.exe -WindowStyle Hidden -ExecutionPolicy Bypass -NonInteractive -File "{0}"' -f $supervisorPath
 
 function Log([string]$m) {
   if ((Test-Path $log) -and (Get-Item $log).Length -gt 200KB) { Remove-Item $log }

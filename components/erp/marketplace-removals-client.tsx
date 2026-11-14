@@ -1,5 +1,9 @@
 "use client";
 
+import { formatErpDate } from "@/lib/erp/dates";
+
+import { useLocale } from "@/lib/i18n/client";
+
 import { useState, useTransition } from "react";
 import { useT } from "@/lib/i18n/client";
 import { toast } from "@/lib/i18n/toast";
@@ -10,7 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import { confirmRemovalAction, type RemovalOutcome } from "@/app/actions/erp/platform-removals";
 import type { PlatformRemovalRow } from "@/lib/erp/removals-core";
 
-const dt = (s: string | null) => (s ? new Date(s).toLocaleDateString("ar-EG-u-nu-latn", { dateStyle: "short" }) : "—");
+const dt = (s: string | null, locale: import("@/lib/i18n").Locale) => (s ? formatErpDate(s, locale === "en" ? "en-GB" : "ar-EG-u-nu-latn", { dateStyle: "short" }) : "—");
 
 /**
  * The trader's decision on each synced removal order (stock out of the FBA warehouse):
@@ -21,6 +25,7 @@ const dt = (s: string | null) => (s ? new Date(s).toLocaleDateString("ar-EG-u-nu
  */
 export function MarketplaceRemovalsClient({ initial }: { initial: PlatformRemovalRow[] }) {
   const t = useT();
+  const locale = useLocale();
   const [rows, setRows] = useState(initial);
   const [pending, start] = useTransition();
   const [busy, setBusy] = useState<string | null>(null);
@@ -52,7 +57,7 @@ export function MarketplaceRemovalsClient({ initial }: { initial: PlatformRemova
                   <Badge variant="secondary">{o.channel}</Badge>
                   {o.orderType && <Badge variant="outline">{o.orderType}</Badge>}
                   <span className="font-mono text-sm" dir="ltr">{o.removalOrderId}</span>
-                  <span className="text-xs text-muted-foreground">· {dt(o.requestDate)}</span>
+                  <span className="text-xs text-muted-foreground">· {dt(o.requestDate, locale)}</span>
                 </div>
                 <div className="text-sm">
                   <span dir="ltr">{o.sku}</span>

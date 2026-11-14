@@ -4,7 +4,9 @@
 // It also fails loudly on a t("…") key that is NOT in the dictionary and NOT Arabic —
 // that is a typo or an accidental key, not a missing translation.
 //
-// Run: npx tsx --tsconfig tsconfig.script.json scripts/i18n-report.ts [--list]
+// Run: npx tsx --tsconfig tsconfig.script.json scripts/i18n-report.ts [--list] [--check]
+// --check fails when a wrapped Arabic key has no English entry.
+// Raw literals may still be translated at render time or by the toast adapter.
 
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
@@ -25,12 +27,12 @@ function files(dir: string, out: string[] = []): string[] {
 }
 
 const wrapped = new Set<string>();
-const raw = new Map<string, number>();     // untranslated Arabic literal → occurrences
+const raw = new Map<string, number>();     // unwrapped Arabic literal → occurrences
 const perArea = new Map<string, { wrapped: number; raw: number }>();
 
 for (const f of ROOTS.flatMap((r) => files(r))) {
   const src = readFileSync(f, "utf8");
-  const area = f.split(/[\/]/).slice(0, 2).join("/");
+  const area = f.split(/[\\/]/).slice(0, 2).join("/");
   const stat = perArea.get(area) ?? { wrapped: 0, raw: 0 };
   // Only a single-argument t("…") is a translation call; lib/erp/automation/model.ts has
   // its own local t(column, label) helper that must not be counted as one.
@@ -50,9 +52,9 @@ const missing = [...wrapped].filter((k) => AR.test(k) && !EN[k]);
 const bogus = [...wrapped].filter((k) => !AR.test(k) && !EN[k]);
 
 console.log(`wrapped in t():      ${wrapped.size} unique strings`);
-console.log(`translated:          ${wrapped.size - missing.length} (${Math.round(((wrapped.size - missing.length) / Math.max(1, wrapped.size)) * 100)}%)`);
+console.log(`translated:          ${wrapped.size - missing.length} (${(((wrapped.size - missing.length) / Math.max(1, wrapped.size)) * 100).toFixed(2)}%)`);
 console.log(`dictionary entries:  ${Object.keys(EN).length}`);
-console.log(`still raw Arabic:    ${raw.size} unique (${[...raw.values()].reduce((a, b) => a + b, 0)} occurrences)`);
+console.log(`raw Arabic literals: ${raw.size} unique (${[...raw.values()].reduce((a, b) => a + b, 0)} occurrences; may be translated at render time)`);
 console.log("\nby area (raw Arabic literals left):");
 for (const [area, s] of [...perArea.entries()].sort((a, b) => b[1].raw - a[1].raw).slice(0, 12)) {
   console.log(`  ${area.padEnd(22)} raw ${String(s.raw).padStart(5)}   wrapped ${s.wrapped}`);
@@ -60,7 +62,7 @@ for (const [area, s] of [...perArea.entries()].sort((a, b) => b[1].raw - a[1].ra
 if (missing.length) console.log(`\n⚠ wrapped but untranslated (${missing.length}):\n` + missing.slice(0, Number(process.env.I18N_MISSING ?? 20)).map((k) => `  ${k}`).join("\n"));
 if (bogus.length) console.log(`\n✗ t() called with a non-Arabic key (likely a mistake):\n` + bogus.map((k) => `  ${k}`).join("\n"));
 if (process.argv.includes("--list")) {
-  console.log("\ntop untranslated strings by occurrences:");
+  console.log("\ntop raw Arabic literals by occurrences:");
   for (const [k, n] of [...raw.entries()].sort((a, b) => b[1] - a[1]).slice(0, 60)) console.log(`  ${String(n).padStart(3)}  ${k}`);
 }
-process.exit(bogus.length ? 1 : 0);
+process.exit(bogus.length || (process.argv.includes("--check") && missing.length) ? 1 : 0);

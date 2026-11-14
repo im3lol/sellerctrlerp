@@ -1,5 +1,43 @@
 import { describe, it, expect } from "vitest";
-import { allocateLandedPerUnit, type LcLine } from "@/lib/erp/landed-cost";
+import { allocateLandedPerUnit, allocateVoucherLines, groupLandedAdjustments, landedLineKey, type LcLine } from "@/lib/erp/landed-cost";
+
+describe("selected receipt lines and explicit per-unit freight", () => {
+  const basis = [
+    { purchaseReceiptId: "r1", itemId: "a", warehouseId: "w", quantity: 3, unitPrice: 100, weightKg: 2 },
+    { purchaseReceiptId: "r1", itemId: "b", warehouseId: "w", quantity: 7, unitPrice: 400, weightKg: 1 },
+  ];
+  it("excluded products get none of the cost and the selected lines conserve every cent", () => {
+    const result = allocateVoucherLines(basis, 100, "qty", [{ key: landedLineKey(basis[0]) }]);
+    expect(result).toHaveLength(1);
+    expect(result[0].itemId).toBe("a");
+    expect(result[0].allocatedAmount).toBe(100);
+    const both = allocateVoucherLines(basis, 0.01, "value");
+    expect(both.reduce((n, l) => n + l.allocatedAmount, 0)).toBe(0.01);
+  });
+  it("manual input charges only selected products and derives the real total from quantity", () => {
+    const result = allocateVoucherLines(basis, 99999, "manual", [{ key: landedLineKey(basis[0]), perUnit: 12.5 }]);
+    expect(result[0].allocatedAmount).toBe(37.5);
+    expect(result[0].perUnit).toBe(12.5);
+  });
+  it("rejects duplicate, forged, empty and negative selections", () => {
+    const key = landedLineKey(basis[0]);
+    expect(() => allocateVoucherLines(basis, 100, "qty", [{ key }, { key }])).toThrow();
+    expect(() => allocateVoucherLines(basis, 100, "qty", [{ key: "foreign-receipt" }])).toThrow();
+    expect(() => allocateVoucherLines(basis, 100, "qty", [])).toThrow();
+    expect(() => allocateVoucherLines(basis, 100, "manual", [{ key, perUnit: -5 }])).toThrow();
+    expect(() => allocateVoucherLines(basis, 100, "manual", [{ key, perUnit: Infinity }])).toThrow();
+  });
+  it("groups shared on-hand before splitting between inventory and sold units", () => {
+    const [group] = groupLandedAdjustments([
+      { itemId: "a", warehouseId: "w", quantity: 10, amount: 100 },
+      { itemId: "a", warehouseId: "w", quantity: 10, amount: 300 },
+    ]);
+    expect(group.quantity).toBe(20);
+    expect(group.amount).toBe(400);
+    expect(group.perUnit * 5).toBe(100); // only 5 units remain, not 5 from EACH receipt
+    expect(group.amount - group.perUnit * 5).toBe(300);
+  });
+});
 
 const L = (quantity: number, unitPrice: number, eligible = true): LcLine => ({ quantity, unitPrice, eligible });
 

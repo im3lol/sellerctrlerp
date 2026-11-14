@@ -8,6 +8,7 @@ import { revalidatePath } from "@/lib/safe-revalidate";
 import { savedReports } from "@/db/schema";
 import { authorizeErp, type ActionState } from "@/lib/erp/action-auth";
 import { EXPORT_DATASETS } from "@/lib/erp/export-datasets";
+import { authorizeExportDataset } from "@/lib/erp/export-access";
 import { runReport, validateSpec, type Cell, type ReportSpec, type ReportResult } from "@/lib/erp/report-builder";
 
 /**
@@ -46,7 +47,7 @@ export async function runReportAction(dataset: string, spec: unknown): Promise<A
   if (!ds) return { error: "التقرير ده مش موجود" };
 
   // The dataset's own module permission — the builder grants no new access.
-  const auth = await authorizeErp(ds.module);
+  const auth = await authorizeExportDataset(ds);
   if ("error" in auth) return auth;
 
   const parsed = specSchema.safeParse(spec ?? {});
@@ -77,7 +78,7 @@ export async function saveReportAction(input: z.input<typeof saveSchema>): Promi
 
   const ds = EXPORT_DATASETS[d.dataset];
   if (!ds) return { error: "التقرير ده مش موجود" };
-  const auth = await authorizeErp(ds.module);
+  const auth = await authorizeExportDataset(ds);
   if ("error" in auth) return auth;
 
   const bad = validateSpec(d.spec as ReportSpec, ds.headers.length);

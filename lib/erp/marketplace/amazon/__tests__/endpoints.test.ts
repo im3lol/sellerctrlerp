@@ -62,8 +62,8 @@ describe("parseListingsReport (GET_MERCHANT_LISTINGS_ALL_DATA TSV)", () => {
     expect(rows[0]).toEqual({ code: "SKU-1", altCode: "B00ABC123", name: "Widget Red", sellPrice: 149.99 });
     expect(rows[1]).toMatchObject({ code: "SKU-2", altCode: "B00XYZ999", name: "منتج بلا سعر", sellPrice: 0 });
   });
-  it("returns [] when the header lacks seller-sku", () => {
-    expect(parseListingsReport("foo\tbar\nx\ty")).toEqual([]);
+  it("rejects a malformed report rather than claiming an empty catalog", () => {
+    expect(() => parseListingsReport("foo\tbar\nx\ty")).toThrow("seller-sku");
   });
 });
 
@@ -90,7 +90,7 @@ describe("summaryToDetail (getInventorySummaries details=true)", () => {
   });
 });
 
-describe("mergeProducts (full FBA catalog ⊕ priced listings)", () => {
+describe("mergeProducts (current listings define membership)", () => {
   const full = [
     { code: "A", altCode: "ASIN_A", name: "A", sellPrice: 0 },
     { code: "B", altCode: "ASIN_B", name: "B", sellPrice: 0 },
@@ -99,11 +99,11 @@ describe("mergeProducts (full FBA catalog ⊕ priced listings)", () => {
     { code: "A", altCode: "ASIN_A", name: "A", sellPrice: 120 }, // overlays price onto A
     { code: "C", altCode: "ASIN_C", name: "C (FBM)", sellPrice: 50 }, // listings-only → still kept
   ];
-  it("keeps the full set, overlays price, and includes listings-only SKUs", () => {
+  it("keeps only current listings and rejects historical-only SKUs", () => {
     const m = mergeProducts(full, priced);
-    expect(m).toHaveLength(3); // A, B, C — no dupes
+    expect(m).toHaveLength(2); // A and C only; historical B is excluded
     expect(m.find((p) => p.code === "A")?.sellPrice).toBe(120); // priced from listings
-    expect(m.find((p) => p.code === "B")?.sellPrice).toBe(0); // inventory-only, no price
+    expect(m.find((p) => p.code === "B")).toBeUndefined();
     expect(m.find((p) => p.code === "C")?.name).toBe("C (FBM)"); // listings-only survives
   });
 });

@@ -12,7 +12,10 @@ import { ErpPageHeader } from "@/components/erp/page-header";
 import { FeedbackForm } from "@/components/erp/feedback-form";
 import { Icon } from "@/components/icon";
 
-export const metadata = { title: "اقتراح أو شكوى" };
+export async function generateMetadata() {
+  const t = await getT();
+  return { title: t("اقتراح أو شكوى") };
+}
 
 const fmt = (d: Date, locale: Locale = "ar") => d.toLocaleDateString((locale === "en" ? "en-GB" : "ar-EG-u-nu-latn"), { year: "numeric", month: "long", day: "numeric" });
 

@@ -1,5 +1,7 @@
 package com.sellerctrl.app.ui
 
+import com.sellerctrl.app.tr
+
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -78,12 +80,12 @@ fun RequisitionDetailScreen(nav: NavController, id: String) {
         busy = true; message = null
         scope.launch {
             try { ServiceLocator.repo.postAction(path); if (back) nav.popBackStack() else { message = ok; reload++ } }
-            catch (e: Exception) { message = e.message ?: "خطأ" } finally { busy = false }
+            catch (e: Exception) { message = e.message ?: tr("خطأ") } finally { busy = false }
         }
     }
 
     Scaffold(topBar = {
-        TopAppBar(title = { Text("طلب مواد") },
+        TopAppBar(title = { Text(tr("طلب مواد")) },
             navigationIcon = { IconButton(onClick = { nav.popBackStack() }) { Icon(Icons.AutoMirrored.Filled.ArrowBack, null) } })
     }) { pad ->
         Box(Modifier.fillMaxSize().padding(pad)) {
@@ -98,22 +100,22 @@ fun RequisitionDetailScreen(nav: NavController, id: String) {
                         if (o.notes.isNotBlank()) Text(o.notes, style = MaterialTheme.typography.bodySmall)
                     }
                 }
-                Text("البنود (${o.lines.size})", style = MaterialTheme.typography.titleMedium)
+                Text(tr("البنود (${o.lines.size})"), style = MaterialTheme.typography.titleMedium)
                 o.lines.forEach { l ->
                     AppCard(Modifier.fillMaxWidth()) {
                         Row(Modifier.fillMaxWidth().padding(12.dp), horizontalArrangement = Arrangement.SpaceBetween) {
                             Text(l.name, modifier = Modifier.weight(1f))
-                            Text("الكمية: ${fmt(l.qty)}", color = MaterialTheme.colorScheme.outline)
+                            Text(tr("الكمية: ${fmt(l.qty)}"), color = MaterialTheme.colorScheme.outline)
                         }
                     }
                 }
                 message?.let { Text(it, color = MaterialTheme.colorScheme.primary) }
                 if (o.status == "DRAFT") {
-                    Button(onClick = { act("api/v1/purchases/requisitions/$id/approve", "تم الاعتماد ✓", false) }, enabled = !busy, modifier = Modifier.fillMaxWidth()) {
-                        Text(if (busy) "…" else "اعتماد")
+                    Button(onClick = { act("api/v1/purchases/requisitions/$id/approve", tr("تم الاعتماد ✓"), false) }, enabled = !busy, modifier = Modifier.fillMaxWidth()) {
+                        Text(if (busy) "…" else tr("اعتماد"))
                     }
                     OutlinedButton(onClick = { act("api/v1/purchases/requisitions/$id/delete", "", true) }, enabled = !busy, modifier = Modifier.fillMaxWidth(),
-                        colors = androidx.compose.material3.ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)) { Text("حذف") }
+                        colors = androidx.compose.material3.ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)) { Text(tr("حذف")) }
                 }
             }
         }
@@ -134,41 +136,41 @@ fun RequisitionFormScreen(nav: NavController) {
     var error by remember { mutableStateOf<String?>(null) }
 
     fun save() {
-        if (lines.isEmpty()) { error = "أضف صنفاً واحداً على الأقل"; return }
+        if (lines.isEmpty()) { error = tr("أضف صنفاً واحداً على الأقل"); return }
         val payload = lines.mapNotNull { l -> l.qty.toDoubleOrNull()?.takeIf { it > 0 }?.let { ReqCreateLine(l.itemId, it) } }
-        if (payload.size != lines.size) { error = "تحقّق من الكميات"; return }
+        if (payload.size != lines.size) { error = tr("تحقّق من الكميات"); return }
         busy = true; error = null
         scope.launch {
             try { ServiceLocator.repo.requisitionCreate(ReqCreateReq(date, notes.ifBlank { null }, payload)); nav.popBackStack() }
-            catch (e: Exception) { error = e.message ?: "خطأ"; busy = false }
+            catch (e: Exception) { error = e.message ?: tr("خطأ"); busy = false }
         }
     }
 
     Scaffold(topBar = {
-        TopAppBar(title = { Text("طلب مواد جديد") },
+        TopAppBar(title = { Text(tr("طلب مواد جديد")) },
             navigationIcon = { IconButton(onClick = { nav.popBackStack() }) { Icon(Icons.AutoMirrored.Filled.ArrowBack, null) } })
     }) { pad ->
         Column(Modifier.fillMaxSize().padding(pad).verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            OutlinedTextField(date, { date = it }, label = { Text("التاريخ") }, singleLine = true, modifier = Modifier.fillMaxWidth())
-            OutlinedTextField(notes, { notes = it }, label = { Text("ملاحظات") }, modifier = Modifier.fillMaxWidth())
+            OutlinedTextField(date, { date = it }, label = { Text(tr("التاريخ")) }, singleLine = true, modifier = Modifier.fillMaxWidth())
+            OutlinedTextField(notes, { notes = it }, label = { Text(tr("ملاحظات")) }, modifier = Modifier.fillMaxWidth())
 
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                Text("البنود (${lines.size})", style = MaterialTheme.typography.titleMedium)
-                TextButton(onClick = { picker = true }) { Icon(Icons.Filled.Add, null); Text(" إضافة صنف") }
+                Text(tr("البنود (${lines.size})"), style = MaterialTheme.typography.titleMedium)
+                TextButton(onClick = { picker = true }) { Icon(Icons.Filled.Add, null); Text(tr(" إضافة صنف")) }
             }
             lines.forEachIndexed { i, l ->
                 AppCard(Modifier.fillMaxWidth()) {
                     Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
                         Text(l.name, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
                         OutlinedTextField(l.qty, { v -> lines[i] = l.copy(qty = v.filter { it.isDigit() || it == '.' }) },
-                            label = { Text("كمية") }, singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                            label = { Text(tr("كمية")) }, singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                             modifier = Modifier.width(110.dp))
-                        IconButton(onClick = { lines.removeAt(i) }) { Icon(Icons.Filled.Close, "حذف") }
+                        IconButton(onClick = { lines.removeAt(i) }) { Icon(Icons.Filled.Close, tr("حذف")) }
                     }
                 }
             }
             error?.let { Text(it, color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.SemiBold) }
-            Button(onClick = { save() }, enabled = !busy, modifier = Modifier.fillMaxWidth()) { Text(if (busy) "جارٍ الحفظ…" else "حفظ") }
+            Button(onClick = { save() }, enabled = !busy, modifier = Modifier.fillMaxWidth()) { Text(if (busy) tr("جارٍ الحفظ…") else tr("حفظ")) }
         }
     }
 
@@ -189,22 +191,22 @@ internal fun ItemPickerDialog(onDismiss: () -> Unit, onPick: (ItemDto) -> Unit) 
     }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("اختر صنفاً") },
+        title = { Text(tr("اختر صنفاً")) },
         text = {
             Column {
-                OutlinedTextField(q, { q = it }, label = { Text("بحث بالاسم أو الكود") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(q, { q = it }, label = { Text(tr("بحث بالاسم أو الكود")) }, singleLine = true, modifier = Modifier.fillMaxWidth())
                 LazyColumn(Modifier.fillMaxWidth().heightIn(max = 320.dp).padding(top = 8.dp)) {
                     items(results) { it ->
                         Row(Modifier.fillMaxWidth().clickable { onPick(it) }.padding(vertical = 10.dp)) {
                             Column {
                                 Text(it.name, style = MaterialTheme.typography.bodyMedium)
-                                Text("${it.code} · متاح ${fmt(it.available)}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
+                                Text(tr("${it.code} · متاح ${fmt(it.available)}"), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
                             }
                         }
                     }
                 }
             }
         },
-        confirmButton = { TextButton(onClick = onDismiss) { Text("إغلاق") } },
+        confirmButton = { TextButton(onClick = onDismiss) { Text(tr("إغلاق")) } },
     )
 }

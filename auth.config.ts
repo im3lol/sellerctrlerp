@@ -11,8 +11,27 @@ export const authConfig = {
   },
   session: { strategy: "jwt" },
   trustHost: true,
+  // A shared, secure session lets the marketing login continue onto the app host.
+  // A new cookie name avoids ambiguity with older host-only sessions.
+  ...(process.env.AUTH_COOKIE_DOMAIN ? {
+    cookies: {
+      sessionToken: {
+        name: "__Secure-sellerctrl.session-token",
+        options: { httpOnly: true, sameSite: "lax" as const, path: "/", secure: true, domain: process.env.AUTH_COOKIE_DOMAIN },
+      },
+    },
+  } : {}),
   providers: [],
   callbacks: {
+    redirect({ url, baseUrl }) {
+      const appOrigin = new URL(process.env.APP_URL ?? baseUrl).origin;
+      const marketingOrigin = new URL(process.env.MARKETING_URL ?? baseUrl).origin;
+      try {
+        const destination = new URL(url, baseUrl);
+        if ([new URL(baseUrl).origin, appOrigin, marketingOrigin].includes(destination.origin)) return destination.href;
+      } catch { /* reject malformed destinations */ }
+      return new URL("/dashboard", appOrigin).href;
+    },
     jwt({ token, user }) {
       if (user) {
         token.id = user.id;

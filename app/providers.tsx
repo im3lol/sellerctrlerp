@@ -9,9 +9,8 @@ import { dirOf, type Locale } from "@/lib/i18n";
 
 export function Providers({ children, locale }: { children: React.ReactNode; locale: Locale }) {
   return (
-    // next-themes toggles the `.dark` class on <html> (the palette already exists in
-    // globals.css); it injects a pre-hydration script so there's no theme flash.
-    <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
+    // Force light before hydration, ignoring old saved themes and the OS setting.
+    <ThemeProvider attribute="class" forcedTheme="light" defaultTheme="light" enableSystem={false} disableTransitionOnChange>
       <LocaleProvider locale={locale}>
         <TooltipProvider delayDuration={150}>
           {children}

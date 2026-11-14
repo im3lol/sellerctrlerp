@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { fill } from "@/lib/i18n";
-import { useT } from "@/lib/i18n/client";
+import { useLocale, useT } from "@/lib/i18n/client";
 import { useRouter } from "next/navigation";
 import { toast } from "@/lib/i18n/toast";
 import { Loader2 } from "lucide-react";
@@ -64,6 +64,7 @@ export function ApprovalBanner({ approval, canDecide, currentUserId, isAdmin }: 
   approval: BannerApproval | null; canDecide: boolean; currentUserId: string; isAdmin: boolean;
 }) {
   const t = useT();
+  const locale = useLocale();
   if (!approval || approval.status === "CANCELLED") return null;
   const mine = approval.requestedBy === currentUserId;
 
@@ -76,7 +77,7 @@ export function ApprovalBanner({ approval, canDecide, currentUserId, isAdmin }: 
             <div className="font-semibold">{t("مستني اعتماد المدير")}</div>
             <div>{t(approval.reason)}</div>
             <div className="text-xs opacity-80">
-              {approval.requestedByName ? fill(t("طلبه {0} · "), [approval.requestedByName]) : ""}{ago(approval.requestedAt)}
+              {approval.requestedByName ? fill(t("طلبه {0} · "), [approval.requestedByName]) : ""}{ago(approval.requestedAt, locale)}
             </div>
           </div>
         </div>
@@ -98,7 +99,7 @@ export function ApprovalBanner({ approval, canDecide, currentUserId, isAdmin }: 
         <div className="font-semibold">
           {approved ? t("معتمد") : t("مرفوض")}
           {approval.decidedByName ? ` — ${approval.decidedByName}` : ""}
-          {approval.decidedAt ? ` · ${ago(approval.decidedAt)}` : ""}
+          {approval.decidedAt ? ` · ${ago(approval.decidedAt, locale)}` : ""}
         </div>
         <div className="opacity-90">{t(approval.reason)}</div>
         {approval.comment && <div className="mt-1">{approved ? approval.comment : fill(t("السبب: {0}"), [approval.comment])}</div>}

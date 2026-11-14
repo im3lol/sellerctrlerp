@@ -1,9 +1,11 @@
 import { AuthShell } from "@/components/auth/auth-shell";
 import { getT } from "@/lib/i18n/server";
 import { LoginForm } from "@/components/auth/login-form";
+import { loginDestination } from "@/lib/auth/login-destination";
 
-export default async function AdminLoginPage() {
+export default async function AdminLoginPage({ searchParams }: { searchParams: Promise<{ callbackUrl?: string }> }) {
   const t = await getT();
+  const { callbackUrl } = await searchParams;
   return (
     <AuthShell
       heading={t("إدارة النظام بالكامل")}
@@ -15,7 +17,7 @@ export default async function AdminLoginPage() {
       ]}
     >
       <LoginForm
-        callbackUrl="/admin"
+        callbackUrl={loginDestination(callbackUrl, "/admin")}
         title={t("دخول الإدارة")}
         subtitle={t("لوحة تحكم مدير النظام ومدير العمليات")}
         welcome="🔐 منطقة الإدارة — صلاحيات كاملة لإدارة النظام والفرق والعملاء."

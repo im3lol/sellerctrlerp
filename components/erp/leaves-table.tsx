@@ -1,5 +1,7 @@
 "use client";
 
+import { formatErpDate } from "@/lib/erp/dates";
+
 import { bulkLeaveRequestsAction } from "@/app/actions/erp/leave-requests";
 import { useT } from "@/lib/i18n/client";
 import { Badge } from "@/components/ui/badge";
@@ -10,7 +12,7 @@ import { useSelection, BulkBar, SelectBox } from "@/components/erp/bulk-select";
 
 type Row = { id: string; number: string; employee: string; type: string; start: unknown; end: unknown; days: unknown; status: string };
 
-const dt = (d: unknown) => new Date(d as string).toLocaleDateString("en-GB", { year: "numeric", month: "2-digit", day: "2-digit" });
+const dt = (d: unknown) => formatErpDate(d as string, "en-GB", { year: "numeric", month: "2-digit", day: "2-digit" });
 const statusVariant = (s: string) => (s === "APPROVED" ? "default" : s === "REJECTED" ? "destructive" : "secondary");
 
 // Only DRAFT requests are selectable — bulkLeaveRequestsAction skips ineligible rows.

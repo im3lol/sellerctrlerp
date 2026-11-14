@@ -13,6 +13,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ItemPicker } from "@/components/erp/item-picker";
 import { BarcodeScan } from "@/components/erp/barcode-scan";
+import { useLinePaste, LinePasteHint } from "@/components/erp/line-paste";
 import { SortableLineRows } from "@/components/erp/sortable-line-rows";
 import type { ItemSearchResult } from "@/app/actions/erp/item-search";
 
@@ -35,6 +36,11 @@ export function MaterialRequestForm({ items, orgName, initial }: { items: Item[]
   const [lines, setLines] = useState<LineRow[]>(initial?.lines?.length ? initial.lines.map((l) => ({ ...l, id: newId() })) : [{ id: newId(), itemId: "", quantity: 1 }]);
 
   const setLine = (i: number, patch: Partial<Line>) => setLines((ls) => ls.map((l, idx) => (idx === i ? { ...l, ...patch } : l)));
+  const clipboard = useLinePaste({ rows: lines, setRows: setLines,
+    newRow: () => ({ id: newId(), itemId: "", quantity: 1 }),
+    columns: [{ key: "itemId", kind: "item" }, { key: "quantity", kind: "number", integer: true }],
+    apply: (row, values, item) => ({ ...row, ...(item ? { itemId: item.id } : {}), ...(typeof values.quantity === "number" ? { quantity: values.quantity } : {}) }),
+  });
   const addLine = () => setLines((ls) => [...ls, { id: newId(), itemId: "", quantity: 1 }]);
   const removeLine = (i: number) => setLines((ls) => (ls.length > 1 ? ls.filter((_, idx) => idx !== i) : ls));
 
@@ -60,11 +66,11 @@ export function MaterialRequestForm({ items, orgName, initial }: { items: Item[]
 
   return (
     <Card>
-      <CardHeader>
+      <CardHeader data-page-actions="" className="sticky top-16 z-20 rounded-t-xl border-b bg-card/95 py-3 backdrop-blur print:static [&>div]:flex-wrap [&_button]:max-w-full [&_button]:whitespace-normal">
         <div className="flex w-full items-center justify-between gap-3">
           <CardTitle>{t("بيانات طلب المواد")}</CardTitle>
           <div className="flex gap-2">
-            <Button size="sm" onClick={submit} disabled={pending}>{pending && <Loader2 className="size-4 animate-spin" />}{isEdit ? t("حفظ التعديلات") : t("حفظ الطلب")}</Button>
+            <Button size="sm" onClick={submit} disabled={pending || clipboard.busy}>{pending && <Loader2 className="size-4 animate-spin" />}{isEdit ? t("حفظ التعديلات") : t("حفظ الطلب")}</Button>
             <Button variant="outline" size="sm" onClick={() => router.push(isEdit ? `/purchases/requisitions/${encodeURIComponent(initial!.number)}` : "/purchases/requisitions")}>{t("إلغاء")}</Button>
           </div>
         </div>
@@ -80,6 +86,7 @@ export function MaterialRequestForm({ items, orgName, initial }: { items: Item[]
           <div className="space-y-2 sm:max-w-sm"><Label>{t("مسح باركود")}</Label><BarcodeScan onScan={addOrBumpItem} /></div>
         </div>
 
+        <LinePasteHint busy={clipboard.busy} />
         <div className="rounded-xl border">
           <Table>
             <TableHeader><TableRow><TableHead className="w-8" /><TableHead className="text-start">{t("الصنف")}</TableHead><TableHead className="w-32 text-start">{t("الكمية")}</TableHead><TableHead className="w-10" /><TableHead className="w-8" /></TableRow></TableHeader>
@@ -87,10 +94,11 @@ export function MaterialRequestForm({ items, orgName, initial }: { items: Item[]
               <SortableLineRows
                 items={lines}
                 onReorder={setLines}
+                clipboard={clipboard}
                 renderCells={(l, i) => (
                   <>
-                    <TableCell><ItemPicker selectedLabel={items.find((it) => it.id === l.itemId)?.nameAr ?? ""} onSelect={(it) => setLine(i, { itemId: it.id })} /></TableCell>
-                    <TableCell><Input type="number" step="1" min="1" value={l.quantity} onChange={(e) => setLine(i, { quantity: Math.max(0, Math.trunc(Number(e.target.value) || 0)) })} /></TableCell>
+                    <TableCell data-paste-column="itemId"><ItemPicker selectionRevision={clipboard.revision} selectionKey={l.itemId} selectedLabel={items.find((it) => it.id === l.itemId)?.nameAr ?? ""} onSelect={(it) => setLine(i, { itemId: it.id })} /></TableCell>
+                    <TableCell><Input data-paste-column="quantity" type="number" step="1" min="1" value={l.quantity} onChange={(e) => setLine(i, { quantity: Math.max(0, Math.trunc(Number(e.target.value) || 0)) })} /></TableCell>
                     <TableCell><Button variant="ghost" size="icon" onClick={() => removeLine(i)} aria-label={t("حذف")}><Trash2 className="size-4 text-destructive" /></Button></TableCell>
                   </>
                 )}

@@ -15,7 +15,7 @@ export async function GET(req: Request) {
 /** POST /api/v1/purchases/receipts — create a DRAFT goods receipt from a confirmed PO.
  *  Body: { purchaseOrderId, date?, picks?: [{ itemId, quantity, rejectedQty? }] }. Omit picks → receive all remaining. */
 export async function POST(req: Request) {
-  const auth = await authorizeApi(req, "purchases.create");
+  const auth = await authorizeApi(req, "purchases.receive");
   if (isApiError(auth)) return Response.json({ error: auth.error }, { status: auth.status });
   const body = await req.json().catch(() => ({}));
   const poId = String(body.purchaseOrderId ?? "");

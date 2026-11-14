@@ -1,5 +1,8 @@
+
+import { itemHref } from "@/lib/erp/item-href";
+import { getLocale } from "@/lib/i18n/server";
 import Link from "next/link";
-import { fill } from "@/lib/i18n";
+import { translateName, fill } from "@/lib/i18n";
 import { getT } from "@/lib/i18n/server";
 import { loadErpPage } from "@/lib/erp/org";
 import { getStockBalances } from "@/lib/erp/stock-balances";
@@ -16,7 +19,7 @@ import { selectCls } from "@/lib/utils";
 
 const fmt = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const qty = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { maximumFractionDigits: 3 });
-const expDate = (d: Date) => new Date(d).toLocaleDateString("ar-EG-u-nu-latn", { year: "numeric", month: "2-digit", day: "2-digit" });
+const expDate = (d: Date, locale: import("@/lib/i18n").Locale) => new Date(d).toLocaleDateString(locale === "en" ? "en-GB" : "ar-EG-u-nu-latn", { year: "numeric", month: "2-digit", day: "2-digit" });
 
 const STATUS_OPTIONS: [string, string][] = [["OK", "متوفّر"], ["LOW", "منخفض"], ["OUT", "نافد"]];
 
@@ -25,6 +28,7 @@ const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) 
 
 export default async function StockBalancePage({ searchParams }: { searchParams: Promise<SP> }) {
   const t = await getT();
+  const locale = await getLocale();
   return loadErpPage("inventory.view", async ({ orgId , permissions }) => {
     const sp = await searchParams;
     const fProduct = one(sp.product).trim();
@@ -113,14 +117,14 @@ export default async function StockBalancePage({ searchParams }: { searchParams:
                 <TableBody>
                   {lines.map((l, i) => (
                     <TableRow key={i}>
-                      <TableCell className="font-mono whitespace-nowrap"><Link href={`/inventory/items/${l.itemId}`} className="text-primary hover:underline">{l.code}</Link></TableCell>
+                      <TableCell className="font-mono whitespace-nowrap"><Link href={itemHref(l.code)} className="text-primary hover:underline">{l.code}</Link></TableCell>
                       <TableCell className="max-w-[300px] whitespace-normal"><div dir="ltr" className="line-clamp-2 text-start leading-snug" title={l.name ?? undefined}>{t(l.name)}</div></TableCell>
-                      <TableCell className="whitespace-nowrap">{l.warehouse}</TableCell>
+                      <TableCell className="whitespace-nowrap">{translateName(l.warehouse ?? "", t)}</TableCell>
                       <TableCell>{qty(l.quantity)}</TableCell>
                       <TableCell>{fmt(l.avgCost)}</TableCell>
                       <TableCell>{fmt(l.value)}</TableCell>
                       <TableCell className={l.expiryStatus === "EXPIRED" ? "text-destructive whitespace-nowrap" : l.expiryStatus === "NEAR" ? "text-amber-600 whitespace-nowrap" : "text-muted-foreground whitespace-nowrap"}>
-                        {l.nearestExpiry ? expDate(l.nearestExpiry) : "—"}
+                        {l.nearestExpiry ? expDate(l.nearestExpiry, locale) : "—"}
                       </TableCell>
                       <TableCell>
                         {l.status === "OUT" ? <Badge variant="destructive">{t("نافد")}</Badge> : l.status === "LOW" ? <Badge variant="secondary">{t("منخفض")}</Badge> : <Badge variant="default">{t("متوفّر")}</Badge>}

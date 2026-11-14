@@ -1,7 +1,9 @@
 import { notFound } from "next/navigation";
 import { fill } from "@/lib/i18n";
 import { getT } from "@/lib/i18n/server";
-import { and, eq, or } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
+import { itemCodeParam } from "@/lib/erp/item-route";
+import { itemHref } from "@/lib/erp/item-href";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
 import { items, itemCodes } from "@/db/schema";
@@ -11,10 +13,10 @@ import { ItemForm } from "@/components/erp/item-form";
 export default async function EditItemPage({ params }: { params: Promise<{ id: string }> }) {
   const t = await getT();
   const { id } = await params;
-  const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
   return loadErpPage("inventory.edit", async ({ orgId }) => {
+    const code = await itemCodeParam(id, orgId, "/edit");
     const [item] = await db.select().from(items)
-      .where(and(eq(items.organizationId, orgId), isUuid ? or(eq(items.id, id), eq(items.code, id)) : eq(items.code, id)))
+      .where(and(eq(items.organizationId, orgId), eq(items.code, code)))
       .limit(1);
     if (!item) notFound();
     const codes = await db.select({ codeType: itemCodes.codeType, code: itemCodes.code }).from(itemCodes).where(eq(itemCodes.itemId, item.id));
@@ -28,7 +30,7 @@ export default async function EditItemPage({ params }: { params: Promise<{ id: s
 
     return (
       <div className="space-y-6">
-        <ErpPageHeader icon="Package" title={fill(t("تعديل {0}"), [item.code])} subtitle={t("تعديل بيانات الصنف وأكواده وصورته")} backHref={`/inventory/items/${encodeURIComponent(item.code)}`} />
+        <ErpPageHeader icon="Package" title={fill(t("تعديل {0}"), [item.code])} subtitle={t("تعديل بيانات الصنف وأكواده وصورته")} backHref={itemHref(item.code)} />
         <ItemForm initial={{
           id: item.id, code: item.code, nameAr: item.nameAr ?? "",
           description: item.description ?? "", sellPrice: item.sellPrice ?? "0", minStock: item.minStock ?? "0",

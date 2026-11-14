@@ -112,7 +112,7 @@ async function LessonCard({ lesson }: { lesson: Lesson }) {
         </div>
         {!live && <Badge variant="secondary" className="shrink-0">{t("قريباً")}</Badge>}
       </div>
-      {lesson.outcome && <p className="pr-6 text-sm text-muted-foreground">{lesson.outcome}</p>}
+      {lesson.outcome && <p className="pr-6 text-sm text-muted-foreground">{t(lesson.outcome)}</p>}
       <div className="flex gap-2 pr-6 text-xs text-muted-foreground">
         {lesson.minutes && <span>{intf(lesson.minutes)} {t("دقيقة")}</span>}
         {lesson.level && <span>· {lesson.level === "basic" ? t("أساسي") : t("متقدّم")}</span>}

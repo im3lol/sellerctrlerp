@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { fill } from "@/lib/i18n";
+import { translateName, fill } from "@/lib/i18n";
 import { useT } from "@/lib/i18n/client";
 import { toast } from "@/lib/i18n/toast";
 import { findSerialAction } from "@/app/actions/erp/serials";
@@ -95,10 +95,10 @@ export function SerialLookup() {
                           <div className="font-mono text-xs text-muted-foreground" dir="ltr">{h.itemCode}</div>
                         </TableCell>
                         <TableCell><Badge variant={tone(h.status)}>{t(h.statusLabel)}</Badge></TableCell>
-                        <TableCell>{h.warehouse ?? "—"}</TableCell>
+                        <TableCell>{translateName(h.warehouse ?? "—", t)}</TableCell>
                         <TableCell className="font-mono text-xs">{h.receiptNumber ?? "—"}</TableCell>
                         <TableCell className="font-mono text-xs">{h.deliveryNumber ?? "—"}</TableCell>
-                        <TableCell>{h.customerName ?? "—"}</TableCell>
+                        <TableCell>{translateName(h.customerName ?? "—", t)}</TableCell>
                         <TableCell className="text-xs text-muted-foreground" dir="ltr">
                           {h.receivedAt ?? "—"}{h.soldAt ? ` ← ${h.soldAt}` : ""}
                         </TableCell>

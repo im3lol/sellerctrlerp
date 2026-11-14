@@ -11,7 +11,7 @@ export const runtime = "nodejs";
 
 /** Excel export of P&L per cost center for the page's period (real DB data). */
 export async function GET(req: Request) {
-  const { orgId } = await requireErpModule("reports.view");
+  const { orgId } = await requireErpModule("accounting.view");
   const p = new URL(req.url).searchParams;
   const now = new Date();
   const from = p.get("from") || (await orgFiscalYearStartISO(orgId, now));

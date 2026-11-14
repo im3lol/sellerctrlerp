@@ -42,7 +42,7 @@ export function QuoteResponse({ token, status }: { token: string; status: string
           {t("مش موافق")}
         </button>
       </div>
-      {error && <p className="text-destructive">{error}</p>}
+      {error && <p className="text-destructive">{t(error)}</p>}
     </div>
   );
 }

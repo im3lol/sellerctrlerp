@@ -35,7 +35,27 @@ export const fill = (s: string, vals: (string | number | null | undefined)[]): s
  *  code that wrote them knowing about languages. */
 export function translator(locale: Locale): T {
   if (locale === "ar") return (ar) => ar;
-  return (ar) => EN[ar] ?? matchPattern(ar) ?? ar;
+  return (ar) => translateKnown(ar, 0);
+}
+
+/** Default master-data names have exact translations. Custom names must not be
+ * interpreted as message templates (for example, "مخزن {0}"). */
+export function translateName(source: string, locale: Locale | T): string {
+  if (typeof locale === "function") return EN[source] ? locale(source) : source;
+  return locale === "en" ? EN[source] ?? source : source;
+}
+
+function translateKnown(source: string, depth: number): string {
+  if (depth > 6 || !AR.test(source)) return source;
+  const exact = EN[source];
+  if (exact) return exact;
+  const pattern = matchPattern(source, depth);
+  if (pattern) return pattern;
+  // Stored system descriptions can contain multiple independently composed messages.
+  // Keep separators and values intact; unknown text (including names) passes through.
+  const parts = source.split(/(\n| — | · )/);
+  if (parts.length > 1) return parts.map((part) => translateKnown(part, depth + 1)).join("");
+  return source;
 }
 
 // ── sentences with values ─────────────────────────────────────────────────────
@@ -54,10 +74,10 @@ function patterns(): Map<string, Pattern[]> {
   for (const [key, en] of Object.entries(EN)) {
     if (!key.includes("{")) continue;
     const fixed = key.replace(SLOT, "");
-    if ((fixed.match(/[\u0600-\u06FF]/g) ?? []).length < 4) continue; // too little to anchor on
+    if ((fixed.match(/[\u0600-\u06FF]/g) ?? []).length < 2) continue;
     const slots: string[] = [];
     const source = key.split(SLOT).map((part, i) => {
-      if (i % 2 === 1) { slots.push(part); return "([\\s\\S]+?)"; }
+      if (i % 2 === 1) { slots.push(part); return "([\\s\\S]*?)"; }
       return part.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     }).join("");
     // Bucket by the first word only when that word is wholly fixed text ("الصنف {0}"), not
@@ -75,12 +95,12 @@ function patterns(): Map<string, Pattern[]> {
 // "1101 — النقدية", "ITM-1 — حقيبة": a code, then a name — translate the name part.
 const CODED = /^([A-Za-z0-9][A-Za-z0-9._\-/]*) — ([\s\S]+)$/;
 
-function matchPattern(s: string): string | null {
+function matchPattern(s: string, depth = 0): string | null {
   if (!AR.test(s) || s.length > 600) return null;
   const coded = CODED.exec(s);
   if (coded) {
-    const rest = EN[coded[2]] ?? matchPattern(coded[2]);
-    if (rest) return `${coded[1]} — ${rest}`;
+    const rest = translateKnown(coded[2], depth + 1);
+    if (rest !== coded[2]) return `${coded[1]} — ${rest}`;
   }
   const idx = patterns();
   for (const list of [idx.get(firstWord(s)), idx.get("")]) {
@@ -92,7 +112,7 @@ function matchPattern(s: string): string | null {
       // A value that is itself a label ("فاتورة بيع") translates too; names and numbers don't.
       return p.en.replace(SLOT, (whole, name: string) => {
         const v = vals.get(name);
-        return v == null ? whole : EN[v] ?? v;
+        return v == null ? whole : translateKnown(v, depth + 1);
       });
     }
   }

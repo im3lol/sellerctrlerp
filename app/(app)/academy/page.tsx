@@ -8,7 +8,10 @@ import { ErpPageHeader } from "@/components/erp/page-header";
 import { Icon } from "@/components/icon";
 import { cn } from "@/lib/utils";
 
-export const metadata = { title: "الأكاديمية" };
+export async function generateMetadata() {
+  const t = await getT();
+  return { title: t("الأكاديمية") };
+}
 
 const intf = (n: number) => n.toLocaleString("ar-EG-u-nu-latn");
 

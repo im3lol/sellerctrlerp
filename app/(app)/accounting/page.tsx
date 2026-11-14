@@ -129,7 +129,7 @@ export default async function AccountingDashboardPage() {
         {/* Shortcuts */}
         {/* Every page in this module, straight from the sidebar config — see
             ModuleWorkspace for why this is derived and not another hand-kept list. */}
-        <ModuleWorkspace heading={t("المحاسبة")} permissions={permissions} counts={counts}
+        <ModuleWorkspace heading="المحاسبة" permissions={permissions} counts={counts}
           actions={[{ label: "قيد يومية جديد", href: "/accounting/journal/new", icon: "Plus" }, { label: "مصروف جديد", href: "/accounting/expenses/new", icon: "Plus" }]} />
       </div>
     );

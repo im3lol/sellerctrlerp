@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { fill } from "@/lib/i18n";
+import { translateName, fill } from "@/lib/i18n";
 import { useT } from "@/lib/i18n/client";
 import { useRouter } from "next/navigation";
 import { toast } from "@/lib/i18n/toast";
@@ -74,7 +74,7 @@ export function AiBillReader({ canInvoice, canExpense, expenseAccounts, cashAcco
       </CardHeader>
       <CardContent className="flex flex-wrap items-end gap-2">
         {!res?.supplier ? (
-          <p className="text-sm text-muted-foreground">{t("المورد «")}{b.supplierName ?? t("؟")}{t("» مش موجود عندك — ضيفه، واستلم البضاعة بإذن استلام، وبعدين اقرا الفاتورة تاني.")}</p>
+          <p className="text-sm text-muted-foreground">{t("المورد «")}{translateName(b.supplierName ?? t("؟"), t)}{t("» مش موجود عندك — ضيفه، واستلم البضاعة بإذن استلام، وبعدين اقرا الفاتورة تاني.")}</p>
         ) : (res.receipts ?? []).length === 0 ? (
           <p className="text-sm text-muted-foreground">{t("مفيش إذن استلام مفتوح لـ«")}{t(res.supplier.nameAr)}{t("» — استلم البضاعة الأول (أمر شراء ← إذن استلام).")}</p>
         ) : (
@@ -148,7 +148,7 @@ export function AiBillReader({ canInvoice, canExpense, expenseAccounts, cashAcco
           <CardContent className="space-y-4">
             <dl className="grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-4">
               <div><dt className="text-xs text-muted-foreground">{t("المورد")}</dt><dd className="font-medium">
-                {b.supplierName ?? "—"}
+                {translateName(b.supplierName ?? "—", t)}
                 {res?.supplier ? <span className="ms-1 text-xs text-emerald-600">✓ {t(res.supplier.nameAr)}</span> : <span className="ms-1 text-xs text-amber-600">{t("(مش عندك)")}</span>}
               </dd></div>
               <div><dt className="text-xs text-muted-foreground">{t("رقم الفاتورة")}</dt><dd className="font-mono">{b.invoiceNumber ?? "—"}</dd></div>

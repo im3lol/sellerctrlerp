@@ -1,6 +1,6 @@
 import { and, eq, isNotNull, sql } from "drizzle-orm";
-import { fill } from "@/lib/i18n";
-import { getT } from "@/lib/i18n/server";
+import { fill, translateName } from "@/lib/i18n";
+import { getT, getLocale } from "@/lib/i18n/server";
 import { notFound } from "next/navigation";
 import { loadErpPage } from "@/lib/erp/org";
 import { orgFiscalYearStartISO } from "@/lib/erp/fiscal";
@@ -27,6 +27,7 @@ type SP = { from?: string; to?: string };
  */
 export default async function PlatformFeesPage({ params, searchParams }: { params: Promise<{ code: string }>; searchParams: Promise<SP> }) {
   const t = await getT();
+  const locale = await getLocale();
   const { code } = await params;
   return loadErpPage("accounting.view", async ({ orgId }) => {
     const channel = code.toUpperCase();
@@ -73,7 +74,7 @@ export default async function PlatformFeesPage({ params, searchParams }: { param
       <div className="space-y-6">
         <ErpPageHeader
           icon="Percent"
-          title={fill(t("مصاريف {0} من التسويات"), [platform.name])}
+          title={fill(t("مصاريف {0} من التسويات"), [translateName(platform.name, locale)])}
           subtitle={t("كل ما خصمه أمازون فعليًا في الفترة — مصنّفًا (إعلانات، FBA، عمولة، تخزين…) من تقرير التسويات")}
           backHref={`/platforms/${code}`}
         />

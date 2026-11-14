@@ -110,7 +110,7 @@ export function SignupWizard({ plans }: { plans: PlanCard[] }) {
             <div className="space-y-1.5"><Label htmlFor="su-phone">{t("رقم الهاتف")}</Label><Input id="su-phone" autoComplete="tel" dir="ltr" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="01xxxxxxxxx" /></div>
             <div className="space-y-1.5"><Label htmlFor="su-tax">{t("الرقم الضريبي")}</Label><Input id="su-tax" value={taxNumber} onChange={(e) => setTaxNumber(e.target.value)} placeholder={t("اختياري")} /></div>
             <div className="space-y-1.5 sm:col-span-2"><Label htmlFor="su-address">{t("العنوان")}</Label><Input id="su-address" autoComplete="street-address" value={address} onChange={(e) => setAddress(e.target.value)} placeholder={t("اختياري")} /></div>
-            <div className="space-y-1.5"><Label htmlFor="su-password">{t("كلمة المرور *")}</Label><Input id="su-password" autoComplete="new-password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder={PASSWORD_RULE_AR} /></div>
+            <div className="space-y-1.5"><Label htmlFor="su-password">{t("كلمة المرور *")}</Label><Input id="su-password" autoComplete="new-password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder={t(PASSWORD_RULE_AR)} /></div>
             <div className="space-y-1.5"><Label htmlFor="su-confirm">{t("تأكيد كلمة المرور *")}</Label><Input id="su-confirm" autoComplete="new-password" type="password" value={confirm} onChange={(e) => setConfirm(e.target.value)} /></div>
           </div>
         </div>
@@ -182,7 +182,7 @@ export function SignupWizard({ plans }: { plans: PlanCard[] }) {
               </div>
               <div className="rounded-lg border bg-muted/30 p-3 text-sm">
                 <div className="mb-1 font-medium">{t("المبلغ:")} {egp(planPrice, locale)} {t("ج.م")}</div>
-                <p className="text-muted-foreground">{chosenMethod.detail}</p>
+                <p className="text-muted-foreground">{t(chosenMethod.detail)}</p>
                 {(payMethod === "INSTAPAY" || payMethod === "VODAFONE") && (
                   <button type="button" onClick={() => { navigator.clipboard?.writeText(WALLET_NUMBER); toast.success("تم نسخ الرقم"); }}
                     className="mt-2 inline-flex items-center gap-1.5 rounded-lg border bg-card px-3 py-1.5 font-mono text-base font-semibold hover:bg-accent" dir="ltr">

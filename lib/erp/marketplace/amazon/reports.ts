@@ -28,8 +28,8 @@ export function parseListingsReport(tsv: string): MarketplaceProduct[] {
   if (lines.length < 2) return [];
   const header = lines[0].split("\t").map((h) => h.trim().toLowerCase());
   const idx = (name: string) => header.indexOf(name);
-  const iSku = idx("seller-sku"), iAsin = idx("asin1"), iName = idx("item-name"), iPrice = idx("price");
-  if (iSku < 0) return [];
+  const iSku = idx("seller-sku"), iAsin = idx("asin1"), iName = idx("item-name"), iPrice = idx("price"), iFulfillment = idx("fulfillment-channel");
+  if (iSku < 0) throw new Error("Amazon listings report is missing seller-sku");
   const out: MarketplaceProduct[] = [];
   for (let i = 1; i < lines.length; i++) {
     const c = lines[i].split("\t");
@@ -38,7 +38,10 @@ export function parseListingsReport(tsv: string): MarketplaceProduct[] {
     const altCode = iAsin >= 0 ? ((c[iAsin] ?? "").trim() || undefined) : undefined;
     const name = ((iName >= 0 ? c[iName] : "") ?? "").trim() || code;
     const price = iPrice >= 0 ? round2(Number(c[iPrice]) || 0) : 0;
-    out.push({ code, altCode, name, sellPrice: price });
+    const channel = (c[iFulfillment] ?? "").trim().toUpperCase();
+    const fulfillment = channel.startsWith("AMAZON") || channel === "AFN" ? "FBA" as const
+      : channel === "DEFAULT" || channel === "MFN" ? "FBM" as const : undefined;
+    out.push({ code, altCode, name, sellPrice: price, ...(fulfillment ? { fulfillment } : {}) });
   }
   return out;
 }
@@ -88,6 +91,7 @@ export async function requestAndDownloadReport(
   const doc = await gp<DocResp>(`/reports/2021-06-30/documents/${docId}`);
   if (!doc.url) throw new Error("تعذّر تنزيل مستند التقرير");
   const res = await fetch(doc.url, { cache: "no-store", signal: AbortSignal.timeout(120_000) });
+  if (!res.ok) throw new Error("Amazon report download failed");
   const buf = Buffer.from(await res.arrayBuffer());
   // ponytail: assume UTF-8. Some legacy flat files are cp1252 — if Arabic item names
   // come garbled, decode via TextDecoder('windows-1252') here.

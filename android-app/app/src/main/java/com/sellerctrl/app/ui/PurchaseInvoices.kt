@@ -1,5 +1,7 @@
 package com.sellerctrl.app.ui
 
+import com.sellerctrl.app.tr
+
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -84,66 +86,66 @@ fun PurchaseInvoiceFormScreen(nav: NavController) {
     fun total(): Double = lines.sumOf { (it.qty.toDoubleOrNull() ?: 0.0) * (it.price.toDoubleOrNull() ?: 0.0) }
 
     fun save() {
-        if (supplierId.isBlank()) { error = "اختر المورد"; return }
-        if (warehouseId.isBlank()) { error = "اختر المستودع"; return }
-        if (lines.isEmpty()) { error = "أضف صنفاً واحداً على الأقل"; return }
+        if (supplierId.isBlank()) { error = tr("اختر المورد"); return }
+        if (warehouseId.isBlank()) { error = tr("اختر المستودع"); return }
+        if (lines.isEmpty()) { error = tr("أضف صنفاً واحداً على الأقل"); return }
         val payload = lines.map { l ->
             val q = l.qty.toDoubleOrNull(); val p = l.price.toDoubleOrNull()
-            if (q == null || q <= 0 || p == null || p < 0) return@save run { error = "تحقّق من الكميات والأسعار" }
+            if (q == null || q <= 0 || p == null || p < 0) return@save run { error = tr("تحقّق من الكميات والأسعار") }
             PiCreateLine(l.itemId, q, p)
         }
         busy = true; error = null
         scope.launch {
             try { ServiceLocator.repo.purchaseInvoiceCreate(PiCreateReq(supplierId, warehouseId, date, notes.ifBlank { null }, payload)); nav.popBackStack() }
-            catch (e: Exception) { error = e.message ?: "خطأ"; busy = false }
+            catch (e: Exception) { error = e.message ?: tr("خطأ"); busy = false }
         }
     }
 
     Scaffold(topBar = {
-        TopAppBar(title = { Text("فاتورة شراء جديدة") },
+        TopAppBar(title = { Text(tr("فاتورة شراء جديدة")) },
             navigationIcon = { IconButton(onClick = { nav.popBackStack() }) { Icon(Icons.AutoMirrored.Filled.ArrowBack, null) } })
     }) { pad ->
         Column(Modifier.fillMaxSize().padding(pad).verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             OutlinedButton(onClick = { supPicker = true }, modifier = Modifier.fillMaxWidth()) {
-                Text(if (supplierName.isBlank()) "اختر المورد *" else "المورد: $supplierName")
+                Text(if (supplierName.isBlank()) tr("اختر المورد *") else tr("المورد: $supplierName"))
             }
             OutlinedButton(onClick = { whPicker = true }, modifier = Modifier.fillMaxWidth()) {
-                Text(if (warehouseName.isBlank()) "اختر المستودع *" else "المستودع: $warehouseName")
+                Text(if (warehouseName.isBlank()) tr("اختر المستودع *") else tr("المستودع: $warehouseName"))
             }
-            OutlinedTextField(date, { date = it }, label = { Text("التاريخ") }, singleLine = true, modifier = Modifier.fillMaxWidth())
-            OutlinedTextField(notes, { notes = it }, label = { Text("ملاحظات") }, modifier = Modifier.fillMaxWidth())
+            OutlinedTextField(date, { date = it }, label = { Text(tr("التاريخ")) }, singleLine = true, modifier = Modifier.fillMaxWidth())
+            OutlinedTextField(notes, { notes = it }, label = { Text(tr("ملاحظات")) }, modifier = Modifier.fillMaxWidth())
 
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                Text("البنود (${lines.size})", style = MaterialTheme.typography.titleMedium)
-                TextButton(onClick = { itemPicker = true }) { Icon(Icons.Filled.Add, null); Text(" إضافة صنف") }
+                Text(tr("البنود (${lines.size})"), style = MaterialTheme.typography.titleMedium)
+                TextButton(onClick = { itemPicker = true }) { Icon(Icons.Filled.Add, null); Text(tr(" إضافة صنف")) }
             }
             lines.forEachIndexed { i, l ->
                 AppCard(Modifier.fillMaxWidth()) {
                     Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(l.name, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
-                            IconButton(onClick = { lines.removeAt(i) }) { Icon(Icons.Filled.Close, "حذف") }
+                            IconButton(onClick = { lines.removeAt(i) }) { Icon(Icons.Filled.Close, tr("حذف")) }
                         }
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            OutlinedTextField(l.qty, { v -> lines[i] = l.copy(qty = v.filter { it.isDigit() || it == '.' }) }, label = { Text("كمية") }, singleLine = true,
+                            OutlinedTextField(l.qty, { v -> lines[i] = l.copy(qty = v.filter { it.isDigit() || it == '.' }) }, label = { Text(tr("كمية")) }, singleLine = true,
                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal), modifier = Modifier.weight(1f))
-                            OutlinedTextField(l.price, { v -> lines[i] = l.copy(price = v.filter { it.isDigit() || it == '.' }) }, label = { Text("سعر الوحدة") }, singleLine = true,
+                            OutlinedTextField(l.price, { v -> lines[i] = l.copy(price = v.filter { it.isDigit() || it == '.' }) }, label = { Text(tr("سعر الوحدة")) }, singleLine = true,
                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal), modifier = Modifier.weight(1f))
                         }
                     }
                 }
             }
             if (lines.isNotEmpty()) Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text("الإجمالي", fontWeight = FontWeight.Bold)
+                Text(tr("الإجمالي"), fontWeight = FontWeight.Bold)
                 Text(money(total()), fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
             }
             error?.let { Text(it, color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.SemiBold) }
-            Button(onClick = { save() }, enabled = !busy, modifier = Modifier.fillMaxWidth()) { Text(if (busy) "جارٍ الحفظ…" else "حفظ") }
+            Button(onClick = { save() }, enabled = !busy, modifier = Modifier.fillMaxWidth()) { Text(if (busy) tr("جارٍ الحفظ…") else tr("حفظ")) }
         }
     }
 
-    if (supPicker) OptionPickerDialog("اختر المورد", suppliers, onDismiss = { supPicker = false }) { id, label -> supplierId = id; supplierName = label; supPicker = false }
-    if (whPicker) OptionPickerDialog("اختر المستودع", warehouses, onDismiss = { whPicker = false }) { id, label -> warehouseId = id; warehouseName = label; whPicker = false }
+    if (supPicker) OptionPickerDialog(tr("اختر المورد"), suppliers, onDismiss = { supPicker = false }) { id, label -> supplierId = id; supplierName = label; supPicker = false }
+    if (whPicker) OptionPickerDialog(tr("اختر المستودع"), warehouses, onDismiss = { whPicker = false }) { id, label -> warehouseId = id; warehouseName = label; whPicker = false }
     if (itemPicker) ItemPickerDialog(onDismiss = { itemPicker = false }) { item ->
         itemPicker = false
         if (lines.none { it.itemId == item.id }) lines.add(PiLine(item.id, item.name, "1", fmt(item.sellPrice)))
@@ -165,11 +167,11 @@ fun PurchaseInvoiceDetailScreen(nav: NavController, id: String) {
 
     fun act(block: suspend () -> Unit, ok: String) {
         busy = true; message = null
-        scope.launch { try { block(); message = ok; reload++ } catch (e: Exception) { message = e.message ?: "خطأ" } finally { busy = false } }
+        scope.launch { try { block(); message = ok; reload++ } catch (e: Exception) { message = e.message ?: tr("خطأ") } finally { busy = false } }
     }
 
     Scaffold(topBar = {
-        TopAppBar(title = { Text("فاتورة شراء") },
+        TopAppBar(title = { Text(tr("فاتورة شراء")) },
             navigationIcon = { IconButton(onClick = { nav.popBackStack() }) { Icon(Icons.AutoMirrored.Filled.ArrowBack, null) } })
     }) { pad ->
         Box(Modifier.fillMaxSize().padding(pad)) {
@@ -186,7 +188,7 @@ fun PurchaseInvoiceDetailScreen(nav: NavController, id: String) {
                         }
                     }
                 }
-                Text("البنود (${o.lines.size})", style = MaterialTheme.typography.titleMedium)
+                Text(tr("البنود (${o.lines.size})"), style = MaterialTheme.typography.titleMedium)
                 o.lines.forEach { l ->
                     AppCard(Modifier.fillMaxWidth()) {
                         Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -201,13 +203,13 @@ fun PurchaseInvoiceDetailScreen(nav: NavController, id: String) {
                 message?.let { Text(it, color = MaterialTheme.colorScheme.primary) }
 
                 if (o.status == "DRAFT") {
-                    Button(onClick = { act({ ServiceLocator.repo.postAction("api/v1/purchases/invoices/$id/post") }, "تم الترحيل ✓") },
-                        enabled = !busy, modifier = Modifier.fillMaxWidth()) { Text(if (busy) "…" else "ترحيل الفاتورة") }
+                    Button(onClick = { act({ ServiceLocator.repo.postAction("api/v1/purchases/invoices/$id/post") }, tr("تم الترحيل ✓")) },
+                        enabled = !busy, modifier = Modifier.fillMaxWidth()) { Text(if (busy) "…" else tr("ترحيل الفاتورة")) }
                     OutlinedButton(onClick = { confirmDelete = true }, enabled = !busy, modifier = Modifier.fillMaxWidth(),
-                        colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)) { Text("حذف") }
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)) { Text(tr("حذف")) }
                 }
                 if (o.status == "POSTED" || o.status == "PARTIAL_PAID" || o.status == "UNPAID" || o.status == "OVERDUE") {
-                    Button(onClick = { payOpen = true }, enabled = !busy, modifier = Modifier.fillMaxWidth()) { Text("سند صرف / دفع") }
+                    Button(onClick = { payOpen = true }, enabled = !busy, modifier = Modifier.fillMaxWidth()) { Text(tr("سند صرف / دفع")) }
                 }
             }
         }
@@ -215,20 +217,20 @@ fun PurchaseInvoiceDetailScreen(nav: NavController, id: String) {
 
     if (confirmDelete) AlertDialog(
         onDismissRequest = { confirmDelete = false },
-        title = { Text("حذف") }, text = { Text("متأكد من حذف مسودة الفاتورة؟") },
+        title = { Text(tr("حذف")) }, text = { Text(tr("متأكد من حذف مسودة الفاتورة؟")) },
         confirmButton = {
             TextButton(onClick = {
                 confirmDelete = false; busy = true; message = null
                 scope.launch {
                     try { ServiceLocator.repo.postAction("api/v1/purchases/invoices/$id/delete"); nav.popBackStack() }
-                    catch (e: Exception) { message = e.message ?: "خطأ" } finally { busy = false }
+                    catch (e: Exception) { message = e.message ?: tr("خطأ") } finally { busy = false }
                 }
-            }) { Text("حذف", color = MaterialTheme.colorScheme.error) }
+            }) { Text(tr("حذف"), color = MaterialTheme.colorScheme.error) }
         },
-        dismissButton = { OutlinedButton(onClick = { confirmDelete = false }) { Text("إلغاء") } },
+        dismissButton = { OutlinedButton(onClick = { confirmDelete = false }) { Text(tr("إلغاء")) } },
     )
 
-    if (payOpen) PaymentDialog(invoiceId = id, onDismiss = { payOpen = false }, onPaid = { payOpen = false; message = "تم الدفع ✓"; reload++ })
+    if (payOpen) PaymentDialog(invoiceId = id, onDismiss = { payOpen = false }, onPaid = { payOpen = false; message = tr("تم الدفع ✓"); reload++ })
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -254,36 +256,36 @@ private fun PaymentDialog(invoiceId: String, onDismiss: () -> Unit, onPaid: () -
     fun pay() {
         val p = payable ?: return
         val amt = amount.toDoubleOrNull()
-        if (amt == null || amt <= 0) { error = "مبلغ غير صالح"; return }
-        if (amt > p.balanceDue + 0.001) { error = "المبلغ أكبر من المتبقّي (${fmt(p.balanceDue)})"; return }
-        if (accountId.isBlank()) { error = "اختر حساب النقدية/البنك"; return }
+        if (amt == null || amt <= 0) { error = tr("مبلغ غير صالح"); return }
+        if (amt > p.balanceDue + 0.001) { error = tr("المبلغ أكبر من المتبقّي (${fmt(p.balanceDue)})"); return }
+        if (accountId.isBlank()) { error = tr("اختر حساب النقدية/البنك"); return }
         busy = true; error = null
         scope.launch {
             try { ServiceLocator.repo.payInvoice(PayReq(p.supplierId, invoiceId, accountId, amt, date)); onPaid() }
-            catch (e: Exception) { error = e.message ?: "خطأ"; busy = false }
+            catch (e: Exception) { error = e.message ?: tr("خطأ"); busy = false }
         }
     }
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("سند صرف") },
+        title = { Text(tr("سند صرف")) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                payable?.let { Text("المتبقّي: ${money(it.balanceDue)}", color = MaterialTheme.colorScheme.outline) }
-                OutlinedTextField(amount, { amount = it.filter { c -> c.isDigit() || c == '.' } }, label = { Text("المبلغ") }, singleLine = true,
+                payable?.let { Text(tr("المتبقّي: ${money(it.balanceDue)}"), color = MaterialTheme.colorScheme.outline) }
+                OutlinedTextField(amount, { amount = it.filter { c -> c.isDigit() || c == '.' } }, label = { Text(tr("المبلغ")) }, singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal), modifier = Modifier.fillMaxWidth())
                 OutlinedButton(onClick = { acctPicker = true }, modifier = Modifier.fillMaxWidth()) {
-                    Text(if (accountName.isBlank()) "حساب النقدية/البنك *" else accountName)
+                    Text(if (accountName.isBlank()) tr("حساب النقدية/البنك *") else accountName)
                 }
-                OutlinedTextField(date, { date = it }, label = { Text("التاريخ") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(date, { date = it }, label = { Text(tr("التاريخ")) }, singleLine = true, modifier = Modifier.fillMaxWidth())
                 error?.let { Text(it, color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.SemiBold) }
             }
         },
-        confirmButton = { TextButton(onClick = { pay() }, enabled = !busy) { Text(if (busy) "…" else "دفع") } },
-        dismissButton = { OutlinedButton(onClick = onDismiss) { Text("إلغاء") } },
+        confirmButton = { TextButton(onClick = { pay() }, enabled = !busy) { Text(if (busy) "…" else tr("دفع")) } },
+        dismissButton = { OutlinedButton(onClick = onDismiss) { Text(tr("إلغاء")) } },
     )
 
-    if (acctPicker) OptionPickerDialog("حساب النقدية/البنك", accounts.map { it.id to "${it.number} · ${it.title}" }, onDismiss = { acctPicker = false }) { aid, label ->
+    if (acctPicker) OptionPickerDialog(tr("حساب النقدية/البنك"), accounts.map { it.id to "${it.number} · ${it.title}" }, onDismiss = { acctPicker = false }) { aid, label ->
         accountId = aid; accountName = label; acctPicker = false
     }
 }

@@ -91,7 +91,7 @@ async function priorBalance(tx: Tx, orgId: string, itemId: string, warehouseId: 
         eq(stockMovements.warehouseId, warehouseId),
       ),
     )
-    .orderBy(desc(stockMovements.createdAt), desc(sql`split_part(${stockMovements.number}, '-', 3)::int`))
+    .orderBy(desc(stockMovements.createdAt), desc(sql`CASE WHEN split_part(${stockMovements.number}, '-', 3) ~ '^[0-9]+$' THEN split_part(${stockMovements.number}, '-', 3)::numeric ELSE 0 END`))
     .limit(1);
   return { qty: Number(last?.q ?? 0), value: Number(last?.v ?? 0) };
 }

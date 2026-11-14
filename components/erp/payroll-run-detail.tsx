@@ -81,7 +81,7 @@ function ReverseDialog({ runId, onClose }: { runId: string; onClose: () => void 
           <Label>{t("سبب العكس")}</Label>
           <Input value={reason} onChange={(e) => setReason(e.target.value)} placeholder={t("خطأ في البيانات...")} />
         </div>
-        {error && <p className="text-sm text-destructive">{error}</p>}
+        {error && <p className="text-sm text-destructive">{t(error)}</p>}
       </div>
       <DialogFooter>
         <Button variant="outline" onClick={onClose}>{t("إلغاء")}</Button>
@@ -143,7 +143,7 @@ export function PayrollRunDetail({ run, lines }: { run: Run; lines: Line[] }) {
           </div>
         </div>
 
-        {error && <p className="mt-3 text-sm text-destructive">{error}</p>}
+        {error && <p className="mt-3 text-sm text-destructive">{t(error)}</p>}
 
         {/* Totals */}
         <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">

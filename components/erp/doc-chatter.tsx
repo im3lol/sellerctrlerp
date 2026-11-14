@@ -1,5 +1,7 @@
 "use client";
 
+import { formatErpDateTime } from "@/lib/erp/dates";
+
 import { useEffect, useState, useTransition } from "react";
 import type { Locale } from "@/lib/i18n";
 import { fill } from "@/lib/i18n";
@@ -22,7 +24,7 @@ import type { AuditRow } from "@/lib/erp/audit";
 import { cn } from "@/lib/utils";
 
 const when = (d: string | Date, locale: Locale = "ar") =>
-  new Date(d).toLocaleString((locale === "en" ? "en-GB" : "ar-EG-u-nu-latn"), { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+  formatErpDateTime(d, (locale === "en" ? "en-GB" : "ar-EG-u-nu-latn"), { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
 
 const STATE: Record<FollowUpState, { label: string; cls: string }> = {
   overdue: { label: "متأخرة", cls: "bg-destructive/10 text-destructive" },

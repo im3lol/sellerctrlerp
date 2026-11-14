@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import { fill } from "@/lib/i18n";
 import { getT } from "@/lib/i18n/server";
 import { asc, eq } from "drizzle-orm";
@@ -54,6 +55,7 @@ export default async function SignupPage() {
         <div className="w-full max-w-2xl">
           <div className="mb-8 flex justify-center lg:hidden"><Logo className="text-4xl text-primary" /></div>
           <SignupWizard plans={catalog} />
+          <p className="mt-6 text-center text-sm text-muted-foreground"><Link href="/privacy-policy" className="hover:text-primary hover:underline">{t("سياسة الخصوصية")}</Link></p>
         </div>
       </div>
     </div>

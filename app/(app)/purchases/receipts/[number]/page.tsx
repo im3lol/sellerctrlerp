@@ -34,7 +34,7 @@ const STATUS: Record<string, { label: string; variant: "default" | "secondary" |
 
 export default async function ReceiptDetailPage({ params }: { params: Promise<{ number: string }> }) {
   const t = await getT();
-  const raw = decodeURIComponent((await params).number);
+  const raw = (await params).number;
   return loadErpPage("purchases.view", async ({ orgId, can }) => {
     if (UUID_RE.test(raw)) {
       const [byId] = await db.select({ number: purchaseReceipts.number }).from(purchaseReceipts)
@@ -159,7 +159,7 @@ export default async function ReceiptDetailPage({ params }: { params: Promise<{ 
         </div>
 
         <Card>
-          <CardHeader><CardTitle>{t("الأصناف المستلمة")}</CardTitle><CardDescription>{t("البضاعة الداخلة للمخزون.")}</CardDescription></CardHeader>
+          <CardHeader><CardTitle>{t(grn.status === "DRAFT" ? "أصناف مسودة الاستلام" : "الأصناف المستلمة")}</CardTitle><CardDescription>{t(grn.status === "DRAFT" ? "الكميات مقترحة للاستلام؛ لم تدخل المخزون ولم تُرحّل للحسابات بعد. يمكنك تعديل المسودة قبل التأكيد." : "البضاعة الداخلة للمخزون.")}</CardDescription></CardHeader>
           <CardContent>
             <Table>
               <TableHeader>
@@ -179,9 +179,9 @@ export default async function ReceiptDetailPage({ params }: { params: Promise<{ 
                   const landed = landedByItem.get(l.itemId) ?? 0;
                   return (
                   <TableRow key={l.id}>
-                    <TableCell className="w-14"><ItemThumb src={l.image} /></TableCell>
-                    <TableCell className="max-w-[320px] whitespace-normal">
-                      <div className="line-clamp-2 leading-snug" title={l.name ?? undefined}>{t(l.name ?? "")}</div>
+                    <TableCell className="w-14"><ItemThumb src={l.image} className="size-14 bg-white" /></TableCell>
+                    <TableCell className="min-w-[16rem] max-w-[24rem] whitespace-normal">
+                      <div dir="auto" className="font-medium leading-relaxed" title={l.name ?? undefined}>{t(l.name ?? "")}</div>
                       <div className="font-mono text-xs text-muted-foreground" dir="ltr">{l.code}</div>
                     </TableCell>
                     <TableCell>{l.wh ?? wh?.name ?? "—"}</TableCell>

@@ -1,5 +1,9 @@
 "use client";
 
+import { formatErpDate } from "@/lib/erp/dates";
+
+import { useLocale } from "@/lib/i18n/client";
+
 import { useState, useTransition } from "react";
 import { useT } from "@/lib/i18n/client";
 import { toast } from "@/lib/i18n/toast";
@@ -11,7 +15,7 @@ import { confirmReimbursementAction } from "@/app/actions/erp/platform-reimburse
 import type { ReimbursementRow } from "@/lib/erp/reimbursements-core";
 
 const fmt = (n: number) => Number(n || 0).toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-const dt = (s: string | null) => (s ? new Date(s).toLocaleDateString("ar-EG-u-nu-latn", { dateStyle: "short" }) : "—");
+const dt = (s: string | null, locale: import("@/lib/i18n").Locale) => (s ? formatErpDate(s, locale === "en" ? "en-GB" : "ar-EG-u-nu-latn", { dateStyle: "short" }) : "—");
 
 /**
  * Marketplace reimbursements awaiting recognition. Confirm → a DRAFT journal entry
@@ -20,6 +24,7 @@ const dt = (s: string | null) => (s ? new Date(s).toLocaleDateString("ar-EG-u-nu
  */
 export function MarketplaceReimbursementsClient({ initial }: { initial: ReimbursementRow[] }) {
   const t = useT();
+  const locale = useLocale();
   const [rows, setRows] = useState(initial);
   const [pending, start] = useTransition();
   const [busy, setBusy] = useState<string | null>(null);
@@ -50,7 +55,7 @@ export function MarketplaceReimbursementsClient({ initial }: { initial: Reimburs
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="font-mono text-sm" dir="ltr">{o.reimbursementId}</span>
                   {o.orderId && <span className="text-xs text-muted-foreground" dir="ltr">{t("طلب")} {o.orderId}</span>}
-                  <span className="text-xs text-muted-foreground">· {dt(o.approvalDate)}</span>
+                  <span className="text-xs text-muted-foreground">· {dt(o.approvalDate, locale)}</span>
                   {o.reason && <Badge variant="outline">{t(o.reason)}</Badge>}
                   {o.matchedLoss && <Badge variant="secondary" className="gap-1"><Link2 className="size-3" />{o.matchedLoss}</Badge>}
                 </div>

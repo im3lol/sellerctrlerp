@@ -21,7 +21,7 @@ export default async function PrintBalanceSheetPage({
 }) {
   const t = await getT();
   const locale = await getLocale();
-  return loadErpPage("reports.view", async ({ orgId }) => {
+  return loadErpPage("accounting.view", async ({ orgId }) => {
     const sp = await searchParams;
     const to = sp.to || iso(new Date());
 

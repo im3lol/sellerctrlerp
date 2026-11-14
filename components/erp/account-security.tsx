@@ -67,7 +67,7 @@ export function AccountSecurity({ mfaEnabled, passwordChangedAt }: { mfaEnabled:
         </CardHeader>
         <CardContent className="space-y-3">
           <div className="space-y-1.5"><Label>{t("كلمة المرور الحالية")}</Label><Input type="password" dir="ltr" value={cur} onChange={(e) => setCur(e.target.value)} /></div>
-          <div className="space-y-1.5"><Label>{t("كلمة المرور الجديدة")}</Label><Input type="password" dir="ltr" value={nw} onChange={(e) => setNw(e.target.value)} placeholder={PASSWORD_RULE_AR} /></div>
+          <div className="space-y-1.5"><Label>{t("كلمة المرور الجديدة")}</Label><Input type="password" dir="ltr" value={nw} onChange={(e) => setNw(e.target.value)} placeholder={t(PASSWORD_RULE_AR)} /></div>
           <div className="space-y-1.5"><Label>{t("تأكيد كلمة المرور الجديدة")}</Label><Input type="password" dir="ltr" value={confirm} onChange={(e) => setConfirm(e.target.value)} /></div>
           <Button onClick={changePassword} disabled={pending || !cur || !nw}>{pending && <Icon name="Loader2" className="size-4 animate-spin" />}{t("تغيير كلمة المرور")}</Button>
         </CardContent>

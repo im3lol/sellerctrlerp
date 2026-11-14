@@ -123,7 +123,7 @@ export default async function AdminHome() {
                   <ul className="space-y-1 text-xs">
                     {recent.slice(0, 4).map((e, i) => (
                       <li key={i} className="flex items-center justify-between gap-2">
-                        <span className="truncate text-muted-foreground">{(locale === "en" ? EVENT_EN[e.type] : t(EVENT_LABEL[e.type])) ?? e.type}{e.planName ? ` · ${e.planName}` : ""}</span>
+                        <span className="truncate text-muted-foreground">{(locale === "en" ? EVENT_EN[e.type] : t(EVENT_LABEL[e.type])) ?? e.type}{e.planName ? ` · ${t(e.planName)}` : ""}</span>
                         <span className={`shrink-0 tabular-nums ${e.mrrDelta >= 0 ? "text-emerald-600" : "text-destructive"}`}>{e.mrrDelta >= 0 ? "+" : "−"}{egp(Math.abs(e.mrrDelta), locale)}</span>
                       </li>
                     ))}
@@ -173,7 +173,7 @@ export default async function AdminHome() {
                   {m.planMix.map((p) => (
                     <li key={p.planName}>
                       <div className="mb-1 flex items-center justify-between text-sm">
-                        <span className="font-medium">{p.planName} <span className="text-xs text-muted-foreground">({int(p.count)})</span></span>
+                        <span className="font-medium">{t(p.planName ?? "")} <span className="text-xs text-muted-foreground">({int(p.count)})</span></span>
                         <span className="tabular-nums text-muted-foreground">{egp(p.mrr, locale)}{t("/شهر")}</span>
                       </div>
                       <div className="h-2 overflow-hidden rounded-full bg-muted">
@@ -222,7 +222,7 @@ export default async function AdminHome() {
         {/* Section links */}
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {SECTIONS.map((s) => (
-            <Link key={s.href} href={s.href} className="group flex items-start gap-3 rounded-xl border bg-card p-4 transition-colors hover:border-primary hover:bg-accent">
+            <Link key={s.href} href={s.href} target={s.newTab ? "_blank" : undefined} rel={s.newTab ? "noopener noreferrer" : undefined} className="group flex items-start gap-3 rounded-xl border bg-card p-4 transition-colors hover:border-primary hover:bg-accent">
               <div className="grid size-10 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary group-hover:bg-primary group-hover:text-primary-foreground"><Icon name={s.icon} className="size-5" /></div>
               <div><div className="font-semibold">{t(s.label)}</div><div className="text-xs text-muted-foreground">{t(s.desc)}</div></div>
             </Link>

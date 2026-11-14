@@ -1,3 +1,5 @@
+import { NextResponse } from "next/server";
+import { attachResponseNotice } from "@/lib/ui-notice-response";
 import { and, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { withOrgScope } from "@/lib/db-scope";
@@ -41,10 +43,10 @@ export async function GET(req: Request, { params }: { params: Promise<{ provider
   const locale = await getLocale();
   const t = translator(locale);
   const back = (ok: boolean, msg?: string): Response => {
-    const to = `/platforms/${provider.toLowerCase()}?connected=${ok ? "1" : "0"}${msg ? `&err=${encodeURIComponent(msg)}` : ""}`;
+    const to = `/platforms/${provider.toLowerCase()}`;
     const j = JSON.stringify(to);
     const html = `<!doctype html><html lang="${locale}" dir="${dirOf(locale)}"><head><meta charset="utf-8"><meta http-equiv="refresh" content="0;url=${to.replace(/"/g, "&quot;")}"><title>${t("جارٍ التحويل…")}</title></head><body style="font-family:system-ui;padding:2rem;text-align:center">${t("جارٍ إتمام الربط…")}<script>location.replace(${j})</script></body></html>`;
-    return new Response(html, { headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" } });
+    return attachResponseNotice(new NextResponse(html, { headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" } }), to, { connected: ok ? "1" : "0", ...(msg ? { err: msg } : {}) });
   };
 
   const connector = getConnector(provider);

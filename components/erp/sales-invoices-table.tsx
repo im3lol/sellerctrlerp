@@ -1,7 +1,9 @@
 "use client";
 
+import { formatErpDate } from "@/lib/erp/dates";
+
 import Link from "next/link";
-import { fill } from "@/lib/i18n";
+import { translateName, fill } from "@/lib/i18n";
 import { useT } from "@/lib/i18n/client";
 import { Fragment, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
@@ -16,7 +18,7 @@ import { confirm } from "@/components/erp/confirm";
 import { SalesInvoiceRowMenu } from "@/components/erp/sales-invoice-row-menu";
 
 const fmt = (v: string | null) => Number(v ?? 0).toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-const dt = (d: Date) => new Date(d).toLocaleDateString("en-GB", { year: "numeric", month: "2-digit", day: "2-digit" });
+const dt = (d: Date) => formatErpDate(d, "en-GB", { year: "numeric", month: "2-digit", day: "2-digit" });
 
 const STATUS: Record<string, { label: string; variant: "default" | "secondary" | "destructive" }> = {
   DRAFT: { label: "مسودة", variant: "secondary" },
@@ -98,7 +100,7 @@ export function SalesInvoicesTable({ rows, canCreate, canPost, canCollect, total
                     <Link href={`/sales/invoices/${encodeURIComponent(r.number)}`} className="hover:text-primary">{r.number}</Link>
                   </TableCell>
                   <TableCell>{dt(r.date)}</TableCell>
-                  <TableCell className="max-w-[200px] truncate" title={r.customer ?? undefined}>{r.customer ?? "—"}</TableCell>
+                  <TableCell className="max-w-[200px] truncate" title={translateName(r.customer ?? "", t) || undefined}>{translateName(r.customer ?? "—", t)}</TableCell>
                   <TableCell>{r.order ? <Link href={`/sales/orders/${encodeURIComponent(r.order)}`} className="font-mono text-sm hover:text-primary">{r.order}</Link> : "—"}</TableCell>
                   <TableCell>{fmt(r.total)}</TableCell>
                   <TableCell>{fmt(r.balanceDue)}</TableCell>
@@ -114,7 +116,7 @@ export function SalesInvoicesTable({ rows, canCreate, canPost, canCollect, total
                       <Link href={`/sales/returns/${encodeURIComponent(rt.number)}`} className="flex items-center gap-1 text-muted-foreground hover:text-primary"><Icon name="Undo2" className="size-3.5" />{rt.number}</Link>
                     </TableCell>
                     <TableCell className="text-muted-foreground">{dt(rt.date)}</TableCell>
-                    <TableCell className="text-muted-foreground">{r.customer ?? "—"}</TableCell>
+                    <TableCell className="text-muted-foreground">{translateName(r.customer ?? "—", t)}</TableCell>
                     <TableCell className="text-muted-foreground">—</TableCell>
                     <TableCell className="text-destructive">−{fmt(rt.total)}</TableCell>
                     <TableCell>—</TableCell>

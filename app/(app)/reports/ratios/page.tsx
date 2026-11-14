@@ -12,7 +12,7 @@ const pctv = (n: number) => (Number.isFinite(n) ? `${(n * 100).toFixed(1)}%` : "
 
 export default async function RatiosReportPage() {
   const t = await getT();
-  return loadErpPage("reports.view", async ({ orgId, permissions }) => {
+  return loadErpPage("accounting.view", async ({ orgId, permissions }) => {
     const balances = await accountBalances({ orgId });
 
     const byCode = Object.fromEntries(balances.map((b) => [b.code, Number(b.balance)]));
@@ -47,9 +47,9 @@ export default async function RatiosReportPage() {
 
     const Metric = ({ label, value, hint, tone }: { label: string; value: string; hint?: string; tone?: string }) => (
       <Card><CardContent className="pt-6">
-        <div className="text-sm text-muted-foreground">{label}</div>
+        <div className="text-sm text-muted-foreground">{t(label)}</div>
         <div className={`mt-1 text-2xl font-bold tabular-nums ${tone ?? ""}`}>{value}</div>
-        {hint && <div className="text-xs text-muted-foreground">{hint}</div>}
+        {hint && <div className="text-xs text-muted-foreground">{t(hint)}</div>}
       </CardContent></Card>
     );
 

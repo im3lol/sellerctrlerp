@@ -1,6 +1,6 @@
 // Single source of truth for admin navigation — consumed by both the sidebar and the
 // home section cards, so they can't drift apart (they used to: home omitted several).
-export type AdminNavItem = { label: string; href: string; icon: string; desc: string; exact?: boolean };
+export type AdminNavItem = { label: string; href: string; icon: string; desc: string; exact?: boolean; newTab?: boolean };
 export const ADMIN_NAV: readonly AdminNavItem[] = [
   { label: "نظرة عامة", href: "/admin", icon: "LayoutDashboard", exact: true, desc: "أداء المنصّة: الإيراد والاشتراكات والتجديدات." },
   { label: "التحليلات", href: "/admin/analytics", icon: "ChartLine", desc: "التحويل والاحتفاظ وقيمة العميل (LTV/ARPU/churn)." },
@@ -13,6 +13,7 @@ export const ADMIN_NAV: readonly AdminNavItem[] = [
   { label: "آخر التحديثات", href: "/admin/changelog", icon: "Sparkles", desc: "ملاحظات الإصدارات المعروضة للعملاء." },
   { label: "الاقتراحات والشكاوى", href: "/admin/feedback", icon: "MessageSquarePlus", desc: "صندوق ملاحظات المؤسسات عبر النظام." },
   { label: "التكاملات", href: "/admin/integrations", icon: "Plug", desc: "بوابات الدفع (xpay) ومفاتيح الربط." },
+  { label: "الملفات والبيانات", href: "/storage/admin", icon: "FolderArchive", desc: "ملفات المؤسسات والنسخ الاحتياطية وموارد التخزين.", newTab: true },
   { label: "أدوات النظام", href: "/admin/system", icon: "Server", desc: "حالة الخادم وقاعدة البيانات والتخزين." },
   { label: "الحساب والأمان", href: "/admin/account", icon: "ShieldCheck", desc: "تغيير كلمة المرور وتفعيل المصادقة الثنائية." },
 ];

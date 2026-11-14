@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { fill } from "@/lib/i18n";
+import { translateName, fill } from "@/lib/i18n";
 import { getT } from "@/lib/i18n/server";
 import { loadErpPage } from "@/lib/erp/org";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -135,7 +135,7 @@ export default async function ReorderPage({ searchParams }: { searchParams: Prom
                         <TableRow key={r.itemId}>
                           <TableCell className="font-mono whitespace-nowrap">{r.code}</TableCell>
                           <TableCell className="max-w-[300px] whitespace-normal"><div className="line-clamp-2 leading-snug" title={r.name ?? undefined}>{t(r.name)}</div></TableCell>
-                          <TableCell className="whitespace-nowrap text-muted-foreground">{r.supplierName ?? "—"}</TableCell>
+                          <TableCell className="whitespace-nowrap text-muted-foreground">{translateName(r.supplierName ?? "—", t)}</TableCell>
                           <TableCell>{q(r.onHand)}</TableCell>
                           <TableCell className="tabular-nums text-muted-foreground">{r.inbound > 0 ? q(r.inbound) : "—"}</TableCell>
                           <TableCell className="tabular-nums">{d1(r.velocity)}</TableCell>

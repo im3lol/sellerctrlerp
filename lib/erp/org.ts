@@ -7,7 +7,8 @@ import { organizations, organizationMembers } from "@/db/schema";
 import { getCurrentUser, type SessionUser } from "@/lib/session";
 import { getMemberAccess } from "@/lib/erp/auth-guard";
 import { erpRoleHasPermission, type ErpPermission } from "@/lib/erp/permissions";
-import { orgHasModule, moduleOfPermission } from "@/lib/erp/entitlements";
+import { getEnabledModules, orgHasModule, moduleOfPermission } from "@/lib/erp/entitlements";
+import { entitledPermissions } from "@/lib/erp/permission-modules";
 import { withOrgScope, withPlatformScope } from "@/lib/db-scope";
 
 export const ACTIVE_ORG_COOKIE = "erp_org";
@@ -77,7 +78,9 @@ export async function requireErpModule(
     // the in-app subscription page to pick a plan.
     if (mod !== "settings" && !(await orgHasModule(org.id, mod))) redirect(`/settings/subscription?locked=${mod}`);
   }
-  return { orgId: org.id, userId: user.id, role: access.role, permissions: [...access.permissions], can: (p: ErpPermission) => access.permissions.has(p) };
+  const modules = user.role === "system_admin" ? null : await getEnabledModules(org.id);
+  const permissions = entitledPermissions(access.permissions, modules, permission, moduleOverride);
+  return { orgId: org.id, userId: user.id, role: access.role, permissions: [...permissions], can: (p: ErpPermission) => permissions.has(p) };
 }
 
 /**
@@ -94,7 +97,7 @@ export async function requireErpModule(
  */
 export async function loadErpPage<T>(
   permission: ErpPermission,
-  handler: (ctx: { orgId: string; role: string; permissions: string[]; can: (p: ErpPermission) => boolean }) => Promise<T>,
+  handler: (ctx: { orgId: string; userId: string; role: string; permissions: string[]; can: (p: ErpPermission) => boolean }) => Promise<T>,
   moduleOverride?: string,
 ): Promise<T> {
   const ctx = await requireErpModule(permission, moduleOverride);

@@ -1,6 +1,6 @@
 import Link from "next/link";
-import { fill } from "@/lib/i18n";
-import { getT } from "@/lib/i18n/server";
+import { fill, translateName } from "@/lib/i18n";
+import { getT, getLocale } from "@/lib/i18n/server";
 import { and, desc, eq, gte, lte, sql } from "drizzle-orm";
 import { notFound } from "next/navigation";
 import { loadErpPage } from "@/lib/erp/org";
@@ -34,6 +34,7 @@ type SP = { from?: string; to?: string };
  */
 export default async function PlatformPayoutsPage({ params, searchParams }: { params: Promise<{ code: string }>; searchParams: Promise<SP> }) {
   const t = await getT();
+  const locale = await getLocale();
   const { code } = await params;
   return loadErpPage("accounting.view", async ({ orgId }) => {
     const channel = code.toUpperCase();
@@ -107,7 +108,7 @@ export default async function PlatformPayoutsPage({ params, searchParams }: { pa
       <div className="space-y-6">
         <ErpPageHeader
           icon="Wallet"
-          title={fill(t("محفظة ومدفوعات {0}"), [platform.name])}
+          title={fill(t("محفظة ومدفوعات {0}"), [translateName(platform.name, locale)])}
           subtitle={t("ما لم تُحوّله المنصّة بعد مقابل ما أودعته في البنك — من التسويات")}
           backHref={`/platforms/${code}`}
           action={<Button variant="outline" asChild><Link href={`/platforms/${code}/statements`}><Icon name="ReceiptText" className="size-4" />{t("كشوف التسويات")}</Link></Button>}
@@ -135,7 +136,7 @@ export default async function PlatformPayoutsPage({ params, searchParams }: { pa
             <CardContent className="pt-6">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
-                  <div className="text-base font-semibold">{t("مطابقة الرصيد مع")} {t(platform.name)}</div>
+                  <div className="text-base font-semibold">{t("مطابقة الرصيد مع")} {translateName(platform.name, locale)}</div>
                   <div className="text-xs text-muted-foreground">
                     {lastFetched ? fill(t("آخر قراءة: {0}"), [dtt(lastFetched)]) : t("لم يُقرأ الرصيد بعد — شغّل مزامنة المدفوعات أو حدّث الآن")}
                   </div>
@@ -155,7 +156,7 @@ export default async function PlatformPayoutsPage({ params, searchParams }: { pa
                       <div className="mt-1 text-2xl font-bold tabular-nums">{money(walletBalance)}</div>
                     </div>
                     <div className="rounded-xl border p-4">
-                      <div className="text-sm text-muted-foreground">{t("حسب")} {t(platform.name)}</div>
+                      <div className="text-sm text-muted-foreground">{t("حسب")} {translateName(platform.name, locale)}</div>
                       <div className="mt-1 text-2xl font-bold tabular-nums">{money(reportedTotal)}</div>
                       <div className="text-xs text-muted-foreground" dir="ltr">
                         {reported.map((r) => `${r.currency}${r.accountTail ? ` ****${r.accountTail}` : ""}`).join(" · ")}
@@ -195,7 +196,7 @@ export default async function PlatformPayoutsPage({ params, searchParams }: { pa
 
                   {gap !== null && !matched && (
                     <p className="mt-3 text-xs text-muted-foreground">
-                      {fill(t("فرق موجب = النظام يتوقّع من {0} أكثر مما تقوله المنصّة. الأسباب المعتادة: تسويات مسحوبة ولم تُرحَّل بعد، طلبات لم تُزامَن، رسوم لم تُسجَّل، أو تحويل بنكي قيّدته المنصّة ولم يُقيَّد عندك."), [platform.name])}
+                      {fill(t("فرق موجب = النظام يتوقّع من {0} أكثر مما تقوله المنصّة. الأسباب المعتادة: تسويات مسحوبة ولم تُرحَّل بعد، طلبات لم تُزامَن، رسوم لم تُسجَّل، أو تحويل بنكي قيّدته المنصّة ولم يُقيَّد عندك."), [translateName(platform.name, locale)])}
                     </p>
                   )}
                 </>
@@ -238,7 +239,7 @@ export default async function PlatformPayoutsPage({ params, searchParams }: { pa
                 </Table>
               </div>
             )}
-            <p className="mt-3 text-xs text-muted-foreground">{fill(t("رصيد المحفظة = ما حصّلته المنصّة من مبيعاتك ولم تُودِعه في بنكك بعد (حساب المحفظة {0}). التحويلات من صفوف «Transfer» في تقرير التسويات."), [wallet?.name ?? ""])}</p>
+            <p className="mt-3 text-xs text-muted-foreground">{fill(t("رصيد المحفظة = ما حصّلته المنصّة من مبيعاتك ولم تُودِعه في بنكك بعد (حساب المحفظة {0}). التحويلات من صفوف «Transfer» في تقرير التسويات."), [translateName(wallet?.name ?? "", locale)])}</p>
           </CardContent>
         </Card>
       </div>

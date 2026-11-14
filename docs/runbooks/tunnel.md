@@ -1,36 +1,7 @@
-# الموقع مش بيفتح من برّه
+# Legacy workstation tunnel
 
-الإنتاج = Docker على الجهاز ده + نفق Cloudflare. الملفات في `C:\Users\3lyge\sellerctrl-tunnel\`.
+The production deployment uses a VPS and the HTTPS reverse proxy described in [SAAS-DEPLOYMENT.md](../SAAS-DEPLOYMENT.md). Workstation Cloudflared services, tunnel supervisors, and scheduled watchdog tasks must remain disabled after migration to avoid resurrecting the retired local stack.
 
-## التأكد
+The legacy scripts are retained for review and recovery of explicitly configured development environments. Their paths resolve from the operator's user profile. A `production-moved-to-vps.disabled` marker in the legacy supervisor directory prevents the repository watchdog from restarting that stack.
 
-1. التطبيق نفسه: `curl -s localhost:3001/api/health` → لازم `200`.
-   - مش شغّال؟ Docker Desktop واقف أو الكونتينرات نايمة → الخطوة «Docker» تحت.
-2. النفق: `tunnel.log` و`watchdog.log` في مجلد النفق. الرابط الحالي في `current-url.txt`.
-
-## الحل
-
-- **Docker**: شغّله من قايمة ابدأ (مش من سكربت). بعدها:
-  `cd docker && docker compose --env-file ../.env --profile app up -d`.
-  `AutoStart` متفعّل، بس Docker مابيقومش غير **بعد تسجيل دخول الويندوز** — عشان كده لازم تسجيل دخول تلقائي (`netplwiz`).
-- **النفق**: مهمة الجدولة «SellerCtrl Watchdog» بتشتغل كل 5 دقايق. بتصحّي المشرف (`supervise-tunnel.ps1`) لو مات، وبتشغّل Docker لو واقف، وبتبعت تليجرام.
-  - تشغيل يدوي: من Task Scheduler ← «SellerCtrl Watchdog» ← Run.
-  - **ماتشغّلش المشرف من نافذة terminal** بتقفلها: بيموت معاها، والموقع يطلع 1033.
-- **بعد ريستارت الجهاز**: اتأكد إن `curl localhost:3001/api/health` بيرجع 200، وإن الرابط العام بيفتح.
-
-## اللي بيعمله الـwatchdog لوحده (بعد تصليح 7 أكتوبر 2026)
-
-لما الموقع مايوصلش من برّه، بيشوف **الكونتينرات** نفسها مش مجرد وجود نافذة Docker:
-
-| الحالة | اللي بيحصل |
-|---|---|
-| محرك Docker مش بيرد وDocker Desktop مقفول | بيشغّل Docker Desktop |
-| Docker Desktop شغّال بس محركه معلّق 3 فحوص (~15 دقيقة) | بيقفله ويشغّله تاني + تنبيه |
-| المحرك سليم والكونتينرات واقفة | `docker compose --profile app up -d` + تنبيه |
-
-**ليه اتعمل:** يوم 6 أكتوبر الكونتينرات وقفت بإغلاق نضيف بعد ريستارت (`restart: unless-stopped` مابيرجّعش حاجة اتقفلت كده)، وDocker Desktop فضل شغّال — فالفحص القديم (اللي بيدوّر على العملية بس) فضل ساكت **36 ساعة** و398 فحص.
-
-## اللي بيكشف الوقعة
-
-- تليجرام من الـwatchdog: التطبيق واقع، أو النفق واقع.
-- **لو الجهاز نفسه وقع أو النت قطع، محدش جوّه هيبعت حاجة.** عشان كده لازم مراقبة من برّه (UptimeRobot على `/api/health`).
+Do not re-enable the old tunnel or automatic local startup to troubleshoot the VPS. Inspect the deployed application, worker, proxy, database, and backup health instead. Do not copy live credentials or organization data into a development environment.

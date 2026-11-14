@@ -1,5 +1,7 @@
 package com.sellerctrl.app.ui
 
+import com.sellerctrl.app.tr
+
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -76,50 +78,50 @@ fun BundleFormScreen(nav: NavController, id: String) {
                 val b = ServiceLocator.repo.bundleDetail(id)
                 parentName = "${b.code} ${b.name}"
                 b.components.forEach { c -> comps.add(CompRow(c.itemId, c.name, fmt(c.qty))) }
-            } catch (e: Exception) { error = e.message ?: "تعذّر التحميل" }
+            } catch (e: Exception) { error = e.message ?: tr("تعذّر التحميل") }
             loaded = true
         }
     }
 
     fun save() {
-        if (parentId.isBlank()) { error = "اختر صنف الحزمة"; return }
-        if (comps.isEmpty()) { error = "أضف مكوّناً واحداً على الأقل"; return }
+        if (parentId.isBlank()) { error = tr("اختر صنف الحزمة"); return }
+        if (comps.isEmpty()) { error = tr("أضف مكوّناً واحداً على الأقل"); return }
         val payload = comps.map { c ->
             val q = c.qty.toDoubleOrNull()
-            if (q == null || q <= 0) return@save run { error = "تحقّق من كمية ${c.name}" }
+            if (q == null || q <= 0) return@save run { error = tr("تحقّق من كمية ${c.name}") }
             BomComponent(c.itemId, q)
         }
         busy = true; error = null
         scope.launch {
             try { ServiceLocator.repo.bundleSetComponents(BomReq(parentId, payload)); nav.popBackStack() }
-            catch (e: Exception) { error = e.message ?: "خطأ"; busy = false }
+            catch (e: Exception) { error = e.message ?: tr("خطأ"); busy = false }
         }
     }
 
     Scaffold(topBar = {
-        TopAppBar(title = { Text(if (isNew) "حزمة جديدة" else "تعديل مكوّنات الحزمة") },
+        TopAppBar(title = { Text(if (isNew) tr("حزمة جديدة") else tr("تعديل مكوّنات الحزمة")) },
             navigationIcon = { IconButton(onClick = { nav.popBackStack() }) { Icon(Icons.AutoMirrored.Filled.ArrowBack, null) } })
     }) { pad ->
         Column(Modifier.fillMaxSize().padding(pad).verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             OutlinedButton(onClick = { if (isNew) parentPicker = true }, enabled = isNew, modifier = Modifier.fillMaxWidth()) {
-                Text(if (parentName.isBlank()) "اختر صنف الحزمة *" else "الحزمة: $parentName")
+                Text(if (parentName.isBlank()) tr("اختر صنف الحزمة *") else tr("الحزمة: $parentName"))
             }
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                Text("المكوّنات (${comps.size})", style = MaterialTheme.typography.titleMedium)
-                TextButton(onClick = { compPicker = true }) { Icon(Icons.Filled.Add, null); Text(" مكوّن") }
+                Text(tr("المكوّنات (${comps.size})"), style = MaterialTheme.typography.titleMedium)
+                TextButton(onClick = { compPicker = true }) { Icon(Icons.Filled.Add, null); Text(tr(" مكوّن")) }
             }
             comps.forEachIndexed { i, c ->
                 AppCard(Modifier.fillMaxWidth()) {
                     Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
                         Text(c.name, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
-                        OutlinedTextField(c.qty, { v -> comps[i] = c.copy(qty = v.filter { it.isDigit() || it == '.' }) }, label = { Text("كمية") }, singleLine = true,
+                        OutlinedTextField(c.qty, { v -> comps[i] = c.copy(qty = v.filter { it.isDigit() || it == '.' }) }, label = { Text(tr("كمية")) }, singleLine = true,
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal), modifier = Modifier.width(110.dp))
-                        IconButton(onClick = { comps.removeAt(i) }) { Icon(Icons.Filled.Close, "حذف") }
+                        IconButton(onClick = { comps.removeAt(i) }) { Icon(Icons.Filled.Close, tr("حذف")) }
                     }
                 }
             }
             error?.let { Text(it, color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.SemiBold) }
-            Button(onClick = { save() }, enabled = !busy && loaded, modifier = Modifier.fillMaxWidth()) { Text(if (busy) "جارٍ الحفظ…" else "حفظ") }
+            Button(onClick = { save() }, enabled = !busy && loaded, modifier = Modifier.fillMaxWidth()) { Text(if (busy) tr("جارٍ الحفظ…") else tr("حفظ")) }
         }
     }
 
@@ -144,7 +146,7 @@ fun BundleDetailScreen(nav: NavController, id: String) {
     LaunchedEffect(reload, tick) { d = try { ServiceLocator.repo.bundleDetail(id) } catch (e: Exception) { null } }
 
     Scaffold(topBar = {
-        TopAppBar(title = { Text("حزمة") },
+        TopAppBar(title = { Text(tr("حزمة")) },
             navigationIcon = { IconButton(onClick = { nav.popBackStack() }) { Icon(Icons.AutoMirrored.Filled.ArrowBack, null) } })
     }) { pad ->
         Box(Modifier.fillMaxSize().padding(pad)) {
@@ -157,7 +159,7 @@ fun BundleDetailScreen(nav: NavController, id: String) {
                         Text(o.code, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.outline)
                     }
                 }
-                Text("المكوّنات (${o.components.size})", style = MaterialTheme.typography.titleMedium)
+                Text(tr("المكوّنات (${o.components.size})"), style = MaterialTheme.typography.titleMedium)
                 o.components.forEach { c ->
                     AppCard(Modifier.fillMaxWidth()) {
                         Row(Modifier.fillMaxWidth().padding(12.dp), horizontalArrangement = Arrangement.SpaceBetween) {
@@ -170,26 +172,26 @@ fun BundleDetailScreen(nav: NavController, id: String) {
                     }
                 }
                 message?.let { Text(it, color = MaterialTheme.colorScheme.primary) }
-                Button(onClick = { assembleOpen = true }, enabled = !busy, modifier = Modifier.fillMaxWidth()) { Text("تجميع كميات") }
-                OutlinedButton(onClick = { nav.navigate("bundle_form/$id") }, enabled = !busy, modifier = Modifier.fillMaxWidth()) { Text("تعديل المكوّنات") }
+                Button(onClick = { assembleOpen = true }, enabled = !busy, modifier = Modifier.fillMaxWidth()) { Text(tr("تجميع كميات")) }
+                OutlinedButton(onClick = { nav.navigate("bundle_form/$id") }, enabled = !busy, modifier = Modifier.fillMaxWidth()) { Text(tr("تعديل المكوّنات")) }
                 OutlinedButton(onClick = { confirmDelete = true }, enabled = !busy, modifier = Modifier.fillMaxWidth(),
-                    colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)) { Text("حذف الحزمة") }
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)) { Text(tr("حذف الحزمة")) }
             }
         }
     }
 
     if (confirmDelete) AlertDialog(
-        onDismissRequest = { confirmDelete = false }, title = { Text("حذف") }, text = { Text("إزالة مكوّنات الحزمة؟ (يبقى الصنف عاديًا)") },
+        onDismissRequest = { confirmDelete = false }, title = { Text(tr("حذف")) }, text = { Text(tr("إزالة مكوّنات الحزمة؟ (يبقى الصنف عاديًا)")) },
         confirmButton = {
             TextButton(onClick = {
                 confirmDelete = false; busy = true; message = null
-                scope.launch { try { ServiceLocator.repo.postAction("api/v1/inventory/bundles/$id/delete"); nav.popBackStack() } catch (e: Exception) { message = e.message ?: "خطأ" } finally { busy = false } }
-            }) { Text("حذف", color = MaterialTheme.colorScheme.error) }
+                scope.launch { try { ServiceLocator.repo.postAction("api/v1/inventory/bundles/$id/delete"); nav.popBackStack() } catch (e: Exception) { message = e.message ?: tr("خطأ") } finally { busy = false } }
+            }) { Text(tr("حذف"), color = MaterialTheme.colorScheme.error) }
         },
-        dismissButton = { OutlinedButton(onClick = { confirmDelete = false }) { Text("إلغاء") } },
+        dismissButton = { OutlinedButton(onClick = { confirmDelete = false }) { Text(tr("إلغاء")) } },
     )
 
-    if (assembleOpen) AssembleDialog(kitItemId = id, onDismiss = { assembleOpen = false }, onDone = { assembleOpen = false; message = "تم التجميع ✓"; reload++ })
+    if (assembleOpen) AssembleDialog(kitItemId = id, onDismiss = { assembleOpen = false }, onDone = { assembleOpen = false; message = tr("تم التجميع ✓"); reload++ })
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -209,30 +211,30 @@ private fun AssembleDialog(kitItemId: String, onDismiss: () -> Unit, onDone: () 
 
     fun run() {
         val q = qty.toDoubleOrNull()
-        if (q == null || q <= 0) { error = "كمية غير صالحة"; return }
-        if (whId.isBlank()) { error = "اختر المستودع"; return }
+        if (q == null || q <= 0) { error = tr("كمية غير صالحة"); return }
+        if (whId.isBlank()) { error = tr("اختر المستودع"); return }
         busy = true; error = null
         scope.launch {
             try { ServiceLocator.repo.bundleAssemble(AssembleReq(kitItemId, whId, q, date)); onDone() }
-            catch (e: Exception) { error = e.message ?: "خطأ"; busy = false }
+            catch (e: Exception) { error = e.message ?: tr("خطأ"); busy = false }
         }
     }
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("تجميع الحزمة") },
+        title = { Text(tr("تجميع الحزمة")) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                OutlinedButton(onClick = { whPicker = true }, modifier = Modifier.fillMaxWidth()) { Text(if (whName.isBlank()) "المستودع *" else whName) }
-                OutlinedTextField(qty, { qty = it.filter { c -> c.isDigit() || c == '.' } }, label = { Text("الكمية") }, singleLine = true,
+                OutlinedButton(onClick = { whPicker = true }, modifier = Modifier.fillMaxWidth()) { Text(if (whName.isBlank()) tr("المستودع *") else whName) }
+                OutlinedTextField(qty, { qty = it.filter { c -> c.isDigit() || c == '.' } }, label = { Text(tr("الكمية")) }, singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal), modifier = Modifier.fillMaxWidth())
-                OutlinedTextField(date, { date = it }, label = { Text("التاريخ") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(date, { date = it }, label = { Text(tr("التاريخ")) }, singleLine = true, modifier = Modifier.fillMaxWidth())
                 error?.let { Text(it, color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.SemiBold) }
             }
         },
-        confirmButton = { TextButton(onClick = { run() }, enabled = !busy) { Text(if (busy) "…" else "تجميع") } },
-        dismissButton = { OutlinedButton(onClick = onDismiss) { Text("إلغاء") } },
+        confirmButton = { TextButton(onClick = { run() }, enabled = !busy) { Text(if (busy) "…" else tr("تجميع")) } },
+        dismissButton = { OutlinedButton(onClick = onDismiss) { Text(tr("إلغاء")) } },
     )
 
-    if (whPicker) OptionPickerDialog("المستودع", warehouses, onDismiss = { whPicker = false }) { id, label -> whId = id; whName = label; whPicker = false }
+    if (whPicker) OptionPickerDialog(tr("المستودع"), warehouses, onDismiss = { whPicker = false }) { id, label -> whId = id; whName = label; whPicker = false }
 }

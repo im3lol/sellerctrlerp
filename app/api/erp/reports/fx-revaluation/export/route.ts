@@ -13,7 +13,7 @@ type Agg = { currency: string; kind: "AR" | "AP"; foreignRemaining: number; book
 
 /** Excel export of unrealised FX gains/losses on open foreign balances (real DB data). */
 export async function GET() {
-  const { orgId } = await requireErpModule("reports.view");
+  const { orgId } = await requireErpModule("accounting.view");
   const base = await getBaseCurrencyCode(orgId);
 
   return withOrgScope(orgId, false, async () => {

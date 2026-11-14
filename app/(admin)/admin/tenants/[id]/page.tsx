@@ -101,7 +101,7 @@ export default async function TenantPage({ params }: { params: Promise<{ id: str
                 return (
                   <li key={e.id} className="flex items-center gap-3 text-sm">
                     <span className="grid size-7 shrink-0 place-items-center rounded-full bg-muted"><Icon name={ev.icon} className="size-3.5" /></span>
-                    <div className="min-w-0 flex-1"><span className="font-medium">{locale === "en" ? EVENT_EN[e.type] ?? ev.label : t(ev.label)}</span>{e.planName ? <span className="text-muted-foreground"> · {e.planName}</span> : ""}<span className="text-xs text-muted-foreground"> · {dt(e.at, locale)}</span></div>
+                    <div className="min-w-0 flex-1"><span className="font-medium">{locale === "en" ? EVENT_EN[e.type] ?? ev.label : t(ev.label)}</span>{e.planName ? <span className="text-muted-foreground"> · {t(e.planName)}</span> : ""}<span className="text-xs text-muted-foreground"> · {dt(e.at, locale)}</span></div>
                     {d !== 0 && <span className={`shrink-0 tabular-nums ${d > 0 ? "text-emerald-600" : "text-destructive"}`}>{d > 0 ? "+" : "−"}{egp(Math.abs(d), locale)}</span>}
                   </li>
                 );

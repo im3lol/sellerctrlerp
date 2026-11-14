@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { TableCell, TableRow } from "@/components/ui/table";
 import { Icon } from "@/components/icon";
 import { TablePaginationFooter } from "@/components/erp/table-pagination-footer";
+import type { LinePaste } from "@/components/erp/line-paste";
 
 /**
  * Drag-to-reorder + 10-per-page table body for a document's line-item editor. Renders
@@ -20,13 +21,14 @@ import { TablePaginationFooter } from "@/components/erp/table-pagination-footer"
  * cross a page boundary without needing multi-container drag.
  */
 export function SortableLineRows<T extends { id: string }>({
-  items, onReorder, pageSize = 10, renderCells,
+  items, onReorder, pageSize = 10, renderCells, clipboard,
 }: {
   items: T[];
   onReorder: (next: T[]) => void;
   pageSize?: number;
   /** The form's own <TableCell>s for this row (item picker, qty, price, …). */
   renderCells: (item: T, index: number) => ReactNode;
+  clipboard?: LinePaste;
 }) {
   const t = useT();
   const [page, setPage] = useState(0);
@@ -35,10 +37,12 @@ export function SortableLineRows<T extends { id: string }>({
 
   // Snap to the page holding the new row when a line is added; clamp back after a shrink.
   const prevLen = useRef(items.length);
+  const prevPaste = useRef(clipboard?.revision);
   useEffect(() => {
-    if (items.length > prevLen.current) setPage(Math.max(0, Math.ceil(items.length / pageSize) - 1));
+    if (items.length > prevLen.current && prevPaste.current === clipboard?.revision) setPage(Math.max(0, Math.ceil(items.length / pageSize) - 1));
     prevLen.current = items.length;
-  }, [items.length, pageSize]);
+    prevPaste.current = clipboard?.revision;
+  }, [items.length, pageSize, clipboard?.revision]);
   useEffect(() => { if (page > pages - 1) setPage(pages - 1); }, [page, pages]);
 
   const start = safePage * pageSize;
@@ -71,7 +75,16 @@ export function SortableLineRows<T extends { id: string }>({
             const realIndex = start + i;
             return (
               <SortableRow key={item.id} id={item.id} canUp={realIndex > 0} canDown={realIndex < items.length - 1}
-                onUp={() => move(realIndex, realIndex - 1)} onDown={() => move(realIndex, realIndex + 1)}>
+                onUp={() => move(realIndex, realIndex - 1)} onDown={() => move(realIndex, realIndex + 1)}
+                onPaste={clipboard ? e => {
+                  const target = e.target as HTMLElement;
+                  const cell = target.closest<HTMLElement>("[data-paste-column]");
+                  if (!cell || target.closest("[readonly], [disabled]")) return;
+                  const text = e.clipboardData.getData("text/plain");
+                  if (!/[\t\r\n]/.test(text) && cell.dataset.pasteColumn !== "itemId") return;
+                  e.preventDefault();
+                  if (!clipboard.busy) clipboard.paste(realIndex, cell.dataset.pasteColumn!, text);
+                } : undefined}>
                 {renderCells(item, realIndex)}
               </SortableRow>
             );
@@ -83,14 +96,15 @@ export function SortableLineRows<T extends { id: string }>({
   );
 }
 
-function SortableRow({ id, canUp, canDown, onUp, onDown, children }: {
+function SortableRow({ id, canUp, canDown, onUp, onDown, children, onPaste }: {
   id: string; canUp: boolean; canDown: boolean; onUp: () => void; onDown: () => void; children: ReactNode;
+  onPaste?: React.ClipboardEventHandler<HTMLTableRowElement>;
 }) {
   const t = useT();
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
   const style: CSSProperties = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.6 : undefined, position: "relative", zIndex: isDragging ? 1 : undefined };
   return (
-    <TableRow ref={setNodeRef} style={style}>
+    <TableRow ref={setNodeRef} style={style} onPaste={onPaste}>
       <TableCell className="w-8 px-1">
         <Button type="button" variant="ghost" size="icon-xs" className="cursor-grab touch-none active:cursor-grabbing" aria-label={t("سحب لإعادة الترتيب")} {...attributes} {...listeners}>
           <Icon name="GripVertical" className="size-4" />

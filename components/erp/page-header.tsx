@@ -21,7 +21,7 @@ export function ErpPageHeader({
 }) {
   const t = useT();
   return (
-    <div className="flex items-center gap-4">
+    <div className="flex flex-wrap items-center gap-4">
       {backHref && (
         <Link
           href={backHref}
@@ -31,14 +31,14 @@ export function ErpPageHeader({
           <Icon name="ChevronRight" className="size-5" />
         </Link>
       )}
-      <div className="flex size-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+      <div className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
         <Icon name={icon} className="size-6" />
       </div>
-      <div className="flex-1">
+      <div className="min-w-0 flex-1">
         <h1 className="text-2xl font-bold">{t(title)}</h1>
         {subtitle && <p className="text-muted-foreground">{t(subtitle)}</p>}
       </div>
-      {action}
+      {action && <div data-page-actions="" className="flex max-w-full flex-wrap items-center gap-2 max-sm:w-full max-sm:justify-end print:hidden [&>div]:flex-wrap">{action}</div>}
     </div>
   );
 }

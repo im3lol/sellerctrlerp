@@ -1,5 +1,7 @@
 package com.sellerctrl.app.ui
 
+import com.sellerctrl.app.tr
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -55,91 +57,91 @@ private data class Section(val heading: String, val icon: ImageVector, val headi
 
 // Mirrors the web sidebar taxonomy (components/app-shell/nav-config.ts) 1:1.
 private val NAV = listOf(
-    Section("لوحة التحكم", Icons.Filled.Dashboard, "home", emptyList()),
-    Section("المنصات", Icons.Filled.Storefront, "platforms", emptyList()),
-    Section("المحاسبة", Icons.Filled.AccountBalance, null, listOf(
-        Leaf("دليل الحسابات", "genlist/chart", "القيود والأستاذ"),
-        Leaf("القيود اليومية", "journal", "القيود والأستاذ"),
-        Leaf("القيود المتكررة", "recurring_journals", "القيود والأستاذ"),
-        Leaf("دفتر الأستاذ", "statement/account", "القيود والأستاذ"),
-        Leaf("سندات القبض", "genlist/sales-receipts", "العملاء"),
-        Leaf("كشف حساب العميل", "statement/customer", "العملاء"),
-        Leaf("سندات الصرف", "genlist/purchase-payments", "الموردون"),
-        Leaf("كشف حساب المورّد", "statement/supplier", "الموردون"),
-        Leaf("المصروفات", "expenses", "المصروفات والأصول"),
-        Leaf("المصروفات الدورية", "recurring_expenses", "المصروفات والأصول"),
-        Leaf("الأصول الثابتة", "assets", "المصروفات والأصول"),
-        Leaf("الحسابات البنكية", "banks_manager", "البنوك والخزينة"),
-        Leaf("المطابقة البنكية", "bank_recon", "البنوك والخزينة"),
-        Leaf("أعمار ذمم العملاء", "aging/ar", "التقارير والمطابقات"),
-        Leaf("أعمار ذمم الموردين", "aging/ap", "التقارير والمطابقات"),
-        Leaf("توقّع التدفق النقدي", null, "التقارير والمطابقات"),
-        Leaf("مطابقة حسابات المراقبة", null, "التقارير والمطابقات"),
-        Leaf("مراكز التكلفة", "cost_centers", "الإعداد"),
-        Leaf("الفترات المالية", "periods", "الإعداد"),
-        Leaf("الميزانية التقديرية", "budget", "الإعداد"),
+    Section(tr("لوحة التحكم"), Icons.Filled.Dashboard, "home", emptyList()),
+    Section(tr("المنصات"), Icons.Filled.Storefront, "platforms", emptyList()),
+    Section(tr("المحاسبة"), Icons.Filled.AccountBalance, null, listOf(
+        Leaf(tr("دليل الحسابات"), "genlist/chart", tr("القيود والأستاذ")),
+        Leaf(tr("القيود اليومية"), "journal", tr("القيود والأستاذ")),
+        Leaf(tr("القيود المتكررة"), "recurring_journals", tr("القيود والأستاذ")),
+        Leaf(tr("دفتر الأستاذ"), "statement/account", tr("القيود والأستاذ")),
+        Leaf(tr("سندات القبض"), "genlist/sales-receipts", tr("العملاء")),
+        Leaf(tr("كشف حساب العميل"), "statement/customer", tr("العملاء")),
+        Leaf(tr("سندات الصرف"), "genlist/purchase-payments", tr("الموردون")),
+        Leaf(tr("كشف حساب المورّد"), "statement/supplier", tr("الموردون")),
+        Leaf(tr("المصروفات"), "expenses", tr("المصروفات والأصول")),
+        Leaf(tr("المصروفات الدورية"), "recurring_expenses", tr("المصروفات والأصول")),
+        Leaf(tr("الأصول الثابتة"), "assets", tr("المصروفات والأصول")),
+        Leaf(tr("الحسابات البنكية"), "banks_manager", tr("البنوك والخزينة")),
+        Leaf(tr("المطابقة البنكية"), "bank_recon", tr("البنوك والخزينة")),
+        Leaf(tr("أعمار ذمم العملاء"), "aging/ar", tr("التقارير والمطابقات")),
+        Leaf(tr("أعمار ذمم الموردين"), "aging/ap", tr("التقارير والمطابقات")),
+        Leaf(tr("توقّع التدفق النقدي"), null, tr("التقارير والمطابقات")),
+        Leaf(tr("مطابقة حسابات المراقبة"), null, tr("التقارير والمطابقات")),
+        Leaf(tr("مراكز التكلفة"), "cost_centers", tr("الإعداد")),
+        Leaf(tr("الفترات المالية"), "periods", tr("الإعداد")),
+        Leaf(tr("الميزانية التقديرية"), "budget", tr("الإعداد")),
     )),
-    Section("المشتريات", Icons.Filled.LocalShipping, null, listOf(
-        Leaf("الموردون", "suppliers_manager", null),
-        Leaf("طلبات المواد", "requisitions", "دورة الشراء"),
-        Leaf("أوامر الشراء", "purchase_orders", "دورة الشراء"),
-        Leaf("إذون الاستلام", "purchase_receipts", "دورة الشراء"),
-        Leaf("فواتير الشراء", "purchase_invoices", "دورة الشراء"),
-        Leaf("تقرير الدفتر", "genlist/purchases-ledger", "التقارير"),
-        Leaf("ترتيب الموردين", "report/purchases-suppliers", "التقارير"),
-        Leaf("المشتريات حسب الصنف", "report/purchases-items", "التقارير"),
+    Section(tr("المشتريات"), Icons.Filled.LocalShipping, null, listOf(
+        Leaf(tr("الموردون"), "suppliers_manager", null),
+        Leaf(tr("طلبات المواد"), "requisitions", tr("دورة الشراء")),
+        Leaf(tr("أوامر الشراء"), "purchase_orders", tr("دورة الشراء")),
+        Leaf(tr("إذون الاستلام"), "purchase_receipts", tr("دورة الشراء")),
+        Leaf(tr("فواتير الشراء"), "purchase_invoices", tr("دورة الشراء")),
+        Leaf(tr("تقرير الدفتر"), "genlist/purchases-ledger", tr("التقارير")),
+        Leaf(tr("ترتيب الموردين"), "report/purchases-suppliers", tr("التقارير")),
+        Leaf(tr("المشتريات حسب الصنف"), "report/purchases-items", tr("التقارير")),
     )),
-    Section("المخزون", Icons.Filled.Inventory2, null, listOf(
-        Leaf("الأصناف", "search", "الأصناف والأرصدة"),
-        Leaf("أرصدة المخزون", "genlist/stock-balances", "الأصناف والأرصدة"),
-        Leaf("دفتر حركة المخزون", "genlist/stock-ledger", "الأصناف والأرصدة"),
-        Leaf("مطابقة قيمة المخزون", null, "الأصناف والأرصدة"),
-        Leaf("إذون الاستلام", "purchase_receipts", "العمليات"),
-        Leaf("إذون الصرف", "sales_deliveries", "العمليات"),
-        Leaf("تسويات المخزون", "adjustments", "العمليات"),
-        Leaf("التحويلات المخزنية", "transfers", "العمليات"),
-        Leaf("الحزم والمجموعات", "bundles", "العمليات"),
-        Leaf("تنبيهات إعادة الطلب", "alert/reorder", "التنبيهات والأدوات"),
-        Leaf("المخزون الراكد", "alert/dead-stock", "التنبيهات والأدوات"),
-        Leaf("تنبيهات انتهاء الصلاحية", "alert/expiry", "التنبيهات والأدوات"),
-        Leaf("ملصقات الباركود", null, "التنبيهات والأدوات"),
+    Section(tr("المخزون"), Icons.Filled.Inventory2, null, listOf(
+        Leaf(tr("الأصناف"), "search", tr("الأصناف والأرصدة")),
+        Leaf(tr("أرصدة المخزون"), "genlist/stock-balances", tr("الأصناف والأرصدة")),
+        Leaf(tr("دفتر حركة المخزون"), "genlist/stock-ledger", tr("الأصناف والأرصدة")),
+        Leaf(tr("مطابقة قيمة المخزون"), null, tr("الأصناف والأرصدة")),
+        Leaf(tr("إذون الاستلام"), "purchase_receipts", tr("العمليات")),
+        Leaf(tr("إذون الصرف"), "sales_deliveries", tr("العمليات")),
+        Leaf(tr("تسويات المخزون"), "adjustments", tr("العمليات")),
+        Leaf(tr("التحويلات المخزنية"), "transfers", tr("العمليات")),
+        Leaf(tr("الحزم والمجموعات"), "bundles", tr("العمليات")),
+        Leaf(tr("تنبيهات إعادة الطلب"), "alert/reorder", tr("التنبيهات والأدوات")),
+        Leaf(tr("المخزون الراكد"), "alert/dead-stock", tr("التنبيهات والأدوات")),
+        Leaf(tr("تنبيهات انتهاء الصلاحية"), "alert/expiry", tr("التنبيهات والأدوات")),
+        Leaf(tr("ملصقات الباركود"), null, tr("التنبيهات والأدوات")),
     )),
-    Section("المبيعات", Icons.Filled.ShoppingCart, null, listOf(
-        Leaf("العملاء", "customers_manager", null),
-        Leaf("عروض الأسعار", "quotations", "دورة البيع"),
-        Leaf("أوامر البيع", "sales_orders", "دورة البيع"),
-        Leaf("فواتير البيع", "sales_invoices", "دورة البيع"),
-        Leaf("الفواتير الدورية", "recurring", "دورة البيع"),
-        Leaf("تقرير الدفتر", "genlist/sales-ledger", "التقارير"),
-        Leaf("تقرير الأصناف", "report/sales-items", "التقارير"),
-        Leaf("ربحية المنتجات", null, "التقارير"),
-        Leaf("ترتيب العملاء", "report/sales-customers", "التقارير"),
+    Section(tr("المبيعات"), Icons.Filled.ShoppingCart, null, listOf(
+        Leaf(tr("العملاء"), "customers_manager", null),
+        Leaf(tr("عروض الأسعار"), "quotations", tr("دورة البيع")),
+        Leaf(tr("أوامر البيع"), "sales_orders", tr("دورة البيع")),
+        Leaf(tr("فواتير البيع"), "sales_invoices", tr("دورة البيع")),
+        Leaf(tr("الفواتير الدورية"), "recurring", tr("دورة البيع")),
+        Leaf(tr("تقرير الدفتر"), "genlist/sales-ledger", tr("التقارير")),
+        Leaf(tr("تقرير الأصناف"), "report/sales-items", tr("التقارير")),
+        Leaf(tr("ربحية المنتجات"), null, tr("التقارير")),
+        Leaf(tr("ترتيب العملاء"), "report/sales-customers", tr("التقارير")),
     )),
-    Section("المستثمرون", Icons.Filled.Savings, "investors", emptyList()),
-    Section("الموارد البشرية", Icons.Filled.Groups, null, listOf(
-        Leaf("الموظفون", "employees", null),
-        Leaf("الإجازات", "leaves", "الحضور والإجازات"),
-        Leaf("تقويم العطلات", "genlist/holidays", "الحضور والإجازات"),
-        Leaf("مسيّرات الرواتب", "payroll", "المالية"),
-        Leaf("مطالبات المصروفات", "expense_claims", "المالية"),
+    Section(tr("المستثمرون"), Icons.Filled.Savings, "investors", emptyList()),
+    Section(tr("الموارد البشرية"), Icons.Filled.Groups, null, listOf(
+        Leaf(tr("الموظفون"), "employees", null),
+        Leaf(tr("الإجازات"), "leaves", tr("الحضور والإجازات")),
+        Leaf(tr("تقويم العطلات"), "genlist/holidays", tr("الحضور والإجازات")),
+        Leaf(tr("مسيّرات الرواتب"), "payroll", tr("المالية")),
+        Leaf(tr("مطالبات المصروفات"), "expense_claims", tr("المالية")),
     )),
-    Section("التقارير والتحليلات", Icons.Filled.Assessment, null, listOf(
-        Leaf("ميزان المراجعة", "reports", null),
-        Leaf("قائمة الدخل", "income_statement", "القوائم المالية"),
-        Leaf("الميزانية العمومية", "balance_sheet", "القوائم المالية"),
-        Leaf("التدفق النقدي", "cash_flow", "القوائم المالية"),
-        Leaf("ضريبة القيمة المضافة", null, "القوائم المالية"),
-        Leaf("المؤشرات المالية", null, "التحليلات"),
-        Leaf("أرباح مراكز التكلفة", null, "التحليلات"),
-        Leaf("إعادة تقييم العملات", null, "التحليلات"),
+    Section(tr("التقارير والتحليلات"), Icons.Filled.Assessment, null, listOf(
+        Leaf(tr("ميزان المراجعة"), "reports", null),
+        Leaf(tr("قائمة الدخل"), "income_statement", tr("القوائم المالية")),
+        Leaf(tr("الميزانية العمومية"), "balance_sheet", tr("القوائم المالية")),
+        Leaf(tr("التدفق النقدي"), "cash_flow", tr("القوائم المالية")),
+        Leaf(tr("ضريبة القيمة المضافة"), null, tr("القوائم المالية")),
+        Leaf(tr("المؤشرات المالية"), null, tr("التحليلات")),
+        Leaf(tr("أرباح مراكز التكلفة"), null, tr("التحليلات")),
+        Leaf(tr("إعادة تقييم العملات"), null, tr("التحليلات")),
     )),
-    Section("الأدوات", Icons.Filled.Build, null, listOf(
-        Leaf("الاستيراد والتصدير", null),
+    Section(tr("الأدوات"), Icons.Filled.Build, null, listOf(
+        Leaf(tr("الاستيراد والتصدير"), null),
     )),
-    Section("الإدارة والإعدادات", Icons.Filled.Settings, null, listOf(
-        Leaf("صلاحيات المستخدمين", null),
-        Leaf("سجل التدقيق", null),
-        Leaf("الإعدادات", null),
+    Section(tr("الإدارة والإعدادات"), Icons.Filled.Settings, null, listOf(
+        Leaf(tr("صلاحيات المستخدمين"), null),
+        Leaf(tr("سجل التدقيق"), null),
+        Leaf(tr("الإعدادات"), null),
     )),
 )
 
@@ -223,6 +225,6 @@ private fun LeafRow(leaf: Leaf, selected: Boolean, onNavigate: (String) -> Unit)
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(leaf.label, color = Color.White.copy(alpha = if (enabled) 0.92f else 0.4f), fontSize = 14.sp, modifier = Modifier.weight(1f))
-        if (!enabled) Text("قريباً", color = BrandYellow.copy(alpha = 0.7f), fontSize = 10.sp)
+        if (!enabled) Text(tr("قريباً"), color = BrandYellow.copy(alpha = 0.7f), fontSize = 10.sp)
     }
 }

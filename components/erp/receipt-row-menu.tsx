@@ -10,7 +10,7 @@ import { confirm } from "@/components/erp/confirm";
 
 /** Per-row "⋮" quick actions for the goods receipts (إذن استلام) list — same
  *  action set as ReceiptDetailActions, compacted into a row menu. */
-export function ReceiptRowMenu({ id, number, status, canManage }: { id: string; number: string; status: string; canManage: boolean }) {
+export function ReceiptRowMenu({ id, number, status, canManage, canReceive }: { id: string; number: string; status: string; canManage: boolean; canReceive: boolean }) {
   const t = useT();
   const router = useRouter();
   const [pending, start] = useTransition();
@@ -43,11 +43,13 @@ export function ReceiptRowMenu({ id, number, status, canManage }: { id: string; 
     { label: "تنزيل Excel", icon: "FileSpreadsheet", href: `/api/erp/purchases/receipts/export?numbers=${encoded}` },
   ];
 
-  if (canManage) {
-    if (status === "DRAFT") {
+  if (status === "DRAFT" && canReceive) {
+      items.push({ label: "تعديل المسودة", icon: "Pencil", href: `/purchases/receipts/${encoded}/edit` });
       items.push({ label: "تأكيد الاستلام", icon: "Check", disabled: pending, onSelect: () => run(() => confirmReceiptAction(id), "تم تأكيد الاستلام وترحيله") });
       items.push({ label: "حذف المسودة", icon: "Trash2", danger: true, disabled: pending, onSelect: () => run(() => deleteReceiptAction(id), "تم حذف المسودة", "/purchases/receipts") });
-    } else if (status === "RECEIVED" || status === "INVOICED") {
+  }
+  if (canManage) {
+    if (status === "RECEIVED" || status === "INVOICED") {
       if (status === "RECEIVED") items.push({ label: "تحويل لفاتورة", icon: "FileText", disabled: pending, onSelect: bill });
       items.push({ label: "مرتجع (إرجاع للمخزن)", icon: "Undo2", danger: true, disabled: pending, onSelect: () => router.push(`/purchases/receipts/${encoded}/return`) });
     }

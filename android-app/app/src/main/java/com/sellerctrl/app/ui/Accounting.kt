@@ -1,5 +1,7 @@
 package com.sellerctrl.app.ui
 
+import com.sellerctrl.app.tr
+
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -73,7 +75,7 @@ fun AccountPickerDialog(title: String, accounts: List<DocRow>, onDismiss: () -> 
         title = { Text(title) },
         text = {
             Column {
-                OutlinedTextField(q, { q = it }, label = { Text("بحث") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(q, { q = it }, label = { Text(tr("بحث")) }, singleLine = true, modifier = Modifier.fillMaxWidth())
                 LazyColumn(Modifier.fillMaxWidth().heightIn(max = 340.dp).padding(top = 8.dp)) {
                     items(filtered) { a ->
                         Column(Modifier.fillMaxWidth().clickable { onPick(a) }.padding(vertical = 10.dp)) {
@@ -84,7 +86,7 @@ fun AccountPickerDialog(title: String, accounts: List<DocRow>, onDismiss: () -> 
                 }
             }
         },
-        confirmButton = { TextButton(onClick = onDismiss) { Text("إغلاق") } },
+        confirmButton = { TextButton(onClick = onDismiss) { Text(tr("إغلاق")) } },
     )
 }
 
@@ -112,61 +114,61 @@ fun JournalFormScreen(nav: NavController) {
     fun totalCredit() = lines.sumOf { it.credit.toDoubleOrNull() ?: 0.0 }
 
     fun save() {
-        if (description.isBlank()) { error = "البيان مطلوب"; return }
+        if (description.isBlank()) { error = tr("البيان مطلوب"); return }
         val payload = lines.filter { it.accountId.isNotBlank() && ((it.debit.toDoubleOrNull() ?: 0.0) > 0 || (it.credit.toDoubleOrNull() ?: 0.0) > 0) }
             .map { JeCreateLine(it.accountId, it.debit.toDoubleOrNull() ?: 0.0, it.credit.toDoubleOrNull() ?: 0.0) }
-        if (payload.size < 2) { error = "أضف بندين على الأقل بقيمة وحساب"; return }
+        if (payload.size < 2) { error = tr("أضف بندين على الأقل بقيمة وحساب"); return }
         busy = true; error = null
         scope.launch {
             try { ServiceLocator.repo.journalCreate(JeCreateReq(date, description, null, if (postNow) "post" else "draft", payload)); nav.popBackStack() }
-            catch (e: Exception) { error = e.message ?: "خطأ"; busy = false }
+            catch (e: Exception) { error = e.message ?: tr("خطأ"); busy = false }
         }
     }
 
     Scaffold(topBar = {
-        TopAppBar(title = { Text("قيد يومية جديد") },
+        TopAppBar(title = { Text(tr("قيد يومية جديد")) },
             navigationIcon = { IconButton(onClick = { nav.popBackStack() }) { Icon(Icons.AutoMirrored.Filled.ArrowBack, null) } })
     }) { pad ->
         Column(Modifier.fillMaxSize().padding(pad).verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            OutlinedTextField(date, { date = it }, label = { Text("التاريخ") }, singleLine = true, modifier = Modifier.fillMaxWidth())
-            OutlinedTextField(description, { description = it }, label = { Text("البيان") }, modifier = Modifier.fillMaxWidth())
+            OutlinedTextField(date, { date = it }, label = { Text(tr("التاريخ")) }, singleLine = true, modifier = Modifier.fillMaxWidth())
+            OutlinedTextField(description, { description = it }, label = { Text(tr("البيان")) }, modifier = Modifier.fillMaxWidth())
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                Text("البنود", style = MaterialTheme.typography.titleMedium)
-                TextButton(onClick = { lines.add(JeLine("", "", "", "")) }) { Icon(Icons.Filled.Add, null); Text(" بند") }
+                Text(tr("البنود"), style = MaterialTheme.typography.titleMedium)
+                TextButton(onClick = { lines.add(JeLine("", "", "", "")) }) { Icon(Icons.Filled.Add, null); Text(tr(" بند")) }
             }
             lines.forEachIndexed { i, l ->
                 AppCard(Modifier.fillMaxWidth()) {
                     Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             OutlinedButton(onClick = { pickFor = i }, modifier = Modifier.weight(1f)) {
-                                Text(if (l.account.isBlank()) "اختر حساباً" else l.account, maxLines = 1)
+                                Text(if (l.account.isBlank()) tr("اختر حساباً") else l.account, maxLines = 1)
                             }
-                            if (lines.size > 2) IconButton(onClick = { lines.removeAt(i) }) { Icon(Icons.Filled.Close, "حذف") }
+                            if (lines.size > 2) IconButton(onClick = { lines.removeAt(i) }) { Icon(Icons.Filled.Close, tr("حذف")) }
                         }
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             OutlinedTextField(l.debit, { v -> lines[i] = l.copy(debit = v.filter { it.isDigit() || it == '.' }, credit = if (v.isNotBlank()) "" else l.credit) },
-                                label = { Text("مدين") }, singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal), modifier = Modifier.weight(1f))
+                                label = { Text(tr("مدين")) }, singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal), modifier = Modifier.weight(1f))
                             OutlinedTextField(l.credit, { v -> lines[i] = l.copy(credit = v.filter { it.isDigit() || it == '.' }, debit = if (v.isNotBlank()) "" else l.debit) },
-                                label = { Text("دائن") }, singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal), modifier = Modifier.weight(1f))
+                                label = { Text(tr("دائن")) }, singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal), modifier = Modifier.weight(1f))
                         }
                     }
                 }
             }
             val balanced = kotlin.math.abs(totalDebit() - totalCredit()) < 0.01
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text("مدين ${money(totalDebit())}", color = MaterialTheme.colorScheme.outline)
-                Text("دائن ${money(totalCredit())}", color = MaterialTheme.colorScheme.outline)
+                Text(tr("مدين ${money(totalDebit())}"), color = MaterialTheme.colorScheme.outline)
+                Text(tr("دائن ${money(totalCredit())}"), color = MaterialTheme.colorScheme.outline)
             }
-            if (!balanced) Text("القيد غير متوازن", color = MaterialTheme.colorScheme.error)
+            if (!balanced) Text(tr("القيد غير متوازن"), color = MaterialTheme.colorScheme.error)
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Checkbox(postNow, { postNow = it }); Text("ترحيل مباشر")
+                Checkbox(postNow, { postNow = it }); Text(tr("ترحيل مباشر"))
             }
             error?.let { Text(it, color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.SemiBold) }
-            Button(onClick = { save() }, enabled = !busy && balanced, modifier = Modifier.fillMaxWidth()) { Text(if (busy) "جارٍ الحفظ…" else "حفظ") }
+            Button(onClick = { save() }, enabled = !busy && balanced, modifier = Modifier.fillMaxWidth()) { Text(if (busy) tr("جارٍ الحفظ…") else tr("حفظ")) }
         }
     }
 
-    if (pickFor >= 0) AccountPickerDialog("اختر حساباً", accounts, onDismiss = { pickFor = -1 }) { a ->
+    if (pickFor >= 0) AccountPickerDialog(tr("اختر حساباً"), accounts, onDismiss = { pickFor = -1 }) { a ->
         val i = pickFor; pickFor = -1
         lines[i] = lines[i].copy(accountId = a.id, account = "${a.number} ${a.title}")
     }
@@ -186,11 +188,11 @@ fun JournalDetailScreen(nav: NavController, id: String) {
 
     fun act(block: suspend () -> Unit, ok: String) {
         busy = true; message = null
-        scope.launch { try { block(); message = ok; reload++ } catch (e: Exception) { message = e.message ?: "خطأ" } finally { busy = false } }
+        scope.launch { try { block(); message = ok; reload++ } catch (e: Exception) { message = e.message ?: tr("خطأ") } finally { busy = false } }
     }
 
     Scaffold(topBar = {
-        TopAppBar(title = { Text("قيد يومية") },
+        TopAppBar(title = { Text(tr("قيد يومية")) },
             navigationIcon = { IconButton(onClick = { nav.popBackStack() }) { Icon(Icons.AutoMirrored.Filled.ArrowBack, null) } })
     }) { pad ->
         Box(Modifier.fillMaxSize().padding(pad)) {
@@ -204,40 +206,40 @@ fun JournalDetailScreen(nav: NavController, id: String) {
                         AssistChip(onClick = {}, label = { Text(statusAr(o.status)) })
                     }
                 }
-                Text("البنود (${o.lines.size})", style = MaterialTheme.typography.titleMedium)
+                Text(tr("البنود (${o.lines.size})"), style = MaterialTheme.typography.titleMedium)
                 o.lines.forEach { l ->
                     AppCard(Modifier.fillMaxWidth()) {
                         Row(Modifier.fillMaxWidth().padding(12.dp), horizontalArrangement = Arrangement.SpaceBetween) {
                             Text(l.account, modifier = Modifier.weight(1f))
-                            if (l.debit > 0) Text("مدين ${money(l.debit)}", color = MaterialTheme.colorScheme.primary)
-                            if (l.credit > 0) Text("دائن ${money(l.credit)}", color = MaterialTheme.colorScheme.tertiary)
+                            if (l.debit > 0) Text(tr("مدين ${money(l.debit)}"), color = MaterialTheme.colorScheme.primary)
+                            if (l.credit > 0) Text(tr("دائن ${money(l.credit)}"), color = MaterialTheme.colorScheme.tertiary)
                         }
                     }
                 }
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    Text("إجمالي مدين ${money(o.totalDebit)}", fontWeight = FontWeight.Bold)
-                    Text("إجمالي دائن ${money(o.totalCredit)}", fontWeight = FontWeight.Bold)
+                    Text(tr("إجمالي مدين ${money(o.totalDebit)}"), fontWeight = FontWeight.Bold)
+                    Text(tr("إجمالي دائن ${money(o.totalCredit)}"), fontWeight = FontWeight.Bold)
                 }
                 message?.let { Text(it, color = MaterialTheme.colorScheme.primary) }
                 if (o.status == "DRAFT") {
-                    Button(onClick = { act({ ServiceLocator.repo.postAction("api/v1/accounting/journal/$id/post") }, "تم الترحيل ✓") },
-                        enabled = !busy, modifier = Modifier.fillMaxWidth()) { Text(if (busy) "…" else "ترحيل القيد") }
+                    Button(onClick = { act({ ServiceLocator.repo.postAction("api/v1/accounting/journal/$id/post") }, tr("تم الترحيل ✓")) },
+                        enabled = !busy, modifier = Modifier.fillMaxWidth()) { Text(if (busy) "…" else tr("ترحيل القيد")) }
                     OutlinedButton(onClick = { confirmDelete = true }, enabled = !busy, modifier = Modifier.fillMaxWidth(),
-                        colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)) { Text("حذف") }
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)) { Text(tr("حذف")) }
                 }
             }
         }
     }
 
     if (confirmDelete) AlertDialog(
-        onDismissRequest = { confirmDelete = false }, title = { Text("حذف") }, text = { Text("متأكد من حذف مسودة القيد؟") },
+        onDismissRequest = { confirmDelete = false }, title = { Text(tr("حذف")) }, text = { Text(tr("متأكد من حذف مسودة القيد؟")) },
         confirmButton = {
             TextButton(onClick = {
                 confirmDelete = false; busy = true; message = null
-                scope.launch { try { ServiceLocator.repo.postAction("api/v1/accounting/journal/$id/delete"); nav.popBackStack() } catch (e: Exception) { message = e.message ?: "خطأ" } finally { busy = false } }
-            }) { Text("حذف", color = MaterialTheme.colorScheme.error) }
+                scope.launch { try { ServiceLocator.repo.postAction("api/v1/accounting/journal/$id/delete"); nav.popBackStack() } catch (e: Exception) { message = e.message ?: tr("خطأ") } finally { busy = false } }
+            }) { Text(tr("حذف"), color = MaterialTheme.colorScheme.error) }
         },
-        dismissButton = { OutlinedButton(onClick = { confirmDelete = false }) { Text("إلغاء") } },
+        dismissButton = { OutlinedButton(onClick = { confirmDelete = false }) { Text(tr("إلغاء")) } },
     )
 }
 
@@ -268,36 +270,36 @@ fun ExpenseFormScreen(nav: NavController) {
     }
 
     fun save() {
-        if (expId.isBlank()) { error = "اختر بند المصروف"; return }
-        if (cashId.isBlank()) { error = "اختر حساب النقدية/البنك"; return }
+        if (expId.isBlank()) { error = tr("اختر بند المصروف"); return }
+        if (cashId.isBlank()) { error = tr("اختر حساب النقدية/البنك"); return }
         val amt = amount.toDoubleOrNull()
-        if (amt == null || amt <= 0) { error = "مبلغ غير صالح"; return }
+        if (amt == null || amt <= 0) { error = tr("مبلغ غير صالح"); return }
         busy = true; error = null
         scope.launch {
             try { ServiceLocator.repo.expenseCreate(ExpenseCreateReq(expId, cashId, amt, date, "CASH", payee.ifBlank { null }, notes.ifBlank { null })); nav.popBackStack() }
-            catch (e: Exception) { error = e.message ?: "خطأ"; busy = false }
+            catch (e: Exception) { error = e.message ?: tr("خطأ"); busy = false }
         }
     }
 
     Scaffold(topBar = {
-        TopAppBar(title = { Text("مصروف جديد") },
+        TopAppBar(title = { Text(tr("مصروف جديد")) },
             navigationIcon = { IconButton(onClick = { nav.popBackStack() }) { Icon(Icons.AutoMirrored.Filled.ArrowBack, null) } })
     }) { pad ->
         Column(Modifier.fillMaxSize().padding(pad).verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            OutlinedButton(onClick = { expPicker = true }, modifier = Modifier.fillMaxWidth()) { Text(if (expName.isBlank()) "بند المصروف *" else expName) }
-            OutlinedButton(onClick = { cashPicker = true }, modifier = Modifier.fillMaxWidth()) { Text(if (cashName.isBlank()) "من حساب (نقدية/بنك) *" else cashName) }
-            OutlinedTextField(amount, { amount = it.filter { c -> c.isDigit() || c == '.' } }, label = { Text("المبلغ") }, singleLine = true,
+            OutlinedButton(onClick = { expPicker = true }, modifier = Modifier.fillMaxWidth()) { Text(if (expName.isBlank()) tr("بند المصروف *") else expName) }
+            OutlinedButton(onClick = { cashPicker = true }, modifier = Modifier.fillMaxWidth()) { Text(if (cashName.isBlank()) tr("من حساب (نقدية/بنك) *") else cashName) }
+            OutlinedTextField(amount, { amount = it.filter { c -> c.isDigit() || c == '.' } }, label = { Text(tr("المبلغ")) }, singleLine = true,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal), modifier = Modifier.fillMaxWidth())
-            OutlinedTextField(date, { date = it }, label = { Text("التاريخ") }, singleLine = true, modifier = Modifier.fillMaxWidth())
-            OutlinedTextField(payee, { payee = it }, label = { Text("المستفيد (اختياري)") }, singleLine = true, modifier = Modifier.fillMaxWidth())
-            OutlinedTextField(notes, { notes = it }, label = { Text("ملاحظات") }, modifier = Modifier.fillMaxWidth())
+            OutlinedTextField(date, { date = it }, label = { Text(tr("التاريخ")) }, singleLine = true, modifier = Modifier.fillMaxWidth())
+            OutlinedTextField(payee, { payee = it }, label = { Text(tr("المستفيد (اختياري)")) }, singleLine = true, modifier = Modifier.fillMaxWidth())
+            OutlinedTextField(notes, { notes = it }, label = { Text(tr("ملاحظات")) }, modifier = Modifier.fillMaxWidth())
             error?.let { Text(it, color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.SemiBold) }
-            Button(onClick = { save() }, enabled = !busy, modifier = Modifier.fillMaxWidth()) { Text(if (busy) "جارٍ الحفظ…" else "حفظ") }
+            Button(onClick = { save() }, enabled = !busy, modifier = Modifier.fillMaxWidth()) { Text(if (busy) tr("جارٍ الحفظ…") else tr("حفظ")) }
         }
     }
 
-    if (expPicker) AccountPickerDialog("بند المصروف", expAccounts, onDismiss = { expPicker = false }) { a -> expId = a.id; expName = "${a.number} ${a.title}"; expPicker = false }
-    if (cashPicker) AccountPickerDialog("حساب النقدية/البنك", cashAccounts, onDismiss = { cashPicker = false }) { a -> cashId = a.id; cashName = "${a.number} ${a.title}"; cashPicker = false }
+    if (expPicker) AccountPickerDialog(tr("بند المصروف"), expAccounts, onDismiss = { expPicker = false }) { a -> expId = a.id; expName = "${a.number} ${a.title}"; expPicker = false }
+    if (cashPicker) AccountPickerDialog(tr("حساب النقدية/البنك"), cashAccounts, onDismiss = { cashPicker = false }) { a -> cashId = a.id; cashName = "${a.number} ${a.title}"; cashPicker = false }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -314,11 +316,11 @@ fun ExpenseDetailScreen(nav: NavController, id: String) {
 
     fun act(block: suspend () -> Unit, ok: String) {
         busy = true; message = null
-        scope.launch { try { block(); message = ok; reload++ } catch (e: Exception) { message = e.message ?: "خطأ" } finally { busy = false } }
+        scope.launch { try { block(); message = ok; reload++ } catch (e: Exception) { message = e.message ?: tr("خطأ") } finally { busy = false } }
     }
 
     Scaffold(topBar = {
-        TopAppBar(title = { Text("مصروف") },
+        TopAppBar(title = { Text(tr("مصروف")) },
             navigationIcon = { IconButton(onClick = { nav.popBackStack() }) { Icon(Icons.AutoMirrored.Filled.ArrowBack, null) } })
     }) { pad ->
         Box(Modifier.fillMaxSize().padding(pad)) {
@@ -333,31 +335,31 @@ fun ExpenseDetailScreen(nav: NavController, id: String) {
                             AssistChip(onClick = {}, label = { Text(statusAr(o.status)) })
                             Text(money(o.amount), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                         }
-                        Text("من: ${o.cashAccount}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
-                        if (o.payee.isNotBlank()) Text("المستفيد: ${o.payee}", style = MaterialTheme.typography.bodySmall)
+                        Text(tr("من: ${o.cashAccount}"), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
+                        if (o.payee.isNotBlank()) Text(tr("المستفيد: ${o.payee}"), style = MaterialTheme.typography.bodySmall)
                         if (o.notes.isNotBlank()) Text(o.notes, style = MaterialTheme.typography.bodySmall)
                     }
                 }
                 message?.let { Text(it, color = MaterialTheme.colorScheme.primary) }
                 if (o.status == "DRAFT") {
-                    Button(onClick = { act({ ServiceLocator.repo.postAction("api/v1/accounting/expenses/$id/confirm") }, "تم الترحيل ✓") },
-                        enabled = !busy, modifier = Modifier.fillMaxWidth()) { Text(if (busy) "…" else "ترحيل المصروف") }
+                    Button(onClick = { act({ ServiceLocator.repo.postAction("api/v1/accounting/expenses/$id/confirm") }, tr("تم الترحيل ✓")) },
+                        enabled = !busy, modifier = Modifier.fillMaxWidth()) { Text(if (busy) "…" else tr("ترحيل المصروف")) }
                     OutlinedButton(onClick = { confirmDelete = true }, enabled = !busy, modifier = Modifier.fillMaxWidth(),
-                        colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)) { Text("حذف") }
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)) { Text(tr("حذف")) }
                 }
             }
         }
     }
 
     if (confirmDelete) AlertDialog(
-        onDismissRequest = { confirmDelete = false }, title = { Text("حذف") }, text = { Text("متأكد من حذف مسودة المصروف؟") },
+        onDismissRequest = { confirmDelete = false }, title = { Text(tr("حذف")) }, text = { Text(tr("متأكد من حذف مسودة المصروف؟")) },
         confirmButton = {
             TextButton(onClick = {
                 confirmDelete = false; busy = true; message = null
-                scope.launch { try { ServiceLocator.repo.postAction("api/v1/accounting/expenses/$id/delete"); nav.popBackStack() } catch (e: Exception) { message = e.message ?: "خطأ" } finally { busy = false } }
-            }) { Text("حذف", color = MaterialTheme.colorScheme.error) }
+                scope.launch { try { ServiceLocator.repo.postAction("api/v1/accounting/expenses/$id/delete"); nav.popBackStack() } catch (e: Exception) { message = e.message ?: tr("خطأ") } finally { busy = false } }
+            }) { Text(tr("حذف"), color = MaterialTheme.colorScheme.error) }
         },
-        dismissButton = { OutlinedButton(onClick = { confirmDelete = false }) { Text("إلغاء") } },
+        dismissButton = { OutlinedButton(onClick = { confirmDelete = false }) { Text(tr("إلغاء")) } },
     )
 }
 
@@ -375,9 +377,9 @@ fun BankManagerScreen(nav: NavController) {
     LaunchedEffect(reload, tick) { rows = try { ServiceLocator.repo.docList("api/v1/accounting/banks") } catch (e: Exception) { emptyList() } }
 
     Scaffold(
-        topBar = { TopAppBar(title = { Text("الحسابات البنكية") },
+        topBar = { TopAppBar(title = { Text(tr("الحسابات البنكية")) },
             navigationIcon = { IconButton(onClick = { nav.popBackStack() }) { Icon(Icons.AutoMirrored.Filled.ArrowBack, null) } }) },
-        floatingActionButton = { FloatingActionButton(onClick = { nav.navigate("bank_form") }) { Icon(Icons.Filled.Add, "إضافة") } },
+        floatingActionButton = { FloatingActionButton(onClick = { nav.navigate("bank_form") }) { Icon(Icons.Filled.Add, tr("إضافة")) } },
     ) { pad ->
         Column(Modifier.fillMaxSize().padding(pad).padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             message?.let { Text(it, color = MaterialTheme.colorScheme.primary) }
@@ -401,18 +403,18 @@ fun BankManagerScreen(nav: NavController) {
         AlertDialog(
             onDismissRequest = { actionFor = null },
             title = { Text(r.title) },
-            text = { Text("اختر إجراءً") },
+            text = { Text(tr("اختر إجراءً")) },
             confirmButton = {
                 TextButton(onClick = {
                     val id = r.id; actionFor = null
                     scope.launch { try { ServiceLocator.repo.postAction("api/v1/accounting/banks/$id/toggle"); reload++ } catch (e: Exception) { message = e.message } }
-                }) { Text("تفعيل/إيقاف") }
+                }) { Text(tr("تفعيل/إيقاف")) }
             },
             dismissButton = {
                 TextButton(onClick = {
                     val id = r.id; actionFor = null
                     scope.launch { try { ServiceLocator.repo.postAction("api/v1/accounting/banks/$id/delete"); reload++ } catch (e: Exception) { message = e.message } }
-                }) { Text("حذف", color = MaterialTheme.colorScheme.error) }
+                }) { Text(tr("حذف"), color = MaterialTheme.colorScheme.error) }
             },
         )
     }
@@ -437,29 +439,29 @@ fun BankFormScreen(nav: NavController) {
     LaunchedEffect(Unit) { glAccounts = try { ServiceLocator.repo.accounts("ASSET") } catch (e: Exception) { emptyList() } }
 
     fun save() {
-        if (nameAr.isBlank()) { error = "اسم الحساب مطلوب"; return }
+        if (nameAr.isBlank()) { error = tr("اسم الحساب مطلوب"); return }
         busy = true; error = null
         scope.launch {
             try { ServiceLocator.repo.bankSave(BankSaveReq(null, nameAr, bankName.ifBlank { null }, accountNumber.ifBlank { null }, iban.ifBlank { null }, glId.ifBlank { null }, notes.ifBlank { null })); nav.popBackStack() }
-            catch (e: Exception) { error = e.message ?: "خطأ"; busy = false }
+            catch (e: Exception) { error = e.message ?: tr("خطأ"); busy = false }
         }
     }
 
     Scaffold(topBar = {
-        TopAppBar(title = { Text("حساب بنكي جديد") },
+        TopAppBar(title = { Text(tr("حساب بنكي جديد")) },
             navigationIcon = { IconButton(onClick = { nav.popBackStack() }) { Icon(Icons.AutoMirrored.Filled.ArrowBack, null) } })
     }) { pad ->
         Column(Modifier.fillMaxSize().padding(pad).verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            OutlinedTextField(nameAr, { nameAr = it }, label = { Text("اسم الحساب *") }, singleLine = true, modifier = Modifier.fillMaxWidth())
-            OutlinedTextField(bankName, { bankName = it }, label = { Text("اسم البنك") }, singleLine = true, modifier = Modifier.fillMaxWidth())
-            OutlinedTextField(accountNumber, { accountNumber = it }, label = { Text("رقم الحساب") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+            OutlinedTextField(nameAr, { nameAr = it }, label = { Text(tr("اسم الحساب *")) }, singleLine = true, modifier = Modifier.fillMaxWidth())
+            OutlinedTextField(bankName, { bankName = it }, label = { Text(tr("اسم البنك")) }, singleLine = true, modifier = Modifier.fillMaxWidth())
+            OutlinedTextField(accountNumber, { accountNumber = it }, label = { Text(tr("رقم الحساب")) }, singleLine = true, modifier = Modifier.fillMaxWidth())
             OutlinedTextField(iban, { iban = it }, label = { Text("IBAN") }, singleLine = true, modifier = Modifier.fillMaxWidth())
-            OutlinedButton(onClick = { glPicker = true }, modifier = Modifier.fillMaxWidth()) { Text(if (glName.isBlank()) "الحساب الدفتري (اختياري)" else glName) }
-            OutlinedTextField(notes, { notes = it }, label = { Text("ملاحظات") }, modifier = Modifier.fillMaxWidth())
+            OutlinedButton(onClick = { glPicker = true }, modifier = Modifier.fillMaxWidth()) { Text(if (glName.isBlank()) tr("الحساب الدفتري (اختياري)") else glName) }
+            OutlinedTextField(notes, { notes = it }, label = { Text(tr("ملاحظات")) }, modifier = Modifier.fillMaxWidth())
             error?.let { Text(it, color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.SemiBold) }
-            Button(onClick = { save() }, enabled = !busy, modifier = Modifier.fillMaxWidth()) { Text(if (busy) "جارٍ الحفظ…" else "حفظ") }
+            Button(onClick = { save() }, enabled = !busy, modifier = Modifier.fillMaxWidth()) { Text(if (busy) tr("جارٍ الحفظ…") else tr("حفظ")) }
         }
     }
 
-    if (glPicker) AccountPickerDialog("الحساب الدفتري", glAccounts, onDismiss = { glPicker = false }) { a -> glId = a.id; glName = "${a.number} ${a.title}"; glPicker = false }
+    if (glPicker) AccountPickerDialog(tr("الحساب الدفتري"), glAccounts, onDismiss = { glPicker = false }) { a -> glId = a.id; glName = "${a.number} ${a.title}"; glPicker = false }
 }

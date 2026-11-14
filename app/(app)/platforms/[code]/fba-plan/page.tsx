@@ -1,5 +1,7 @@
+
+import { getLocale } from "@/lib/i18n/server";
 import Link from "next/link";
-import { fill } from "@/lib/i18n";
+import { fill, translateName } from "@/lib/i18n";
 import { getT } from "@/lib/i18n/server";
 import { and, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
@@ -27,6 +29,7 @@ export default async function FbaPlanPage({ params, searchParams }: {
   searchParams: Promise<{ source?: string; cover?: string; transit?: string; window?: string }>;
 }) {
   const t = await getT();
+  const locale = await getLocale();
   const { code } = await params;
   const sp = await searchParams;
   const windowDays = days(sp.window, 30, 7, 180);
@@ -47,12 +50,12 @@ export default async function FbaPlanPage({ params, searchParams }: {
     const isAmazon = platform?.integrationType === "amazon";
     const header = (
       <ErpPageHeader icon="Truck" title={t("خطة شحن FBA")} backHref={isAmazon ? back : "/platforms"}
-        subtitle={fill(t("{0} — تبعت إيه لأمازون قبل ما يخلص عندهم"), [isAmazon ? platform.name : "أمازون"])} />
+        subtitle={fill(t("{0} — تبعت إيه لأمازون قبل ما يخلص عندهم"), [translateName(isAmazon ? platform.name : "أمازون", locale)])} />
     );
     const note = (text: string, cta?: { label: string; href: string }) => (
       <div className="space-y-6">{header}
         <div className="space-y-3 rounded-2xl border border-dashed p-8 text-center text-sm text-muted-foreground">
-          <p>{text}</p>
+          <p>{t(text)}</p>
           {cta && <Button asChild size="sm"><Link href={cta.href}>{t(cta.label)}</Link></Button>}
         </div>
       </div>
@@ -69,7 +72,7 @@ export default async function FbaPlanPage({ params, searchParams }: {
 
     const { rows, auditAt } = await getFbaPlanInputs(orgId, platform.fbaWarehouseId, source.id, windowDays);
     const plan = planFbaShipment(rows, { windowDays, transitDays, coverDays });
-    const when = (d: Date) => d.toLocaleString("ar-EG-u-nu-latn", { dateStyle: "short", timeStyle: "short" });
+    const when = (d: Date) => d.toLocaleString(locale === "en" ? "en-GB" : "ar-EG-u-nu-latn", { dateStyle: "short", timeStyle: "short" });
 
     return (
       <div className="space-y-6">
@@ -81,7 +84,7 @@ export default async function FbaPlanPage({ params, searchParams }: {
               <div className="space-y-2">
                 <Label htmlFor="source">{t("هتبعت من")}</Label>
                 <select id="source" name="source" defaultValue={source.id} className={`${selectCls} w-48`}>
-                  {sources.map((w) => <option key={w.id} value={w.id}>{t(w.name)}</option>)}
+                  {sources.map((w) => <option key={w.id} value={w.id}>{translateName(w.name, locale)}</option>)}
                 </select>
               </div>
               <div className="space-y-2">
@@ -102,7 +105,7 @@ export default async function FbaPlanPage({ params, searchParams }: {
             </form>
             <p className="text-xs text-muted-foreground">
               {fill(t("المطلوب = بيع أمازون اليومي × ({0} يوم شحن + {1} يوم تغطية) − المتاح في أمازون − اللي في الطريق، وبحد أقصى اللي عندك في «{2}». البيع = اللي خرج من مخزن «{3}»."),
-                [transitDays, coverDays, source.name, platform.fbaWarehouseName])}{" "}
+                [transitDays, coverDays, translateName(source.name, locale), translateName(platform.fbaWarehouseName ?? "", locale)])}{" "}
               {auditAt
                 ? fill(t("المتاح والوارد من تدقيق مخزون أمازون ({0}) — بيتحدّث لوحده كل يوم."), [when(auditAt)])
                 : <>{t("مفيش تدقيق مخزون لسه، فالمتاح من رصيد النظام والوارد مش محسوب — شغّل «تدقيق المخزون» من")} <Link href={back} className="text-primary underline">{t("صفحة المنصة")}</Link>.</>}

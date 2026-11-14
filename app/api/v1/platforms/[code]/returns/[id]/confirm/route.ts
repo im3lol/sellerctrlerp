@@ -13,7 +13,7 @@ export const dynamic = "force-dynamic";
  * The request must name what physically arrived; the domain action decides whether it
  * restocks, isolates, or writes off goods before it posts the credit note. */
 export async function POST(req: Request, { params }: { params: Promise<{ code: string; id: string }> }) {
-  const auth = await authorizeApi(req, "sales.confirm");
+  const auth = await authorizeApi(req, "sales.confirm", "marketplace");
   if (isApiError(auth)) return Response.json({ error: auth.error }, { status: auth.status });
   if (auth.role !== "super_admin" && !(await orgHasModule(auth.orgId, "marketplace"))) {
     return Response.json({ error: "module_unavailable" }, { status: 403 });

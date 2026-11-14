@@ -1,5 +1,7 @@
 package com.sellerctrl.app.ui
 
+import com.sellerctrl.app.tr
+
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -46,16 +48,16 @@ fun SearchScreen(nav: NavController) {
 
     Scaffold(topBar = {
         TopAppBar(
-            title = { Text("الأصناف") },
+            title = { Text(tr("الأصناف")) },
             navigationIcon = { IconButton(onClick = { nav.popBackStack() }) { Icon(Icons.AutoMirrored.Filled.ArrowBack, null) } },
         )
     }, floatingActionButton = {
-        FloatingActionButton(onClick = { nav.navigate("item_form/new") }) { Icon(Icons.Filled.Add, "صنف جديد") }
+        FloatingActionButton(onClick = { nav.navigate("item_form/new") }) { Icon(Icons.Filled.Add, tr("صنف جديد")) }
     }) { pad ->
         Column(Modifier.fillMaxSize().padding(pad).padding(16.dp)) {
             OutlinedTextField(
                 value = query, onValueChange = { query = it },
-                label = { Text("اسم / كود / باركود") },
+                label = { Text(tr("اسم / كود / باركود")) },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
             )

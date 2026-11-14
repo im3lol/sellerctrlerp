@@ -2,7 +2,7 @@ import "server-only";
 import { gzipSync } from "node:zlib";
 import { sql, eq, and, desc, inArray } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { withOrgScope } from "@/lib/db-scope";
+import { withOrgSnapshot, withOrgScope } from "@/lib/db-scope";
 import { backupRuns } from "@/db/schema";
 import { putObject, deleteObject } from "@/lib/storage";
 
@@ -21,12 +21,13 @@ export const BACKUP_VERSION = 1;
 export type OrgBackup = { buffer: Buffer; filename: string; totalRows: number; tableCount: number; exportedAt: string };
 
 export function exportOrgData(orgId: string, orgName = "org"): Promise<OrgBackup> {
-  return withOrgScope(orgId, false, async () => {
+  return withOrgSnapshot(orgId, async () => {
     const tableRows = await db.execute<{ table_name: string }>(sql`
       SELECT DISTINCT table_name FROM information_schema.columns
       WHERE table_schema = 'public' AND column_name = 'organization_id'
       ORDER BY table_name`);
-    const tables = tableRows.rows.map((r) => r.table_name).filter((t) => /^[a-z0-9_]+$/.test(t));
+    // Cloud OAuth credentials are operational secrets, never customer data exports.
+    const tables = tableRows.rows.map((r) => r.table_name).filter((t) => /^[a-z0-9_]+$/.test(t) && !new Set(["storage_cloud_connections", "storage_cloud_jobs", "organization_backup_health"]).has(t));
 
     const data: Record<string, unknown[]> = {};
     let totalRows = 0;
@@ -58,7 +59,7 @@ export async function backupOrgToStorage(orgId: string, orgName: string, kind: "
   const b = await exportOrgData(orgId, orgName);
   const key = `backups/${orgId}/${b.filename}`;
   await putObject(key, b.buffer, "application/gzip", { private: true });
-  await db.insert(backupRuns).values({ organizationId: orgId, storageKey: key, sizeBytes: b.buffer.length, totalRows: b.totalRows, tableCount: b.tableCount, kind, createdById: userId });
+  await withOrgScope(orgId, false, () => db.insert(backupRuns).values({ organizationId: orgId, storageKey: key, sizeBytes: b.buffer.length, totalRows: b.totalRows, tableCount: b.tableCount, kind, createdById: userId }));
   return { key, ...b };
 }
 

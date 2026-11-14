@@ -1,5 +1,7 @@
 "use client";
 
+import { formatErpDate } from "@/lib/erp/dates";
+
 import Link from "next/link";
 import { useT } from "@/lib/i18n/client";
 import { bulkJournalAction, type JournalFilter } from "@/app/actions/erp/journal";
@@ -29,7 +31,7 @@ const SOURCE: Record<string, string> = {
   OPENING_BALANCE: "رصيد افتتاحي",
 };
 const fmt = (v: string | null) => Number(v ?? 0).toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-const dt = (d: Date) => new Date(d).toLocaleDateString("en-GB", { year: "numeric", month: "2-digit", day: "2-digit" });
+const dt = (d: Date) => formatErpDate(d, "en-GB", { year: "numeric", month: "2-digit", day: "2-digit" });
 
 // Only DRAFT entries are deletable — deleteDraftEntryAction rejects posted ones.
 export function JournalTable({ rows, canPost, canCreate, total, filter }: { rows: Row[]; canPost: boolean; canCreate: boolean; total: number; filter: JournalFilter }) {

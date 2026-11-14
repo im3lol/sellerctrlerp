@@ -44,11 +44,11 @@ function SubscribeDialog({ plan, account, interval, xpayEnabled, onClose }: { pl
   // post-transfer handoff (payment is verified manually by support).
   const openWhatsApp = () => {
     const lines = [
-      "مرحبًا، أرغب في تفعيل اشتراك SellerCtrl بعد التحويل 👇",
+      t("مرحبًا، أرغب في تفعيل اشتراك SellerCtrl بعد التحويل 👇"),
       fill(t("• الشركة: {0}"), [account.orgName]),
       fill(t("• الاسم: {0}"), [account.userName]),
       fill(t("• البريد: {0}"), [account.email]),
-      fill(t("• الباقة: {0} — {1}"), [plan.name, interval === "ANNUAL" ? t("سنوي") : t("شهري")]),
+      fill(t("• الباقة: {0} — {1}"), [t(plan.name), interval === "ANNUAL" ? t("سنوي") : t("شهري")]),
       fill(t("• المبلغ: {0}"), [egp(price, locale)]),
       fill(t("• طريقة الدفع: {0}"), [t(chosen.label)]),
       fill(t("• مرجع التحويل: {0}"), [reference.trim() || "—"]),
@@ -91,7 +91,7 @@ function SubscribeDialog({ plan, account, interval, xpayEnabled, onClose }: { pl
 
         <div className="rounded-xl border bg-muted/30 p-3 text-sm">
           <div className="mb-1 font-medium">{t("المبلغ:")} {egp(price, locale)} <span className="font-normal text-muted-foreground">({annual ? t("سنوي") : t("شهري")})</span></div>
-          <p className="text-muted-foreground">{chosen.detail}</p>
+          <p className="text-muted-foreground">{t(chosen.detail)}</p>
           {(method === "INSTAPAY" || method === "VODAFONE") && (
             <button type="button" onClick={() => { navigator.clipboard?.writeText(WALLET_NUMBER); toast.success("تم نسخ الرقم"); }}
               className="mt-2 inline-flex items-center gap-1.5 rounded-lg border bg-card px-3 py-1.5 font-mono text-base font-semibold hover:bg-accent" dir="ltr">
@@ -134,14 +134,12 @@ export function SubscriptionPlans({ plans, currentPlanId, canSubscribe, hasPendi
   const [chosen, setChosen] = useState<PlanCard | null>(null);
   const [annual, setAnnual] = useState(false);
 
-  // Return from xpay (?xpay=paid|pending, read server-side): show the result once,
-  // then strip the query param.
+  // The verified payment return uses a private UI notice, not URL status flags.
   useEffect(() => {
     if (!xpayResult) return;
     if (xpayResult === "paid") toast.success("تم الدفع وتفعيل الاشتراك بنجاح ✅");
     else toast.info("جارٍ تأكيد الدفع — سيُفعَّل اشتراكك خلال لحظات.");
-    router.replace("/settings/subscription");
-    router.refresh();
+
   }, [xpayResult, router]);
 
   if (plans.length === 0) return <p className="text-sm text-muted-foreground">{t("لا توجد باقات متاحة حالياً — تواصل مع الدعم.")}</p>;

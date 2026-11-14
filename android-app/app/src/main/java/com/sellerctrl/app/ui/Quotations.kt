@@ -1,5 +1,7 @@
 package com.sellerctrl.app.ui
 
+import com.sellerctrl.app.tr
+
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -48,7 +50,7 @@ import kotlinx.coroutines.launch
 
 @Composable
 fun QuotationFormScreen(nav: NavController) {
-    SalesForm(nav, "عرض سعر جديد", withWarehouse = false) { custId, _, date, notes, lines ->
+    SalesForm(nav, tr("عرض سعر جديد"), withWarehouse = false) { custId, _, date, notes, lines ->
         ServiceLocator.repo.quotationCreate(QuoteCreateReq(custId, date, null, notes.ifBlank { null },
             lines.map { QuoteCreateLine(it.itemId, it.qty.toDouble(), it.price.toDouble()) }))
     }
@@ -68,11 +70,11 @@ fun QuotationDetailScreen(nav: NavController, id: String) {
 
     fun setStatus(status: String, ok: String) {
         busy = true; message = null
-        scope.launch { try { ServiceLocator.repo.quotationStatus(id, status); message = ok; reload++ } catch (e: Exception) { message = e.message ?: "خطأ" } finally { busy = false } }
+        scope.launch { try { ServiceLocator.repo.quotationStatus(id, status); message = ok; reload++ } catch (e: Exception) { message = e.message ?: tr("خطأ") } finally { busy = false } }
     }
 
     Scaffold(topBar = {
-        TopAppBar(title = { Text("عرض سعر") },
+        TopAppBar(title = { Text(tr("عرض سعر")) },
             navigationIcon = { IconButton(onClick = { nav.popBackStack() }) { Icon(Icons.AutoMirrored.Filled.ArrowBack, null) } })
     }) { pad ->
         Box(Modifier.fillMaxSize().padding(pad)) {
@@ -89,7 +91,7 @@ fun QuotationDetailScreen(nav: NavController, id: String) {
                         }
                     }
                 }
-                Text("البنود (${o.lines.size})", style = MaterialTheme.typography.titleMedium)
+                Text(tr("البنود (${o.lines.size})"), style = MaterialTheme.typography.titleMedium)
                 o.lines.forEach { l ->
                     AppCard(Modifier.fillMaxWidth()) {
                         Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -104,27 +106,27 @@ fun QuotationDetailScreen(nav: NavController, id: String) {
                 message?.let { Text(it, color = MaterialTheme.colorScheme.primary) }
 
                 if (o.status != "ACCEPTED" && o.status != "REJECTED") {
-                    if (o.status == "DRAFT") Button(onClick = { setStatus("SENT", "تم الإرسال ✓") }, enabled = !busy, modifier = Modifier.fillMaxWidth()) { Text("إرسال للعميل") }
+                    if (o.status == "DRAFT") Button(onClick = { setStatus("SENT", tr("تم الإرسال ✓")) }, enabled = !busy, modifier = Modifier.fillMaxWidth()) { Text(tr("إرسال للعميل")) }
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Button(onClick = { setStatus("ACCEPTED", "تم القبول ✓") }, enabled = !busy, modifier = Modifier.weight(1f)) { Text("قبول") }
-                        OutlinedButton(onClick = { setStatus("REJECTED", "تم الرفض") }, enabled = !busy, modifier = Modifier.weight(1f),
-                            colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)) { Text("رفض") }
+                        Button(onClick = { setStatus("ACCEPTED", tr("تم القبول ✓")) }, enabled = !busy, modifier = Modifier.weight(1f)) { Text(tr("قبول")) }
+                        OutlinedButton(onClick = { setStatus("REJECTED", tr("تم الرفض")) }, enabled = !busy, modifier = Modifier.weight(1f),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)) { Text(tr("رفض")) }
                     }
                 }
                 OutlinedButton(onClick = { confirmDelete = true }, enabled = !busy, modifier = Modifier.fillMaxWidth(),
-                    colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)) { Text("حذف") }
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)) { Text(tr("حذف")) }
             }
         }
     }
 
     if (confirmDelete) AlertDialog(
-        onDismissRequest = { confirmDelete = false }, title = { Text("حذف") }, text = { Text("متأكد من حذف العرض؟") },
+        onDismissRequest = { confirmDelete = false }, title = { Text(tr("حذف")) }, text = { Text(tr("متأكد من حذف العرض؟")) },
         confirmButton = {
             TextButton(onClick = {
                 confirmDelete = false; busy = true; message = null
-                scope.launch { try { ServiceLocator.repo.postAction("api/v1/sales/quotations/$id/delete"); nav.popBackStack() } catch (e: Exception) { message = e.message ?: "خطأ" } finally { busy = false } }
-            }) { Text("حذف", color = MaterialTheme.colorScheme.error) }
+                scope.launch { try { ServiceLocator.repo.postAction("api/v1/sales/quotations/$id/delete"); nav.popBackStack() } catch (e: Exception) { message = e.message ?: tr("خطأ") } finally { busy = false } }
+            }) { Text(tr("حذف"), color = MaterialTheme.colorScheme.error) }
         },
-        dismissButton = { OutlinedButton(onClick = { confirmDelete = false }) { Text("إلغاء") } },
+        dismissButton = { OutlinedButton(onClick = { confirmDelete = false }) { Text(tr("إلغاء")) } },
     )
 }

@@ -1,5 +1,7 @@
 "use client";
 
+import { PageActions } from "@/components/erp/page-actions";
+
 import { useActionState, useEffect, useMemo, useRef, useState } from "react";
 import { fill } from "@/lib/i18n";
 import { useT } from "@/lib/i18n/client";
@@ -88,6 +90,7 @@ export function PrintSettingsForm({ org, settings, canEdit }: {
 
   return (
     <form action={action} className="space-y-6">
+      {canEdit && <PageActions><SaveBtn /></PageActions>}
       <input type="hidden" name="payload" value={payload} />
       <input type="hidden" name="logo" value={logoUrl} />
 
@@ -132,7 +135,7 @@ export function PrintSettingsForm({ org, settings, canEdit }: {
                 ["إظهار الرقم الضريبي", showTaxNumber, setShowTaxNumber],
               ] as const).map(([label, val, set]) => (
                 <label key={label} className="flex items-center justify-between gap-3 rounded-lg border p-3 text-sm font-medium">
-                  {label}
+                  {t(label)}
                   <Switch checked={val} onCheckedChange={set} />
                 </label>
               ))}
@@ -193,7 +196,7 @@ export function PrintSettingsForm({ org, settings, canEdit }: {
                 return (
                   <label key={c.label} className={`flex items-center gap-2 rounded-lg border p-3 text-sm ${c.locked ? "opacity-60" : "cursor-pointer"}`}>
                     <Checkbox checked={checked} disabled={c.locked} onCheckedChange={(v) => toggleColumn(c.label, v === true)} />
-                    {c.label === "#" ? t("مسلسل (#)") : c.label}
+                    {c.label === "#" ? t("مسلسل (#)") : t(c.label)}
                   </label>
                 );
               })}
@@ -202,7 +205,7 @@ export function PrintSettingsForm({ org, settings, canEdit }: {
         </CardContent>
       </Card>
 
-      {canEdit && <div className="flex justify-end"><SaveBtn /></div>}
+
     </form>
   );
 }

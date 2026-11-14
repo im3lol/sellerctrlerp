@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { fill, type T } from "@/lib/i18n";
-import { useT } from "@/lib/i18n/client";
+import { fill, translateName, type T } from "@/lib/i18n";
+import { useT, useLocale } from "@/lib/i18n/client";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { toast } from "@/lib/i18n/toast";
@@ -203,8 +203,8 @@ function CreatePlatformDialog({
           <div className="space-y-2">
             <Label>{t("نوع التكامل (شكل ملف الاستيراد)")}</Label>
             <select className={selectCls} value={integrationType} onChange={(e) => setIntegrationType(e.target.value)}>
-              <option value="generic">{TYPE_LABEL.generic}</option>
-              <option value="amazon">{TYPE_LABEL.amazon}</option>
+              <option value="generic">{t(TYPE_LABEL.generic)}</option>
+              <option value="amazon">{t(TYPE_LABEL.amazon)}</option>
             </select>
           </div>
           <div className="grid grid-cols-2 gap-3">
@@ -241,6 +241,7 @@ export function PlatformsManager({
   platforms: Platform[]; warehouses: Option[]; bankAccounts: Option[]; canManage: boolean; connectors: ConnectorInfo[];
 }) {
   const t = useT();
+  const locale = useLocale();
   const router = useRouter();
   const [pending, start] = useTransition();
   const [open, setOpen] = useState(false);
@@ -278,7 +279,7 @@ export function PlatformsManager({
                       <div className="flex h-12 w-12 items-center justify-center rounded-xl border bg-muted/30">
                         {brand ? (
                           /* eslint-disable-next-line @next/next/no-img-element */
-                          <img src={brand.logo} alt={p.name} className="h-6 w-10 object-contain dark:invert" />
+                          <img src={brand.logo} alt={translateName(p.name, locale)} className="h-6 w-10 object-contain dark:invert" />
                         ) : (
                           <span className="text-lg font-bold text-muted-foreground">{p.name.charAt(0)}</span>
                         )}
@@ -296,7 +297,7 @@ export function PlatformsManager({
 
                   <div className="space-y-1 text-sm text-muted-foreground">
                     <div>{t("المخزن:")} <span className="text-foreground">{t(p.warehouseName ?? "—")}</span></div>
-                    <div>{t("العميل:")} <span className="text-foreground">{p.customerName ?? "—"}</span></div>
+                    <div>{t("العميل:")} <span className="text-foreground">{translateName(p.customerName ?? "—", locale)}</span></div>
                     <div>{t("آخر مزامنة:")} <span className="text-foreground">{last ?? t("لم تتم بعد")}</span></div>
                   </div>
 

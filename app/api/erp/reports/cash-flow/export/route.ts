@@ -8,7 +8,7 @@ export const runtime = "nodejs";
 
 /** Excel export of the (indirect-method) cash-flow statement for the period. */
 export async function GET(req: Request) {
-  const { orgId } = await requireErpModule("reports.view");
+  const { orgId } = await requireErpModule("accounting.view");
   const p = new URL(req.url).searchParams;
   const now = new Date();
 

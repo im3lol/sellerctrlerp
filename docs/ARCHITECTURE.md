@@ -249,6 +249,11 @@ Sellers live on Amazon; the ERP ingests two Amazon reports.
   first server-action call. Import the type directly where it's used.
 - **Entity pickers are searchable comboboxes** (`CellCombobox`/`FormCombobox`), not `<select>`.
   Enums / short fixed lists stay as selects.
+- **Public item URLs use the item code.** Build detail/edit links with
+  `lib/erp/item-href.ts`, including search results, report links and post-save navigation.
+  Resolve page parameters with `itemCodeParam` inside the authorized tenant scope:
+  legacy UUID bookmarks redirect to the current code and foreign-tenant ids return 404.
+  Database relations and write actions continue to use immutable internal ids.
 - **New purchase/sales documents follow the Draft→Confirm + recall-form pattern** and branch
   accounting by source — see `docs/ERP_DOCUMENT_CYCLE_MASTER_PLAN_AR.md`.
 
@@ -293,3 +298,50 @@ The one target:
 Env is validated at boot by `lib/env.ts` — `DATABASE_URL` + `AUTH_SECRET` are required;
 missing optional vars only warn.
 
+
+### Page-level form actions
+
+Place Save, Cancel and other document-level commands at the beginning of the form,
+using `components/erp/page-actions.tsx`. Keep native submit buttons inside their
+owning `<form>` so browser validation, Server Actions and `useFormStatus` retain
+normal semantics. Long document forms with an existing action-bearing CardHeader
+use a sticky header below the 64px application topbar. Wrap actions on small
+screens. Row controls, filters and contextual dialog actions stay with their
+context. Do not move controls using DOM manipulation or duplicate save handlers.
+
+Landed-cost pickers hide fully costed receipts and previously costed receipt/item/
+warehouse groups by default, including positive allocations reserved in active
+DRAFT vouchers. Partial receipts remain available for their untouched lines.
+Explicit receipt/item searches can reveal history for additional costs. Selected
+historical lines remain visible when clearing search; bulk selection affects only
+visible lines and never silently replaces the selection. Existing draft lines
+remain visible while editing. CANCELLED vouchers and zero allocations do not
+hide untouched lines. Metadata includes older receipts so search is not limited
+to the newest 200; at most 200 receipts may be loaded into a single voucher.
+
+Buy Box monitoring keeps all seven data columns in a horizontally scrollable table,
+with full wrapped product names, 56–64px contained images, internal item codes and
+seller SKUs. Status badges and loss timestamps are separate to avoid clipping.
+The application layout also includes inactive Amazon platforms that have saved
+offers in the active company; these receive a monitoring-only navigation shortcut.
+This does not activate the platform, enable synchronization or bypass permissions.
+Active Amazon navigation is identified by integration type (including custom codes).
+
+### Partial goods receipts and editable drafts
+
+`/purchases/orders/<number>/receive` opens the same goods receipt form as the new
+receipt page, preloaded from the order. Nothing is selected automatically: users
+select arrived products, review images and quantities, and choose warehouses/lots.
+Unselected products stay open on the purchase order. Receipt quantities retain up
+to four decimal places. Saved receipts stay DRAFT until explicit confirmation.
+
+Drafts can be edited at `/purchases/receipts/<number>/edit`, from both the receipt
+header and the list row menu, with `purchases.receive` permission. Saving preserves
+the receipt number, line IDs for retained items, currency/rate and existing VAT/
+freight snapshots. It does not post stock or GL, or advance order received counts.
+Changes are audited. A receipt row lock and optimistic updatedAt check serialize
+edits, serial staging and confirmation; confirmed receipts are immutable. Staged
+serials are retained, and removing their item or reducing below their count is
+blocked until the serial list is corrected. Confirmation rechecks the draft version
+and remaining order quantity before posting. Duplicate item lines on legacy orders
+are rejected explicitly instead of being silently received twice.

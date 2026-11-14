@@ -5,11 +5,12 @@ import { CsvImportClient } from "@/components/erp/csv-import-client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Icon } from "@/components/icon";
 import { EXPORT_DATASETS, EXPORT_ORDER } from "@/lib/erp/export-datasets";
+import { canExportDataset } from "@/lib/erp/data-access";
 
 export default async function ImportExportPage() {
   const t = await getT();
   return loadErpPage("sales.view", async ({ can }) => {
-    const exportable = EXPORT_ORDER.filter((k) => can(EXPORT_DATASETS[k].module));
+    const exportable = EXPORT_ORDER.filter((k) => canExportDataset(EXPORT_DATASETS[k], can));
 
     return (
       <div className="space-y-8">

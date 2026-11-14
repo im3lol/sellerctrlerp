@@ -19,7 +19,13 @@ export type ErpContext = {
 const als = new AsyncLocalStorage<ErpContext>();
 
 export function runWithErpContext<T>(ctx: ErpContext, fn: () => Promise<T>): Promise<T> {
-  return als.run(ctx, fn);
+  const parent = als.getStore();
+  if (parent && (parent.userId !== ctx.userId || parent.orgId !== ctx.orgId ||
+    parent.role !== ctx.role || (ctx.system && !parent.system) ||
+    [...ctx.permissions].some(permission => !parent.permissions.has(permission)))) {
+    throw new Error("Cannot change identity or elevate permissions inside an ERP request");
+  }
+  return als.run({ ...ctx, permissions: new Set(ctx.permissions) }, fn);
 }
 
 export function getErpContext(): ErpContext | undefined {

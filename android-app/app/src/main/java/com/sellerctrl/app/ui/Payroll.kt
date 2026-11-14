@@ -1,5 +1,7 @@
 package com.sellerctrl.app.ui
 
+import com.sellerctrl.app.tr
+
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -70,22 +72,22 @@ fun PayrollFormScreen(nav: NavController) {
         busy = true; error = null
         scope.launch {
             try { ServiceLocator.repo.payrollCreate(PayrollCreateReq(periodStart, periodEnd, paymentDate.ifBlank { null }, notes.ifBlank { null })); nav.popBackStack() }
-            catch (e: Exception) { error = e.message ?: "خطأ"; busy = false }
+            catch (e: Exception) { error = e.message ?: tr("خطأ"); busy = false }
         }
     }
 
     Scaffold(topBar = {
-        TopAppBar(title = { Text("مسيّر رواتب جديد") },
+        TopAppBar(title = { Text(tr("مسيّر رواتب جديد")) },
             navigationIcon = { IconButton(onClick = { nav.popBackStack() }) { Icon(Icons.AutoMirrored.Filled.ArrowBack, null) } })
     }) { pad ->
         Column(Modifier.fillMaxSize().padding(pad).verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Text("يُبنى المسيّر تلقائيًا من كل الموظفين النشطين في الفترة.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
-            OutlinedTextField(periodStart, { periodStart = it }, label = { Text("بداية الفترة") }, singleLine = true, modifier = Modifier.fillMaxWidth())
-            OutlinedTextField(periodEnd, { periodEnd = it }, label = { Text("نهاية الفترة") }, singleLine = true, modifier = Modifier.fillMaxWidth())
-            OutlinedTextField(paymentDate, { paymentDate = it }, label = { Text("تاريخ الصرف") }, singleLine = true, modifier = Modifier.fillMaxWidth())
-            OutlinedTextField(notes, { notes = it }, label = { Text("ملاحظات") }, modifier = Modifier.fillMaxWidth())
+            Text(tr("يُبنى المسيّر تلقائيًا من كل الموظفين النشطين في الفترة."), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
+            OutlinedTextField(periodStart, { periodStart = it }, label = { Text(tr("بداية الفترة")) }, singleLine = true, modifier = Modifier.fillMaxWidth())
+            OutlinedTextField(periodEnd, { periodEnd = it }, label = { Text(tr("نهاية الفترة")) }, singleLine = true, modifier = Modifier.fillMaxWidth())
+            OutlinedTextField(paymentDate, { paymentDate = it }, label = { Text(tr("تاريخ الصرف")) }, singleLine = true, modifier = Modifier.fillMaxWidth())
+            OutlinedTextField(notes, { notes = it }, label = { Text(tr("ملاحظات")) }, modifier = Modifier.fillMaxWidth())
             error?.let { Text(it, color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.SemiBold) }
-            Button(onClick = { save() }, enabled = !busy, modifier = Modifier.fillMaxWidth()) { Text(if (busy) "جارٍ الإنشاء…" else "إنشاء المسيّر") }
+            Button(onClick = { save() }, enabled = !busy, modifier = Modifier.fillMaxWidth()) { Text(if (busy) tr("جارٍ الإنشاء…") else tr("إنشاء المسيّر")) }
         }
     }
 }
@@ -104,7 +106,7 @@ fun PayrollDetailScreen(nav: NavController, id: String) {
     LaunchedEffect(reload, tick) { d = try { ServiceLocator.repo.payrollDetail(id) } catch (e: Exception) { null } }
 
     Scaffold(topBar = {
-        TopAppBar(title = { Text("مسيّر رواتب") },
+        TopAppBar(title = { Text(tr("مسيّر رواتب")) },
             navigationIcon = { IconButton(onClick = { nav.popBackStack() }) { Icon(Icons.AutoMirrored.Filled.ArrowBack, null) } })
     }) { pad ->
         Box(Modifier.fillMaxSize().padding(pad)) {
@@ -118,13 +120,13 @@ fun PayrollDetailScreen(nav: NavController, id: String) {
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                             AssistChip(onClick = {}, label = { Text(statusAr(o.status)) })
                             Column(horizontalAlignment = Alignment.End) {
-                                Text("الصافي ${money(o.totalNet)}", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
-                                Text("الإجمالي ${money(o.totalGross)}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
+                                Text(tr("الصافي ${money(o.totalNet)}"), fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                                Text(tr("الإجمالي ${money(o.totalGross)}"), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
                             }
                         }
                     }
                 }
-                Text("الموظفون (${o.lines.size})", style = MaterialTheme.typography.titleMedium)
+                Text(tr("الموظفون (${o.lines.size})"), style = MaterialTheme.typography.titleMedium)
                 o.lines.forEach { l ->
                     AppCard(Modifier.fillMaxWidth()) {
                         Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -132,7 +134,7 @@ fun PayrollDetailScreen(nav: NavController, id: String) {
                                 Text(l.name, style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))
                                 Text(money(l.net), fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.primary)
                             }
-                            Text("أساسي ${fmt(l.basic)} · بدلات ${fmt(l.allowances)} · خصومات ${fmt(l.deductions)} · ضريبة ${fmt(l.tax)}",
+                            Text(tr("أساسي ${fmt(l.basic)} · بدلات ${fmt(l.allowances)} · خصومات ${fmt(l.deductions)} · ضريبة ${fmt(l.tax)}"),
                                 style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
                         }
                     }
@@ -140,30 +142,30 @@ fun PayrollDetailScreen(nav: NavController, id: String) {
                 message?.let { Text(it, color = MaterialTheme.colorScheme.primary) }
                 if (o.status == "DRAFT") Button(onClick = {
                     busy = true; message = null
-                    scope.launch { try { ServiceLocator.repo.postAction("api/v1/hr/payroll/$id/confirm"); message = "تم الترحيل ✓"; reload++ } catch (e: Exception) { message = e.message ?: "خطأ" } finally { busy = false } }
-                }, enabled = !busy, modifier = Modifier.fillMaxWidth()) { Text(if (busy) "…" else "ترحيل المسيّر") }
+                    scope.launch { try { ServiceLocator.repo.postAction("api/v1/hr/payroll/$id/confirm"); message = tr("تم الترحيل ✓"); reload++ } catch (e: Exception) { message = e.message ?: tr("خطأ") } finally { busy = false } }
+                }, enabled = !busy, modifier = Modifier.fillMaxWidth()) { Text(if (busy) "…" else tr("ترحيل المسيّر")) }
                 if (o.status == "POSTED") OutlinedButton(onClick = { reverseOpen = true }, enabled = !busy, modifier = Modifier.fillMaxWidth(),
-                    colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)) { Text("عكس المسيّر") }
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)) { Text(tr("عكس المسيّر")) }
             }
         }
     }
 
     if (reverseOpen) AlertDialog(
         onDismissRequest = { reverseOpen = false },
-        title = { Text("عكس المسيّر") },
+        title = { Text(tr("عكس المسيّر")) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Text("سيتم عكس قيد الرواتب. اكتب السبب:")
-                OutlinedTextField(reason, { reason = it }, label = { Text("السبب *") }, modifier = Modifier.fillMaxWidth())
+                Text(tr("سيتم عكس قيد الرواتب. اكتب السبب:"))
+                OutlinedTextField(reason, { reason = it }, label = { Text(tr("السبب *")) }, modifier = Modifier.fillMaxWidth())
             }
         },
         confirmButton = {
             TextButton(onClick = {
                 if (reason.isBlank()) return@TextButton
                 reverseOpen = false; busy = true; message = null
-                scope.launch { try { ServiceLocator.repo.payrollReverse(id, reason.trim()); message = "تم العكس ✓"; reload++ } catch (e: Exception) { message = e.message ?: "خطأ" } finally { busy = false } }
-            }) { Text("عكس", color = MaterialTheme.colorScheme.error) }
+                scope.launch { try { ServiceLocator.repo.payrollReverse(id, reason.trim()); message = tr("تم العكس ✓"); reload++ } catch (e: Exception) { message = e.message ?: tr("خطأ") } finally { busy = false } }
+            }) { Text(tr("عكس"), color = MaterialTheme.colorScheme.error) }
         },
-        dismissButton = { OutlinedButton(onClick = { reverseOpen = false }) { Text("إلغاء") } },
+        dismissButton = { OutlinedButton(onClick = { reverseOpen = false }) { Text(tr("إلغاء")) } },
     )
 }

@@ -1,4 +1,5 @@
 "use client";
+import { PageActions } from "@/components/erp/page-actions";
 
 import Link from "next/link";
 import { fill } from "@/lib/i18n";
@@ -95,6 +96,14 @@ export function DashboardEditor({ dashboard, reports }: {
 
   return (
     <Card>
+      <PageActions className="mx-6">
+          <Button disabled={pending || !nameAr.trim()} onClick={save}><Icon name="Check" className="size-4" />{t("احفظ")}</Button>
+          <Button variant="ghost" onClick={() => router.push(view)}>{t("رجوع")}</Button>
+          <Button variant="ghost" className="ms-auto text-destructive" disabled={pending} onClick={remove}>
+            <Icon name="Trash2" className="size-4" />{t("امسح اللوحة")}
+          </Button>
+        </PageActions>
+
       <CardHeader>
         <CardTitle>{t("تعديل اللوحة")}</CardTitle>
         <CardDescription>{t("كل مربّع في اللوحة تقرير محفوظ من باني التقارير — بالرسم اللي اتحفظ بيه.")}</CardDescription>
@@ -161,13 +170,7 @@ export function DashboardEditor({ dashboard, reports }: {
           </p>
         )}
 
-        <div className="flex flex-wrap gap-2">
-          <Button disabled={pending || !nameAr.trim()} onClick={save}><Icon name="Check" className="size-4" />{t("احفظ")}</Button>
-          <Button variant="ghost" onClick={() => router.push(view)}>{t("رجوع")}</Button>
-          <Button variant="ghost" className="ms-auto text-destructive" disabled={pending} onClick={remove}>
-            <Icon name="Trash2" className="size-4" />{t("امسح اللوحة")}
-          </Button>
-        </div>
+
       </CardContent>
     </Card>
   );

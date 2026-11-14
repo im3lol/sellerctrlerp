@@ -17,6 +17,7 @@ import { classifyOrders, classifyProducts, type PreviewOrder, type OrdersPreview
 import { validateParentLink } from "@/lib/erp/item-family-core";
 import { CHANNEL_CODE_TYPE } from "@/lib/erp/marketplace-code";
 import type { MarketplaceOrder, MarketplaceInventory, MarketplaceProduct } from "./dto";
+import { groupProductMasters } from "./product-scope";
 import type { CatalogRecord } from "./connector";
 
 export { classifyOrders };
@@ -510,7 +511,7 @@ export async function ingestProducts(orgId: string, products: MarketplaceProduct
   const [asinRows, allCodeRows] = await Promise.all([
     db.select({ itemId: itemCodes.itemId, norm: itemCodes.normalizedCode }).from(itemCodes)
       .where(and(eq(itemCodes.organizationId, orgId), eq(itemCodes.codeType, linkType))),
-    db.select({ norm: itemCodes.normalizedCode }).from(itemCodes).where(eq(itemCodes.organizationId, orgId)),
+    db.select({ norm: itemCodes.normalizedCode, itemId: itemCodes.itemId }).from(itemCodes).where(eq(itemCodes.organizationId, orgId)),
   ]);
   const itemByAsin = new Map<string, string>();
   for (const r of asinRows) if (r.norm && !itemByAsin.has(r.norm)) itemByAsin.set(r.norm, r.itemId);
@@ -527,7 +528,12 @@ export async function ingestProducts(orgId: string, products: MarketplaceProduct
     codeValues.push({ itemId, organizationId: orgId, codeType, code: c, normalizedCode: norm });
   };
 
-  const plan = classifyProducts(products, itemByAsin, known, mode);
+  const knownByItem = new Map<string, Set<string>>();
+  for (const row of allCodeRows) if (row.norm) {
+    const codes = knownByItem.get(row.itemId) ?? new Set<string>();
+    codes.add(row.norm); knownByItem.set(row.itemId, codes);
+  }
+  const plan = classifyProducts(products, itemByAsin, known, mode, knownByItem);
   for (const l of plan.toLink) {
     pushCode(l.itemId, "SKU", l.sku);
     if (l.fnsku) pushCode(l.itemId, "FNSKU", l.fnsku);
@@ -538,7 +544,8 @@ export async function ingestProducts(orgId: string, products: MarketplaceProduct
   result.linked = plan.toLink.length;
   result.alreadyLinked = plan.alreadyLinked;
   result.skippedUnmatched = plan.skippedUnmatched;
-  const toCreate = plan.toCreate;
+  const groupsToCreate = groupProductMasters(plan.toCreate);
+  const toCreate = groupsToCreate.map((group) => group[0]);
 
   const uomId = toCreate.length ? await pieceUomId(orgId) : null;
   await db.transaction(async (tx) => {
@@ -546,13 +553,13 @@ export async function ingestProducts(orgId: string, products: MarketplaceProduct
       const codes = await nextItemCodes(orgId, toCreate.length);
       // Chunk the multi-row INSERT: one giant .values([...11k]) overflows Drizzle's
       // query-node assembly (Maximum call stack) and blows Postgres's 65k param cap.
-      const rows = toCreate.map((p, i) => ({ p, code: codes[i] }));
+      const rows = toCreate.map((p, i) => ({ p, aliases: groupsToCreate[i], code: codes[i] }));
       let created = 0;
       for (const slice of chunk(rows, 500)) {
         const inserted = await tx.insert(items).values(slice.map(({ p, code }) => ({
           organizationId: orgId, code, nameAr: (p.name || p.code).trim(), uomId, sellPrice: String(round2(p.sellPrice || 0)),
         }))).returning({ id: items.id });
-        inserted.forEach((it, j) => { const p = slice[j].p; pushCode(it.id, "SKU", p.code); if (p.altCode) pushCode(it.id, linkType, p.altCode); if (p.fnsku) pushCode(it.id, "FNSKU", p.fnsku); });
+        inserted.forEach((it, j) => { for (const p of slice[j].aliases) { pushCode(it.id, "SKU", p.code); if (p.altCode) pushCode(it.id, linkType, p.altCode); if (p.fnsku) pushCode(it.id, "FNSKU", p.fnsku); } });
         created += inserted.length;
       }
       result.created = created;

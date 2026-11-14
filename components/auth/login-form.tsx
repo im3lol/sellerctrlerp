@@ -59,11 +59,11 @@ export function LoginForm({
       {state.error && (
         <Alert variant="destructive">
           <AlertCircle className="size-4" />
-          <AlertDescription>{state.error}</AlertDescription>
+          <AlertDescription>{t(state.error)}</AlertDescription>
         </Alert>
       )}
 
-      <input type="hidden" name="callbackUrl" value={callbackUrl ?? "/apps"} />
+      <input type="hidden" name="callbackUrl" value={callbackUrl ?? "/dashboard"} />
 
       <div className={mfa ? "hidden" : "space-y-2"}>
         <Label htmlFor="email">{t("البريد الإلكتروني أو اسم المستخدم")}</Label>
@@ -71,7 +71,7 @@ export function LoginForm({
           id="email"
           name="email"
           type="text"
-          placeholder={t("admin أو name@sellerctrl.com")}
+          placeholder={t("البريد الإلكتروني أو اسم المستخدم")}
           dir="ltr"
           required
           autoComplete="username"
@@ -110,11 +110,11 @@ export function LoginForm({
 
       {mfa ? (
         <p className="text-center text-sm text-muted-foreground">
-          <a href="/login" className="font-medium text-primary hover:underline">{t("← الرجوع وتسجيل الدخول بحساب آخر")}</a>
+          <a href={`/login?callbackUrl=${encodeURIComponent(callbackUrl ?? "/apps")}`} className="font-medium text-primary hover:underline">{t("← الرجوع وتسجيل الدخول بحساب آخر")}</a>
         </p>
       ) : (
         <>
-          {hint && <p className="text-center text-xs text-muted-foreground">{hint}</p>}
+          {hint && <p className="text-center text-xs text-muted-foreground">{t(hint)}</p>}
           {signupHref ? (
             <p className="text-center text-sm text-muted-foreground">
               {t("ليس لديك حساب؟")}{" "}

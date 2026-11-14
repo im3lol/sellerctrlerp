@@ -1,7 +1,8 @@
 import { notFound } from "next/navigation";
 import { fill } from "@/lib/i18n";
-import { getT } from "@/lib/i18n/server";
-import { and, eq, or, sql } from "drizzle-orm";
+import { getLocale, getT } from "@/lib/i18n/server";
+import { and, eq, sql } from "drizzle-orm";
+import { itemCodeParam } from "@/lib/erp/item-route";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
 import { formatWeight } from "@/lib/erp/units-convert";
@@ -27,13 +28,12 @@ const qf = (v: string | number | null) => Number(v ?? 0).toLocaleString("ar-EG-u
 
 export default async function ItemDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const t = await getT();
+  const locale = await getLocale();
   const { id } = await params;
-  // URL carries the item CODE; old UUID links still resolve. ponytail: a code
-  // with a literal "/" would split the segment — none in use; encode on links.
-  const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
   return loadErpPage("inventory.view", async ({ orgId, can }) => {
+    const code = await itemCodeParam(id, orgId);
     const [item] = await db.select().from(items)
-      .where(and(eq(items.organizationId, orgId), isUuid ? or(eq(items.id, id), eq(items.code, id)) : eq(items.code, id)))
+      .where(and(eq(items.organizationId, orgId), eq(items.code, code)))
       .limit(1);
     if (!item) notFound();
 
@@ -43,7 +43,7 @@ export default async function ItemDetailPage({ params }: { params: Promise<{ id:
     const stockRows = (await db.execute<{ wid: string; q: string; v: string }>(sql`
       SELECT DISTINCT ON (warehouse_id) warehouse_id wid, balance_quantity q, balance_value v
       FROM stock_movements WHERE organization_id = ${orgId} AND item_id = ${item.id}
-      ORDER BY warehouse_id, created_at DESC, split_part(number, '-', 3)::int DESC
+      ORDER BY warehouse_id, created_at DESC, CASE WHEN split_part(number, '-', 3) ~ '^[0-9]+$' THEN split_part(number, '-', 3)::numeric ELSE 0 END DESC
     `)).rows as { wid: string; q: string; v: string }[];
     const whs = await db.select({ id: warehouses.id, name: warehouses.nameAr }).from(warehouses).where(eq(warehouses.organizationId, orgId));
     const whName = new Map(whs.map((w) => [w.id, w.name]));
@@ -81,7 +81,7 @@ export default async function ItemDetailPage({ params }: { params: Promise<{ id:
           action={
             <div className="flex flex-wrap items-center gap-2">
               <BarcodePrintButton itemName={item.nameAr ?? item.code} codes={printCodes} />
-              <ItemDetailActions itemId={item.id} canEdit={can("inventory.edit")} canDelete={can("inventory.delete")} />
+              <ItemDetailActions itemId={item.id} itemCode={item.code} canEdit={can("inventory.edit")} canDelete={can("inventory.delete")} />
             </div>
           }
         />
@@ -111,12 +111,12 @@ export default async function ItemDetailPage({ params }: { params: Promise<{ id:
               {/* The number is the truth; the catalogue's own wording is only a fallback for
                   a unit we could not convert. Showing "0.37 pounds" to an Egyptian seller
                   is a figure they cannot act on. */}
-              {(formatWeight(item.weightKg != null ? Number(item.weightKg) : null) ?? item.weight) && (
+              {(formatWeight(item.weightKg != null ? Number(item.weightKg) : null, locale) ?? (item.weight ? t(item.weight) : null)) && (
                 <Field label={t("الوزن")}>
-                  {formatWeight(item.weightKg != null ? Number(item.weightKg) : null) ?? item.weight}
+                  {formatWeight(item.weightKg != null ? Number(item.weightKg) : null, locale) ?? (item.weight ? t(item.weight) : null)}
                 </Field>
               )}
-              {item.dimensions && <Field label={t("الأبعاد")}>{item.dimensions}</Field>}
+              {item.dimensions && <Field label={t("الأبعاد")}>{t(item.dimensions)}</Field>}
             </div>
 
             <Card>

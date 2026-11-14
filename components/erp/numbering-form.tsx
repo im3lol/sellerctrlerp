@@ -1,5 +1,7 @@
 "use client";
 
+import { PageActions } from "@/components/erp/page-actions";
+
 import { useActionState, useEffect, useState } from "react";
 import { useT } from "@/lib/i18n/client";
 import { useFormStatus } from "react-dom";
@@ -53,7 +55,8 @@ export function NumberingForm({ overrides, canEdit }: { overrides: Record<string
   }, [state]);
 
   return (
-    <form action={action}>
+    <form action={action} className="space-y-4">
+      {canEdit && <PageActions><SaveBtn /></PageActions>}
       <Card>
         <CardHeader>
           <CardTitle>{t("بادئات ترقيم المستندات")}</CardTitle>
@@ -68,7 +71,7 @@ export function NumberingForm({ overrides, canEdit }: { overrides: Record<string
               <Row key={d.key} docKey={d.key} label={t(d.label)} initial={overrides[d.key] ?? ""} canEdit={canEdit} />
             ))}
           </div>
-          {canEdit && <SaveBtn />}
+
         </CardContent>
       </Card>
     </form>

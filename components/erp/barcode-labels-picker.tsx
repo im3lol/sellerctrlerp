@@ -12,7 +12,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ItemPicker } from "@/components/erp/item-picker";
 import type { ItemSearchResult } from "@/app/actions/erp/item-search";
-import { useQzPrinters, qzPrint, PrinterField, type PrintCode } from "@/components/erp/barcode-print";
+import { type PrintCode } from "@/components/erp/barcode-print";
+import { printLabelBatch } from "@/lib/erp/browser-label-print";
 import { selectCls } from "@/lib/utils";
 
 // Same Arabic labels as the item detail page's code list.
@@ -38,24 +39,23 @@ export function BarcodeLabelsPicker() {
   const t = useT();
   const [rows, setRows] = useState<Row[]>([]);
   const [busy, setBusy] = useState(false);
-  const { printers, printer, setPrinter, qzOk } = useQzPrinters(true);
 
   const add = (it: ItemSearchResult) => setRows((rs) => (rs.some((r) => r.itemId === it.id) ? rs : [...rs, { itemId: it.id, label: it.name ?? it.id, qty: 1, codes: itemCodes(it), sel: 0 }]));
   const patch = (i: number, p: Partial<Row>) => setRows((rs) => rs.map((r, idx) => (idx === i ? { ...r, ...p } : r)));
   const remove = (i: number) => setRows((rs) => rs.filter((_, idx) => idx !== i));
-  const total = rows.reduce((s, r) => s + (Number(r.qty) || 0), 0);
+  const total = rows.reduce((s, r) => s + Math.floor(Number(r.qty) || 0), 0);
 
   const print = async () => {
     const valid = rows.filter((r) => r.qty > 0 && r.codes[r.sel]?.value);
     if (!valid.length) return toast.error("أضف صنفاً واحداً على الأقل");
-    if (!printer) return toast.error("اختر الطابعة");
+    if (total > 5000) return toast.error("الحد الأقصى للدفعة 5000 ملصق؛ قسّم الكمية على دفعات");
     setBusy(true);
     try {
-      const jobs = valid.flatMap((r) => Array.from({ length: r.qty }, () => ({ itemName: r.label, value: r.codes[r.sel].value })));
-      await qzPrint(printer, jobs);
-      toast.success(fill(t("أُرسل {0} ملصق للطابعة"), [jobs.length]));
+      const jobs = valid.flatMap((r) => Array.from({ length: Math.floor(r.qty) }, () => ({ itemName: r.label, value: r.codes[r.sel].value })));
+      await printLabelBatch(jobs);
+      toast.success(fill(t("فُتحت نافذة الطباعة لدفعة من {0} ملصق"), [jobs.length]));
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "فشلت الطباعة — تأكد أن QZ Tray يعمل");
+      toast.error(e instanceof Error ? e.message : "تعذّر فتح نافذة الطباعة");
     } finally { setBusy(false); }
   };
 
@@ -97,17 +97,18 @@ export function BarcodeLabelsPicker() {
         )}
 
         <div className="max-w-xs">
-          <PrinterField qzOk={qzOk} printers={printers} printer={printer} setPrinter={setPrinter} />
+          <p className="text-xs leading-6 text-muted-foreground">{t("اختر الطابعة المثبتة من نافذة الطباعة. الدفعة كاملة في نافذة واحدة؛ المقاس والمحاذاة من إعدادات الطباعة على هذا المتصفح، وقياس الطباعة 100%.")}</p>
         </div>
 
         <div className="flex items-center justify-between">
           <span className="text-sm text-muted-foreground">{rows.length ? fill(t("{0} ملصق"), [total]) : t("لم تُضف أصناف بعد")}</span>
-          <Button onClick={print} disabled={!rows.length || busy || qzOk !== true}>
+          <Button onClick={print} disabled={!rows.length || busy}>
             {busy ? <Loader2 className="size-4 animate-spin" /> : <Printer className="size-4" />}{t("طباعة الملصقات")}
           </Button>
         </div>
-        <p className="text-xs text-muted-foreground">{t("طباعة مباشرة عبر QZ Tray — ملصق 50×25 مم.")}</p>
+        <p className="text-xs text-muted-foreground">{t("طباعة الملصقات من المتصفح بدون QZ Tray أو برامج إضافية.")}</p>
       </CardContent>
     </Card>
   );
 }
+

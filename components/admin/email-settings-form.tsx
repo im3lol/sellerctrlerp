@@ -1,4 +1,5 @@
 "use client";
+import { PageActions } from "@/components/erp/page-actions";
 
 import { useState, useTransition } from "react";
 import { fill } from "@/lib/i18n";
@@ -46,6 +47,15 @@ export function EmailSettingsForm({ initial }: { initial: Initial }) {
 
   return (
     <div className="space-y-5">
+      <PageActions className="static">
+          <Button variant="outline" onClick={test} disabled={pending || !initial.hasPass}>
+            {t("اختبار الإرسال")}
+          </Button>
+          <Button onClick={save} disabled={pending}>
+            {pending && <Loader2 className="size-4 animate-spin" />}{t("حفظ الإعدادات")}
+          </Button>
+        </PageActions>
+
       <p className="text-xs text-muted-foreground">{t("خادم SMTP لإرسال رسائل الترحيب وإيصالات الدفع وتذكيرات انتهاء الاشتراك. تُخزَّن كلمة المرور مشفّرة. اترك حقل كلمة المرور فارغًا للإبقاء على المحفوظة.")}</p>
         <div className="grid grid-cols-3 gap-3">
           <div className="col-span-2 space-y-2">
@@ -77,14 +87,7 @@ export function EmailSettingsForm({ initial }: { initial: Initial }) {
         </div>
         <p className="text-xs text-muted-foreground">{t("المنفذ ٤٦٥ = SSL، و٥٨٧ = STARTTLS. مع Gmail استخدم «كلمة مرور تطبيق».")}</p>
 
-        <div className="flex flex-wrap justify-end gap-2">
-          <Button variant="outline" onClick={test} disabled={pending || !initial.hasPass}>
-            {t("اختبار الإرسال")}
-          </Button>
-          <Button onClick={save} disabled={pending}>
-            {pending && <Loader2 className="size-4 animate-spin" />}{t("حفظ الإعدادات")}
-          </Button>
-        </div>
+
     </div>
   );
 }

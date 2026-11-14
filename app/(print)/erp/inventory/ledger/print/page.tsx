@@ -7,7 +7,7 @@ import { fmt, qty, dt } from "@/lib/erp/print-format";
 import { ReportSheet } from "@/components/erp/print/report-sheet";
 
 const CAP = 3000;
-const sdt = (d: Date) => new Date(d).toLocaleDateString("ar-EG-u-nu-latn", { year: "numeric", month: "2-digit", day: "2-digit" });
+const sdt = (d: Date, locale: import("@/lib/i18n").Locale) => new Date(d).toLocaleDateString(locale === "en" ? "en-GB" : "ar-EG-u-nu-latn", { year: "numeric", month: "2-digit", day: "2-digit" });
 
 type SP = { [k: string]: string | string[] | undefined };
 const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) ?? "";
@@ -68,7 +68,7 @@ export default async function PrintStockLedgerPage({ searchParams }: { searchPar
           rows: rows.map((r) => {
             const isOut = r.type === "OUT";
             return [
-              sdt(r.date),
+              sdt(r.date, locale),
               <span key="n">
                 <span dir="ltr" style={{ display: "block", textAlign: "start" }}>{r.itemName}</span>
                 <span dir="ltr" style={{ color: "#8a93a6", fontSize: 9.5 }}>{r.itemCode}</span>

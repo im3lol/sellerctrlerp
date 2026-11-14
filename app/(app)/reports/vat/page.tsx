@@ -70,7 +70,7 @@ async function VatTable({ lines, emptyText }: { lines: VatLine[]; emptyText: str
 /* ── Page ──────────────────────────────────────────────────── */
 export default async function VatReportPage({ searchParams }: Params) {
   const t = await getT();
-  return loadErpPage("reports.view", async ({ orgId, permissions }) => {
+  return loadErpPage("accounting.view", async ({ orgId, permissions }) => {
     const currency = await getBaseCurrencyCode(orgId);
     const sp = await searchParams;
 

@@ -1,5 +1,7 @@
+import { getPageNotice } from "@/lib/ui-notice";
+import { NoticeConsumed } from "@/components/ui/notice-consumed";
 import { asc, eq } from "drizzle-orm";
-import { date, fill, type T } from "@/lib/i18n";
+import { date, fill, int, type T } from "@/lib/i18n";
 import { getLocale, getT } from "@/lib/i18n/server";
 import { loadErpPage, getActiveOrg } from "@/lib/erp/org";
 import { db } from "@/lib/db";
@@ -24,7 +26,8 @@ export default async function SubscriptionPage({ searchParams }: { searchParams:
   const t = await getT();
   const locale = await getLocale();
   return loadErpPage("settings.view", async ({ orgId, role }) => {
-    const { locked, xpay } = await searchParams;
+    const notice = await getPageNotice("/settings/subscription");
+    const { locked, xpay } = { ...await searchParams, ...notice.values };
     const { user, org } = await getActiveOrg();
     const account = { orgName: org?.nameAr ?? "", userName: user?.name ?? "", email: user?.email ?? "" };
 
@@ -48,13 +51,14 @@ export default async function SubscriptionPage({ searchParams }: { searchParams:
       ? { cls: "border-destructive/50 bg-destructive/10 text-destructive", title: "انتهت فترة الوصول", body: locked ? fill(t("وحدة «{0}» تتطلب اشتراكاً. اختر باقة للمتابعة."), [t(MODULE_LABELS[locked] ?? locked)]) : t("اختر باقة لتفعيل النظام.") }
       : state.isTrial
       ? { cls: "border-amber-500/50 bg-amber-500/10 text-amber-700", title: fill(t("الفترة التجريبية — متبقٍ {0} يوم"), [state.daysLeft]), body: fill(t("تنتهي التجربة في {0}. اشترك قبل انتهائها لمواصلة العمل دون انقطاع."), [state.expiresAt ? date(state.expiresAt, locale) : "—"]) }
-      : { cls: "border-emerald-500/50 bg-emerald-500/10 text-emerald-700", title: fill(t("باقتك: {0}"), [state.planName ?? t("مفعّلة")]), body: state.expiresAt ? fill(t("تتجدد/تنتهي في {0}."), [date(state.expiresAt, locale)]) : t("اشتراك دائم.") };
+      : { cls: "border-emerald-500/50 bg-emerald-500/10 text-emerald-700", title: fill(t("باقتك: {0}"), [t(state.planName ?? "مفعّلة")]), body: state.expiresAt ? fill(t("تتجدد/تنتهي في {0}."), [date(state.expiresAt, locale)]) : t("اشتراك دائم.") };
 
     const usedPct = (used: number, limit: number | null) => (limit == null ? 0 : Math.min(100, Math.round((used / limit) * 100)));
     const storageLimitBytes = state.storageGb != null ? state.storageGb * 1024 ** 3 : null;
 
     return (
       <div className="space-y-6">
+        <NoticeConsumed path={"/settings/subscription"} id={notice.id} />
         <ErpPageHeader icon="CreditCard" title={t("الاشتراك والباقة")} subtitle={t("حالة اشتراكك والباقات المتاحة")} />
 
         <div className={`rounded-2xl border p-4 ${banner.cls}`}>
@@ -66,7 +70,7 @@ export default async function SubscriptionPage({ searchParams }: { searchParams:
           <Card>
             <CardHeader className="pb-2"><CardTitle className="text-base">{t("المستخدمون")}</CardTitle></CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold tabular-nums">{members.toLocaleString(locale === "en" ? "en-US" : "ar-EG")}<span className="text-sm font-normal text-muted-foreground"> / {state.maxUsers == null ? t("بلا حد") : state.maxUsers.toLocaleString("ar-EG")}</span></div>
+              <div className="text-2xl font-bold tabular-nums">{int(members, locale)}<span className="text-sm font-normal text-muted-foreground"> / {state.maxUsers == null ? t("بلا حد") : int(state.maxUsers, locale)}</span></div>
               {state.maxUsers != null && <div className="mt-2 h-2 overflow-hidden rounded-full bg-muted"><div className="h-full bg-primary" style={{ width: `${usedPct(members, state.maxUsers)}%` }} /></div>}
             </CardContent>
           </Card>
@@ -81,8 +85,8 @@ export default async function SubscriptionPage({ searchParams }: { searchParams:
 
         {latest && latest.status === "PENDING" && (
           <div className="rounded-2xl border border-amber-500/40 bg-amber-500/5 p-4">
-            <div className="flex items-center gap-2"><Badge variant="secondary">{t("قيد المراجعة")}</Badge><span className="font-medium">{t("طلب اشتراك في باقة")} {latest.planName}</span></div>
-            <p className="mt-1 text-sm text-muted-foreground">{t("أُرسل الطلب وسيتم التفعيل بعد مراجعة الدفع. المبلغ:")} {Number(latest.price).toLocaleString("ar-EG")} {t("ج.م (")}{latest.interval === "ANNUAL" ? t("سنوي") : t("شهري")}).</p>
+            <div className="flex items-center gap-2"><Badge variant="secondary">{t("قيد المراجعة")}</Badge><span className="font-medium">{t("طلب اشتراك في باقة")} {t(latest.planName)}</span></div>
+            <p className="mt-1 text-sm text-muted-foreground">{t("أُرسل الطلب وسيتم التفعيل بعد مراجعة الدفع. المبلغ:")} {int(Number(latest.price), locale)} {t("ج.م (")}{latest.interval === "ANNUAL" ? t("سنوي") : t("شهري")}).</p>
           </div>
         )}
 

@@ -2,9 +2,9 @@
 
 A multi-tenant **ERP web application** for marketplace (Amazon / Noon) sellers.
 Full double-entry accounting, perpetual inventory, and the complete sales &
-purchase document cycle — with a fully **Arabic, right-to-left** UI.
+purchase document cycle — with **Arabic (right-to-left) and English (left-to-right)** UIs.
 
-> The codebase and comments are in English; the product UI is in Arabic. This
+> The codebase and comments are in English; users can choose Arabic or English. This
 > README and [`docs/`](docs/) are in English so any engineer can onboard quickly.
 
 ---
@@ -21,13 +21,14 @@ purchase document cycle — with a fully **Arabic, right-to-left** UI.
 | Charts       | Recharts |
 | Tests        | Vitest |
 
-There is **no** CRM, scraping, desktop app, or AI layer — this repo is ERP-web only.
+This repository contains the ERP web app, marketplace integrations, optional AI-assisted
+bill reading, and read-only MCP access scoped to the connecting user and company.
 
 ---
 
 ## Quick start (local)
 
-**Prerequisites:** Node 20+, Docker (for Postgres + MinIO).
+**Prerequisites:** Node 22 (matching `package.json` and the production image), Docker (for Postgres + MinIO).
 
 ```bash
 # 1. Install deps
@@ -72,6 +73,15 @@ Before a production deploy, rotate the database and MinIO credentials and genera
 application secrets with `npm run gen:secrets`. `npm run deploy` now runs a secret
 preflight and refuses missing, short, or known-default production credentials. Follow
 [`docs/SECRET-ROTATION.md`](docs/SECRET-ROTATION.md) for the required rotation order.
+
+For a new Ubuntu VPS, follow [`docs/VPS-SECURITY.md`](docs/VPS-SECURITY.md) for the
+firewall, SSH key cutover, HTTPS, restricted administration, and offsite database
+and object-storage backups. The VPS Compose override is opt-in.
+
+The current Contabo SaaS host routing, shared login session, public admin sign-in,
+and the owner's choice of on-server backups are documented in
+[`docs/SAAS-DEPLOYMENT.md`](docs/SAAS-DEPLOYMENT.md). That runbook supersedes the
+initial migration's administration IP allowlist and offsite-backup requirement.
 
 See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md#deployment) for the Docker rebuild
 flow and the self-hosted deployment model.
@@ -141,6 +151,8 @@ npm run build        # production build
 npm run typecheck    # tsc --noEmit
 npm run lint         # eslint
 npm run test         # vitest
+npm run i18n:report -- --check # fail on missing English entries in t() calls
+npm run i18n:mobile   # sync the English dictionary to the native mobile app
 
 npm run db:generate  # generate a migration from schema changes
 npm run db:migrate   # appuser role + apply the migration chain
@@ -169,6 +181,19 @@ npm run db:seed      # reseed demo data
 
 ## Conventions & gotchas
 
+- **Translations.** Arabic source text is the dictionary key in `lib/i18n/en.ts`.
+  Render product labels and errors with `useT()` (client) or `getT()` (server).
+  Use `fill(t("…{0}…"), [value])` for sentences containing values, and the translated
+  toast adapter in `lib/i18n/toast.ts`. Keep customer and item names as user data.
+  Run `npm run i18n:mobile` after dictionary changes; both Android apps use the same
+  dictionary and translate nested system descriptions as well as interpolated messages.
+  Authored academy and release-note paragraphs live in `lib/i18n/content-en.json`;
+  add English paragraphs there when publishing new product documentation. Public lesson
+  and release-note queries apply the viewer's language while admin editors keep the source.
+  Run `npx vitest run lib/i18n` to verify web keys, Android strings, dictionary parity
+  and complete translation of the seeded product documentation.
+  The Docker app serves a compiled standalone bundle. Rebuild the bundle and recreate
+  the app container after UI changes; editing source files does not update the running UI.
 - **Latin digits everywhere.** Never render Arabic-Indic numerals (٠١٢٣). Use
   `toLocaleString("ar-EG-u-nu-latn", …)` for money and `en-GB` for dates. Run
   `node scripts/utils/scan-ar-digits.mjs` after touching UI.

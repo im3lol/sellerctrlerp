@@ -17,7 +17,7 @@ export default async function CashFlowPage({
   searchParams: Promise<{ from?: string; to?: string }>;
 }) {
   const t = await getT();
-  return loadErpPage("reports.view", async ({ orgId, permissions }) => {
+  return loadErpPage("accounting.view", async ({ orgId, permissions }) => {
     const sp = await searchParams;
 
     const now = new Date();
@@ -121,12 +121,12 @@ async function CashSection({
   return (
     <Card>
       <CardHeader className="pb-2">
-        <CardTitle className="text-base">{title}</CardTitle>
+        <CardTitle className="text-base">{t(title)}</CardTitle>
       </CardHeader>
       <CardContent className="space-y-1">
         {children}
         <div className="mt-3 flex justify-between border-t pt-2 font-semibold">
-          <span>{t("صافي")} {title}</span>
+          <span>{t("صافي")} {t(title)}</span>
           <span className={`tabular-nums ${total >= 0 ? "text-emerald-600" : "text-destructive"}`}>
             {total >= 0 ? "+" : ""}{(total < 0 ? "(" + `${(-total).toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2 })}` + ")" : total.toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2 }))}
           </span>

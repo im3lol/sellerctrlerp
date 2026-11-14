@@ -1,5 +1,7 @@
 "use client";
 
+import { translateName } from "@/lib/i18n";
+
 import { useMemo, useState, useTransition } from "react";
 import { useT } from "@/lib/i18n/client";
 import { useRouter } from "next/navigation";
@@ -125,7 +127,7 @@ export function RecurringSalesInvoicesManager({ items: templates, customers, ite
             ) : templates.map((r) => (
               <TableRow key={r.id} data-state={sel.has(r.id) ? "selected" : undefined}>
                 <TableCell><SelectBox label={t("تحديد")} checked={sel.has(r.id)} onChange={() => sel.toggle(r.id)} /></TableCell>
-                <TableCell className="font-medium">{r.customer}</TableCell>
+                <TableCell className="font-medium">{translateName(r.customer ?? "", t)}</TableCell>
                 <TableCell>{t(FREQUENCY_LABELS[r.frequency as Frequency] ?? r.frequency)}</TableCell>
                 <TableCell className="tabular-nums">{r.nextRunDate}</TableCell>
                 <TableCell className="text-end tabular-nums">{fmt(r.total)}</TableCell>

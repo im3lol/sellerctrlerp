@@ -10,7 +10,7 @@ const pct = (n: number) => (Number.isFinite(n) ? Math.round(n * 1000) / 10 : "â€
 
 /** Excel export of the financial ratios from current ledger balances (real DB data). */
 export async function GET() {
-  const { orgId } = await requireErpModule("reports.view");
+  const { orgId } = await requireErpModule("accounting.view");
   return withOrgScope(orgId, false, async () => {
   const balances = await accountBalances({ orgId });
 

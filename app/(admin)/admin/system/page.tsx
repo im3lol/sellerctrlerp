@@ -1,4 +1,8 @@
 import { sql } from "drizzle-orm";
+import { totalmem, freemem, loadavg, uptime } from "node:os";
+import { statfs } from "node:fs/promises";
+import { redirect } from "next/navigation";
+import { getCurrentUser } from "@/lib/session";
 import { fill, type Locale } from "@/lib/i18n";
 import { getLocale, getT } from "@/lib/i18n/server";
 import { db } from "@/lib/db";
@@ -17,6 +21,7 @@ const fmtBytes = (b: number, locale: Locale) => {
 const int = (n: number) => n.toLocaleString("ar-EG-u-nu-latn");
 
 export default async function SystemPage() {
+  if ((await getCurrentUser())?.role !== "system_admin") redirect("/login/admin");
   // Platform scope: document_attachments is RLS-policied, and with no scope open the
   // storage card and the per-tenant storage table both read zero.
   return withPlatformScope(() => render());
@@ -25,6 +30,7 @@ export default async function SystemPage() {
 async function render() {
   const t = await getT();
   const locale = await getLocale();
+  const disk = await statfs(process.cwd()).catch(() => null);
   const [meta] = await db.execute<{ db_size: number; attach_bytes: number; attach_count: number; orgs: number; conns: number }>(sql`
     SELECT
       pg_database_size(current_database()) AS db_size,
@@ -43,9 +49,11 @@ async function render() {
 
   const cards = [
     { label: "حجم قاعدة البيانات", value: fmtBytes(Number(meta?.db_size ?? 0), locale), icon: "Database" },
-    { label: "التخزين المستهلك", value: fmtBytes(Number(meta?.attach_bytes ?? 0), locale), icon: "HardDrive", hint: fill(t("{0} ملف"), [int(Number(meta?.attach_count ?? 0))]) },
+    { label: "حجم المرفقات", value: fmtBytes(Number(meta?.attach_bytes ?? 0), locale), icon: "HardDrive", hint: fill(t("{0} ملف"), [int(Number(meta?.attach_count ?? 0))]) },
     { label: "اتصالات قاعدة البيانات", value: int(Number(meta?.conns ?? 0)), icon: "Activity" },
     { label: "المؤسسات", value: int(Number(meta?.orgs ?? 0)), icon: "Building2" },
+    { label: "الذاكرة المستخدمة", value: fmtBytes(totalmem() - freemem(), locale), icon: "MemoryStick", hint: `${t("من")} ${fmtBytes(totalmem(), locale)}` },
+    { label: "المساحة المتاحة", value: disk ? fmtBytes(Number(disk.bavail) * Number(disk.bsize), locale) : "—", icon: "HardDrive", hint: t("نظام الملفات الحالي") },
   ];
 
   const server = [
@@ -53,6 +61,9 @@ async function render() {
     { k: "إصدار Node", v: process.version },
     { k: "المنصة", v: `${process.platform} / ${process.arch}` },
     { k: "البيئة", v: process.env.NODE_ENV ?? "—" },
+    { k: "متوسط حمل الخادم", v: loadavg().map(n => n.toFixed(2)).join(" / ") },
+    { k: "مدة تشغيل الخادم بالساعات", v: (uptime() / 3600).toFixed(1) },
+    { k: "ذاكرة التطبيق", v: fmtBytes(process.memoryUsage().rss, locale) },
   ];
 
   return (
@@ -88,7 +99,7 @@ async function render() {
               <TableHeader><TableRow><TableHead className="text-start">{t("المؤسسة")}</TableHead><TableHead className="text-start">{t("الملفات")}</TableHead><TableHead className="text-start">{t("الحجم")}</TableHead></TableRow></TableHeader>
               <TableBody>
                 {perOrg.map((o) => (
-                  <TableRow key={o.name}><TableCell className="font-medium">{t(o.name)}</TableCell><TableCell className="tabular-nums">{int(Number(o.files))}</TableCell><TableCell className="tabular-nums">{fmtBytes(Number(o.bytes), locale)}</TableCell></TableRow>
+                  <TableRow key={o.name}><TableCell className="font-medium">{o.name}</TableCell><TableCell className="tabular-nums">{int(Number(o.files))}</TableCell><TableCell className="tabular-nums">{fmtBytes(Number(o.bytes), locale)}</TableCell></TableRow>
                 ))}
               </TableBody>
             </Table>

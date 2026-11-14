@@ -18,7 +18,7 @@ const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) 
 
 export default async function CostCenterReportPage({ searchParams }: { searchParams: Promise<SP> }) {
   const t = await getT();
-  return loadErpPage("reports.view", async ({ orgId , permissions }) => {
+  return loadErpPage("accounting.view", async ({ orgId , permissions }) => {
     const sp = await searchParams;
     const from = one(sp.from) || (await orgFiscalYearStartISO(orgId));
     const to = one(sp.to) || new Date().toISOString().slice(0, 10);

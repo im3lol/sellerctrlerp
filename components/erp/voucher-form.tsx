@@ -1,4 +1,6 @@
 "use client";
+import { PageActions } from "@/components/erp/page-actions";
+
 
 import { useMemo, useState, useTransition } from "react";
 import { fill } from "@/lib/i18n";
@@ -93,6 +95,10 @@ export function VoucherForm({
 
   return (
     <Card>
+      <PageActions className="mx-6">
+          <Button disabled={pending} onClick={submit}>{isReceipt ? t("تسجيل القبض") : t("تسجيل الصرف")}</Button>
+
+      </PageActions>
       <CardHeader>
         <CardTitle>{isReceipt ? t("سند قبض جديد") : t("سند صرف جديد")}</CardTitle>
       </CardHeader>
@@ -157,9 +163,7 @@ export function VoucherForm({
           <Input id="notes" value={notes} onChange={(e) => setNotes(e.target.value)} />
         </div>
 
-        <div className="sm:col-span-2 flex justify-end">
-          <Button disabled={pending} onClick={submit}>{isReceipt ? t("تسجيل القبض") : t("تسجيل الصرف")}</Button>
-        </div>
+
       </CardContent>
     </Card>
   );

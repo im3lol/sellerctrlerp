@@ -1,5 +1,9 @@
 "use client";
 
+import { formatErpDate } from "@/lib/erp/dates";
+
+import { translateName } from "@/lib/i18n";
+
 import Link from "next/link";
 import { useT } from "@/lib/i18n/client";
 import { bulkReceiptVouchersAction, type ReceiptVouchersFilter } from "@/app/actions/erp/receipts";
@@ -14,7 +18,7 @@ export type VouchersFilter = ReceiptVouchersFilter;
 
 const METHOD: Record<string, string> = { CASH: "نقدي", BANK: "تحويل بنكي", CARD: "بطاقة", CHEQUE: "شيك" };
 const fmt = (v: string | null) => Number(v ?? 0).toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-const dt = (d: Date) => new Date(d).toLocaleDateString("en-GB", { year: "numeric", month: "2-digit", day: "2-digit" });
+const dt = (d: Date) => formatErpDate(d, "en-GB", { year: "numeric", month: "2-digit", day: "2-digit" });
 
 export function VouchersTable({ rows, canManage, type, total, filter }: { rows: VoucherRow[]; canManage: boolean; type: "receipt" | "payment"; total: number; filter: VouchersFilter }) {
   const t = useT();
@@ -69,7 +73,7 @@ export function VouchersTable({ rows, canManage, type, total, filter }: { rows: 
                 )}
                 <TableCell className="font-mono"><Link href={`${detailBase}/${encodeURIComponent(r.number)}`} className="text-primary hover:underline">{r.number}</Link></TableCell>
                 <TableCell>{dt(r.date)}</TableCell>
-                <TableCell className="max-w-[200px] truncate" title={r.party ?? undefined}>{r.party ?? "—"}</TableCell>
+                <TableCell className="max-w-[200px] truncate" title={translateName(r.party ?? "", t) || undefined}>{translateName(r.party ?? "—", t)}</TableCell>
                 <TableCell className="font-mono">{r.invoice ? <Link href={`${invoiceBase}/${encodeURIComponent(r.invoice)}`} className="text-primary hover:underline">{r.invoice}</Link> : "تحت الحساب"}</TableCell>
                 <TableCell>{t(METHOD[r.method] ?? r.method)}</TableCell>
                 <TableCell>{fmt(r.amount)}</TableCell>

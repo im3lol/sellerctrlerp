@@ -69,6 +69,7 @@ export type MarketplaceInventoryUpdate = { code: string; available: number };
 
 /** A marketplace listing — matched to an item by `code` (SKU) or `altCode` (ASIN). */
 export type MarketplaceProduct = {
+  fulfillment?: "FBA" | "FBM";
   code: string;      // seller SKU
   altCode?: string;  // ASIN
   // Amazon's own barcode for the unit in its warehouse (FBA only — an FBM listing

@@ -1,4 +1,6 @@
-import { and, asc, eq } from "drizzle-orm";
+
+import { getLocale } from "@/lib/i18n/server";
+import { and, asc, eq, or, sql } from "drizzle-orm";
 import { fill } from "@/lib/i18n";
 import { getT } from "@/lib/i18n/server";
 import { cookies } from "next/headers";
@@ -8,7 +10,7 @@ import { getEnabledModules, ALL_MODULES } from "@/lib/erp/entitlements";
 import { requireUser } from "@/lib/session";
 import { db } from "@/lib/db";
 import { withOrgScope } from "@/lib/db-scope";
-import { salesPlatforms, organizations } from "@/db/schema";
+import { salesPlatforms, organizations, platformOffers } from "@/db/schema";
 import { Sidebar, NAV_COLLAPSED_COOKIE } from "@/components/app-shell/sidebar";
 import { Topbar } from "@/components/app-shell/topbar";
 import { OnboardingTour } from "@/components/app-shell/onboarding-tour";
@@ -24,6 +26,7 @@ import type { Role } from "@/lib/rbac";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const t = await getT();
+  const locale = await getLocale();
   const user = await requireUser();
   // Read on the server so a collapsed rail renders collapsed on the first paint.
   const navCollapsed = (await cookies()).get(NAV_COLLAPSED_COOKIE)?.value === "1";
@@ -45,8 +48,12 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       : org ? getEnabledModules(org.id).then((m) => [...m]) : Promise.resolve([]),
     org ? getMemberAccess(org.id, user) : Promise.resolve({ role: null, permissions: new Set<string>() }),
     org ? withOrgScope(org.id, false, () =>
-        db.select({ id: salesPlatforms.id, name: salesPlatforms.name, code: salesPlatforms.code }).from(salesPlatforms)
-          .where(and(eq(salesPlatforms.organizationId, org.id), eq(salesPlatforms.isActive, true)))
+        db.select({ id: salesPlatforms.id, name: salesPlatforms.name, code: salesPlatforms.code, integrationType: salesPlatforms.integrationType, isActive: salesPlatforms.isActive }).from(salesPlatforms)
+          .where(and(eq(salesPlatforms.organizationId, org.id), or(eq(salesPlatforms.isActive, true),
+            and(eq(salesPlatforms.integrationType, "amazon"), sql`exists (
+              select 1 from ${platformOffers} where ${platformOffers.organizationId} = ${org.id}
+                and ${platformOffers.channel} = ${salesPlatforms.code}
+            )`))))
           .orderBy(asc(salesPlatforms.name)))
       : Promise.resolve([] as { id: string; name: string; code: string }[]),
     org ? db.select({ hidden: organizations.navHidden, deletion: organizations.deletionRequestedAt }).from(organizations)
@@ -86,7 +93,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         </div>
         {orgRow?.deletion && (
           <div className="flex flex-wrap items-center justify-between gap-2 border-b border-destructive/40 bg-destructive/10 px-4 py-2 text-sm font-medium text-destructive md:px-6">
-            <span>{t("الشركة دي هتتمسح نهائيًا يوم")} {deletionDueAt(new Date(orgRow.deletion)).toLocaleDateString("ar-EG-u-nu-latn", { dateStyle: "long" })}</span>
+            <span>{t("الشركة دي هتتمسح نهائيًا يوم")} {deletionDueAt(new Date(orgRow.deletion)).toLocaleDateString(locale === "en" ? "en-GB" : "ar-EG-u-nu-latn", { dateStyle: "long" })}</span>
             <Link href="/settings/organization" className="underline">{t("إلغاء الطلب")}</Link>
           </div>
         )}

@@ -10,7 +10,7 @@ export const runtime = "nodejs";
 
 /** Excel export of the VAT return for the page's period. */
 export async function GET(req: Request) {
-  const { orgId } = await requireErpModule("reports.view");
+  const { orgId } = await requireErpModule("accounting.view");
   return withOrgScope(orgId, false, async () => {
     const p = new URL(req.url).searchParams;
     const now = new Date();

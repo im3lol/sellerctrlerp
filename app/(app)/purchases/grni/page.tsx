@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { fill } from "@/lib/i18n";
+import { translateName, fill } from "@/lib/i18n";
 import { getT } from "@/lib/i18n/server";
 import { and, eq } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
@@ -117,7 +117,7 @@ export default async function GrniReconciliationPage() {
                         <Link href={`/purchases/receipts/${encodeURIComponent(r.number)}`} className="font-mono text-sm text-primary hover:underline">{r.number}</Link>
                       </TableCell>
                       <TableCell>{dt(r.date)}</TableCell>
-                      <TableCell>{r.supplier ?? "—"}</TableCell>
+                      <TableCell>{translateName(r.supplier ?? "—", t)}</TableCell>
                       <TableCell className="tabular-nums">{fmt(r.value)}</TableCell>
                     </TableRow>
                   ))}

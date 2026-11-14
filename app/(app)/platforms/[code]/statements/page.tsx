@@ -1,6 +1,6 @@
 import Link from "next/link";
-import { fill } from "@/lib/i18n";
-import { getT } from "@/lib/i18n/server";
+import { fill, translateName } from "@/lib/i18n";
+import { getT, getLocale } from "@/lib/i18n/server";
 import { notFound } from "next/navigation";
 import { loadErpPage } from "@/lib/erp/org";
 import { orgFiscalYearStartISO } from "@/lib/erp/fiscal";
@@ -33,6 +33,7 @@ type Row = { settlement_id: string; from_d: string | null; to_d: string | null; 
  */
 export default async function PlatformStatementsPage({ params, searchParams }: { params: Promise<{ code: string }>; searchParams: Promise<SP> }) {
   const t = await getT();
+  const locale = await getLocale();
   const { code } = await params;
   return loadErpPage("accounting.view", async ({ orgId, can }) => {
     const canReverse = can("accounting.reverse");
@@ -76,7 +77,7 @@ export default async function PlatformStatementsPage({ params, searchParams }: {
       <div className="space-y-6">
         <ErpPageHeader
           icon="ReceiptText"
-          title={fill(t("كشوف تسويات {0}"), [platform.name])}
+          title={fill(t("كشوف تسويات {0}"), [translateName(platform.name, locale)])}
           subtitle={t("كل تسوية: المبيعات − الخصومات = الصافي، مقابل المُحوَّل للبنك — بحيث تُطابِق التسوية إيداعها")}
           backHref={`/platforms/${code}`}
           action={<Button variant="outline" asChild><Link href={`/platforms/${code}/payouts`}><Icon name="Wallet" className="size-4" />{t("المحفظة والتحويلات")}</Link></Button>}

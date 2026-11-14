@@ -1,4 +1,5 @@
 "use client";
+import { PageActions } from "@/components/erp/page-actions";
 
 import { useState, useTransition } from "react";
 import { useT } from "@/lib/i18n/client";
@@ -61,16 +62,21 @@ export function InvestorTxnForm({ kind, investors, cashAccounts }: {
   if (!open) {
     return (
       <Button size="sm" onClick={() => setOpen(true)} disabled={investors.length === 0 || cashAccounts.length === 0}>
-        {title}
+        {t(title)}
       </Button>
     );
   }
 
   return (
     <Card>
-      <CardHeader><CardTitle className="text-base">{title}</CardTitle></CardHeader>
+      <CardHeader><CardTitle className="text-base">{t(title)}</CardTitle></CardHeader>
       <CardContent>
         <form onSubmit={submit} className="space-y-4">
+      <PageActions>
+            <Button type="submit" size="sm" disabled={pending}>{t("حفظ وترحيل")}</Button>
+            <Button type="button" variant="ghost" size="sm" onClick={() => setOpen(false)}>{t("إلغاء")}</Button>
+          </PageActions>
+
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="space-y-1">
               <Label htmlFor="investorId">{t("المستثمر *")}</Label>
@@ -111,10 +117,7 @@ export function InvestorTxnForm({ kind, investors, cashAccounts }: {
             <Input id="notes" name="notes" />
           </div>
 
-          <div className="flex gap-2">
-            <Button type="submit" size="sm" disabled={pending}>{t("حفظ وترحيل")}</Button>
-            <Button type="button" variant="ghost" size="sm" onClick={() => setOpen(false)}>{t("إلغاء")}</Button>
-          </div>
+
         </form>
       </CardContent>
     </Card>

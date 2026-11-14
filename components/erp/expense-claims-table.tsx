@@ -1,5 +1,7 @@
 "use client";
 
+import { formatErpDate } from "@/lib/erp/dates";
+
 import Link from "next/link";
 import { useT } from "@/lib/i18n/client";
 import { bulkExpenseClaimsAction } from "@/app/actions/erp/expense-claims";
@@ -10,7 +12,7 @@ import { useSelection, BulkBar, SelectBox } from "@/components/erp/bulk-select";
 
 type Row = { id: string; number: string; date: unknown; employee: string; status: string; total: string };
 
-const dt = (d: unknown) => new Date(d as string).toLocaleDateString("en-GB", { year: "numeric", month: "2-digit", day: "2-digit" });
+const dt = (d: unknown) => formatErpDate(d as string, "en-GB", { year: "numeric", month: "2-digit", day: "2-digit" });
 const fmt = (v: unknown) => Number(v ?? 0).toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 // Only DRAFT claims are selectable — bulkExpenseClaimsAction skips ineligible rows.

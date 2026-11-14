@@ -1,4 +1,5 @@
 "use client";
+import { PageActions } from "@/components/erp/page-actions";
 
 import { useState, useTransition } from "react";
 import { useT } from "@/lib/i18n/client";
@@ -37,6 +38,10 @@ export function FeedbackForm() {
 
   return (
     <Card>
+      <PageActions className="mx-6"><Button onClick={submit} disabled={pending || subject.length < 3 || message.length < 10}>
+          {pending ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />} {t("إرسال")}
+        </Button></PageActions>
+
       <CardContent className="space-y-4 pt-6">
         <div className="space-y-1.5">
           <Label>{t("النوع")}</Label>
@@ -69,9 +74,7 @@ export function FeedbackForm() {
           </p>
         </div>
 
-        <Button onClick={submit} disabled={pending || subject.length < 3 || message.length < 10}>
-          {pending ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />} {t("إرسال")}
-        </Button>
+
       </CardContent>
     </Card>
   );

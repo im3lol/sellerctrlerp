@@ -2,6 +2,7 @@ import { requireErpModule } from "@/lib/erp/org";
 import { withOrgScope } from "@/lib/db-scope";
 import { xlsxResponse } from "@/lib/erp/xlsx";
 import { EXPORT_DATASETS } from "@/lib/erp/export-datasets";
+import { canExportDataset } from "@/lib/erp/data-access";
 
 export const runtime = "nodejs";
 
@@ -11,7 +12,8 @@ export async function GET(_req: Request, { params }: { params: Promise<{ dataset
   const ds = EXPORT_DATASETS[key];
   if (!ds) return new Response("unknown dataset", { status: 404 });
 
-  const { orgId } = await requireErpModule(ds.module);
+  const { orgId, can } = await requireErpModule(ds.module);
+  if (!canExportDataset(ds, can)) return Response.json({ error: "forbidden" }, { status: 403 });
   // withOrgScope: dataset fetches must run on a tenant-scoped connection — on the
   // bare pool they'd return empty sheets once RLS is enforced in production.
   const rows = await withOrgScope(orgId, false, () => ds.fetch(orgId));

@@ -1,5 +1,7 @@
 "use client";
 
+import { formatErpDate } from "@/lib/erp/dates";
+
 import { useState, useTransition } from "react";
 import type { Locale } from "@/lib/i18n";
 import { useLocale, useT } from "@/lib/i18n/client";
@@ -18,7 +20,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 type Row = { id: string; orgId: string; orgName: string; amount: number; method: string; reference: string | null; paidAt: string };
 const METHODS: Record<string, string> = { INSTAPAY: "إنستاباي", BANK: "تحويل بنكي", VISA: "فيزا", CASH: "نقدًا", OTHER: "أخرى" };
 const egp = (n: number, locale: Locale) => (locale === "en" ? `${Number(n).toLocaleString("en-US", { maximumFractionDigits: 0 })} EGP` : `${Number(n).toLocaleString("ar-EG-u-nu-latn", { maximumFractionDigits: 0 })} ج.م`);
-const dt = (s: string, locale: Locale) => new Date(s).toLocaleDateString((locale === "en" ? "en-GB" : "ar-EG-u-nu-latn"), { year: "numeric", month: "short", day: "numeric" });
+const dt = (s: string, locale: Locale) => formatErpDate(s, (locale === "en" ? "en-GB" : "ar-EG-u-nu-latn"), { year: "numeric", month: "short", day: "numeric" });
 const today = () => new Date().toISOString().slice(0, 10);
 
 export function CollectionsManager({ orgs, rows }: { orgs: { id: string; name: string }[]; rows: Row[] }) {

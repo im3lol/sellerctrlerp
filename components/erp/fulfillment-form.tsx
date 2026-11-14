@@ -1,4 +1,6 @@
 "use client";
+import { PageActions } from "@/components/erp/page-actions";
+
 
 import { useState, useTransition } from "react";
 import { useT } from "@/lib/i18n/client";
@@ -69,6 +71,11 @@ export function FulfillmentForm({
 
   return (
     <Card>
+      <PageActions className="mx-6">
+          <Button variant="outline" onClick={() => router.push(dest)}>{t("إلغاء")}</Button>
+          <Button disabled={pending} onClick={submit}>{isDelivery ? t("حفظ إذن الصرف") : t("حفظ إذن الاستلام")}</Button>
+
+      </PageActions>
       <CardHeader>
         <CardTitle>{isDelivery ? t("تسليم أصناف") : t("استلام أصناف")}</CardTitle>
         <CardDescription>{t("أدخل الكمية")} {isDelivery ? t("المسلّمة") : t("المستلمة")} {t("الآن لكل بند — يُحفظ كمسودة ثم تؤكّده من صفحة الإذن؛ ويبقى المتبقّي مفتوحاً على الأمر (Backorder).")}</CardDescription>
@@ -116,10 +123,7 @@ export function FulfillmentForm({
           </p>
         )}
 
-        <div className="flex justify-end gap-2">
-          <Button variant="outline" onClick={() => router.push(dest)}>{t("إلغاء")}</Button>
-          <Button disabled={pending} onClick={submit}>{isDelivery ? t("حفظ إذن الصرف") : t("حفظ إذن الاستلام")}</Button>
-        </div>
+
       </CardContent>
     </Card>
   );

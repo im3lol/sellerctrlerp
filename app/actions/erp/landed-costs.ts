@@ -9,13 +9,13 @@ import { db } from "@/lib/db";
 import { nextDocumentNumber } from "@/lib/erp/sequence";
 import {
   landedCostVouchers, landedCostVoucherLines, purchaseReceipts, purchaseReceiptLines,
-  purchaseOrderLines, suppliers, items, warehouses, stockBatches, journalEntries,
+  purchaseOrderLines, suppliers, items, warehouses, stockBatches, stockMovements, journalEntries, journalEntryLines,
 } from "@/db/schema";
 import { authorizeErp, type ActionState } from "@/lib/erp/action-auth";
 import { resolveAccountIds } from "@/lib/erp/accounting-config";
 import { postEntry, reverseEntry } from "@/lib/erp/posting";
 import { applyCostAdjustment } from "@/lib/erp/cost-adjust";
-import { allocateLandedPerUnit } from "@/lib/erp/landed-cost";
+import { allocateVoucherLines, groupLandedAdjustments, landedLineKey } from "@/lib/erp/landed-cost";
 import { recordAudit } from "@/lib/erp/audit";
 import { linkDocuments } from "@/lib/erp/links";
 
@@ -30,26 +30,60 @@ export type LcBasisLine = {
   unitPrice: number;  // base (EGP) — from the order line, drives the "value" method
   weightKg: number;   // per unit — drives the "weight" method
   onHand: number;     // still in that warehouse now → how much can be revalued
+  previousPerUnit: number;
+  vouchers: { id: string; number: string; status: string; perUnit: number }[];
+};
+
+export type LcReceipt = {
+  id: string; number: string; date: string; supplierId: string; supplierName: string;
+  fullyCosted: boolean;
 };
 
 /** Confirmed receipts that can still carry landed cost (for the voucher's picker). */
 export async function getLandedCostReceiptsAction(): Promise<
-  ActionState & { receipts?: { id: string; number: string; date: string; supplierId: string; supplierName: string }[] }
+  ActionState & { receipts?: LcReceipt[] }
 > {
   const auth = await authorizeErp("purchases.view");
   if ("error" in auth) return auth;
 
   return withOrgScope(auth.orgId, false, async () => {
     const rows = await db
-      .select({ id: purchaseReceipts.id, number: purchaseReceipts.number, date: purchaseReceipts.date, supplierId: purchaseReceipts.supplierId, supplierName: suppliers.nameAr })
+      .select({ id: purchaseReceipts.id, number: purchaseReceipts.number, date: purchaseReceipts.date, supplierId: purchaseReceipts.supplierId, supplierName: suppliers.nameAr,
+        // A partially costed receipt must remain available for its untouched products.
+        // Draft allocations reserve a line too; reversed/cancelled vouchers do not.
+        fullyCosted: sql<boolean>`not exists (
+          select 1 from ${purchaseReceiptLines} prl
+          where prl.purchase_receipt_id = ${purchaseReceipts.id}
+            and prl.quantity > ${EPS}
+            and not exists (
+              select 1 from ${purchaseReceiptLines} costed
+              where costed.purchase_receipt_id = prl.purchase_receipt_id
+                and costed.item_id = prl.item_id
+                and coalesce(costed.warehouse_id, ${purchaseReceipts.warehouseId}) = coalesce(prl.warehouse_id, ${purchaseReceipts.warehouseId})
+                and costed.quantity > ${EPS}
+                and costed.shipping_per_unit <> 0
+            )
+            and not exists (
+              select 1 from ${landedCostVoucherLines} lcvl
+              join ${landedCostVouchers} lcv on lcv.id = lcvl.voucher_id
+              where lcv.organization_id = ${auth.orgId}
+                and lcv.status in ('DRAFT', 'POSTED')
+                and lcvl.purchase_receipt_id = prl.purchase_receipt_id
+                and lcvl.item_id = prl.item_id
+                and lcvl.warehouse_id = coalesce(prl.warehouse_id, ${purchaseReceipts.warehouseId})
+                and lcvl.allocated_amount > 0
+            )
+        )`,
+      })
       .from(purchaseReceipts)
       .leftJoin(suppliers, eq(suppliers.id, purchaseReceipts.supplierId))
       .where(and(eq(purchaseReceipts.organizationId, auth.orgId), inArray(purchaseReceipts.status, ["RECEIVED", "INVOICED"])))
-      .orderBy(desc(purchaseReceipts.date))
-      .limit(200);
+      .orderBy(desc(purchaseReceipts.date));
     return {
       ok: true,
-      receipts: rows.map((r) => ({ id: r.id, number: r.number, date: new Date(r.date).toISOString().slice(0, 10), supplierId: r.supplierId ?? "", supplierName: r.supplierName ?? "—" })),
+      // Metadata only: retaining history here lets an explicit search find older
+      // receipts too. The separate basis action still caps selection at 200 receipts.
+      receipts: rows.map((r) => ({ id: r.id, number: r.number, date: new Date(r.date).toISOString().slice(0, 10), supplierId: r.supplierId ?? "", supplierName: r.supplierName ?? "—", fullyCosted: r.fullyCosted })),
     };
   });
 }
@@ -59,19 +93,20 @@ export async function getLandedCostBasisAction(receiptIds: string[]): Promise<Ac
   const auth = await authorizeErp("purchases.view");
   if ("error" in auth) return auth;
   if (!receiptIds?.length) return { ok: true, lines: [] };
+  if (!z.array(z.string().uuid()).max(200).safeParse(receiptIds).success) return { error: "اختيار إذون الاستلام غير صالح" };
 
   return withOrgScope(auth.orgId, false, async () => {
     // Org-scoped re-read of the ids (IDOR guard — never trust the posted list).
     const grns = await db.select({ id: purchaseReceipts.id, number: purchaseReceipts.number, warehouseId: purchaseReceipts.warehouseId, purchaseOrderId: purchaseReceipts.purchaseOrderId })
       .from(purchaseReceipts)
       .where(and(eq(purchaseReceipts.organizationId, auth.orgId), inArray(purchaseReceipts.id, receiptIds), inArray(purchaseReceipts.status, ["RECEIVED", "INVOICED"])));
-    if (!grns.length) return { ok: true, lines: [] };
+    if (grns.length !== new Set(receiptIds).size) return { error: "بعض إذون الاستلام غير متاحة في هذه الشركة" };
     const grnById = new Map(grns.map((g) => [g.id, g]));
 
     const rows = await db
       .select({
         purchaseReceiptId: purchaseReceiptLines.purchaseReceiptId, itemId: purchaseReceiptLines.itemId,
-        quantity: purchaseReceiptLines.quantity, lineWarehouseId: purchaseReceiptLines.warehouseId,
+        quantity: purchaseReceiptLines.quantity, receiptShipping: purchaseReceiptLines.shippingPerUnit, lineWarehouseId: purchaseReceiptLines.warehouseId,
         code: items.code, name: items.nameAr, image: items.image, weightKg: items.weightKg,
       })
       .from(purchaseReceiptLines)
@@ -105,6 +140,13 @@ export async function getLandedCostBasisAction(receiptIds: string[]): Promise<Ac
       for (const b of bal) onHand.set(`${b.itemId}|${b.warehouseId}`, Number(b.qty));
     }
 
+    const history = await db.select({
+      receiptId: landedCostVoucherLines.purchaseReceiptId, itemId: landedCostVoucherLines.itemId,
+      warehouseId: landedCostVoucherLines.warehouseId, amount: landedCostVoucherLines.allocatedAmount,
+      quantity: landedCostVoucherLines.quantity, id: landedCostVouchers.id, number: landedCostVouchers.number, status: landedCostVouchers.status,
+    }).from(landedCostVoucherLines).innerJoin(landedCostVouchers, eq(landedCostVouchers.id, landedCostVoucherLines.voucherId))
+      .where(and(eq(landedCostVouchers.organizationId, auth.orgId), inArray(landedCostVoucherLines.purchaseReceiptId, grns.map(g => g.id)),
+        inArray(landedCostVouchers.status, ["POSTED", "DRAFT"])));
     const lines: LcBasisLine[] = rows.map((r) => {
       const grn = grnById.get(r.purchaseReceiptId)!;
       const wh = r.lineWarehouseId ?? grn.warehouseId;
@@ -116,23 +158,41 @@ export async function getLandedCostBasisAction(receiptIds: string[]): Promise<Ac
         unitPrice: grn.purchaseOrderId ? (priceByKey.get(`${grn.purchaseOrderId}|${r.itemId}`) ?? 0) : 0,
         weightKg: r.weightKg != null ? Number(r.weightKg) : 0,
         onHand: onHand.get(`${r.itemId}|${wh}`) ?? 0,
+        previousPerUnit: Number(r.receiptShipping), vouchers: [],
       };
     }).filter((l) => l.quantity > EPS);
 
-    return { ok: true, lines };
+    // The persisted voucher key is receipt/item/warehouse, so merge duplicate receipt rows.
+    const grouped = new Map<string, LcBasisLine>();
+    for (const line of lines) {
+      const key = landedLineKey(line), prev = grouped.get(key);
+      if (prev) {
+        prev.previousPerUnit = (prev.previousPerUnit * prev.quantity + line.previousPerUnit * line.quantity) / (prev.quantity + line.quantity);
+        prev.quantity += line.quantity;
+      } else grouped.set(key, { ...line });
+    }
+    for (const line of grouped.values()) {
+      const matches = history.filter(h => h.receiptId === line.purchaseReceiptId && h.itemId === line.itemId && h.warehouseId === line.warehouseId);
+      const activeAmount = matches.filter(h => h.status === "POSTED").reduce((n, h) => n + Number(h.amount), 0);
+      line.previousPerUnit += activeAmount / line.quantity;
+      line.vouchers = matches.map(h => ({ id: h.id, number: h.number, status: h.status, perUnit: Number(h.amount) / line.quantity }));
+    }
+    return { ok: true, lines: [...grouped.values()] };
   });
 }
 
 const schema = z.object({
   supplierId: z.string().min(1, "اختر المورّد"),
   date: z.string().min(1, "التاريخ مطلوب"),
-  method: z.enum(["value", "qty", "weight"]).default("value"),
+  method: z.enum(["value", "qty", "weight", "manual"]).default("value"),
   shipping: z.coerce.number().min(0).default(0),
   customs: z.coerce.number().min(0).default(0),
   insurance: z.coerce.number().min(0).default(0),
   other: z.coerce.number().min(0).default(0),
-  receiptIds: z.array(z.string().min(1)).min(1, "اختر إذن استلام واحد على الأقل"),
+  receiptIds: z.array(z.string().uuid()).min(1, "اختر إذن استلام واحد على الأقل").max(200),
   notes: z.string().optional(),
+  expectedUpdatedAt: z.string().datetime().optional(),
+  selection: z.array(z.object({ key: z.string().min(1), perUnit: z.number().finite().min(0).max(1e10).optional() })).optional(),
 });
 
 /**
@@ -143,11 +203,21 @@ export async function createLandedCostVoucherAction(input: unknown): Promise<Act
   const auth = await authorizeErp("purchases.create");
   if ("error" in auth) return auth;
 
+  return saveLandedCostVoucher(auth, input);
+}
+
+export async function updateLandedCostVoucherAction(voucherId: string, input: unknown): Promise<ActionState & { number?: string }> {
+  const auth = await authorizeErp("purchases.create");
+  if ("error" in auth) return auth;
+  return saveLandedCostVoucher(auth, input, voucherId);
+}
+
+async function saveLandedCostVoucher(auth: { orgId: string; userId: string }, input: unknown, voucherId?: string): Promise<ActionState & { id?: string; number?: string }> {
   const parsed = schema.safeParse(input);
   if (!parsed.success) return { error: parsed.error.issues[0].message };
   const d = parsed.data;
-  const total = round2(d.shipping + d.customs + d.insurance + d.other);
-  if (total <= 0) return { error: "أدخل قيمة تكاليف الاستيراد أولاً" };
+  let total = round2(d.shipping + d.customs + d.insurance + d.other);
+  if (d.method !== "manual" && total <= 0) return { error: "أدخل قيمة تكاليف الاستيراد أولاً" };
 
   return withOrgScope(auth.orgId, false, async () => {
     const [sup] = await db.select({ id: suppliers.id }).from(suppliers)
@@ -159,33 +229,39 @@ export async function createLandedCostVoucherAction(input: unknown): Promise<Act
     const bl = basis.lines ?? [];
     if (!bl.length) return { error: "لا توجد بنود قابلة للتحميل في الإذون المختارة" };
 
-    const perUnit = allocateLandedPerUnit(
-      bl.map((l) => ({ quantity: l.quantity, unitPrice: l.unitPrice, weight: l.weightKg, eligible: true })),
-      total,
-      d.method,
-    );
-    if (perUnit.every((p) => p === 0)) return { error: "تعذّر التوزيع بهذه الطريقة — جرّب التوزيع بالكمية" };
+    let allocated: ReturnType<typeof allocateVoucherLines<LcBasisLine>>;
+    try { allocated = allocateVoucherLines(bl, total, d.method, d.selection); }
+    catch (e) { return { error: e instanceof Error ? e.message : "تعذّر التوزيع" }; }
+    if (d.method === "manual") total = round2(allocated.reduce((sum, l) => sum + l.allocatedAmount, 0));
 
     const date = new Date(d.date);
-    const number = await nextDocumentNumber(db, auth.orgId, "LCV", date.getFullYear());
     try {
       const created = await db.transaction(async (tx) => {
-        const [v] = await tx.insert(landedCostVouchers).values({
+        const [existing] = voucherId ? await tx.select().from(landedCostVouchers)
+          .where(and(eq(landedCostVouchers.id, voucherId), eq(landedCostVouchers.organizationId, auth.orgId))).for("update").limit(1) : [];
+        if (voucherId && (!existing || existing.status !== "DRAFT")) throw new Error("يمكن تعديل المسودة فقط — صحّح المستند المُرحّل أولًا");
+        if (existing && d.expectedUpdatedAt && existing.updatedAt.getTime() !== new Date(d.expectedUpdatedAt).getTime()) throw new Error("تم تعديل المستند — أعد تحميل الصفحة");
+        const number = existing?.number ?? await nextDocumentNumber(tx, auth.orgId, "LCV", date.getFullYear());
+        const values = {
           organizationId: auth.orgId, number, date, status: "DRAFT",
           supplierId: d.supplierId, method: d.method,
-          shipping: String(round2(d.shipping)), customs: String(round2(d.customs)),
-          insurance: String(round2(d.insurance)), other: String(round2(d.other)),
-          totalAmount: String(total), notes: d.notes || null,
-        }).returning({ id: landedCostVouchers.id });
-
-        await tx.insert(landedCostVoucherLines).values(bl.map((l, i) => ({
+          shipping: String(d.method === "manual" ? total : round2(d.shipping)),
+          customs: String(d.method === "manual" ? 0 : round2(d.customs)),
+          insurance: String(d.method === "manual" ? 0 : round2(d.insurance)),
+          other: String(d.method === "manual" ? 0 : round2(d.other)),
+          totalAmount: String(total), notes: d.notes || null, updatedAt: new Date(),
+        };
+        const [v] = existing
+          ? await tx.update(landedCostVouchers).set(values).where(eq(landedCostVouchers.id, existing.id)).returning({ id: landedCostVouchers.id })
+          : await tx.insert(landedCostVouchers).values(values).returning({ id: landedCostVouchers.id });
+        if (existing) await tx.delete(landedCostVoucherLines).where(eq(landedCostVoucherLines.voucherId, existing.id));
+        await tx.insert(landedCostVoucherLines).values(allocated.map(l => ({
           voucherId: v.id, purchaseReceiptId: l.purchaseReceiptId, itemId: l.itemId, warehouseId: l.warehouseId,
           quantity: String(l.quantity),
           basis: String(round2(l.quantity * (d.method === "value" ? l.unitPrice : d.method === "weight" ? l.weightKg : 1))),
-          allocatedAmount: String(round2(perUnit[i] * l.quantity)), perUnit: String(perUnit[i]),
+          allocatedAmount: String(l.allocatedAmount), perUnit: String(l.perUnit),
         })));
-
-        await recordAudit(tx, { orgId: auth.orgId, userId: auth.userId, action: "CREATE", entityType: "LANDED_COST", entityId: v.id, entityNumber: number, summary: `حفظ مسودة تكاليف استيراد ${number} بقيمة ${total}` });
+        await recordAudit(tx, { orgId: auth.orgId, userId: auth.userId, action: existing ? "UPDATE" : "CREATE", entityType: "LANDED_COST", entityId: v.id, entityNumber: number, summary: `حفظ مسودة تكاليف استيراد ${number} بقيمة ${total}` });
         return { id: v.id, number };
       });
       revalidatePath("/purchases/landed-costs");
@@ -217,23 +293,27 @@ export async function postLandedCostVoucherAction(voucherId: string): Promise<Ac
     const A = await resolveAccountIds(auth.orgId, ["1104", "5101", "2101"]);
     if (!A["1104"] || !A["5101"] || !A["2101"]) return { error: "حسابات التكاليف غير مكتملة (المخزون/تكلفة المبيعات/الموردون)." };
 
-    const lines = await db.select().from(landedCostVoucherLines).where(eq(landedCostVoucherLines.voucherId, v.id));
-    if (!lines.length) return { error: "المستند بلا بنود" };
-
     const date = new Date(v.date);
     try {
       await db.transaction(async (tx) => {
-        const [locked] = await tx.select({ status: landedCostVouchers.status }).from(landedCostVouchers)
+        const [locked] = await tx.select().from(landedCostVouchers)
           .where(eq(landedCostVouchers.id, v.id)).for("update").limit(1);
         if (locked?.status !== "DRAFT") throw new Error("تم ترحيل المستند بالفعل");
 
+        if (locked.updatedAt.getTime() !== v.updatedAt.getTime()) throw new Error("تم تعديل المستند — أعد تحميل الصفحة");
+        const lines = await tx.select().from(landedCostVoucherLines).where(and(eq(landedCostVoucherLines.voucherId, v.id), eq(landedCostVoucherLines.organizationId, auth.orgId)));
+        const receiptIds = [...new Set(lines.map(l => l.purchaseReceiptId))];
+        const activeReceipts = receiptIds.length ? await tx.select({ id: purchaseReceipts.id }).from(purchaseReceipts)
+          .where(and(eq(purchaseReceipts.organizationId, auth.orgId), inArray(purchaseReceipts.id, receiptIds), inArray(purchaseReceipts.status, ["RECEIVED", "INVOICED"]))).for("share") : [];
+        if (activeReceipts.length !== receiptIds.length) throw new Error("بعض إذون الاستلام غير متاحة في هذه الشركة");
+        for (const key of [...new Set(lines.map(l => `${auth.orgId}:${l.itemId}:${l.warehouseId}`))].sort()) await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${key}))`);
+        if (!lines.length) throw new Error("المستند بلا بنود");
         const { toInventory, toCogs } = await applyCostAdjustment(tx, {
           orgId: auth.orgId, refType: "LANDED_COST", refId: v.id, date,
           reason: `تكاليف استيراد ${v.number}`,
-          lines: lines.map((l) => ({
-            itemId: l.itemId, warehouseId: l.warehouseId, quantity: Number(l.quantity),
-            perUnit: Number(l.perUnit), amount: Number(l.allocatedAmount),
-          })),
+          lines: groupLandedAdjustments(lines.map(l => ({
+            itemId: l.itemId, warehouseId: l.warehouseId, quantity: Number(l.quantity), amount: Number(l.allocatedAmount),
+          }))),
         });
 
         const total = round2(toInventory + toCogs);
@@ -273,6 +353,19 @@ export async function cancelLandedCostVoucherAction(voucherId: string): Promise<
   const auth = await authorizeErp("purchases.confirm");
   if ("error" in auth) return auth;
 
+  return cancelOrCorrectLandedCost(auth, voucherId, false);
+}
+
+/** Immutable posted vouchers are corrected by an atomic reversal and a fresh draft. */
+export async function correctLandedCostVoucherAction(voucherId: string): Promise<ActionState & { number?: string }> {
+  const auth = await authorizeErp("purchases.confirm");
+  if ("error" in auth) return auth;
+  const create = await authorizeErp("purchases.create");
+  if ("error" in create) return create;
+  return cancelOrCorrectLandedCost(auth, voucherId, true);
+}
+
+async function cancelOrCorrectLandedCost(auth: { orgId: string; userId: string }, voucherId: string, correct: boolean): Promise<ActionState & { number?: string }> {
   return withOrgScope(auth.orgId, false, async () => {
     const [v] = await db.select().from(landedCostVouchers)
       .where(and(eq(landedCostVouchers.id, voucherId), eq(landedCostVouchers.organizationId, auth.orgId))).limit(1);
@@ -282,13 +375,17 @@ export async function cancelLandedCostVoucherAction(voucherId: string): Promise<
     const lines = await db.select().from(landedCostVoucherLines).where(eq(landedCostVoucherLines.voucherId, v.id));
     const d = new Date();
     try {
-      await db.transaction(async (tx) => {
-        const [locked] = await tx.select({ status: landedCostVouchers.status }).from(landedCostVouchers)
+      const replacementNumber = await db.transaction(async (tx) => {
+        const [locked] = await tx.select().from(landedCostVouchers)
           .where(eq(landedCostVouchers.id, v.id)).for("update").limit(1);
         if (locked?.status !== "POSTED") throw new Error("تم إلغاء المستند بالفعل");
 
+        for (const key of [...new Set(lines.map(l => `${auth.orgId}:${l.itemId}:${l.warehouseId}`))].sort()) await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${key}))`);
         const entries = await tx.select({ id: journalEntries.id }).from(journalEntries)
           .where(and(eq(journalEntries.organizationId, auth.orgId), eq(journalEntries.sourceType, "LANDED_COST"), eq(journalEntries.sourceId, v.id), eq(journalEntries.status, "POSTED")));
+        const A = await resolveAccountIds(auth.orgId, ["1104", "5101"], tx);
+        const [oldInventory] = entries.length ? await tx.select({ amount: sql<string>`coalesce(sum(${journalEntryLines.debit} - ${journalEntryLines.credit}), 0)` })
+          .from(journalEntryLines).where(and(eq(journalEntryLines.organizationId, auth.orgId), inArray(journalEntryLines.journalEntryId, entries.map(e => e.id)), eq(journalEntryLines.accountId, A["1104"]))) : [];
         for (const e of entries) {
           await reverseEntry(tx, { orgId: auth.orgId, entryId: e.id, date: d, userId: auth.userId, reason: `إلغاء تكاليف استيراد ${v.number}` });
         }
@@ -297,22 +394,58 @@ export async function cancelLandedCostVoucherAction(voucherId: string): Promise<
         const reversed = entries.length ? round2(lines.reduce((s, l) => s + Number(l.allocatedAmount), 0)) : 0;
 
         // Take the uplift back off whatever is on hand now — same helper, negated.
-        await applyCostAdjustment(tx, {
+        const originalMoves = await tx.select().from(stockMovements).where(and(
+          eq(stockMovements.organizationId, auth.orgId), eq(stockMovements.referenceType, "LANDED_COST"),
+          eq(stockMovements.referenceId, v.id), eq(stockMovements.type, "REVALUE")));
+        const reversalGroups = groupLandedAdjustments(lines.map(l => ({
+          itemId: l.itemId, warehouseId: l.warehouseId, quantity: Number(l.quantity), amount: -Number(l.allocatedAmount),
+        }))).map(l => {
+          const moves = originalMoves.filter(m => m.itemId === l.itemId && m.warehouseId === l.warehouseId);
+          if (!moves.length) return { ...l, quantity: 0, perUnit: 0 };
+          const quantity = Number(moves[0].balanceQuantity);
+          const applied = moves.reduce((n, m) => n + Number(m.totalCost), 0);
+          // The original revaluation was spread over ALL stock then on hand,
+          // which can exceed this receipt's quantity. Remove that actual unit uplift.
+          return { ...l, quantity, perUnit: quantity > 0 ? -applied / quantity : 0 };
+        });
+        const removed = await applyCostAdjustment(tx, {
           orgId: auth.orgId, refType: "LANDED_COST_CANCEL", refId: v.id, date: d,
           reason: `إلغاء تكاليف استيراد ${v.number}`,
-          lines: lines.map((l) => ({
-            itemId: l.itemId, warehouseId: l.warehouseId, quantity: Number(l.quantity),
-            perUnit: -Number(l.perUnit), amount: -Number(l.allocatedAmount),
-          })),
+          lines: reversalGroups,
+        });
+        // Sales after the original posting move part of the uplift into COGS.
+        // A plain GL reversal uses the OLD split; align it with the stock removed NOW.
+        const reclass = round2(removed.toInventory + Number(oldInventory?.amount ?? 0));
+        if (Math.abs(reclass) > 0.001) await postEntry(tx, {
+          orgId: auth.orgId, date: d, sourceType: "LANDED_COST_CANCEL_RECLASS", sourceId: v.id,
+          description: `تسوية توزيع عكس تكاليف الاستيراد ${v.number}`, journalType: "PURCHASE", userId: auth.userId,
+          lines: [
+            { accountId: A["1104"], debit: Math.max(reclass, 0), credit: Math.max(-reclass, 0) },
+            { accountId: A["5101"], debit: Math.max(-reclass, 0), credit: Math.max(reclass, 0) },
+          ],
         });
 
         if (reversed > 0) await tx.update(suppliers).set({ balance: sql`${suppliers.balance} - ${reversed}` }).where(eq(suppliers.id, v.supplierId));
         await tx.update(landedCostVouchers).set({ status: "CANCELLED", updatedAt: new Date() }).where(eq(landedCostVouchers.id, v.id));
         await recordAudit(tx, { orgId: auth.orgId, userId: auth.userId, action: "CANCEL", entityType: "LANDED_COST", entityId: v.id, entityNumber: v.number, summary: `إلغاء تكاليف استيراد ${v.number}` });
+        if (!correct) return undefined;
+        const number = await nextDocumentNumber(tx, auth.orgId, "LCV", d.getFullYear());
+        const [draft] = await tx.insert(landedCostVouchers).values({
+          organizationId: auth.orgId, number, date: d, status: "DRAFT", supplierId: v.supplierId, method: v.method,
+          shipping: v.shipping, customs: v.customs, insurance: v.insurance, other: v.other, totalAmount: v.totalAmount,
+          notes: [`تصحيح المستند ${v.number}`, v.notes].filter(Boolean).join("\n"),
+        }).returning({ id: landedCostVouchers.id });
+        await tx.insert(landedCostVoucherLines).values(lines.map(l => ({
+          voucherId: draft.id, purchaseReceiptId: l.purchaseReceiptId, itemId: l.itemId, warehouseId: l.warehouseId,
+          quantity: l.quantity, basis: l.basis, allocatedAmount: l.allocatedAmount, perUnit: l.perUnit,
+        })));
+        await linkDocuments(tx, { orgId: auth.orgId, fromType: "LANDED_COST", fromId: v.id, fromNumber: v.number, toType: "LANDED_COST", toId: draft.id, toNumber: number, relation: "RETURNS" });
+        await recordAudit(tx, { orgId: auth.orgId, userId: auth.userId, action: "CREATE", entityType: "LANDED_COST", entityId: draft.id, entityNumber: number, summary: `إنشاء مسودة تصحيح للمستند ${v.number}` });
+        return number;
       });
       revalidatePath("/purchases/landed-costs");
       revalidatePath("/inventory/valuation");
-      return { ok: true };
+      return { ok: true, number: replacementNumber };
     } catch (e) {
       return { error: e instanceof Error ? e.message : "تعذّر إلغاء المستند" };
     }
@@ -331,6 +464,9 @@ export async function deleteLandedCostVoucherAction(voucherId: string): Promise<
     if (v.status !== "DRAFT") return { error: "لا يمكن حذف مستند مُرحّل — ألغِه بدلاً من ذلك" };
     try {
       await db.transaction(async (tx) => {
+        const [locked] = await tx.select({ status: landedCostVouchers.status }).from(landedCostVouchers)
+          .where(and(eq(landedCostVouchers.id, voucherId), eq(landedCostVouchers.organizationId, auth.orgId))).for("update").limit(1);
+        if (locked?.status !== "DRAFT") throw new Error("لا يمكن حذف مستند مُرحّل — ألغِه بدلاً من ذلك");
         await tx.delete(landedCostVoucherLines).where(eq(landedCostVoucherLines.voucherId, voucherId));
         await tx.delete(landedCostVouchers).where(and(eq(landedCostVouchers.id, voucherId), eq(landedCostVouchers.organizationId, auth.orgId)));
         await recordAudit(tx, { orgId: auth.orgId, userId: auth.userId, action: "DELETE", entityType: "LANDED_COST", entityId: voucherId, entityNumber: v.number, summary: `حذف مسودة تكاليف استيراد ${v.number}` });
