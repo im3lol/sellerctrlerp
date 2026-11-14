@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useT } from "@/lib/i18n/client";
 import { fill } from "@/lib/i18n";
 import { toast } from "@/lib/i18n/toast";
@@ -18,8 +18,10 @@ export function useLinePaste<T>({ rows, setRows, columns, newRow, apply, prepare
   const [busy, setBusy] = useState(false);
   const [revision, setRevision] = useState(0);
   const lock = useRef(false);
-  const latest = useRef(rows); latest.current = rows;
-  const currentContext = useRef(context); currentContext.current = context;
+  const latest = useRef(rows);
+  const currentContext = useRef(context);
+  // Track committed inputs before events/async completions can apply a paste.
+  useLayoutEffect(() => { latest.current = rows; currentContext.current = context; }, [rows, context]);
   const mounted = useRef(true);
   useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
   return { busy, revision, paste: async (start, column, text) => {
