@@ -153,7 +153,7 @@ export default async function SupplierRatingPage() {
                             <span className="block font-mono text-xs text-muted-foreground">{sup?.code ?? ""}</span>
                           </TableCell>
                           <TableCell>
-                            {label ? <Badge variant={label === "ضعيف" ? "destructive" : "secondary"}>{label}</Badge>
+                            {label ? <Badge variant={label === "ضعيف" ? "destructive" : "secondary"}>{t(label)}</Badge>
                                    : <span className="text-xs text-muted-foreground">{t("عيّنة صغيرة")}</span>}
                           </TableCell>
                           <TableCell className={`font-bold tabular-nums ${tone(s.overall)}`}>{n1(s.overall)}</TableCell>

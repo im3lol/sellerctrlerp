@@ -6,9 +6,7 @@ export { ALL_MODULES, MODULE_LABELS };
 export type { ModuleKey } from "@/lib/erp/module-list";
 
 /** Map an ERP permission (e.g. "sales.view", "accounting.post") to its module. */
-export function moduleOfPermission(permission: string): string {
-  return permission.split(".")[0];
-}
+export { moduleOfPermission } from "./permission-modules";
 
 /**
  * Modules the org may access — delegates to the subscription engine. No row →

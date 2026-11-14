@@ -1,4 +1,6 @@
 "use client";
+import { PageActions } from "@/components/erp/page-actions";
+
 
 import { useState, useTransition } from "react";
 import { fill } from "@/lib/i18n";
@@ -87,6 +89,11 @@ export function AutomationEditor({ rule, members, roles }: {
 
   return (
     <div className="space-y-4">
+      <PageActions>
+        <Button disabled={pending || !name.trim()} onClick={save}><Icon name="Check" className="size-4" />{t("حفظ")}</Button>
+        <Button variant="ghost" onClick={() => router.push("/automation")}>{t("رجوع")}</Button>
+
+      </PageActions>
       <Card>
         <CardContent className="flex flex-wrap items-end gap-4 pt-6">
           <div className="min-w-64 flex-1 space-y-2">
@@ -312,14 +319,11 @@ export function AutomationEditor({ rule, members, roles }: {
                 </div>
               </details>
             </div>
-          ) : <p className="text-sm text-destructive">{test.error}</p>)}
+          ) : <p className="text-sm text-destructive">{t(test.error ?? "")}</p>)}
         </CardContent>
       </Card>
 
-      <div className="flex flex-wrap gap-2">
-        <Button disabled={pending || !name.trim()} onClick={save}><Icon name="Check" className="size-4" />{t("حفظ")}</Button>
-        <Button variant="ghost" onClick={() => router.push("/automation")}>{t("رجوع")}</Button>
-      </div>
+
     </div>
   );
 }

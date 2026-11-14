@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { getT } from "@/lib/i18n/server";
 import { loadErpPage } from "@/lib/erp/org";
 import { EXPORT_DATASETS, type Cell } from "@/lib/erp/export-datasets";
+import { canExportDataset } from "@/lib/erp/data-access";
 import { PrintNowButton } from "@/components/erp/print-now-button";
 
 export const runtime = "nodejs";
@@ -15,7 +16,8 @@ export default async function ExportPrintPage({ params }: { params: Promise<{ da
   const ds = EXPORT_DATASETS[key];
   if (!ds) notFound();
 
-  return loadErpPage(ds.module, async ({ orgId }) => {
+  return loadErpPage(ds.module, async ({ orgId, can }) => {
+    if (!canExportDataset(ds, can)) notFound();
     const rows = await ds.fetch(orgId);
     const today = new Date().toISOString().slice(0, 10);
 

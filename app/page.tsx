@@ -50,48 +50,48 @@ export const revalidate = 3600;
 
 // Pain points the unified system removes.
 const PAINS = [
-  { icon: FileSpreadsheet, text: "إكسيل للمخزون، برنامج للمحاسبة، وشيت للطلبات — وكل شهر الأرقام مش بتتطابق." },
-  { icon: PackageX, text: "مخزون موزّع على أكتر من مستودع ومنصة، ومحدش عارف الرصيد الحقيقي أو اللي قرب يخلص." },
-  { icon: Wallet, text: "مفيش صورة واضحة للربح الحقيقي بعد الشحن والخصومات والضريبة والمرتجعات." },
-  { icon: CalendarX, text: "آخر الشهر = كابوس تجميع أرقام يدوي وأخطاء بتكلّفك فلوس." },
+  { icon: FileSpreadsheet, text: "تعدد الملفات والبرامج يصعّب مطابقة بيانات المحاسبة والمخزون والطلبات." },
+  { icon: PackageX, text: "توزّع المخزون بين المستودعات والمنصات يتطلب متابعة واضحة للأرصدة والاحتياجات." },
+  { icon: Wallet, text: "قراءة الربحية تحتاج جمع المبيعات مع الرسوم وتكلفة البضاعة والشحن والمرتجعات." },
+  { icon: CalendarX, text: "تجميع الأرقام يدويًا يؤخر الإقفال المالي ويزيد عبء المراجعة على الفريق." },
 ];
 
 // The six modules.
 const MODULES = [
-  { icon: Calculator, title: "محاسبة كاملة", desc: "قيد مزدوج حقيقي، دليل حسابات، قوائم مالية (دخل · ميزانية · ميزان مراجعة)، ومراكز تكلفة — بترحيل تلقائي من كل مستند." },
-  { icon: Boxes, title: "مخزون دقيق", desc: "متعدد المستودعات، تكلفة بالدفعة (FIFO)، تتبّع الدفعات وتاريخ الصلاحية (FEFO)، تسويات وتحويلات، وتنبيهات النواقص والانتهاء." },
+  { icon: Calculator, title: "محاسبة كاملة", desc: "قيد مزدوج، دليل حسابات، مراكز تكلفة، وقوائم مالية مترابطة، مع ترحيل المستندات المعتمدة إلى الحسابات." },
+  { icon: Boxes, title: "مخزون دقيق", desc: "إدارة مستودعات متعددة، تكلفة بالمتوسط المرجّح، تتبّع الدفعات والصلاحية، وتحويلات وتسويات وتنبيهات للمخزون." },
   { icon: ShoppingCart, title: "دورة شراء كاملة", desc: "أمر شراء ← إذن استلام ← فاتورة ← دفعة، مع المرتجعات وأعمار ذمم الموردين." },
   { icon: ReceiptText, title: "دورة بيع كاملة", desc: "أمر بيع ← تسليم ← فاتورة ← تحصيل، مع المرتجعات وأعمار ذمم العملاء." },
-  { icon: Store, title: "تكامل أمازون", desc: "اربط حساب أمازون واستورد الطلبات والتسويات والمرتجعات والرسوم — وكل عملية تترحّل لمخزونك وحساباتك تلقائياً. (نون قريبًا)" },
-  { icon: LayoutDashboard, title: "لوحة تحكم لحظية", desc: "الأرباح والنقدية والذمم وقيمة المخزون — صورة كاملة لتجارتك في شاشة واحدة." },
+  { icon: Store, title: "تكامل أمازون", desc: "استيراد طلبات أمازون والتسويات والمرتجعات والرسوم، ومراجعتها وربطها بحركة المخزون والحسابات." },
+  { icon: LayoutDashboard, title: "لوحة مؤشرات مترابطة", desc: "متابعة الأرباح والنقدية والذمم وقيمة المخزون من بيانات المستندات المسجلة في مؤسستك." },
 ];
 
 // Differentiators.
 const WHY = [
-  { icon: Languages, title: "عربي بالكامل", desc: "واجهة RTL، أرقام وتواريخ واضحة، ومصطلحات محاسبية صحيحة." },
-  { icon: Link2, title: "متّصل فعلاً", desc: "مش أدوات ملزوقة — المخزون والمحاسبة والمبيعات كيان واحد." },
-  { icon: Building2, title: "متعدد الشركات", desc: "أدِر أكتر من منشأة أو متجر من نفس الحساب." },
-  { icon: ShieldCheck, title: "دقّة مضمونة", desc: "كل قيد متوازن، وقيمة المخزون تساوي الدفتر دائماً." },
-  { icon: Zap, title: "سريع وجاهز", desc: "إعداد في دقائق بدون فريق تقني." },
+  { icon: Languages, title: "عربي وإنجليزي", desc: "واجهة RTL، أرقام وتواريخ واضحة، ومصطلحات محاسبية صحيحة." },
+  { icon: Link2, title: "عمليات مترابطة", desc: "مستندات المبيعات والمشتريات والمخزون مرتبطة بالسجلات المالية." },
+  { icon: Building2, title: "متعدد الشركات", desc: "إدارة مؤسسات متعددة من حساب واحد، مع صلاحيات وبيانات مستقلة لكل مؤسسة." },
+  { icon: ShieldCheck, title: "رقابة ومراجعة", desc: "تحقق من توازن القيود، وسجل نشاط وصلاحيات تساعد فريقك على المراجعة." },
+  { icon: Zap, title: "إعداد يناسب عملك", desc: "تخصيص الحسابات والمستودعات والمستخدمين حسب دورة العمل في مؤسستك." },
 ];
 
 const STEPS = [
-  { n: "1", title: "سجّل وجهّز منشأتك", desc: "حساباتك ومستودعاتك وأصنافك جاهزة في دقائق." },
-  { n: "2", title: "شغّل عملياتك", desc: "بيع، اشترِ، حرّك مخزون — وكل حركة تترحّل لحساباتك تلقائياً." },
-  { n: "3", title: "قرّر بثقة", desc: "لوحة وتقارير لحظية توريك ربحك الحقيقي وصحّة تجارتك." },
+  { n: "1", title: "أنشئ مؤسستك", desc: "أضف بيانات المؤسسة والمستخدمين والحسابات والمستودعات والأصناف." },
+  { n: "2", title: "نظّم العمليات اليومية", desc: "سجّل مستندات البيع والشراء وحركة المخزون، وراجعها واعتمدها بصلاحيات محددة." },
+  { n: "3", title: "راجع الأداء واتخذ القرار", desc: "تابع المؤشرات والتقارير المالية والتشغيلية، وصدّر البيانات عند الحاجة." },
 ];
 
 const FAQS = [
-  { q: "محتاج خبرة محاسبية لاستخدامه؟", a: "لأ — النظام بيرحّل القيود المحاسبية تلقائياً خلف الكواليس من كل فاتورة وحركة." },
-  { q: "بيشتغل لأكتر من متجر أو شركة؟", a: "أيوه، النظام متعدد الشركات والمستودعات بالكامل، وكل منشأة معزولة عن غيرها." },
-  { q: "بيدعم الدفعات وتاريخ الصلاحية؟", a: "أيوه، بتتبّع دقيق للدفعات ونظام صرف الأقدم انتهاءً أولاً (FEFO) وتنبيهات قرب الانتهاء." },
-  { q: "بياناتي آمنة؟", a: "بيانات كل منشأة معزولة تماماً، والوصول محكوم بصلاحيات دقيقة لكل مستخدم." },
+  { q: "هل أحتاج إلى خبرة محاسبية؟", a: "يسهّل النظام تسجيل العمليات ويربط المستندات المعتمدة بالقيود. إعداد الحسابات والضرائب ومراجعة النتائج يحتاجان إلى مسؤول مختص حسب طبيعة نشاطك." },
+  { q: "هل يدعم أكثر من مؤسسة ومستودع؟", a: "نعم، يمكنك التنقل بين المؤسسات المصرّح لك بها، وإدارة مستودعات متعددة داخل كل مؤسسة وفق الباقة والصلاحيات." },
+  { q: "هل يدعم الدفعات وتواريخ الصلاحية؟", a: "نعم، يدعم تتبّع الدفعات وتواريخ الصلاحية، مع أدوات لمتابعة الأصناف القريبة من الانتهاء." },
+  { q: "كيف أتحكم في الوصول إلى البيانات؟", a: "يُقيّد الوصول بالمؤسسة وصلاحيات المستخدم. تتيح لوحة الملفات والبيانات تنزيل الجداول وإنشاء نسخ إضافية، وربط Google Drive بتفويض صاحب الحساب." },
 ];
 
-// Only real integrations. Amazon is live; Noon is on the roadmap (marked قريبًا).
+// Only integrations currently available to customers.
 const MARKETPLACES: { name: string; soon?: boolean }[] = [
   { name: "amazon" },
-  { name: "noon", soon: true },
+  
 ];
 
 export default async function Home() {
@@ -110,9 +110,9 @@ export default async function Home() {
       {/* Header */}
       <header className="sticky top-0 z-30 border-b bg-background/90 backdrop-blur">
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 md:px-6">
-          <Logo className="text-2xl text-primary" />
+          <Logo className="text-xl text-primary sm:text-2xl" />
           <nav className="hidden items-center gap-8 text-sm font-medium text-muted-foreground md:flex">
-            <a href="#modules" className="hover:text-foreground">{t("الموديولات")}</a>
+            <a href="#modules" className="hover:text-foreground">{t("الوحدات")}</a>
             <a href="#why" className="hover:text-foreground">{t("لماذا نحن")}</a>
             <a href="#pricing" className="hover:text-foreground">{t("الأسعار")}</a>
             <a href="#how" className="hover:text-foreground">{t("كيف يعمل")}</a>
@@ -121,9 +121,9 @@ export default async function Home() {
           <div className="flex items-center gap-2">
             <LocaleToggle />
             <Button variant="ghost" asChild>
-              <Link href="/login">{t("دخول العملاء")}</Link>
+              <Link href="/login">{t("تسجيل الدخول")}</Link>
             </Button>
-            <Button asChild className="bg-brand-yellow text-foreground hover:bg-brand-yellow/90">
+            <Button asChild className="hidden bg-brand-yellow text-foreground hover:bg-brand-yellow/90 sm:inline-flex">
               <Link href="/signup">{t("ابدأ مجاناً")}</Link>
             </Button>
           </div>
@@ -135,14 +135,14 @@ export default async function Home() {
         <div className="mx-auto max-w-6xl px-4 py-16 text-center md:py-24 md:px-6">
           <span className="inline-flex items-center gap-2 rounded-full border bg-muted/50 px-4 py-1.5 text-sm text-muted-foreground">
             <ShieldCheck className="size-4 text-primary" />
-            {t("نظام ERP عربي متكامل للبائعين")}
+            {t("إدارة مالية وتشغيلية للتجارة")}
           </span>
           <h1 className="mx-auto mt-6 max-w-3xl text-4xl font-black leading-tight tracking-tight md:text-6xl">
-            {t("نظام واحد يدير تجارتك")}
-            <span className="text-primary"> {t("بالكامل")}</span>
+            {t("تجارتك في نظام واحد")}
+            <span className="text-primary"> {t("برؤية أوضح")}</span>
           </h1>
           <p className="mx-auto mt-5 max-w-2xl text-lg text-muted-foreground">
-            {t("منصة متكاملة تجمع المحاسبة والمخزون ودورة البيع والشراء وتكامل منصات البيع — مصمّمة خصيصاً لبائعي أمازون والعلامات التجارية — ونون قريبًا.")}
+            {t("اجمع المحاسبة والمخزون والمبيعات والمشتريات وتكامل أمازون في مساحة عمل واحدة. تابع العمليات والتكاليف والنتائج من بيانات مترابطة، بصلاحيات تناسب فريقك.")}
           </p>
           <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
             {/* Self-serve signup is open (owner, 2026-09-17): the trial is the main path, a
@@ -150,10 +150,10 @@ export default async function Home() {
             <Button size="lg" asChild className="text-base">
               <Link href="/signup">{t("ابدأ تجربتك المجانية")}</Link>
             </Button>
-            <DemoRequestButton label={t("اطلب ديمو")} size="lg" variant="outline" className="text-base" />
+            <DemoRequestButton label={t("احجز عرضًا توضيحيًا")} size="lg" variant="outline" className="text-base" />
           </div>
           <p className="mt-4 text-sm text-muted-foreground">
-            {fill(t("{0} يوم مجاناً بكل الوحدات · بدون بطاقة ائتمان · دعم بالعربي على واتساب"), [TRIAL_DAYS])}
+            {fill(t("تجربة مجانية لمدة {0} يومًا · دون بطاقة ائتمان · دعم باللغة العربية"), [TRIAL_DAYS])}
           </p>
 
           {/* Dashboard preview — a live, on-brand mockup of the unified board */}
@@ -162,7 +162,7 @@ export default async function Home() {
             <div className="relative overflow-hidden rounded-2xl border bg-card text-start shadow-2xl">
               <DashboardPreview />
             </div>
-            <p className="mt-3 text-center text-xs text-muted-foreground">{t("بيانات توضيحية لعرض شكل النظام.")}</p>
+            <p className="mt-3 text-center text-xs text-muted-foreground">{t("معاينة لواجهة النظام ببيانات توضيحية، وليست بيانات عملاء.")}</p>
           </div>
         </div>
       </section>
@@ -170,7 +170,7 @@ export default async function Home() {
       {/* Marketplaces */}
       <section id="marketplaces" className="border-y bg-muted/30 py-10">
         <div className="mx-auto max-w-6xl px-4 md:px-6">
-          <p className="text-center text-sm text-muted-foreground">{t("مصمّم لبائعي أمازون — يستورد الطلبات والتسويات ويرحّلها لحساباتك")}</p>
+          <p className="text-center text-sm text-muted-foreground">{t("تكامل أمازون لربط الطلبات والتسويات والرسوم بدورة عمل مؤسستك")}</p>
           <div className="mt-6 flex flex-wrap items-center justify-center gap-x-12 gap-y-4">
             {MARKETPLACES.map((m) => (
               <span key={m.name} className="flex items-center gap-2 text-xl font-bold text-muted-foreground/70" dir="ltr">
@@ -186,8 +186,8 @@ export default async function Home() {
       <section className="py-16 md:py-24">
         <div className="mx-auto max-w-6xl px-4 md:px-6">
           <div className="mx-auto max-w-2xl text-center">
-            <h2 className="text-3xl font-bold tracking-tight md:text-4xl">{t("تجارتك بتكبر… وأدواتك مبعثرة")}</h2>
-            <p className="mt-3 text-muted-foreground">{t("لو ده وضعك، إنت مش لوحدك — وفيه طريقة أفضل.")}</p>
+            <h2 className="text-3xl font-bold tracking-tight md:text-4xl">{t("عندما تنمو تجارتك، تحتاج إلى بيانات مترابطة")}</h2>
+            <p className="mt-3 text-muted-foreground">{t("خفّف تكرار إدخال البيانات واجمع متابعة العمليات في مكان واحد.")}</p>
           </div>
           <div className="mt-12 grid gap-6 sm:grid-cols-2">
             {PAINS.map((p, i) => (
@@ -206,8 +206,8 @@ export default async function Home() {
       <section id="modules" className="border-y bg-muted/30 py-16 md:py-24">
         <div className="mx-auto max-w-6xl px-4 md:px-6">
           <div className="mx-auto max-w-2xl text-center">
-            <h2 className="text-3xl font-bold tracking-tight md:text-4xl">{t("كل ما تحتاجه — في نظام واحد متّصل")}</h2>
-            <p className="mt-3 text-muted-foreground">{t("كل فاتورة وحركة مخزون ودفعة بتترحّل تلقائياً لحساباتك. مصدر واحد للحقيقة.")}</p>
+            <h2 className="text-3xl font-bold tracking-tight md:text-4xl">{t("وحدات مترابطة لإدارة العمل اليومي")}</h2>
+            <p className="mt-3 text-muted-foreground">{t("من المستند إلى أثره المالي والمخزني، مع مراجعة واعتماد حسب صلاحيات الفريق.")}</p>
           </div>
           <div className="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {MODULES.map((f) => (
@@ -227,8 +227,8 @@ export default async function Home() {
       <section id="why" className="py-16 md:py-24">
         <div className="mx-auto max-w-6xl px-4 md:px-6">
           <div className="mx-auto max-w-2xl text-center">
-            <h2 className="text-3xl font-bold tracking-tight md:text-4xl">{t("ليه SellerCtrl؟")}</h2>
-            <p className="mt-3 text-muted-foreground">{t("مش مجرد برنامج محاسبة — نظام تشغيل لتجارتك بالكامل.")}</p>
+            <h2 className="text-3xl font-bold tracking-tight md:text-4xl">{t("لماذا SellerCtrl؟")}</h2>
+            <p className="mt-3 text-muted-foreground">{t("رؤية موحدة للأعمال، من العمليات اليومية إلى التقارير المالية.")}</p>
           </div>
           <div className="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-5">
             {WHY.map((w) => (
@@ -249,7 +249,7 @@ export default async function Home() {
         <div className="mx-auto max-w-6xl px-4 md:px-6">
           <div className="mx-auto max-w-2xl text-center">
             <h2 className="text-3xl font-bold tracking-tight md:text-4xl">{t("ابدأ في ثلاث خطوات")}</h2>
-            <p className="mt-3 text-muted-foreground">{t("من التسجيل إلى التحكّم الكامل — بدون تعقيد.")}</p>
+            <p className="mt-3 text-muted-foreground">{t("ابدأ بالإعداد، ثم انتقل إلى التشغيل ومتابعة الأداء.")}</p>
           </div>
           <div className="mt-12 grid gap-6 md:grid-cols-3">
             {STEPS.map((s) => (
@@ -268,7 +268,7 @@ export default async function Home() {
         <div className="mx-auto max-w-6xl px-4 md:px-6">
           <div className="mx-auto max-w-2xl text-center">
             <h2 className="text-3xl font-bold tracking-tight md:text-4xl">{t("باقات تناسب حجم تجارتك")}</h2>
-            <p className="mt-3 text-muted-foreground">{t("ابدأ بتجربة مجانية")} {TRIAL_DAYS} {t("يوماً — بدون بطاقة ائتمان. اختر باقتك بعد كده.")}</p>
+            <p className="mt-3 text-muted-foreground">{t("ابدأ بتجربة مجانية")} {TRIAL_DAYS} {t("يومًا دون بطاقة ائتمان، ثم اختر الباقة المناسبة لاحتياجاتك.")}</p>
           </div>
           <Pricing plans={pricing} />
         </div>
@@ -297,7 +297,7 @@ export default async function Home() {
       {/* CTA band */}
       <section id="cta" className="px-4 pb-16 md:px-6">
         <div className="mx-auto max-w-5xl overflow-hidden rounded-3xl bg-primary px-8 py-14 text-center text-primary-foreground">
-          <h2 className="text-3xl font-bold md:text-4xl">{t("جاهز تتحكّم في تجارتك؟")}</h2>
+          <h2 className="text-3xl font-bold md:text-4xl">{t("ابدأ إدارة تجارتك برؤية أوضح")}</h2>
           <p className="mx-auto mt-3 max-w-xl text-primary-foreground/80">
             {t("ابدأ اليوم وأدِر المحاسبة والمخزون والمبيعات والمشتريات من نظام واحد.")}
           </p>
@@ -305,11 +305,11 @@ export default async function Home() {
             <Button size="lg" asChild className="bg-brand-yellow text-foreground hover:bg-brand-yellow/90 text-base">
               <Link href="/signup">{t("ابدأ تجربتك المجانية —")} {TRIAL_DAYS} {t("يوم")}</Link>
             </Button>
-            <DemoRequestButton label={t("اطلب ديمو")} size="lg" variant="outline" className="border-primary-foreground/40 bg-transparent text-base text-primary-foreground hover:bg-primary-foreground/10" />
+            <DemoRequestButton label={t("احجز عرضًا توضيحيًا")} size="lg" variant="outline" className="border-primary-foreground/40 bg-transparent text-base text-primary-foreground hover:bg-primary-foreground/10" />
           </div>
           <div className="mt-6 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-sm text-primary-foreground/80">
-            <span className="flex items-center gap-1.5"><Check className="size-4" /> {t("جرّب النظام كامل")}</span>
-            <span className="flex items-center gap-1.5"><Check className="size-4" /> {t("إعداد خلال دقائق")}</span>
+            <span className="flex items-center gap-1.5"><Check className="size-4" /> {t("استكشف وحدات النظام")}</span>
+            <span className="flex items-center gap-1.5"><Check className="size-4" /> {t("إعداد حسب نشاطك")}</span>
             <span className="flex items-center gap-1.5"><Check className="size-4" /> {t("دعم بالعربية على واتساب")}</span>
           </div>
         </div>
@@ -337,7 +337,7 @@ export default async function Home() {
               { label: "تسجيل الدخول", href: "/login" },
             ]} />
             <FooterCol title={t("قانوني")} links={[
-              { label: "سياسة الخصوصية", href: "/privacy" },
+              { label: "سياسة الخصوصية", href: "/privacy-policy" },
             ]} />
           </div>
           <div className="mt-10 flex flex-col items-center justify-between gap-4 border-t border-primary-foreground/20 pt-6 sm:flex-row">
@@ -375,7 +375,7 @@ const PREVIEW_NAV = [
 
 async function DashboardPreview() {
   const t = await getT();
-  // Demo (filler) figures so the marketing board reads as a live business, not zeros.
+  // Illustrative figures, explicitly labelled as a preview.
   const kpis = [
     { label: "صافي الربح", value: "124,500", tone: "text-emerald-600" },
     { label: "النقدية والبنك", value: "86,200", tone: "text-foreground" },
@@ -422,7 +422,6 @@ async function DashboardPreview() {
           <div className="flex shrink-0 items-center gap-2.5">
             <span className="relative grid size-7 place-items-center rounded-lg bg-muted">
               <Bell className="size-3.5 text-muted-foreground" />
-              <span className="absolute -left-1.5 -top-1.5 rounded-full bg-destructive px-1 text-[8px] font-bold leading-4 text-white">+99</span>
             </span>
             <span className="hidden items-center gap-1.5 rounded-lg border bg-card px-2.5 py-1 text-[11px] font-medium sm:flex"><Building2 className="size-3 text-primary" />{t("سيلر كنترول")}</span>
             <span className="flex items-center gap-1.5"><span className="grid size-7 place-items-center rounded-full bg-primary/10 text-[10px] font-bold text-primary">{t("مدير النظام").split(" ").map((w) => w[0]).join("")}</span><span className="hidden text-[11px] font-medium lg:block">{t("مدير النظام")}</span></span>
@@ -432,8 +431,8 @@ async function DashboardPreview() {
         {/* Content */}
         <div className="p-4 sm:p-5">
           <div className="mb-4">
-            <div className="text-base font-bold">{t("مرحباً، مدير النظام")}</div>
-            <div className="text-[11px] text-muted-foreground">{t("نظام سيلر كنترول — نظرة عامة سريعة.")}</div>
+            <div className="text-base font-bold">{t("نظرة عامة على الأعمال")}</div>
+            <div className="text-[11px] text-muted-foreground">{t("معاينة توضيحية للمؤشرات والعمليات اليومية.")}</div>
           </div>
 
           {/* KPI strip */}
@@ -476,7 +475,7 @@ async function FooterCol({ title, links }: { title: string; links: { label: stri
   const t = await getT();
   return (
     <div>
-      <h4 className="font-semibold">{title}</h4>
+      <h4 className="font-semibold">{t(title)}</h4>
       <ul className="mt-3 space-y-2 text-sm text-primary-foreground/70">
         {links.map((l) => (
           <li key={l.label}>

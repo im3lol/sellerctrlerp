@@ -1,3 +1,5 @@
+
+import { getLocale } from "@/lib/i18n/server";
 import { and, desc, eq, gte } from "drizzle-orm";
 import { getT } from "@/lib/i18n/server";
 import { loadErpPage } from "@/lib/erp/org";
@@ -11,7 +13,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Icon } from "@/components/icon";
 
-const dt = (d: Date) => new Date(d).toLocaleString("ar-EG-u-nu-latn", { dateStyle: "medium", timeStyle: "short" });
+const dt = (d: Date, locale: import("@/lib/i18n").Locale) => new Date(d).toLocaleString(locale === "en" ? "en-GB" : "ar-EG-u-nu-latn", { dateStyle: "medium", timeStyle: "short" });
 
 // Flat lookup: report key → {view, excel} for rebuilding a re-download link.
 const CATALOG = new Map(REPORT_MODULES.flatMap((m) => m.reports).map((r) => [r.key, r]));
@@ -27,13 +29,14 @@ function downloadHref(key: string, format: string, params: string): { href: stri
 
 export default async function ReportsCenterPage() {
   const t = await getT();
-  return loadErpPage("reports.view", async ({ orgId }) => {
+  const locale = await getLocale();
+  return loadErpPage("reports.view", async ({ orgId, userId }) => {
     // Recent downloads (kept ~1 week).
     const weekAgo = new Date(Date.now() - 7 * 864e5);
     const recent = await db
       .select({ id: reportDownloads.id, reportKey: reportDownloads.reportKey, label: reportDownloads.label, format: reportDownloads.format, params: reportDownloads.params, createdAt: reportDownloads.createdAt })
       .from(reportDownloads)
-      .where(and(eq(reportDownloads.organizationId, orgId), gte(reportDownloads.createdAt, weekAgo)))
+      .where(and(eq(reportDownloads.organizationId, orgId), eq(reportDownloads.createdById, userId), gte(reportDownloads.createdAt, weekAgo)))
       .orderBy(desc(reportDownloads.createdAt))
       .limit(25);
 
@@ -88,7 +91,7 @@ export default async function ReportsCenterPage() {
                         <Icon name={r.format === "excel" ? "Download" : "Printer"} className="size-4 shrink-0 text-muted-foreground" />
                         <span className="truncate font-medium">{t(r.label)}</span>
                         <Badge variant="secondary" className="shrink-0 uppercase">{r.format}</Badge>
-                        <span className="shrink-0 text-xs text-muted-foreground">{dt(r.createdAt)}</span>
+                        <span className="shrink-0 text-xs text-muted-foreground">{dt(r.createdAt, locale)}</span>
                       </div>
                       {dl ? (
                         <a

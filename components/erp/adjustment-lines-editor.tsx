@@ -1,4 +1,7 @@
 "use client";
+import { PageActions } from "@/components/erp/page-actions";
+
+import { translateName } from "@/lib/i18n";
 
 import { useMemo, useState, useTransition } from "react";
 import { useT } from "@/lib/i18n/client";
@@ -49,7 +52,7 @@ export function AdjustmentLinesEditor({ adjId, lines }: { adjId: string; lines: 
     const cost = Number(e?.unitCost) > 0 ? Number(e!.unitCost) : l.defaultCost;
     const value = valid ? Math.abs(delta) * cost : 0;
     return { ...l, actual, valid, delta, value };
-  }), [lines, edits]);
+  }), [orderedLines, edits]);
 
   const total = rows.reduce((s, r) => s + r.value, 0);
   const hasInvalid = rows.some((r) => !r.valid);
@@ -66,6 +69,13 @@ export function AdjustmentLinesEditor({ adjId, lines }: { adjId: string; lines: 
 
   return (
     <div className="space-y-3">
+      <PageActions>
+        <span className="text-xs text-muted-foreground">{t("التعديلات لا تُرحّل — التسوية تظل مسودة حتى الضغط على «تأكيد».")}</span>
+        <Button onClick={save} disabled={pending || hasInvalid}>
+          {pending ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}{t("حفظ الكميات")}
+        </Button>
+
+      </PageActions>
       <Table>
         <TableHeader>
           <TableRow>
@@ -87,7 +97,7 @@ export function AdjustmentLinesEditor({ adjId, lines }: { adjId: string; lines: 
             renderCells={(r) => (
               <>
                 <TableCell className="max-w-[300px] whitespace-normal"><div className="line-clamp-2 leading-snug" title={r.itemName ?? undefined}><span className="font-mono text-xs text-muted-foreground">{r.itemCode}</span> {r.itemName}</div></TableCell>
-                <TableCell>{r.warehouse ?? "—"}</TableCell>
+                <TableCell>{translateName(r.warehouse ?? "—", t)}</TableCell>
                 <TableCell className="tabular-nums text-muted-foreground">{qf(r.onHand)}</TableCell>
                 <TableCell>
                   <input
@@ -116,17 +126,13 @@ export function AdjustmentLinesEditor({ adjId, lines }: { adjId: string; lines: 
         </TableBody>
         <TableFooter>
           <TableRow className="font-bold">
-            <TableCell colSpan={6}>{t("الإجمالي التقديري")}</TableCell>
+            <TableCell colSpan={7}>{t("الإجمالي التقديري")}</TableCell>
             <TableCell className="tabular-nums">{fmt(total)}</TableCell>
+            <TableCell />
           </TableRow>
         </TableFooter>
       </Table>
-      <div className="flex items-center justify-end gap-2">
-        <span className="text-xs text-muted-foreground">{t("التعديلات لا تُرحّل — التسوية تظل مسودة حتى الضغط على «تأكيد».")}</span>
-        <Button onClick={save} disabled={pending || hasInvalid}>
-          {pending ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}{t("حفظ الكميات")}
-        </Button>
-      </div>
+
     </div>
   );
 }

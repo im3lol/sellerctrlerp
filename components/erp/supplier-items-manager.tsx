@@ -1,5 +1,7 @@
 "use client";
 
+import { formatErpDate } from "@/lib/erp/dates";
+
 import { useEffect, useState, useTransition } from "react";
 import type { Locale } from "@/lib/i18n";
 import { useLocale, useT } from "@/lib/i18n/client";
@@ -22,7 +24,7 @@ type Draft = {
 const str = (v: number | null) => (v == null ? "" : String(v));
 const num = (v: string) => (v.trim() === "" ? null : Number(v));
 const when = (iso: string | null, locale: Locale = "ar") =>
-  iso ? new Date(iso).toLocaleDateString((locale === "en" ? "en-GB" : "ar-EG-u-nu-latn"), { day: "numeric", month: "short", year: "numeric" }) : "—";
+  iso ? formatErpDate(iso, (locale === "en" ? "en-GB" : "ar-EG-u-nu-latn"), { day: "numeric", month: "short", year: "numeric" }) : "—";
 
 const toDraft = (r: SupplierItemRow): Draft => ({
   key: r.supplierId, supplierId: r.supplierId, supplierName: r.supplierName, sku: r.supplierSku ?? "",

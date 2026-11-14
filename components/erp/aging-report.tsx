@@ -1,7 +1,9 @@
 "use client";
 
+import { formatErpDate } from "@/lib/erp/dates";
+
 import { Badge } from "@/components/ui/badge";
-import { fill } from "@/lib/i18n";
+import { translateName, fill } from "@/lib/i18n";
 import { useLocale, useT } from "@/lib/i18n/client";
 import { dirOf } from "@/lib/i18n";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -102,7 +104,7 @@ function AgingTable({
         <table className="w-full text-sm">
           <thead className="bg-muted/30 text-xs text-muted-foreground">
             <tr className="[&>th]:p-3 [&>th]:text-start">
-              <th>{title}</th>
+              <th>{t(title)}</th>
               <th>{t("رقم الفاتورة")}</th>
               <th>{t("تاريخ الفاتورة")}</th>
               <th>{t("تاريخ الاستحقاق")}</th>
@@ -115,13 +117,13 @@ function AgingTable({
             {enriched.map((r) => (
               <tr key={r.id} className="border-t [&>td]:p-3 [&>td]:align-middle">
                 <td>
-                  <div className="font-medium">{r.partyName}</div>
+                  <div className="font-medium">{translateName(r.partyName ?? "", t)}</div>
                   <div className="text-xs text-muted-foreground">{r.partyCode}</div>
                 </td>
                 <td className="font-mono text-xs">{r.number}</td>
-                <td className="text-xs">{new Date(r.date).toLocaleDateString(locale === "en" ? "en-GB" : "ar-EG")}</td>
+                <td className="text-xs">{formatErpDate(r.date, locale === "en" ? "en-GB" : "ar-EG")}</td>
                 <td className="text-xs">
-                  {r.dueDate ? new Date(r.dueDate).toLocaleDateString(locale === "en" ? "en-GB" : "ar-EG") : "—"}
+                  {r.dueDate ? formatErpDate(r.dueDate, locale === "en" ? "en-GB" : "ar-EG") : "—"}
                 </td>
                 <td className="tabular-nums text-xs">{fmt(r.totalAmount)}</td>
                 <td className="tabular-nums font-semibold">{fmt(r.balanceDue)}</td>

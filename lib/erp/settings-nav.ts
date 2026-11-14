@@ -13,6 +13,7 @@ export type SettingsNavItem = {
   icon: string;
   capability?: string;
   external?: boolean;
+  newTab?: boolean;
 };
 
 export type SettingsGroup = { heading: string; items: SettingsNavItem[] };
@@ -49,11 +50,13 @@ export const SETTINGS_GROUPS: SettingsGroup[] = [
       { label: "صلاحيات المستخدمين", desc: "دعوة الأعضاء وتعيين أدوارهم داخل المؤسسة", href: "/settings/permissions", icon: "ShieldCheck", capability: "settings.view" },
       { label: "سجل التدقيق", desc: "من فعل ماذا ومتى — كل العمليات الحساسة", href: "/audit", icon: "ScrollText", capability: "settings.edit", external: true },
       { label: "الأمان وكلمة المرور", desc: "تغيير كلمة مرورك وتفعيل التحقق بخطوتين", href: "/settings/security", icon: "KeyRound" },
+      { label: "روابط المساعد الشخصية", desc: "ربط المساعد بصلاحيات حسابك وإلغاء التطبيقات المتصلة", href: "/settings/mcp", icon: "Sparkles" },
     ],
   },
   {
     heading: "البيانات والتكامل",
     items: [
+      { label: "الملفات والبيانات", desc: "ملفات المؤسسة والصور وتصدير الجداول والنسخ الاحتياطية والتخزين السحابي", href: "/storage", icon: "FolderArchive", external: true, newTab: true },
       { label: "النسخ الاحتياطي", desc: "تحميل نسخة كاملة من بيانات مؤسستك والنسخ المحفوظة تلقائياً", href: "/settings/backup", icon: "DatabaseBackup", capability: "settings.edit" },
       { label: "مفاتيح الـ API", desc: "اربط أنظمتك الخارجية بالبيانات عبر REST API", href: "/settings/api-keys", icon: "Braces", capability: "settings.view" },
       { label: "الذكاء الاصطناعي", desc: "قراءة فواتير الموردين — بمفتاح المنصة أو بمفتاح شركتك", href: "/settings/ai", icon: "Sparkles", capability: "settings.view" },

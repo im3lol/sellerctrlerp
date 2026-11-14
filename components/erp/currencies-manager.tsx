@@ -1,5 +1,7 @@
 "use client";
 
+import { formatErpDate } from "@/lib/erp/dates";
+
 import { useState, useTransition } from "react";
 import { fill } from "@/lib/i18n";
 import { useLocale, useT } from "@/lib/i18n/client";
@@ -147,7 +149,7 @@ function CurrencyDialog({ onClose }: { onClose: () => void }) {
           <Label htmlFor="isBase">{t("هذه هي العملة الأساسية للمنظومة")}</Label>
         </div>
 
-        {error && <p className="text-sm text-destructive">{error}</p>}
+        {error && <p className="text-sm text-destructive">{t(error)}</p>}
       </div>
       <DialogFooter>
         <Button variant="outline" onClick={onClose}>{t("إلغاء")}</Button>
@@ -219,7 +221,7 @@ function RateDialog({ currencies, baseCurrency, onClose }: { currencies: Currenc
             </>
           )
         }
-        {error && <p className="text-sm text-destructive">{error}</p>}
+        {error && <p className="text-sm text-destructive">{t(error)}</p>}
       </div>
       <DialogFooter>
         <Button variant="outline" onClick={onClose}>{t("إلغاء")}</Button>
@@ -290,7 +292,7 @@ export function CurrenciesManager({
                           <Star className="ms-1.5 inline size-3 fill-yellow-400 text-yellow-400" />
                         )}
                       </td>
-                      <td className="text-muted-foreground">{c.symbol}</td>
+                      <td className="text-muted-foreground">{t(c.symbol)}</td>
                       <td className="tabular-nums text-muted-foreground">
                         {c.isBase ? "—" : `${Number(c.exchangeRate).toFixed(4)} ${baseCurrency?.code ?? ""}`}
                       </td>
@@ -359,7 +361,7 @@ export function CurrenciesManager({
                   {rates.map((r) => (
                     <tr key={r.id} className="border-t [&>td]:p-3">
                       <td className="font-mono font-semibold">{r.currencyCode}</td>
-                      <td className="text-xs">{new Date(r.date).toLocaleDateString(locale === "en" ? "en-GB" : "ar-EG")}</td>
+                      <td className="text-xs">{formatErpDate(r.date, locale === "en" ? "en-GB" : "ar-EG")}</td>
                       <td className="tabular-nums">{Number(r.rate).toFixed(6)}</td>
                     </tr>
                   ))}

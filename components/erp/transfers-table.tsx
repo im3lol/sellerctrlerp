@@ -1,5 +1,9 @@
 "use client";
 
+import { formatErpDate } from "@/lib/erp/dates";
+
+import { useLocale } from "@/lib/i18n/client";
+
 import Link from "next/link";
 import { useT } from "@/lib/i18n/client";
 import { bulkStockTransfersAction, type TransfersFilter } from "@/app/actions/erp/stock-transfers";
@@ -18,10 +22,11 @@ type Row = {
 };
 
 const intl = (n: number) => n.toLocaleString("ar-EG-u-nu-latn");
-const dt = (d: Date) => new Date(d).toLocaleDateString("ar-EG-u-nu-latn", { year: "numeric", month: "2-digit", day: "2-digit" });
+const dt = (d: Date, locale: import("@/lib/i18n").Locale) => formatErpDate(d, locale === "en" ? "en-GB" : "ar-EG-u-nu-latn", { year: "numeric", month: "2-digit", day: "2-digit" });
 
 export function TransfersTable({ rows, canConfirm, canCreate, total, filter }: { rows: Row[]; canConfirm: boolean; canCreate: boolean; total: number; filter: TransfersFilter }) {
   const t = useT();
+  const locale = useLocale();
   const sel = useSelection(total);
   const pageIds = rows.map((r) => r.id);
   const showSelect = canConfirm || canCreate;
@@ -69,7 +74,7 @@ export function TransfersTable({ rows, canConfirm, canCreate, total, filter }: {
                   </TableCell>
                 )}
                 <TableCell><Link href={`/inventory/transfers/${encodeURIComponent(r.number)}`} className="font-mono hover:text-primary">{r.number}</Link></TableCell>
-                <TableCell className="whitespace-nowrap">{dt(r.date)}</TableCell>
+                <TableCell className="whitespace-nowrap">{dt(r.date, locale)}</TableCell>
                 <TableCell>{intl(r.count)}</TableCell>
                 <TableCell className="max-w-[200px] truncate text-muted-foreground">{r.notes ?? "—"}</TableCell>
                 <TableCell><Badge variant={r.status === "POSTED" ? "default" : "secondary"}>{r.status === "POSTED" ? t("مرحّل") : t("مسودة")}</Badge></TableCell>

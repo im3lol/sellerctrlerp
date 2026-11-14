@@ -1,6 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // Allow a fresh local build when a copied .next directory has foreign Windows ACLs.
+  distDir: process.env.NEXT_BUILD_DIR || ".next",
   // Pin the workspace root to THIS app. The parent dir (E:\Dev\Ctrl ERP) has a
   // bun.lock, so Next would otherwise infer the wrong root (multiple lockfiles),
   // which breaks app-directory resolution.

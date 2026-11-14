@@ -86,7 +86,7 @@ export default async function PrintJournalEntryPage({ params }: Params) {
           { label: "إجمالي المدين", value: money(totalDebit, currency, locale), tone: "strong" },
           { label: "إجمالي الدائن", value: money(totalCredit, currency, locale), tone: "strong" },
         ]}
-        note={entry.description}
+        note={entry.description ? t(entry.description) : null}
         signatures={["المحاسب", "المدير المالي"]}
       />
     );

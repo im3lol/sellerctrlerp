@@ -58,6 +58,7 @@ export async function AuthShell({
             </Link>
           </div>
           {children}
+          <p className="mt-6 text-center text-sm text-muted-foreground"><Link href="/privacy-policy" className="hover:text-primary hover:underline">{t("سياسة الخصوصية")}</Link></p>
         </div>
       </div>
     </div>

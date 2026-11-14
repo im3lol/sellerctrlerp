@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { fill } from "@/lib/i18n";
+import { translateName, fill } from "@/lib/i18n";
 import { getT } from "@/lib/i18n/server";
 import { and, eq, inArray, sql } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
@@ -133,7 +133,7 @@ export default async function PaymentPlanPage() {
                         <TableCell className="font-mono text-xs">
                           <Link className="hover:underline" href={`/purchases/invoices/${encodeURIComponent(p.number)}`}>{p.number}</Link>
                         </TableCell>
-                        <TableCell className="font-medium">{p.supplierName}</TableCell>
+                        <TableCell className="font-medium">{translateName(p.supplierName ?? "", t)}</TableCell>
                         <TableCell className="text-xs">{day(p.dueDate)}</TableCell>
                         <TableCell className={`tabular-nums ${p.daysOverdue > 0 ? "text-destructive font-medium" : "text-muted-foreground"}`}>
                           {!Number.isFinite(p.daysOverdue) ? "—" : p.daysOverdue > 0 ? fill(t("{0} يوم"), [intl(p.daysOverdue)]) : fill(t("بعد {0} يوم"), [intl(-p.daysOverdue)])}

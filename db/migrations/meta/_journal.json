@@ -1072,6 +1072,34 @@
       "when": 1792000000000,
       "tag": "0152_rule_dashboard_numbers",
       "breakpoints": true
+    },
+    {
+      "idx": 153,
+      "version": "7",
+      "when": 1792000001000,
+      "tag": "0153_purchase_order_origin_costs",
+      "breakpoints": true
+    },
+    {
+      "idx": 154,
+      "version": "7",
+      "when": 1792000002000,
+      "tag": "0154_mcp_personal_access",
+      "breakpoints": true
+    },
+    {
+      "idx": 155,
+      "version": "7",
+      "when": 1792000003000,
+      "tag": "0155_storage_cloud",
+      "breakpoints": true
+    },
+    {
+      "idx": 156,
+      "version": "7",
+      "when": 1792000004000,
+      "tag": "0156_backup_reliability",
+      "breakpoints": true
     }
   ]
 }

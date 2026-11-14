@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { fill } from "@/lib/i18n";
-import { getT } from "@/lib/i18n/server";
+import { getLocale, getT } from "@/lib/i18n/server";
 import { loadErpPage } from "@/lib/erp/org";
 import { requireUser } from "@/lib/session";
 import { listApprovals, approvalEntityHref, APPROVAL_DOC_LABEL, type ApprovalRow } from "@/lib/erp/approvals";
@@ -35,6 +35,7 @@ type Tab = "pending" | "mine" | "done" | "late" | "tasks";
  */
 export default async function ApprovalsPage({ searchParams }: { searchParams: Promise<{ tab?: string }> }) {
   const t = await getT();
+  const locale = await getLocale();
   return loadErpPage("settings.view", async ({ orgId, role, can }) => {
     const user = await requireUser();
     const canDecide = can("approvals.decide");
@@ -74,7 +75,7 @@ export default async function ApprovalsPage({ searchParams }: { searchParams: Pr
 
     return (
       <div className="space-y-5">
-        <ErpPageHeader icon="ClipboardCheck" title={t("الموافقات")} subtitle={t("المستندات اللي عدّت حد الاعتماد ومستنية قرار مدير")} />
+        <ErpPageHeader icon="ClipboardCheck" title={t("الموافقات")} subtitle={t("المستندات اللي عدّت حد الاعتماد ومستنية قرار مدير")} backHref="/apps" />
 
         <div className="flex flex-wrap gap-2">
           {tabs.filter((it) => it.show).map((it) => (
@@ -144,8 +145,8 @@ export default async function ApprovalsPage({ searchParams }: { searchParams: Pr
                         </div>
                         <div className="text-sm">{t(r.reason)}</div>
                         <div className="text-xs text-muted-foreground">
-                          {r.requestedByName ? fill(t("طلبه {0}"), [r.requestedByName]) : t("اعتماد مباشر")} · {timeAgo(r.requestedAt)}
-                          {r.decidedByName ? fill(t(" · قرّره {0}{1}"), [r.decidedByName, r.decidedAt ? ` ${timeAgo(r.decidedAt)}` : ""]) : ""}
+                          {r.requestedByName ? fill(t("طلبه {0}"), [r.requestedByName]) : t("اعتماد مباشر")} · {timeAgo(r.requestedAt, locale)}
+                          {r.decidedByName ? fill(t(" · قرّره {0}{1}"), [r.decidedByName, r.decidedAt ? ` ${timeAgo(r.decidedAt, locale)}` : ""]) : ""}
                         </div>
                         {r.comment && <div className="text-xs">{r.status === "REJECTED" ? fill(t("سبب الرفض: {0}"), [r.comment]) : r.comment}</div>}
                       </div>

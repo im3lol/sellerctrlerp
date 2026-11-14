@@ -54,13 +54,13 @@ object I18n {
         for ((key, en) in dict) {
             if (!key.contains('{')) continue
             val fixed = key.replace(slot, "")
-            if (arabic.findAll(fixed).count() < 4) continue
+            if (arabic.findAll(fixed).count() < 2) continue
             val slots = ArrayList<String>()
             val sb = StringBuilder("^")
             var last = 0
             for (m in slot.findAll(key)) {
                 sb.append(Regex.escape(key.substring(last, m.range.first)))
-                sb.append("([\\s\\S]+?)")
+                sb.append("([\\s\\S]*?)")
                 slots.add(m.groupValues[1])
                 last = m.range.last + 1
             }
@@ -74,7 +74,7 @@ object I18n {
         return out
     }
 
-    private fun matchPattern(s: String): String? {
+    private fun matchPattern(s: String, depth: Int): String? {
         if (!arabic.containsMatchIn(s) || s.length > 600) return null
         for (list in listOf(buckets[firstWord(s)], buckets[""])) {
             if (list == null) continue
@@ -82,7 +82,7 @@ object I18n {
                 val m = p.re.matchEntire(s) ?: continue
                 val values = p.slots.mapIndexed { i, name -> name to m.groupValues[i + 1] }.toMap()
                 // A value that is itself a label translates too; names and numbers don't.
-                return slot.replace(p.en) { r -> values[r.groupValues[1]]?.let { v -> exact[v] ?: v } ?: r.value }
+                return slot.replace(p.en) { r -> values[r.groupValues[1]]?.let { v -> translateKnown(v, depth + 1) } ?: r.value }
             }
         }
         return null
@@ -90,7 +90,30 @@ object I18n {
 
     fun tr(s: String): String {
         if (!english || s.isEmpty()) return s
-        return exact[s] ?: matchPattern(s) ?: s
+        return translateKnown(s, 0)
+    }
+
+    private val coded = Regex("^([A-Za-z0-9][A-Za-z0-9._/\\-]*) — ([\\s\\S]+)$")
+
+    private fun translateKnown(s: String, depth: Int): String {
+        if (depth > 6 || !arabic.containsMatchIn(s)) return s
+        exact[s]?.let { return it }
+        coded.matchEntire(s)?.let { m ->
+            val name = translateKnown(m.groupValues[2], depth + 1)
+            if (name != m.groupValues[2]) return "${m.groupValues[1]} — $name"
+        }
+        matchPattern(s, depth)?.let { return it }
+        val separator = Regex("\\n| — | · ")
+        val out = StringBuilder()
+        var last = 0
+        for (m in separator.findAll(s)) {
+            out.append(translateKnown(s.substring(last, m.range.first), depth + 1))
+            out.append(m.value)
+            last = m.range.last + 1
+        }
+        if (last == 0) return s
+        out.append(translateKnown(s.substring(last), depth + 1))
+        return out.toString()
     }
 
     /** Translates every Arabic string value in a JSON tree (labels, statuses, messages). */

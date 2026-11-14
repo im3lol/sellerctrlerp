@@ -1,5 +1,7 @@
 "use client";
 
+import { formatErpDate } from "@/lib/erp/dates";
+
 import { useRef, useState, useTransition } from "react";
 import { fill } from "@/lib/i18n";
 import { useT } from "@/lib/i18n/client";
@@ -14,7 +16,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Icon } from "@/components/icon";
 
 const fmt = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-const dt = (iso: string) => (iso ? new Date(iso).toLocaleDateString("en-GB", { year: "numeric", month: "2-digit", day: "2-digit" }) : "—");
+const dt = (iso: string) => (iso ? formatErpDate(iso, "en-GB", { year: "numeric", month: "2-digit", day: "2-digit" }) : "—");
 const STATUS_AR: Record<string, string> = { Pending: "قيد الانتظار → مسودة", Shipped: "مشحون → مؤكّد" };
 
 export function AmazonImport() {

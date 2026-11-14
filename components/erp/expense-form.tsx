@@ -1,4 +1,6 @@
 "use client";
+import { PageActions } from "@/components/erp/page-actions";
+
 
 import { useMemo, useState, useTransition } from "react";
 import { useT } from "@/lib/i18n/client";
@@ -56,6 +58,10 @@ export function ExpenseForm({ expenseAccounts, cashAccounts, projects = [], init
 
   return (
     <Card>
+      <PageActions className="mx-6">
+          <Button disabled={pending} onClick={submit}>{isEdit ? t("حفظ التعديلات") : t("تسجيل المصروف")}</Button>
+
+      </PageActions>
       <CardContent className="grid gap-4 pt-6 sm:grid-cols-2">
         <div className="space-y-2">
           <Label>{t("بند المصروف")}</Label>
@@ -130,9 +136,7 @@ export function ExpenseForm({ expenseAccounts, cashAccounts, projects = [], init
           <Input value={notes} onChange={(e) => setNotes(e.target.value)} />
         </div>
 
-        <div className="flex justify-end sm:col-span-2">
-          <Button disabled={pending} onClick={submit}>{isEdit ? t("حفظ التعديلات") : t("تسجيل المصروف")}</Button>
-        </div>
+
       </CardContent>
     </Card>
   );

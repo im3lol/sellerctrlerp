@@ -13,7 +13,7 @@ const int = (n: number) => n.toLocaleString("ar-EG-u-nu-latn");
 
 export default async function AnalyticsPage() {
   const t = await getT();
-  return loadErpPage("reports.view", async ({ orgId }) => {
+  return loadErpPage("accounting.view", async ({ orgId }) => {
     let ov: Awaited<ReturnType<typeof getErpOverview>> | null = null;
     try { ov = await getErpOverview(orgId); } catch { ov = null; }
 

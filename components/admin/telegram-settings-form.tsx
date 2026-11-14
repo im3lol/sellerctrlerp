@@ -1,4 +1,5 @@
 "use client";
+import { PageActions } from "@/components/erp/page-actions";
 
 import { useState, useTransition } from "react";
 import { useT } from "@/lib/i18n/client";
@@ -53,6 +54,14 @@ export function TelegramSettingsForm({ initial, appUrl }: { initial: Initial; ap
 
   return (
     <div className="space-y-5">
+      <PageActions className="static">
+        <Button variant="outline" onClick={test} disabled={pending || !configured}>{t("اختبار الإرسال")}</Button>
+        <Button variant="outline" onClick={webhook} disabled={pending || !initial.hasBotToken}>{t("تهيئة Webhook")}</Button>
+        <Button onClick={save} disabled={pending}>
+          {pending && <Loader2 className="size-4 animate-spin" />}{t("حفظ الإعدادات")}
+        </Button>
+      </PageActions>
+
       <p className="text-xs text-muted-foreground">
         {t("يُستخدم البوت لتنبيهات التشغيل ولموافقات الفريق. تُخزّن القيم مشفّرة ولا تُعرض مجددًا. اترك أي حقل فارغًا للحفاظ على القيمة المحفوظة.")}
       </p>
@@ -71,13 +80,7 @@ export function TelegramSettingsForm({ initial, appUrl }: { initial: Initial; ap
         <p>{t("Webhook الموافقات:")} <span className="font-mono" dir="ltr">{webhookUrl}</span></p>
         {initial.botUsername && <p className="mt-1">{t("البوت المتصل:")} <span dir="ltr" className="font-medium">@{initial.botUsername}</span></p>}
       </div>
-      <div className="flex flex-wrap justify-end gap-2">
-        <Button variant="outline" onClick={test} disabled={pending || !configured}>{t("اختبار الإرسال")}</Button>
-        <Button variant="outline" onClick={webhook} disabled={pending || !initial.hasBotToken}>{t("تهيئة Webhook")}</Button>
-        <Button onClick={save} disabled={pending}>
-          {pending && <Loader2 className="size-4 animate-spin" />}{t("حفظ الإعدادات")}
-        </Button>
-      </div>
+
     </div>
   );
 }

@@ -1,5 +1,7 @@
 "use client";
 
+import { formatErpDate } from "@/lib/erp/dates";
+
 import Link from "next/link";
 import { useT } from "@/lib/i18n/client";
 import { bulkMaterialRequestsAction } from "@/app/actions/erp/material-requests";
@@ -10,7 +12,7 @@ import { RequisitionRowActions } from "@/components/erp/requisition-row-actions"
 
 type Row = { id: string; number: string; date: unknown; status: string; notes: string | null; requester: string | null; lineCount: number };
 
-const dt = (d: unknown) => new Date(d as string).toLocaleDateString("en-GB", { year: "numeric", month: "2-digit", day: "2-digit" });
+const dt = (d: unknown) => formatErpDate(d as string, "en-GB", { year: "numeric", month: "2-digit", day: "2-digit" });
 const ST: Record<string, { label: string; variant: "default" | "secondary" | "outline" }> = {
   DRAFT: { label: "مسودة", variant: "secondary" }, APPROVED: { label: "معتمد", variant: "default" }, ORDERED: { label: "تم التحويل لأمر شراء", variant: "default" },
 };

@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
-import { fill } from "@/lib/i18n";
+import { translateName, fill } from "@/lib/i18n";
 import { useT } from "@/lib/i18n/client";
 import { toast } from "@/lib/i18n/toast";
 import { useRouter } from "next/navigation";
@@ -196,7 +196,7 @@ export function ProjectsManager({ rows, phases, tasks, sheets, customers, employ
                       <TableCell>
                         <div className="font-medium">{t(r.nameAr)}</div>
                         <div className="text-xs text-muted-foreground">
-                          {r.customerName ?? t("داخلي")}{r.managerName && ` · ${r.managerName}`}
+                          {translateName(r.customerName ?? t("داخلي"), t)}{r.managerName && ` · ${r.managerName}`}
                         </div>
                       </TableCell>
                       <TableCell className="tabular-nums">{money(r.budget)}</TableCell>

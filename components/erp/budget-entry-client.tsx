@@ -124,7 +124,7 @@ function AccountSection({
     <Card>
       <CardHeader className="pb-3">
         <CardTitle className="flex items-center justify-between text-base">
-          <span>{title}</span>
+          <span>{t(title)}</span>
           <span className={`tabular-nums ${color}`}>{(total).toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
         </CardTitle>
       </CardHeader>

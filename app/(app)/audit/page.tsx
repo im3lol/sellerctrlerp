@@ -109,7 +109,7 @@ export default async function AuditLogPage({ searchParams }: { searchParams: Pro
                   <Label htmlFor="action">{t("الإجراء")}</Label>
                   <select id="action" name="action" defaultValue={fAction} className={selectCls}>
                     <option value="">{t("الكل")}</option>
-                    {Object.entries(ACTION).map(([k, v]) => <option key={k} value={k}>{v.ar}</option>)}
+                    {Object.entries(ACTION).map(([k, v]) => <option key={k} value={k}>{t(v.ar)}</option>)}
                   </select>
                 </div>
                 <div className="space-y-1">
@@ -148,7 +148,7 @@ export default async function AuditLogPage({ searchParams }: { searchParams: Pro
                         <TableRow key={r.id}>
                           <TableCell className="whitespace-nowrap font-mono text-xs">{dt(r.createdAt)}</TableCell>
                           <TableCell>{r.userName ?? "—"}</TableCell>
-                          <TableCell><Badge variant={a.variant}>{a.ar}</Badge></TableCell>
+                          <TableCell><Badge variant={a.variant}>{t(a.ar)}</Badge></TableCell>
                           <TableCell>{t(ENTITY[r.entityType] ?? r.entityType)}</TableCell>
                           <TableCell className="font-mono">{r.entityNumber ?? "—"}</TableCell>
                           <TableCell className="text-muted-foreground">{t(r.summary ?? "—")}</TableCell>

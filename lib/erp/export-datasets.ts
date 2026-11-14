@@ -13,11 +13,12 @@ import {
 // both formats. Everything here is read-only (safe); nothing writes to GL/stock.
 
 export type Cell = string | number | null | undefined;
-export type ModuleKey = "sales.view" | "purchases.view" | "inventory.view" | "accounting.view";
+export type ModuleKey = "sales.view" | "purchases.view" | "inventory.view" | "accounting.view" | "hr.view";
 
 export type ExportDataset = {
   title: string;
   module: ModuleKey;
+  purchaseCosts?: boolean;
   headers: string[];
   colWidths?: number[];
   fetch: (orgId: string) => Promise<Cell[][]>;
@@ -53,7 +54,7 @@ export const EXPORT_DATASETS: Record<string, ExportDataset> = {
     },
   },
   suppliers: {
-    title: "الموردون", module: "purchases.view",
+    title: "الموردون", module: "purchases.view", purchaseCosts: true,
     headers: ["الكود", "الاسم", "الهاتف", "البريد", "العنوان", "الرصيد", "مدة السداد", "نشط"],
     colWidths: [14, 28, 16, 22, 24, 14, 12, 8],
     fetch: async (orgId) => {
@@ -82,7 +83,7 @@ export const EXPORT_DATASETS: Record<string, ExportDataset> = {
     },
   },
   "purchase-orders": {
-    title: "أوامر الشراء", module: "purchases.view",
+    title: "أوامر الشراء", module: "purchases.view", purchaseCosts: true,
     headers: ["الرقم", "التاريخ", "المورد", "الحالة", "الإجمالي"],
     colWidths: [18, 12, 28, 14, 14],
     fetch: async (orgId) => {
@@ -113,7 +114,7 @@ export const EXPORT_DATASETS: Record<string, ExportDataset> = {
     },
   },
   "purchase-invoices": {
-    title: "فواتير الشراء", module: "purchases.view",
+    title: "فواتير الشراء", module: "purchases.view", purchaseCosts: true,
     headers: ["الرقم", "التاريخ", "المورد", "الحالة", "الإجمالي", "المسدد", "المتبقي"],
     colWidths: [18, 12, 28, 14, 14, 14, 14],
     fetch: async (orgId) => {
@@ -193,7 +194,7 @@ export const EXPORT_DATASETS: Record<string, ExportDataset> = {
     },
   },
   applicants: {
-    title: "المتقدّمون للوظائف", module: "accounting.view",
+    title: "المتقدّمون للوظائف", module: "hr.view",
     headers: ["الوظيفة", "الاسم", "الهاتف", "البريد", "المصدر", "المرحلة", "تاريخ التقديم", "الراتب المتوقّع"],
     colWidths: [26, 26, 16, 24, 16, 12, 14, 14],
     fetch: async (orgId) => {
@@ -207,7 +208,7 @@ export const EXPORT_DATASETS: Record<string, ExportDataset> = {
     },
   },
   "training-courses": {
-    title: "الكورسات التدريبية", module: "accounting.view",
+    title: "الكورسات التدريبية", module: "hr.view",
     headers: ["الكود", "الاسم", "الجهة", "من", "إلى", "ساعات", "تكلفة المقعد", "المقاعد", "الحالة"],
     colWidths: [14, 30, 22, 12, 12, 10, 14, 10, 12],
     fetch: async (orgId) => {
@@ -217,7 +218,7 @@ export const EXPORT_DATASETS: Record<string, ExportDataset> = {
     },
   },
   attendance: {
-    title: "الحضور والانصراف (آخر 90 يوم)", module: "accounting.view",
+    title: "الحضور والانصراف (آخر 90 يوم)", module: "hr.view",
     headers: ["التاريخ", "الموظف", "الكود", "دخول", "خروج", "ساعات العمل", "استراحة (دقيقة)", "المصدر", "ملاحظات"],
     colWidths: [12, 26, 12, 10, 10, 12, 14, 10, 28],
     fetch: async (orgId) => {

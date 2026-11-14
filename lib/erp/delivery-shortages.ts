@@ -54,7 +54,7 @@ export async function computeDeliveryShortages(orgId: string): Promise<DeliveryS
     SELECT DISTINCT ON (item_id, warehouse_id) item_id, warehouse_id, balance_quantity AS qty
     FROM stock_movements
     WHERE organization_id = ${orgId} AND item_id IN (${sql.join(itemIds.map((i) => sql`${i}`), sql`, `)})
-    ORDER BY item_id, warehouse_id, created_at DESC, split_part(number, '-', 3)::int DESC
+    ORDER BY item_id, warehouse_id, created_at DESC, CASE WHEN split_part(number, '-', 3) ~ '^[0-9]+$' THEN split_part(number, '-', 3)::numeric ELSE 0 END DESC
   `);
   const onHandBy = new Map(balances.rows.map((b) => [`${b.item_id}|${b.warehouse_id}`, Number(b.qty)]));
 

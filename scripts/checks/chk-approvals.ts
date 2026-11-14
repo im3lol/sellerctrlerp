@@ -3,7 +3,7 @@
 //   DATABASE_URL=postgres://sellerctrl:sellerctrl@localhost:5433/sellerctrl npx tsx --tsconfig tsconfig.script.json scripts/checks/chk-approvals.ts
 import { and, eq, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { withOrgScope } from "@/lib/db-scope";
+import { withOrgScope, withPlatformScope } from "@/lib/db-scope";
 import { organizations, organizationMembers, approvalRequests, auditLogs } from "@/db/schema";
 import { approvalGate, decideApproval } from "@/lib/erp/approvals";
 import { runWithErpContext } from "@/lib/erp/erp-context";
@@ -14,7 +14,7 @@ const out: string[] = [];
 const check = (name: string, cond: boolean, extra = "") => out.push(`${cond ? "PASS" : "FAIL"}  ${name}${extra ? `  (${extra})` : ""}`);
 
 async function main() {
-  const [org] = await withOrgScope("", true, () => db.execute<{ id: string }>(sql`
+  const [org] = await withPlatformScope(() => db.execute<{ id: string }>(sql`
     select o.id from organizations o join organization_members m on m.organization_id = o.id
     group by o.id having count(*) >= 3 limit 1`)).then((r) => r.rows);
   if (!org) throw new Error("no multi-member org");

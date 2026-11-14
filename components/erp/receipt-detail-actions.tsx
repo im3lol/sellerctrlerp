@@ -1,6 +1,7 @@
 "use client";
 
 import { useTransition } from "react";
+import Link from "next/link";
 import { fill } from "@/lib/i18n";
 import { useT } from "@/lib/i18n/client";
 import { useRouter } from "next/navigation";
@@ -81,9 +82,9 @@ export function ReceiptDetailActions({
   return (
     <DocumentActions
       primary={canReceive && status === "DRAFT" ? (
-        <Button size="sm" disabled={pending} onClick={() => run(() => confirmReceiptAction(id), "تم تأكيد الاستلام وترحيله")}>
+        <><Button size="sm" variant="outline" asChild><Link href={`/purchases/receipts/${encodeURIComponent(number)}/edit`}><Icon name="Pencil" className="size-4" />{t("تعديل المسودة")}</Link></Button><Button size="sm" disabled={pending} onClick={() => run(() => confirmReceiptAction(id), "تم تأكيد الاستلام وترحيله")}>
           <Icon name="Check" className="size-4" />{t("تأكيد الاستلام")}
-        </Button>
+        </Button></>
       ) : undefined}
       items={items}
       barcode={barcodeRows.length ? { docTitle: fill(t("إذن استلام {0}"), [number]), rows: barcodeRows } : undefined}

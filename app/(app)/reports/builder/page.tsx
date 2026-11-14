@@ -1,6 +1,7 @@
 import { loadErpPage } from "@/lib/erp/org";
 import { getT } from "@/lib/i18n/server";
 import { EXPORT_DATASETS } from "@/lib/erp/export-datasets";
+import { canExportDataset } from "@/lib/erp/data-access";
 import { ErpPageHeader } from "@/components/erp/page-header";
 import { ReportBuilderUI } from "@/components/erp/report-builder-ui";
 import { listSavedReportsAction } from "@/app/actions/erp/report-builder";
@@ -14,7 +15,7 @@ export default async function ReportBuilderPage({ searchParams }: { searchParams
   return loadErpPage("reports.view", async ({ can }) => {
     // Only datasets this user could already export — the builder grants no new access.
     const datasets = Object.entries(EXPORT_DATASETS)
-      .filter(([, ds]) => can(ds.module))
+      .filter(([, ds]) => canExportDataset(ds, can))
       .map(([key, ds]) => ({ key, title: ds.title, headers: ds.headers }));
 
     const saved = await listSavedReportsAction();

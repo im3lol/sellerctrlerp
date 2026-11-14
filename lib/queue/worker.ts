@@ -32,6 +32,7 @@ const CONC: Record<QueueName, number> = {
   "amazon-ledger": 1,
   "amazon-offers": 1, // an account's pricing quota is ~0.5 req/s — one run at a time
   "automation": 3,    // cheap: one rule lookup per audited event; webhooks time out at 8s
+  "cloud-backup": 1,
   "maintenance": 3, // per-tenant daily backups fan out — a few at a time is plenty
 };
 const LIMITER = { max: 10, duration: 1000 }; // ≤10 jobs/sec across a queue
@@ -86,6 +87,11 @@ export function startWorkers(): void {
     await runAutomationJob(d.orgId, d.automation, job.attemptsMade + 1 >= (job.opts.attempts ?? 1));
   });
   make(QUEUES.maintenance, runMaintenanceJob);
+  make(QUEUES.cloudBackup, async (d, job) => {
+    if (!d.cloudBackupJobId) throw new Error("Missing cloud backup job");
+    const { runCloudBackup } = await import("@/lib/erp/cloud-backup-jobs");
+    await runCloudBackup(d.orgId,d.cloudBackupJobId,job.attemptsMade+1>= (job.opts.attempts??3));
+  });
   console.log("[queue] Amazon sync workers started");
 
   // Liveness heartbeat: refresh a short-TTL Redis key so the worker container's

@@ -9,6 +9,7 @@ import { can, type Role, type Capability } from "@/lib/rbac";
 import { activeModule } from "@/lib/active-module";
 import { sectionAllowed } from "@/lib/nav-access";
 import { cn } from "@/lib/utils";
+import { platformNavItems, type NavPlatform } from "@/lib/platform-nav";
 import { useT } from "@/lib/i18n/client";
 
 function isActive(pathname: string, href: string, exact?: boolean) {
@@ -50,7 +51,7 @@ function save(key: string, value: unknown) {
   try { localStorage.setItem(key, JSON.stringify(value)); } catch { /* storage blocked — the sidebar still works, it just forgets */ }
 }
 
-export function NavList({ role, erpPermissions, modules, platforms, navHidden, onNavigate, collapsed }: { role: Role; erpPermissions: string[]; modules?: string[]; platforms?: { id: string; name: string; code: string }[]; navHidden?: string[]; onNavigate?: () => void; collapsed?: boolean }) {
+export function NavList({ role, erpPermissions, modules, platforms, navHidden, onNavigate, collapsed }: { role: Role; erpPermissions: string[]; modules?: string[]; platforms?: NavPlatform[]; navHidden?: string[]; onNavigate?: () => void; collapsed?: boolean }) {
   const t = useT();
   const erpPerms = new Set(erpPermissions);
   const pathname = usePathname();
@@ -65,24 +66,7 @@ export function NavList({ role, erpPermissions, modules, platforms, navHidden, o
       ? {
         ...section,
         items: [
-          ...platforms.flatMap((p) => {
-            const code = p.code.toLowerCase();
-            const href = `/platforms/${code}`;
-            if (code !== "amazon") {
-              return [{ label: p.name, href, icon: "Store", capability: "erp.sales.view" as Capability }];
-            }
-            return [
-              { label: "لوحة أمازون", href, icon: "Store", capability: "erp.sales.view" as Capability, group: "أدوات أمازون" },
-              { label: "صحة أمازون", href: `${href}/health`, icon: "HeartPulse", capability: "erp.sales.view" as Capability, group: "أدوات أمازون" },
-              { label: "مراقبة Buy Box", href: `${href}/buy-box`, icon: "Trophy", capability: "erp.sales.view" as Capability, group: "أدوات أمازون" },
-              { label: "خطة FBA", href: `${href}/fba-plan`, icon: "Boxes", capability: "erp.inventory.view" as Capability, group: "أدوات أمازون" },
-              { label: "مزامنة أمازون", href: `${href}/import`, icon: "RefreshCw", capability: "erp.sales.view" as Capability, group: "المزامنة والتسويات" },
-              { label: "دفعات أمازون", href: `${href}/payouts`, icon: "Landmark", capability: "erp.accounting.create" as Capability, group: "المزامنة والتسويات" },
-              { label: "رسوم أمازون", href: `${href}/fees`, icon: "ReceiptText", capability: "erp.accounting.view" as Capability, group: "المزامنة والتسويات" },
-              { label: "كشف أمازون", href: `${href}/statements`, icon: "FileText", capability: "erp.accounting.view" as Capability, group: "المزامنة والتسويات" },
-              { label: "فحص المزامنة", href: `${href}/verify`, icon: "ShieldCheck", capability: "erp.sales.view" as Capability, group: "المزامنة والتسويات" },
-            ];
-          }),
+          ...platforms.flatMap(platformNavItems),
           ...section.items,
         ],
       }

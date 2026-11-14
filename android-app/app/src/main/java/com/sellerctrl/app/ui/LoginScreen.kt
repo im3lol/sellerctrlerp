@@ -1,5 +1,7 @@
 package com.sellerctrl.app.ui
 
+import com.sellerctrl.app.tr
+
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -43,7 +45,7 @@ fun LoginScreen(onDone: () -> Unit) {
                 ServiceLocator.repo.login(username, password)
                 onDone()
             } catch (e: Exception) {
-                error = "فشل الدخول — تأكد من البيانات"
+                error = tr("فشل الدخول — تأكد من البيانات")
             } finally {
                 loading = false
             }
@@ -56,16 +58,16 @@ fun LoginScreen(onDone: () -> Unit) {
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Text("SellerCtrl", style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.primary)
-        Text("تسجيل الدخول", style = MaterialTheme.typography.bodyMedium)
+        Text(tr("تسجيل الدخول"), style = MaterialTheme.typography.bodyMedium)
         OutlinedTextField(
             value = username, onValueChange = { username = it },
-            label = { Text("البريد أو اسم المستخدم") },
+            label = { Text(tr("البريد أو اسم المستخدم")) },
             singleLine = true,
             modifier = Modifier.fillMaxWidth().padding(top = 24.dp),
         )
         OutlinedTextField(
             value = password, onValueChange = { password = it },
-            label = { Text("كلمة المرور") },
+            label = { Text(tr("كلمة المرور")) },
             singleLine = true,
             visualTransformation = PasswordVisualTransformation(),
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Done),
@@ -78,7 +80,7 @@ fun LoginScreen(onDone: () -> Unit) {
             enabled = !loading && username.isNotBlank() && password.isNotBlank(),
             modifier = Modifier.fillMaxWidth().padding(top = 20.dp),
         ) {
-            if (loading) CircularProgressIndicator(modifier = Modifier.padding(end = 8.dp)) else Text("دخول")
+            if (loading) CircularProgressIndicator(modifier = Modifier.padding(end = 8.dp)) else Text(tr("دخول"))
         }
     }
 }

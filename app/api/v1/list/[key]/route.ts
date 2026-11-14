@@ -1,6 +1,7 @@
 import { authorizeApi, isApiError } from "@/lib/erp/api-auth";
 import type { ErpPermission } from "@/lib/erp/permissions";
 import type { DocRow } from "@/lib/erp/mobile-lists";
+import { canReadPurchaseCosts, purchaseRowsForCaller } from "@/lib/erp/data-access";
 import {
   quotationList, receiptVoucherList, paymentVoucherList, purchaseReceiptList,
   materialRequestList, stockAdjustmentList, stockTransferList, bankAccountList,
@@ -49,5 +50,9 @@ export async function GET(req: Request, ctx: { params: Promise<{ key: string }> 
   if (!entry) return Response.json({ error: "not_found" }, { status: 404 });
   const auth = await authorizeApi(req, entry.perm);
   if (isApiError(auth)) return Response.json({ error: auth.error }, { status: auth.status });
-  return Response.json({ data: await entry.fn(auth.orgId) });
+  if (["valuation", "purchase-payments", "landed-costs", "rfqs"].includes(key) && !canReadPurchaseCosts(auth.can)) {
+    return Response.json({ error: "forbidden" }, { status: 403 });
+  }
+  const rows = await entry.fn(auth.orgId);
+  return Response.json({ data: ["stock-ledger", "stock-balances"].includes(key) || entry.perm === "purchases.view" ? purchaseRowsForCaller(rows, auth.can) : rows });
 }

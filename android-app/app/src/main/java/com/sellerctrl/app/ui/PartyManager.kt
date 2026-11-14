@@ -1,5 +1,7 @@
 package com.sellerctrl.app.ui
 
+import com.sellerctrl.app.tr
+
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -53,7 +55,7 @@ import com.sellerctrl.app.data.DocRow
 import com.sellerctrl.app.data.PartySaveReq
 import kotlinx.coroutines.launch
 
-private fun singular(type: String) = if (type == "suppliers") "مورد" else "عميل"
+private fun singular(type: String) = if (type == "suppliers") tr("مورد") else tr("عميل")
 
 /** Master-data manager for suppliers/customers — list + add + edit + delete. */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -70,17 +72,17 @@ fun PartyManagerScreen(nav: NavController, type: String, title: String) {
             TopAppBar(
                 title = { Text(title) },
                 navigationIcon = { IconButton(onClick = { nav.popBackStack() }) { Icon(Icons.AutoMirrored.Filled.ArrowBack, null) } },
-                actions = { val open = LocalOpenDrawer.current; IconButton(onClick = open) { Icon(Icons.Filled.Menu, "القائمة") } },
+                actions = { val open = LocalOpenDrawer.current; IconButton(onClick = open) { Icon(Icons.Filled.Menu, tr("القائمة")) } },
             )
         },
         floatingActionButton = {
-            FloatingActionButton(onClick = { nav.navigate("party_form/$type/new") }) { Icon(Icons.Filled.Add, "إضافة") }
+            FloatingActionButton(onClick = { nav.navigate("party_form/$type/new") }) { Icon(Icons.Filled.Add, tr("إضافة")) }
         },
     ) { pad ->
         Box(Modifier.fillMaxSize().padding(pad)) {
             when {
                 rows == null -> CircularProgressIndicator(Modifier.align(Alignment.Center))
-                rows!!.isEmpty() -> Text("لا يوجد ${singular(type)}ون — أضِف بالزر +", Modifier.align(Alignment.Center), color = MaterialTheme.colorScheme.outline)
+                rows!!.isEmpty() -> Text(tr("لا يوجد ${singular(type)}ون — أضِف بالزر +"), Modifier.align(Alignment.Center), color = MaterialTheme.colorScheme.outline)
                 else -> LazyColumn(Modifier.fillMaxSize().padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     items(rows!!) { r ->
                         AppCard(Modifier.fillMaxWidth().clickable { nav.navigate("party_form/$type/${r.id}") }) {
@@ -122,13 +124,13 @@ fun PartyFormScreen(nav: NavController, type: String, id: String) {
                 val d = ServiceLocator.repo.partyDetail(type, id)
                 code = d.code; name = d.nameAr; phone = d.phone; email = d.email
                 terms = d.paymentTerms.toString(); credit = fmt(d.creditLimit)
-            } catch (e: Exception) { error = "تعذّر تحميل البيانات" }
+            } catch (e: Exception) { error = tr("تعذّر تحميل البيانات") }
             loading = false
         }
     }
 
     fun save() {
-        if (code.isBlank() || name.isBlank()) { error = "الكود والاسم مطلوبان"; return }
+        if (code.isBlank() || name.isBlank()) { error = tr("الكود والاسم مطلوبان"); return }
         busy = true; error = null
         scope.launch {
             try {
@@ -139,7 +141,7 @@ fun PartyFormScreen(nav: NavController, type: String, id: String) {
                     creditLimit = if (type == "customers") credit.toDoubleOrNull() ?: 0.0 else null,
                 ))
                 nav.popBackStack()
-            } catch (e: Exception) { error = e.message ?: "خطأ"; busy = false }
+            } catch (e: Exception) { error = e.message ?: tr("خطأ"); busy = false }
         }
     }
 
@@ -147,15 +149,15 @@ fun PartyFormScreen(nav: NavController, type: String, id: String) {
         busy = true; error = null
         scope.launch {
             try { ServiceLocator.repo.partyDelete(type, id); nav.popBackStack() }
-            catch (e: Exception) { error = e.message ?: "خطأ"; busy = false }
+            catch (e: Exception) { error = e.message ?: tr("خطأ"); busy = false }
         }
     }
 
     Scaffold(topBar = {
         TopAppBar(
-            title = { Text(if (editing) "تعديل ${singular(type)}" else "${singular(type)} جديد") },
+            title = { Text(if (editing) tr("تعديل ${singular(type)}") else tr("${singular(type)} جديد")) },
             navigationIcon = { IconButton(onClick = { nav.popBackStack() }) { Icon(Icons.AutoMirrored.Filled.ArrowBack, null) } },
-            actions = { if (editing) IconButton(onClick = { confirmDelete = true }) { Icon(Icons.Filled.Delete, "حذف") } },
+            actions = { if (editing) IconButton(onClick = { confirmDelete = true }) { Icon(Icons.Filled.Delete, tr("حذف")) } },
         )
     }) { pad ->
         Box(Modifier.fillMaxSize().padding(pad)) {
@@ -163,17 +165,17 @@ fun PartyFormScreen(nav: NavController, type: String, id: String) {
                 CircularProgressIndicator(Modifier.align(Alignment.Center))
             } else {
                 Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    OutlinedTextField(code, { code = it }, label = { Text("الكود *") }, singleLine = true, modifier = Modifier.fillMaxWidth())
-                    OutlinedTextField(name, { name = it }, label = { Text("الاسم *") }, singleLine = true, modifier = Modifier.fillMaxWidth())
-                    OutlinedTextField(phone, { phone = it }, label = { Text("الهاتف") }, singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone), modifier = Modifier.fillMaxWidth())
-                    OutlinedTextField(email, { email = it }, label = { Text("البريد الإلكتروني") }, singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email), modifier = Modifier.fillMaxWidth())
-                    OutlinedTextField(terms, { terms = it.filter { c -> c.isDigit() } }, label = { Text("مهلة السداد (يوم)") }, singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), modifier = Modifier.fillMaxWidth())
+                    OutlinedTextField(code, { code = it }, label = { Text(tr("الكود *")) }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                    OutlinedTextField(name, { name = it }, label = { Text(tr("الاسم *")) }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                    OutlinedTextField(phone, { phone = it }, label = { Text(tr("الهاتف")) }, singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone), modifier = Modifier.fillMaxWidth())
+                    OutlinedTextField(email, { email = it }, label = { Text(tr("البريد الإلكتروني")) }, singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email), modifier = Modifier.fillMaxWidth())
+                    OutlinedTextField(terms, { terms = it.filter { c -> c.isDigit() } }, label = { Text(tr("مهلة السداد (يوم)")) }, singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), modifier = Modifier.fillMaxWidth())
                     if (type == "customers") {
-                        OutlinedTextField(credit, { credit = it.filter { c -> c.isDigit() || c == '.' } }, label = { Text("حد الائتمان") }, singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal), modifier = Modifier.fillMaxWidth())
+                        OutlinedTextField(credit, { credit = it.filter { c -> c.isDigit() || c == '.' } }, label = { Text(tr("حد الائتمان")) }, singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal), modifier = Modifier.fillMaxWidth())
                     }
                     error?.let { Text(it, color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.SemiBold) }
                     Button(onClick = { save() }, enabled = !busy, modifier = Modifier.fillMaxWidth()) {
-                        Text(if (busy) "جارٍ الحفظ…" else "حفظ")
+                        Text(if (busy) tr("جارٍ الحفظ…") else tr("حفظ"))
                     }
                 }
             }
@@ -183,10 +185,10 @@ fun PartyFormScreen(nav: NavController, type: String, id: String) {
     if (confirmDelete) {
         AlertDialog(
             onDismissRequest = { confirmDelete = false },
-            title = { Text("حذف ${singular(type)}") },
-            text = { Text("متأكد من حذف \"$name\"؟") },
-            confirmButton = { TextButton(onClick = { confirmDelete = false; del() }) { Text("حذف", color = MaterialTheme.colorScheme.error) } },
-            dismissButton = { OutlinedButton(onClick = { confirmDelete = false }) { Text("إلغاء") } },
+            title = { Text(tr("حذف ${singular(type)}")) },
+            text = { Text(tr("متأكد من حذف \"$name\"؟")) },
+            confirmButton = { TextButton(onClick = { confirmDelete = false; del() }) { Text(tr("حذف"), color = MaterialTheme.colorScheme.error) } },
+            dismissButton = { OutlinedButton(onClick = { confirmDelete = false }) { Text(tr("إلغاء")) } },
         )
     }
 }

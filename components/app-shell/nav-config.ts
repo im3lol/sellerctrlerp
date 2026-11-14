@@ -289,6 +289,9 @@ export const NAV: NavSection[] = [
     color: "bg-slate-600",
     icon: "ShieldCheck",
     items: [
+      // Keep the featured shortcut, but give approvals a module so desktop and mobile
+      // navigation remain available when the user opens it directly.
+      { label: "الموافقات", href: "/approvals", icon: "ClipboardCheck", capability: "erp.settings.view" },
       // Platform admin panel (/admin) is deliberately NOT linked from the tenant
       // workspace — it's a separate SaaS surface reached via its own login
       // (/login/admin) and stays server-guarded by employee.manage (system_admin).

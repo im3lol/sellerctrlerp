@@ -11,7 +11,7 @@ export const dynamic = "force-dynamic";
  */
 export async function GET(req: Request, ctx: { params: Promise<{ key: string }> }) {
   const { key } = await ctx.params;
-  const auth = await authorizeApi(req, "reports.view");
+  const auth = await authorizeApi(req, "accounting.view");
   if (isApiError(auth)) return Response.json({ error: auth.error }, { status: auth.status });
 
   const url = new URL(req.url);

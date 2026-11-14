@@ -1,4 +1,5 @@
 "use client";
+import { PageActions } from "@/components/erp/page-actions";
 
 import { useState, useTransition } from "react";
 import { useT } from "@/lib/i18n/client";
@@ -40,12 +41,14 @@ export function NoonTransferForm({ today }: { today: string }) {
     <Card>
       <CardContent className="pt-6">
         <form onSubmit={submit} className="flex flex-wrap items-end gap-3">
+      <PageActions className="basis-full"><Button type="submit" disabled={pending}>
+            {pending ? <Loader2 className="size-4 animate-spin" /> : <Plus className="size-4" />}{t("تسجيل تحويل من نون")}
+          </Button></PageActions>
+
           <div className="space-y-1"><Label htmlFor="t-date">{t("تاريخ التحويل")}</Label><Input id="t-date" type="date" value={date} onChange={(e) => setDate(e.target.value)} dir="ltr" className="w-44" required /></div>
           <div className="space-y-1"><Label htmlFor="t-amount">{t("المبلغ المُحوَّل")}</Label><Input id="t-amount" type="number" step="0.01" min="0" value={amount} onChange={(e) => setAmount(e.target.value)} inputMode="decimal" className="w-40" placeholder="0.00" required /></div>
           <div className="space-y-1"><Label htmlFor="t-ref">{t("مرجع التحويل")}</Label><Input id="t-ref" value={reference} onChange={(e) => setReference(e.target.value)} className="w-56" placeholder={t("رقم الإيداع / كشف البنك")} required /></div>
-          <Button type="submit" disabled={pending}>
-            {pending ? <Loader2 className="size-4 animate-spin" /> : <Plus className="size-4" />}{t("تسجيل تحويل من نون")}
-          </Button>
+
         </form>
         <p className="mt-3 text-xs text-muted-foreground">{t("نون ماعندهاش API للتسويات، فبتسجّل التحويل يدويًا هنا — يُرحَّل تلقائيًا: مدين البنك / دائن محفظة نون، وينقص رصيد المحفظة.")}</p>
       </CardContent>

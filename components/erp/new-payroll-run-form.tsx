@@ -1,4 +1,6 @@
 "use client";
+import { PageActions } from "@/components/erp/page-actions";
+
 
 import { useState, useTransition } from "react";
 import { useT } from "@/lib/i18n/client";
@@ -41,6 +43,13 @@ export function NewPayrollRunForm() {
 
   return (
     <div className="max-w-lg space-y-5 rounded-xl border bg-card p-6">
+      <PageActions>
+        <Button variant="outline" onClick={() => router.back()}>{t("إلغاء")}</Button>
+        <Button onClick={submit} disabled={pending}>
+          {pending ? t("جارٍ الإنشاء…") : t("إنشاء المسير")}
+        </Button>
+
+      </PageActions>
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-1.5">
           <Label>{t("بداية الفترة")}</Label>
@@ -67,14 +76,9 @@ export function NewPayrollRunForm() {
         />
       </div>
 
-      {error && <p className="rounded-lg bg-destructive/10 p-3 text-sm text-destructive">{error}</p>}
+      {error && <p className="rounded-lg bg-destructive/10 p-3 text-sm text-destructive">{t(error)}</p>}
 
-      <div className="flex justify-end gap-2">
-        <Button variant="outline" onClick={() => router.back()}>{t("إلغاء")}</Button>
-        <Button onClick={submit} disabled={pending}>
-          {pending ? t("جارٍ الإنشاء…") : t("إنشاء المسير")}
-        </Button>
-      </div>
+
     </div>
   );
 }

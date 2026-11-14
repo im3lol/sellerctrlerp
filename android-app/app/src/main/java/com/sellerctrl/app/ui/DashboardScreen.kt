@@ -1,5 +1,7 @@
 package com.sellerctrl.app.ui
 
+import com.sellerctrl.app.tr
+
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -55,18 +57,18 @@ import kotlinx.coroutines.launch
 private data class Mod(val label: String, val icon: ImageVector, val route: String)
 
 private val MODULES = listOf(
-    Mod("المخزون", Icons.Filled.Inventory2, "search"),
-    Mod("جرد المخزون", Icons.Filled.Checklist, "adjust"),
-    Mod("مسح باركود", Icons.Filled.QrCodeScanner, "scan"),
-    Mod("المبيعات", Icons.Filled.ShoppingCart, "hub_sales"),
-    Mod("المشتريات", Icons.AutoMirrored.Filled.List, "hub_purchases"),
-    Mod("العملاء", Icons.Filled.People, "customers"),
-    Mod("الموردون", Icons.Filled.Store, "suppliers"),
-    Mod("المحاسبة", Icons.Filled.AccountBalance, "hub_accounting"),
-    Mod("الموارد البشرية", Icons.Filled.Badge, "hub_hr"),
-    Mod("التقارير", Icons.Filled.Assessment, "reports"),
-    Mod("المستثمرون", Icons.Filled.Savings, "investors"),
-    Mod("المنصات", Icons.Filled.Storefront, "platforms"),
+    Mod(tr("المخزون"), Icons.Filled.Inventory2, "search"),
+    Mod(tr("جرد المخزون"), Icons.Filled.Checklist, "adjust"),
+    Mod(tr("مسح باركود"), Icons.Filled.QrCodeScanner, "scan"),
+    Mod(tr("المبيعات"), Icons.Filled.ShoppingCart, "hub_sales"),
+    Mod(tr("المشتريات"), Icons.AutoMirrored.Filled.List, "hub_purchases"),
+    Mod(tr("العملاء"), Icons.Filled.People, "customers"),
+    Mod(tr("الموردون"), Icons.Filled.Store, "suppliers"),
+    Mod(tr("المحاسبة"), Icons.Filled.AccountBalance, "hub_accounting"),
+    Mod(tr("الموارد البشرية"), Icons.Filled.Badge, "hub_hr"),
+    Mod(tr("التقارير"), Icons.Filled.Assessment, "reports"),
+    Mod(tr("المستثمرون"), Icons.Filled.Savings, "investors"),
+    Mod(tr("المنصات"), Icons.Filled.Storefront, "platforms"),
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -83,11 +85,11 @@ fun DashboardScreen(nav: NavController) {
             title = { Text("SellerCtrl", color = BrandBlue, fontWeight = FontWeight.Black) },
             navigationIcon = {
                 val open = LocalOpenDrawer.current
-                IconButton(onClick = open) { Icon(Icons.Filled.Menu, "القائمة", tint = BrandBlue) }
+                IconButton(onClick = open) { Icon(Icons.Filled.Menu, tr("القائمة"), tint = BrandBlue) }
             },
             actions = {
                 IconButton(onClick = { scope.launch { repo.logout(); nav.navigate("login") { popUpTo(0) } } }) {
-                    Icon(Icons.AutoMirrored.Filled.Logout, "خروج")
+                    Icon(Icons.AutoMirrored.Filled.Logout, tr("خروج"))
                 }
             },
             colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface),
@@ -99,7 +101,7 @@ fun DashboardScreen(nav: NavController) {
         ) {
             item {
                 Column {
-                    Text("مرحبًا، ${repo.userName()}", style = MaterialTheme.typography.titleLarge)
+                    Text(tr("مرحبًا، ${repo.userName()}"), style = MaterialTheme.typography.titleLarge)
                     if (repo.orgName().isNotEmpty()) Text(repo.orgName(), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.outline)
                 }
             }
@@ -107,21 +109,21 @@ fun DashboardScreen(nav: NavController) {
                 item {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Stat("صافي الربح", money(d.net), Modifier.weight(1f))
-                            Stat("النقدية والبنك", money(d.cash), Modifier.weight(1f))
+                            Stat(tr("صافي الربح"), money(d.net), Modifier.weight(1f))
+                            Stat(tr("النقدية والبنك"), money(d.cash), Modifier.weight(1f))
                         }
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Stat("ذمم العملاء", money(d.ar), Modifier.weight(1f))
-                            Stat("قيمة المخزون", money(d.inventoryValue), Modifier.weight(1f))
+                            Stat(tr("ذمم العملاء"), money(d.ar), Modifier.weight(1f))
+                            Stat(tr("قيمة المخزون"), money(d.inventoryValue), Modifier.weight(1f))
                         }
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Stat("مبيعات الشهر", money(d.salesMonth), Modifier.weight(1f))
-                            Stat("نواقص المخزون", "${d.lowStock + d.outOfStock}", Modifier.weight(1f))
+                            Stat(tr("مبيعات الشهر"), money(d.salesMonth), Modifier.weight(1f))
+                            Stat(tr("نواقص المخزون"), "${d.lowStock + d.outOfStock}", Modifier.weight(1f))
                         }
                     }
                 }
             }
-            item { Text("الوحدات", style = MaterialTheme.typography.titleMedium) }
+            item { Text(tr("الوحدات"), style = MaterialTheme.typography.titleMedium) }
             MODULES.chunked(3).forEach { rowMods ->
                 item {
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {

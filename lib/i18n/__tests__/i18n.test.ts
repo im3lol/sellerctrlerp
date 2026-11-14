@@ -1,8 +1,17 @@
 import { describe, expect, it } from "vitest";
-import { translator, dirOf, money, qty, int, date, isLocale, LOCALES } from "@/lib/i18n";
+import { translator, translateName, dirOf, money, qty, int, date, isLocale, LOCALES } from "@/lib/i18n";
 import { EN } from "@/lib/i18n/en";
 
 describe("i18n core", () => {
+  it("translates default master-data names without interpreting custom names as messages", () => {
+    expect(translateName("أمازون", "en")).toBe("Amazon");
+    expect(translateName("المستودع الرئيسي", "en")).toBe("Main warehouse");
+    expect(translateName("مخزن فريقنا الخاص", "en")).toBe("مخزن فريقنا الخاص");
+    expect(translateName("المستودع الرئيسي", "ar")).toBe("المستودع الرئيسي");
+    expect(translateName("أمازون FBA", translator("en"))).toBe("Amazon FBA");
+    expect(translateName("مخزن فريقنا الخاص", translator("en"))).toBe("مخزن فريقنا الخاص");
+    expect(translateName("المستودع الرئيسي", translator("ar"))).toBe("المستودع الرئيسي");
+  });
   it("returns the Arabic source untouched in Arabic", () => {
     const t = translator("ar");
     expect(t("حفظ")).toBe("حفظ");

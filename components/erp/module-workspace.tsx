@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { fill } from "@/lib/i18n";
 import { getT } from "@/lib/i18n/server";
 import { Icon } from "@/components/icon";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -67,8 +68,8 @@ export async function ModuleWorkspace({
       {order.map((g) => (
         <Card key={g}>
           <CardHeader className="pb-3">
-            <CardTitle className="text-base">{g}</CardTitle>
-            <CardDescription>{grouped[g].length} {t("صفحة")}</CardDescription>
+            <CardTitle className="text-base">{t(g)}</CardTitle>
+            <CardDescription>{fill(t("{0} صفحة"), [grouped[g].length])}</CardDescription>
           </CardHeader>
           <CardContent>
             <Tiles items={grouped[g]} counts={counts} />

@@ -29,7 +29,7 @@ export default async function EditTransferPage({ params }: { params: Promise<{ n
       db.execute<StockRow>(sql`
         SELECT DISTINCT ON (item_id, warehouse_id) item_id, warehouse_id, balance_quantity
         FROM stock_movements WHERE organization_id = ${orgId}
-        ORDER BY item_id, warehouse_id, created_at DESC, split_part(number, '-', 3)::int DESC`),
+        ORDER BY item_id, warehouse_id, created_at DESC, CASE WHEN split_part(number, '-', 3) ~ '^[0-9]+$' THEN split_part(number, '-', 3)::numeric ELSE 0 END DESC`),
       db.select({ itemId: stockTransferLines.itemId, fromWarehouseId: stockTransferLines.fromWarehouseId, toWarehouseId: stockTransferLines.toWarehouseId, quantity: stockTransferLines.quantity })
         .from(stockTransferLines).where(eq(stockTransferLines.stockTransferId, tr.id)),
     ]);

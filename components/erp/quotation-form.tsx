@@ -18,6 +18,7 @@ import { NotesEditor } from "@/components/erp/notes-editor";
 import { BarcodeScan } from "@/components/erp/barcode-scan";
 import { CellCombobox } from "@/components/erp/cell-combobox";
 import { QuickCreateParty, type NewParty } from "@/components/erp/quick-create-party";
+import { useLinePaste, LinePasteHint } from "@/components/erp/line-paste";
 import { SortableLineRows } from "@/components/erp/sortable-line-rows";
 import type { ItemSearchResult } from "@/app/actions/erp/item-search";
 import { lineVat } from "@/lib/erp/vat";
@@ -68,6 +69,13 @@ export function QuotationForm({ customers, items, orgName, vatRate, initial }: {
   const custLabel = useMemo(() => new Map(custOptions.map((o) => [o.id, o.label])), [custOptions]);
 
   const setLine = (i: number, patch: Partial<Line>) => setLines((ls) => ls.map((l, idx) => (idx === i ? { ...l, ...patch } : l)));
+  const clipboard = useLinePaste({ rows: lines, setRows: setLines, newRow: newLine,
+    columns: [{ key: "itemId", kind: "item" }, { key: "quantity", kind: "number", integer: true }, { key: "unitPrice", kind: "number" }, { key: "discountAmount", kind: "number" }],
+    apply: (row, values, item) => ({ ...row,
+      ...(item ? { itemId: item.id, unitPrice: item.sellPrice } : {}),
+      ...Object.fromEntries(Object.entries(values).filter(([key]) => key !== "itemId")),
+    }),
+  });
   const addLine = () => setLines((ls) => [...ls, newLine()]);
   const removeLine = (i: number) => setLines((ls) => (ls.length > 1 ? ls.filter((_, idx) => idx !== i) : ls));
   const pickItem = (i: number, it: ItemSearchResult) => setLine(i, { itemId: it.id, unitPrice: Number(it.sellPrice) || 0 });
@@ -104,11 +112,11 @@ export function QuotationForm({ customers, items, orgName, vatRate, initial }: {
 
   return (
     <Card>
-      <CardHeader>
+      <CardHeader data-page-actions="" className="sticky top-16 z-20 rounded-t-xl border-b bg-card/95 py-3 backdrop-blur print:static [&>div]:flex-wrap [&_button]:max-w-full [&_button]:whitespace-normal">
         <div className="flex w-full items-center justify-between gap-3">
           <CardTitle>{t("بيانات عرض السعر")}</CardTitle>
           <div className="flex gap-2">
-            <Button size="sm" onClick={submit} disabled={pending}>{pending && <Loader2 className="size-4 animate-spin" />}{isEdit ? t("حفظ التعديلات") : t("حفظ العرض")}</Button>
+            <Button size="sm" onClick={submit} disabled={pending || clipboard.busy}>{pending && <Loader2 className="size-4 animate-spin" />}{isEdit ? t("حفظ التعديلات") : t("حفظ العرض")}</Button>
             <Button variant="outline" size="sm" onClick={() => router.push(isEdit ? `/sales/quotations/${encodeURIComponent(initial!.number)}` : "/sales/quotations")}>{t("إلغاء")}</Button>
           </div>
         </div>
@@ -146,6 +154,7 @@ export function QuotationForm({ customers, items, orgName, vatRate, initial }: {
           <div className="space-y-2"><Label>{t("مسح باركود")}</Label><BarcodeScan onScan={addOrBumpItem} /></div>
         </div>
 
+        <LinePasteHint busy={clipboard.busy} />
         <div className="rounded-xl border">
           <Table>
             <TableHeader><TableRow>
@@ -163,18 +172,19 @@ export function QuotationForm({ customers, items, orgName, vatRate, initial }: {
               <SortableLineRows
                 items={lines}
                 onReorder={setLines}
+                clipboard={clipboard}
                 renderCells={(l, i) => (
                   <>
                     <TableCell><ItemThumb src={itemById.get(l.itemId)?.image} /></TableCell>
-                    <TableCell className="min-w-64 max-w-72">
-                      <ItemPicker
+                    <TableCell data-paste-column="itemId" className="min-w-64 max-w-72">
+                      <ItemPicker selectionRevision={clipboard.revision} selectionKey={l.itemId}
                         selected={itemById.get(l.itemId) ? { name: itemById.get(l.itemId)!.nameAr ?? "", code: itemById.get(l.itemId)!.code, image: itemById.get(l.itemId)!.image } : null}
                         onSelect={(it) => pickItem(i, it)}
                       />
                     </TableCell>
-                    <TableCell><Input type="number" step="1" min="1" className="w-20" value={l.quantity} onChange={(e) => setLine(i, { quantity: Math.max(0, Math.trunc(Number(e.target.value) || 0)) })} /></TableCell>
-                    <TableCell><Input type="number" step="0.01" className="w-28" value={l.unitPrice} onChange={(e) => setLine(i, { unitPrice: Number(e.target.value) })} /></TableCell>
-                    <TableCell><Input type="number" step="0.01" className="w-28" value={l.discountAmount} onChange={(e) => setLine(i, { discountAmount: Number(e.target.value) })} /></TableCell>
+                    <TableCell><Input data-paste-column="quantity" type="number" step="1" min="1" className="w-20" value={l.quantity} onChange={(e) => setLine(i, { quantity: Math.max(0, Math.trunc(Number(e.target.value) || 0)) })} /></TableCell>
+                    <TableCell><Input data-paste-column="unitPrice" type="number" step="0.01" className="w-28" value={l.unitPrice} onChange={(e) => setLine(i, { unitPrice: Number(e.target.value) })} /></TableCell>
+                    <TableCell><Input data-paste-column="discountAmount" type="number" step="0.01" className="w-28" value={l.discountAmount} onChange={(e) => setLine(i, { discountAmount: Number(e.target.value) })} /></TableCell>
                     <TableCell className="font-medium">{fmt(lineTotal(l, vatRate, applyVat))}</TableCell>
                     <TableCell><Button variant="ghost" size="icon" onClick={() => removeLine(i)} aria-label={t("حذف")}><Trash2 className="size-4 text-destructive" /></Button></TableCell>
                   </>

@@ -16,7 +16,7 @@ import { db } from "@/lib/db";
 import { withOrgScope } from "@/lib/db-scope";
 import { organizationMembers } from "@/db/schema";
 import { getCurrentUser, type SessionUser } from "@/lib/session";
-import { erpRoleHasPermission, erpRolePermissions, allErpPermissions, type ErpPermission } from "@/lib/erp/permissions";
+import { erpRolePermissions, allErpPermissions, type ErpPermission } from "@/lib/erp/permissions";
 
 export class ErpAuthError extends Error {
   status: number;
@@ -91,8 +91,8 @@ export async function requireErpAuth(orgId: string): Promise<ErpAuthUser> {
 /** Require a specific ERP permission within an org. */
 export async function requireErpCapability(orgId: string, permission: ErpPermission): Promise<ErpAuthUser> {
   const u = await requireErpAuth(orgId);
-  if (u.erpRole === "super_admin") return u; // global system_admin bypass
-  if (!erpRoleHasPermission(u.erpRole, permission)) {
+  const access = await getMemberAccess(orgId, u);
+  if (!access.permissions.has(permission)) {
     throw new ErpAuthError("ليس لديك صلاحية لهذا الإجراء", 403);
   }
   return u;

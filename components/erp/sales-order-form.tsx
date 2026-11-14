@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 import { Plus, Trash2, Loader2 } from "lucide-react";
 import { toast } from "@/lib/i18n/toast";
 import { createSalesOrderAction, updateSalesOrderAction } from "@/app/actions/erp/sales-orders";
-import { getItemWarehouseStockAction, type WarehouseStock } from "@/app/actions/erp/stock";
+import { getItemWarehouseStockAction, getPasteWarehouseStocksAction, type WarehouseStock } from "@/app/actions/erp/stock";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -19,6 +19,7 @@ import { ItemPicker } from "@/components/erp/item-picker";
 import { WarehousePicker } from "@/components/erp/warehouse-picker";
 import { CellCombobox } from "@/components/erp/cell-combobox";
 import { QuickCreateParty, type NewParty } from "@/components/erp/quick-create-party";
+import { useLinePaste, LinePasteHint } from "@/components/erp/line-paste";
 import { SortableLineRows } from "@/components/erp/sortable-line-rows";
 import type { ItemSearchResult } from "@/app/actions/erp/item-search";
 import { lineVat } from "@/lib/erp/vat";
@@ -107,6 +108,36 @@ export function SalesOrderForm({ customers, items, orgName, vatRate, defaultCust
   const customerLabelById = useMemo(() => new Map(customerOptions.map((o) => [o.id, o.label])), [customerOptions]);
 
   const setLine = (i: number, patch: Partial<Line>) => setLines((ls) => ls.map((l, idx) => (idx === i ? { ...l, ...patch } : l)));
+  const clipboard = useLinePaste({ rows: lines, setRows: setLines, newRow: newLine, context: customerId,
+    columns: [{ key: "itemId", kind: "item" }, { key: "quantity", kind: "number", integer: true }, { key: "unitPrice", kind: "number" }, { key: "discountAmount", kind: "number" }],
+    apply: (row, values, item) => ({ ...row,
+      ...(item ? { itemId: item.id, unitPrice: item.sellPrice, priceEdited: false, stock: [], warehouseId: "" } : {}),
+      ...Object.fromEntries(Object.entries(values).filter(([key]) => key !== "itemId")),
+      ...(typeof values.unitPrice === "number" ? { priceEdited: true } : {}),
+    }),
+    prepare: async (next, changed) => {
+      const wanted = [...new Set(changed.map(i => next[i]).filter(l => l.itemId && !l.warehouseId).map(l => l.itemId))];
+      const loaded = wanted.length ? await getPasteWarehouseStocksAction(wanted) : { ok: true, stocks: {} as Record<string, WarehouseStock[]> };
+      if (!loaded.ok || !loaded.stocks) throw new Error("تعذّر تحميل أرصدة المستودعات");
+      for (const i of changed) {
+        const l = next[i];
+        if (!l.itemId || l.warehouseId) continue;
+        const stock = loaded.stocks[l.itemId];
+        if (!stock) throw new Error("تعذّر تحميل أرصدة المستودعات");
+        const stocked = stock.filter(s => s.qty > 0).sort((a, b) => b.qty - a.qty);
+        next[i] = { ...l, stock, warehouseId: (stocked[0] ?? stock[0])?.warehouseId ?? "" };
+      }
+      if (customerId) {
+        const r = await getCustomerPricesAction(customerId, changed.filter(i => next[i].itemId).map(i => ({ itemId: next[i].itemId, quantity: next[i].quantity })));
+        if (!r.ok) throw new Error("تعذّر تحميل قائمة أسعار العميل");
+        for (const i of changed) {
+          const l = next[i], price = r.prices?.[l.itemId];
+          if (price != null && !l.priceEdited) next[i] = { ...l, unitPrice: price };
+        }
+      }
+      return next;
+    },
+  });
 
   // Which lines the customer's price list decided, so the screen can say where a price
   // came from — a number that changes on its own with no explanation is a support call.
@@ -191,11 +222,11 @@ export function SalesOrderForm({ customers, items, orgName, vatRate, defaultCust
 
   return (
     <Card>
-      <CardHeader>
+      <CardHeader data-page-actions="" className="sticky top-16 z-20 rounded-t-xl border-b bg-card/95 py-3 backdrop-blur print:static [&>div]:flex-wrap [&_button]:max-w-full [&_button]:whitespace-normal">
         <div className="flex w-full items-center justify-between gap-3">
           <CardTitle>{t("بيانات أمر البيع")}</CardTitle>
           <div className="flex gap-2">
-            <Button size="sm" onClick={submit} disabled={pending}>{pending && <Loader2 className="size-4 animate-spin" />}{isEdit ? t("حفظ التعديلات") : t("حفظ الأمر")}</Button>
+            <Button size="sm" onClick={submit} disabled={pending || clipboard.busy}>{pending && <Loader2 className="size-4 animate-spin" />}{isEdit ? t("حفظ التعديلات") : t("حفظ الأمر")}</Button>
             <Button variant="outline" size="sm" onClick={() => router.push(isEdit ? `/sales/orders/${initial!.id}` : "/sales/orders")}>{t("إلغاء")}</Button>
           </div>
         </div>
@@ -263,6 +294,7 @@ export function SalesOrderForm({ customers, items, orgName, vatRate, defaultCust
           <div className="space-y-2"><Label>{t("ملاحظات")}</Label><Input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder={t("اختياري")} /></div>
         </div>
 
+        <LinePasteHint busy={clipboard.busy} />
         <div className="rounded-xl border">
           <Table>
             <TableHeader>
@@ -284,6 +316,7 @@ export function SalesOrderForm({ customers, items, orgName, vatRate, defaultCust
               <SortableLineRows
                 items={lines}
                 onReorder={setLines}
+                clipboard={clipboard}
                 renderCells={(l, i) => {
                   const opts = l.stock.filter((s) => s.qty > 0);
                   const whOpts = opts.length ? opts : l.stock;
@@ -291,8 +324,8 @@ export function SalesOrderForm({ customers, items, orgName, vatRate, defaultCust
                   return (
                     <>
                       <TableCell><ItemThumb src={itemById.get(l.itemId)?.image} /></TableCell>
-                      <TableCell className="min-w-64 max-w-72">
-                        <ItemPicker
+                      <TableCell data-paste-column="itemId" className="min-w-64 max-w-72">
+                        <ItemPicker selectionRevision={clipboard.revision} selectionKey={l.itemId}
                           selected={itemById.get(l.itemId) ? { name: itemById.get(l.itemId)!.nameAr ?? "", code: itemById.get(l.itemId)!.code, image: itemById.get(l.itemId)!.image } : null}
                           onSelect={(it) => pickItem(i, it)}
                         />
@@ -307,15 +340,15 @@ export function SalesOrderForm({ customers, items, orgName, vatRate, defaultCust
                         />
                       </TableCell>
                       <TableCell className={`tabular-nums ${onHand <= 0 ? "text-destructive" : "text-muted-foreground"}`}>{l.itemId ? qtyf(onHand) : "—"}</TableCell>
-                      <TableCell><Input type="number" step="1" min="1" className="w-20 text-base" value={l.quantity} onChange={(e) => setLine(i, { quantity: Math.max(0, Math.trunc(Number(e.target.value) || 0)) })} /></TableCell>
+                      <TableCell><Input data-paste-column="quantity" type="number" step="1" min="1" className="w-20 text-base" value={l.quantity} onChange={(e) => setLine(i, { quantity: Math.max(0, Math.trunc(Number(e.target.value) || 0)) })} /></TableCell>
                       <TableCell>
-                        <Input type="number" step="0.01" className="w-28 text-base" value={l.unitPrice} onChange={(e) => setLine(i, { unitPrice: Number(e.target.value), priceEdited: true })} />
+                        <Input data-paste-column="unitPrice" type="number" step="0.01" className="w-28 text-base" value={l.unitPrice} onChange={(e) => setLine(i, { unitPrice: Number(e.target.value), priceEdited: true })} />
                         {/* Say where the number came from — a price that changes by itself is a support call. */}
                         {listPriced[l.itemId] && !l.priceEdited && (
                           <span className="mt-0.5 block text-[11px] text-muted-foreground">{t("من قائمة أسعار العميل")}</span>
                         )}
                       </TableCell>
-                      <TableCell><Input type="number" step="0.01" className="w-28 text-base" value={l.discountAmount} onChange={(e) => setLine(i, { discountAmount: Number(e.target.value) })} /></TableCell>
+                      <TableCell><Input data-paste-column="discountAmount" type="number" step="0.01" className="w-28 text-base" value={l.discountAmount} onChange={(e) => setLine(i, { discountAmount: Number(e.target.value) })} /></TableCell>
                       <TableCell className="font-medium">{fmt(lineTotal(l, vatRate, applyVat))}</TableCell>
                       <TableCell><Button variant="ghost" size="icon" onClick={() => removeLine(i)} aria-label={t("حذف")}><Trash2 className="size-4 text-destructive" /></Button></TableCell>
                     </>

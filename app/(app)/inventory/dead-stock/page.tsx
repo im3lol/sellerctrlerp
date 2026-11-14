@@ -37,7 +37,7 @@ export default async function DeadStockPage({ searchParams }: { searchParams: Pr
         SELECT item_id, SUM(bq) AS qty, SUM(bv) AS val FROM (
           SELECT DISTINCT ON (item_id, warehouse_id) item_id, balance_quantity bq, balance_value bv
           FROM stock_movements WHERE organization_id = ${orgId}
-          ORDER BY item_id, warehouse_id, created_at DESC, split_part(number, '-', 3)::int DESC
+          ORDER BY item_id, warehouse_id, created_at DESC, CASE WHEN split_part(number, '-', 3) ~ '^[0-9]+$' THEN split_part(number, '-', 3)::numeric ELSE 0 END DESC
         ) t GROUP BY item_id
       ) s ON s.item_id = i.id
       LEFT JOIN (

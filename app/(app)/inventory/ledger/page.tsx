@@ -1,5 +1,8 @@
+
+import { itemHref } from "@/lib/erp/item-href";
+import { getLocale } from "@/lib/i18n/server";
 import Link from "next/link";
-import { fill } from "@/lib/i18n";
+import { translateName, fill } from "@/lib/i18n";
 import { getT } from "@/lib/i18n/server";
 import { loadErpPage } from "@/lib/erp/org";
 import { getStockLedger, MOVE_TYPE, MOVE_REF } from "@/lib/erp/stock-ledger";
@@ -16,7 +19,7 @@ import { selectCls } from "@/lib/utils";
 const PER_PAGE = 50;
 const fmt = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const qfmt = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { maximumFractionDigits: 3 });
-const dt = (d: Date) => new Date(d).toLocaleDateString("ar-EG-u-nu-latn", { year: "numeric", month: "2-digit", day: "2-digit" });
+const dt = (d: Date, locale: import("@/lib/i18n").Locale) => new Date(d).toLocaleDateString(locale === "en" ? "en-GB" : "ar-EG-u-nu-latn", { year: "numeric", month: "2-digit", day: "2-digit" });
 
 const TYPE_OPTIONS: [string, string][] = [["IN", "وارد"], ["OUT", "منصرف"], ["ADJ", "تسوية"], ["REVALUE", "إعادة تقييم"]];
 
@@ -25,6 +28,7 @@ const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) 
 
 export default async function StockLedgerPage({ searchParams }: { searchParams: Promise<SP> }) {
   const t = await getT();
+  const locale = await getLocale();
   return loadErpPage("inventory.view", async ({ orgId , permissions }) => {
     const sp = await searchParams;
     const itemId = one(sp.item);
@@ -138,10 +142,10 @@ export default async function StockLedgerPage({ searchParams }: { searchParams: 
                       const variant = mt.tone === "in" ? "default" : mt.tone === "out" ? "destructive" : "secondary";
                       return (
                         <TableRow key={i}>
-                          <TableCell className="whitespace-nowrap">{dt(r.date)}</TableCell>
+                          <TableCell className="whitespace-nowrap">{dt(r.date, locale)}</TableCell>
                           <TableCell className="max-w-[22rem] whitespace-normal">
-                            {r.itemId ? (
-                              <Link href={`/inventory/items/${r.itemId}`} className="hover:underline">
+                            {r.itemId && r.itemCode ? (
+                              <Link href={itemHref(r.itemCode!)} className="hover:underline">
                                 <div dir="ltr" className="line-clamp-2 text-start leading-snug" title={r.itemName ?? undefined}>{r.itemName}</div>
                                 <div className="font-mono text-xs text-muted-foreground">{r.itemCode}</div>
                               </Link>
@@ -159,7 +163,7 @@ export default async function StockLedgerPage({ searchParams }: { searchParams: 
                               ? <Link href={r.refHref} className="font-mono text-xs text-primary hover:underline" dir="ltr">{r.refNumber}</Link>
                               : <span className="font-mono text-xs text-muted-foreground" dir="ltr">{r.refNumber}</span>)}
                           </TableCell>
-                          <TableCell>{r.warehouse ?? "—"}</TableCell>
+                          <TableCell>{translateName(r.warehouse ?? "—", t)}</TableCell>
                           <TableCell>{!isOut ? qfmt(r.quantity) : "—"}</TableCell>
                           <TableCell>{isOut ? qfmt(r.quantity) : "—"}</TableCell>
                           <TableCell>{fmt(r.unitCost)}</TableCell>

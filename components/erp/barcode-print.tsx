@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { fill } from "@/lib/i18n";
 import { useT } from "@/lib/i18n/client";
 import JsBarcode from "jsbarcode";
+import { printLabelBatch } from "@/lib/erp/browser-label-print";
 import { toast } from "@/lib/i18n/toast";
 import { Printer, Loader2, Trash2, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -13,109 +14,6 @@ import { selectCls } from "@/lib/utils";
 export type PrintCode = { label: string; value: string };
 /** One document line to print labels for: name + how many labels (line qty) + the codes to pick from. */
 export type BulkRow = { itemName: string; qty: number; codes: PrintCode[] };
-
-const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-
-// Render a Code128 barcode to a detached <svg> and serialize it — no DOM mount / ref
-// needed, so it works for the bulk case where we generate many labels at print time.
-function barcodeSvg(value: string): string {
-  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-  try { JsBarcode(svg, value, { format: "CODE128", displayValue: false, margin: 0, height: 40, width: 2 }); }
-  catch { return ""; } // a value Code128 can't encode → label prints text-only
-  return new XMLSerializer().serializeToString(svg);
-}
-
-// The printed 50×25mm label. Horizontal padding = the barcode's QUIET ZONE: bars must
-// NOT reach the label edges or a scanner can't read them (~40mm content, ~5mm each side).
-function labelDoc(itemName: string, value: string, svgMarkup: string): string {
-  return `<!DOCTYPE html><html><head><meta charset="utf-8"><style>
-@page{size:50mm 25mm;margin:0}*{margin:0;padding:0;box-sizing:border-box}
-body{width:50mm;height:25mm;padding:1.5mm 5mm;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0.8mm;font-family:Arial,sans-serif;overflow:hidden}
-.n{font-size:6pt;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:center}
-svg{width:100%;height:12mm}
-.c{font-size:7.5pt;letter-spacing:1px;font-family:monospace}
-</style></head><body><div class="n">${esc(itemName)}</div>${svgMarkup}<div class="c">${esc(value)}</div></body></html>`;
-}
-
-// Remembered across dialogs/sessions so the user doesn't re-pick their printer every time.
-const PRINTER_KEY = "erp:qz-printer";
-
-type QzTray = typeof import("qz-tray")["default"];
-
-// Sign every QZ Tray request with this org's certificate so the desktop app trusts us
-// automatically — no more "Untrusted website / Allow?" prompt on every connect. The
-// certificate + signing happen server-side (app/api/erp/qz/*); set once per module load.
-let qzSecurityConfigured = false;
-function configureQzSecurity(qz: QzTray) {
-  if (qzSecurityConfigured) return;
-  qzSecurityConfigured = true;
-  qz.security.setSignatureAlgorithm("SHA512");
-  qz.security.setCertificatePromise((resolve, reject) => {
-    fetch("/api/erp/qz/cert").then((r) => (r.ok ? r.text() : Promise.reject(new Error("cert fetch failed")))).then(resolve, reject);
-  });
-  qz.security.setSignaturePromise((toSign) => (resolve, reject) => {
-    fetch("/api/erp/qz/sign", { method: "POST", body: toSign }).then((r) => (r.ok ? r.text() : Promise.reject(new Error("sign failed")))).then(resolve, reject);
-  });
-}
-
-// Connect to the local QZ Tray app + list printers when a dialog opens (or, for an
-// inline/non-dialog caller, whenever `open` is just always true).
-export function useQzPrinters(open: boolean) {
-  const [printers, setPrinters] = useState<string[]>([]);
-  const [printer, setPrinterState] = useState("");
-  const [qzOk, setQzOk] = useState<boolean | null>(null); // null = probing
-  const setPrinter = (p: string) => {
-    setPrinterState(p);
-    try { localStorage.setItem(PRINTER_KEY, p); } catch { /* private browsing */ }
-  };
-  useEffect(() => {
-    if (!open) return;
-    setQzOk(null);
-    void (async () => {
-      try {
-        const qz = (await import("qz-tray")).default;
-        configureQzSecurity(qz);
-        if (!qz.websocket.isActive()) await qz.websocket.connect({ retries: 1, delay: 1 });
-        const found = await qz.printers.find();
-        const list = (Array.isArray(found) ? found : [found]).map(String);
-        setPrinters(list);
-        let saved: string | null = null;
-        try { saved = localStorage.getItem(PRINTER_KEY); } catch { /* private browsing */ }
-        if (saved && list.includes(saved)) setPrinterState(saved);
-        else { try { setPrinterState(String(await qz.printers.getDefault())); } catch { setPrinterState(list[0] ?? ""); } }
-        setQzOk(true);
-      } catch { setPrinters([]); setQzOk(false); }
-    })();
-  }, [open]);
-  return { printers, printer, setPrinter, qzOk };
-}
-
-// Send one QZ print job per physical label (jobs already expanded by quantity).
-export async function qzPrint(printer: string, jobs: { itemName: string; value: string }[]) {
-  const qz = (await import("qz-tray")).default;
-  configureQzSecurity(qz);
-  if (!qz.websocket.isActive()) await qz.websocket.connect({ retries: 1, delay: 1 });
-  const cfg = qz.configs.create(printer, { units: "mm", size: { width: 50, height: 25 }, margins: 0, copies: 1 });
-  const data = jobs.map((j) => ({ type: "pixel", format: "html", flavor: "plain", data: labelDoc(j.itemName, j.value, barcodeSvg(j.value)) }));
-  await qz.print(cfg, data);
-}
-
-export function PrinterField({ qzOk, printers, printer, setPrinter }: { qzOk: boolean | null; printers: string[]; printer: string; setPrinter: (p: string) => void }) {
-  const t = useT();
-  return (
-    <div className="space-y-1.5">
-      <label className="text-sm font-medium">{t("الطابعة")}</label>
-      {qzOk === false ? (
-        <p className="rounded-md border border-destructive/40 bg-destructive/5 p-2 text-xs text-destructive">{t("تعذّر الاتصال بـ QZ Tray — تأكد أن البرنامج يعمل على هذا الجهاز ثم أعد تحميل الصفحة.")}</p>
-      ) : (
-        <select className={selectCls} value={printer} onChange={(e) => setPrinter(e.target.value)} disabled={qzOk === null}>
-          {qzOk === null && <option>{t("جاري الاتصال بـ QZ Tray…")}</option>}
-          {printers.map((p) => <option key={p} value={p}>{t(p)}</option>)}
-        </select>
-      )}
-    </div>
-  );
-}
 
 // Small live preview mirroring the printed 50×25mm label (2:1). Callback-ref as state so
 // it draws as soon as the <svg> mounts (Radix portals the dialog body a tick after open).
@@ -135,8 +33,8 @@ function LabelPreview({ itemName, value }: { itemName: string; value: string }) 
 }
 
 /**
- * Single-item label: pick one of the item's codes + printer + copies, preview, print
- * via QZ Tray. Used on the item detail page.
+ * Single-item label: pick one of the item's codes and copies, preview, print
+ * via one browser dialog. Used on the item detail page.
  */
 export function BarcodePrintButton({ itemName, codes }: { itemName: string; codes: PrintCode[] }) {
   const t = useT();
@@ -144,20 +42,18 @@ export function BarcodePrintButton({ itemName, codes }: { itemName: string; code
   const [sel, setSel] = useState(0);
   const [copies, setCopies] = useState(1);
   const [busy, setBusy] = useState(false);
-  const { printers, printer, setPrinter, qzOk } = useQzPrinters(open);
   const value = codes[sel]?.value ?? "";
 
   const print = async () => {
     if (!value) { toast.error("اختر الكود أولًا"); return; }
-    if (!printer) { toast.error("اختر الطابعة"); return; }
     setBusy(true);
     try {
       const n = Math.max(1, Math.min(100, copies));
-      await qzPrint(printer, Array.from({ length: n }, () => ({ itemName, value })));
-      toast.success(fill(t("أُرسلت {0} ملصق للطابعة"), [n]));
+      await printLabelBatch(Array.from({ length: n }, () => ({ itemName, value })));
+      toast.success(fill(t("فُتحت نافذة الطباعة لدفعة من {0} ملصق"), [n]));
       setOpen(false);
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "فشلت الطباعة — تأكد أن QZ Tray يعمل");
+      toast.error(e instanceof Error ? e.message : "تعذّر فتح نافذة الطباعة");
     } finally { setBusy(false); }
   };
 
@@ -172,7 +68,7 @@ export function BarcodePrintButton({ itemName, codes }: { itemName: string; code
         <DialogContent>
           <DialogHeader>
             <DialogTitle>{t("طباعة باركود —")} {itemName}</DialogTitle>
-            <DialogDescription>{t("ملصق 50×25 مم عبر QZ Tray — اختر الكود وشاهد المعاينة قبل الطباعة.")}</DialogDescription>
+            <DialogDescription>{t("مقاس الملصق من إعدادات الطباعة لهذا المتصفح؛ اختر الكود والكمية ثم اطبع الدفعة.")}</DialogDescription>
           </DialogHeader>
 
           <div className="grid gap-3 sm:grid-cols-2">
@@ -188,7 +84,7 @@ export function BarcodePrintButton({ itemName, codes }: { itemName: string; code
             </div>
           </div>
 
-          <PrinterField qzOk={qzOk} printers={printers} printer={printer} setPrinter={setPrinter} />
+          <p className="text-xs leading-6 text-muted-foreground">{t("اختر الطابعة المثبتة من نافذة الطباعة. الدفعة كاملة في نافذة واحدة؛ المقاس والمحاذاة من إعدادات الطباعة على هذا المتصفح، وقياس الطباعة 100%.")}</p>
 
           <div className="space-y-1.5">
             <label className="text-sm font-medium">{t("معاينة الملصق")}</label>
@@ -196,7 +92,7 @@ export function BarcodePrintButton({ itemName, codes }: { itemName: string; code
           </div>
 
           <DialogFooter>
-            <Button onClick={print} disabled={busy || qzOk !== true}>
+            <Button onClick={print} disabled={busy}>
               {busy ? <Loader2 className="size-4 animate-spin" /> : <Printer className="size-4" />}{t("طباعة")}
             </Button>
           </DialogFooter>
@@ -212,7 +108,7 @@ const seed = (rows: BulkRow[]): EditRow[] => rows.map((r) => ({ ...r, sel: 0, in
 /**
  * Document-level bulk labels (goods receipt / issue note): one label per unit for every
  * line, quantity prefilled from the line. Before printing you can edit the quantity, drop
- * a line, pick one code for ALL lines, then override any line individually. Prints via QZ Tray.
+ * a line, pick one code for ALL lines, then override any line individually. Opens one browser print dialog for the complete batch.
  */
 export function BulkBarcodePrintButton({
   docTitle,
@@ -235,7 +131,6 @@ export function BulkBarcodePrintButton({
   const setOpen = onOpenChange ?? setOpenSelf;
   const [busy, setBusy] = useState(false);
   const [edit, setEdit] = useState<EditRow[]>(() => seed(rows));
-  const { printers, printer, setPrinter, qzOk } = useQzPrinters(open);
 
   // Reset edits every time the dialog reopens (doc data is stable per mount).
   useEffect(() => { if (open) setEdit(seed(rows)); }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -249,20 +144,20 @@ export function BulkBarcodePrintButton({
   }));
 
   const included = edit.filter((r) => r.include && r.qty > 0 && r.codes[r.sel]?.value);
-  const totalLabels = included.reduce((s, r) => s + r.qty, 0);
+  const totalLabels = included.reduce((s, r) => s + Math.floor(r.qty), 0);
   const preview = included[0];
 
   const print = async () => {
-    if (!printer) { toast.error("اختر الطابعة"); return; }
     if (!included.length) { toast.error("لا توجد أصناف للطباعة"); return; }
+    if (totalLabels > 5000) return toast.error("الحد الأقصى للدفعة 5000 ملصق؛ قسّم الكمية على دفعات");
     setBusy(true);
     try {
-      const jobs = included.flatMap((r) => Array.from({ length: r.qty }, () => ({ itemName: r.itemName, value: r.codes[r.sel].value })));
-      await qzPrint(printer, jobs);
-      toast.success(fill(t("أُرسل {0} ملصق للطابعة"), [totalLabels]));
+      const jobs = included.flatMap((r) => Array.from({ length: Math.floor(r.qty) }, () => ({ itemName: r.itemName, value: r.codes[r.sel].value })));
+      await printLabelBatch(jobs);
+      toast.success(fill(t("فُتحت نافذة الطباعة لدفعة من {0} ملصق"), [totalLabels]));
       setOpen(false);
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "فشلت الطباعة — تأكد أن QZ Tray يعمل");
+      toast.error(e instanceof Error ? e.message : "تعذّر فتح نافذة الطباعة");
     } finally { setBusy(false); }
   };
 
@@ -279,7 +174,7 @@ export function BulkBarcodePrintButton({
         <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>{t("طباعة باركود —")} {docTitle}</DialogTitle>
-            <DialogDescription>{t("ملصق لكل قطعة حسب الكمية. عدّل الكمية أو استبعد صنفاً، واختر الكود للكل ثم عدّل أي صنف. 50×25 مم عبر QZ Tray.")}</DialogDescription>
+            <DialogDescription>{t("ملصق لكل قطعة حسب الكمية. عدّل الأصناف والأكواد، ثم اطبع كل الملصقات في دفعة واحدة.")}</DialogDescription>
           </DialogHeader>
 
           <div className="grid gap-3 sm:grid-cols-2">
@@ -290,7 +185,7 @@ export function BulkBarcodePrintButton({
                 {codeLabels.map((l) => <option key={l} value={l}>{t(l)}</option>)}
               </select>
             </div>
-            <PrinterField qzOk={qzOk} printers={printers} printer={printer} setPrinter={setPrinter} />
+            <p className="text-xs leading-6 text-muted-foreground">{t("اختر الطابعة المثبتة من نافذة الطباعة. الدفعة كاملة في نافذة واحدة؛ المقاس والمحاذاة من إعدادات الطباعة على هذا المتصفح، وقياس الطباعة 100%.")}</p>
           </div>
 
           <div className="max-h-[42vh] overflow-auto rounded-md border">
@@ -337,7 +232,7 @@ export function BulkBarcodePrintButton({
 
           <DialogFooter className="sm:items-center sm:justify-between">
             <span className="text-sm text-muted-foreground">{totalLabels} {t("ملصق ·")} {included.length} {t("صنف")}</span>
-            <Button onClick={print} disabled={busy || qzOk !== true || !totalLabels}>
+            <Button onClick={print} disabled={busy || !totalLabels}>
               {busy ? <Loader2 className="size-4 animate-spin" /> : <Printer className="size-4" />}{t("طباعة")}
             </Button>
           </DialogFooter>

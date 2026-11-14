@@ -65,4 +65,9 @@ describe("activeModule", () => {
   it("the setup checklist sits under settings", () => {
     expect(activeModule("/setup")?.heading).toBe("الإدارة والإعدادات");
   });
+
+  it("approvals keep the settings sidebar regardless of the last visited module", () => {
+    expect(activeModule("/approvals")?.heading).toBe("الإدارة والإعدادات");
+    expect(activeModule("/approvals", "المبيعات")?.heading).toBe("الإدارة والإعدادات");
+  });
 });

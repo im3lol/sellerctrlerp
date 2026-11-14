@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
  * Posts only already-imported, released and currently-unposted rows. The settlement
  * core remains atomic and rechecks for concurrent posting under a DB lock. */
 export async function POST(req: Request, { params }: { params: Promise<{ code: string }> }) {
-  const auth = await authorizeApi(req, "accounting.create");
+  const auth = await authorizeApi(req, "accounting.create", "marketplace");
   if (isApiError(auth)) return Response.json({ error: auth.error }, { status: auth.status });
   if (auth.role !== "super_admin" && !(await orgHasModule(auth.orgId, "marketplace"))) {
     return Response.json({ error: "module_unavailable" }, { status: 403 });

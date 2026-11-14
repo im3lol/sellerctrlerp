@@ -14,8 +14,10 @@ type ListingItem = {
   summaries?: { asin?: string; itemName?: string }[];
   offers?: Offer[];
   attributes?: Record<string, unknown>;
+  fulfillmentAvailability?: { fulfillmentChannelCode?: string }[];
 };
 type ListingsResponse = { items?: ListingItem[]; pagination?: { nextToken?: string } };
+export class ListingsResultLimitError extends Error {}
 
 /** Best-effort price from a listing item (offers, else common attribute paths, else 0). */
 function priceOf(item: ListingItem): number {
@@ -32,21 +34,24 @@ function priceOf(item: ListingItem): number {
 export function listingToProduct(item: ListingItem): MarketplaceProduct | null {
   if (!item.sku) return null;
   const s = item.summaries?.[0];
-  return { code: item.sku, altCode: s?.asin, name: s?.itemName || item.sku, sellPrice: priceOf(item) };
+  const channels = item.fulfillmentAvailability?.map((f) => f.fulfillmentChannelCode) ?? [];
+  const fulfillment = channels.some((c) => c?.startsWith("AMAZON") || c === "AFN") ? "FBA" as const
+    : channels.some((c) => c === "DEFAULT" || c === "MFN") ? "FBM" as const : undefined;
+  return { code: item.sku, altCode: s?.asin, name: s?.itemName || item.sku, sellPrice: priceOf(item), ...(fulfillment ? { fulfillment } : {}) };
 }
 
 /**
- * Merge the full catalog (from FBA inventory — has every SKU, no price) with the
- * priced listings slice (≤1000, capped by Amazon). Full set wins for existence;
- * price is overlaid from listings where present. Listings-only SKUs (e.g. FBM,
- * not in FBA inventory) are still included.
+ * Current seller listings define membership, identity and price. FBA summaries
+ * are historical and may only supply FNSKU for the SAME SKU AND ASIN.
  */
 export function mergeProducts(full: MarketplaceProduct[], priced: MarketplaceProduct[]): MarketplaceProduct[] {
-  const priceBySku = new Map(priced.map((l) => [l.code, l.sellPrice]));
-  const bySku = new Map<string, MarketplaceProduct>();
-  for (const p of full) bySku.set(p.code, { ...p, sellPrice: priceBySku.get(p.code) ?? p.sellPrice });
-  for (const l of priced) if (!bySku.has(l.code)) bySku.set(l.code, l);
-  return [...bySku.values()];
+  const inventoryBySku = new Map(full.map((p) => [`${p.code}|${p.altCode ?? ""}`, p]));
+  return priced.map((listing) => {
+    const inventory = inventoryBySku.get(`${listing.code}|${listing.altCode ?? ""}`);
+    return inventory?.altCode && inventory.altCode === listing.altCode && listing.fulfillment !== "FBM"
+      ? { ...listing, fnsku: inventory.fnsku ?? listing.fnsku }
+      : { ...listing };
+  });
 }
 
 /**
@@ -59,12 +64,10 @@ export async function fetchListings(cred: Credential, lastUpdatedAfter?: Date): 
   const out: MarketplaceProduct[] = [];
   let pageToken: string | undefined;
   // searchListingsItems is HARD-CAPPED at 1000 results by Amazon (nextToken stops
-  // there regardless of pageSize) — so this can't enumerate an 11k catalog on its
-  // own; full enumeration is fetchInventoryProducts (FBA, uncapped). Used here for
-  // incremental syncs (lastUpdatedAfter → few changes) and to overlay price on the
-  // full pull. 60-page ceiling (×20 = 1200) covers Amazon's 1000 with slack.
+  // there regardless of pageSize). Full enumeration uses the listings report;
+  // incremental reads that hit this ceiling fail rather than report false success.
   for (let page = 0; page < 60; page++) {
-    const qs = new URLSearchParams({ marketplaceIds: cred.marketplaceId, includedData: "summaries,offers,attributes", pageSize: "20" });
+    const qs = new URLSearchParams({ marketplaceIds: cred.marketplaceId, includedData: "summaries,offers,attributes,fulfillmentAvailability", pageSize: "20" });
     if (lastUpdatedAfter) qs.set("lastUpdatedAfter", lastUpdatedAfter.toISOString());
     if (pageToken) qs.set("pageToken", pageToken);
     let res: ListingsResponse;
@@ -73,11 +76,11 @@ export async function fetchListings(cred: Credential, lastUpdatedAfter?: Date): 
       res = await paced(`amazon-listings:${credKey(cred)}`, 250, () =>
         spJson<ListingsResponse>(cred, `/listings/2021-08-01/items/${encodeURIComponent(cred.sellerId!)}?${qs}`));
     } catch {
-      if (out.length) break; // keep pages already pulled instead of losing the whole run
       throw new Error("تعذّر سحب قائمة المنتجات من أمازون");
     }
     for (const it of res.items ?? []) { const p = listingToProduct(it); if (p) out.push(p); }
     pageToken = res.pagination?.nextToken;
+    if (out.length >= 1000 || (page === 59 && pageToken)) throw new ListingsResultLimitError("Amazon listing result limit reached; run a full product import");
     if (!pageToken) break;
   }
   return out;

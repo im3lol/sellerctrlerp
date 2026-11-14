@@ -1,4 +1,6 @@
 "use client";
+import { PageActions } from "@/components/erp/page-actions";
+
 
 import { useState, useTransition } from "react";
 import { useT } from "@/lib/i18n/client";
@@ -96,6 +98,12 @@ export function PlatformSettingsForm({
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
+      <PageActions>
+        <Button onClick={save} disabled={pending} size="lg">
+          {pending && <Loader2 className="size-4 animate-spin" />}{t("حفظ الإعدادات")}
+        </Button>
+
+      </PageActions>
       {/* المزامنة التلقائية — connected platforms only */}
       {connected && (
         <Card>
@@ -239,11 +247,7 @@ export function PlatformSettingsForm({
         </CardContent>
       </Card>
 
-      <div className="flex justify-end">
-        <Button onClick={save} disabled={pending} size="lg">
-          {pending && <Loader2 className="size-4 animate-spin" />}{t("حفظ الإعدادات")}
-        </Button>
-      </div>
+
     </div>
   );
 }

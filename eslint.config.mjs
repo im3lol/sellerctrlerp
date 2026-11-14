@@ -53,6 +53,7 @@ const eslintConfig = defineConfig([
   // `react-hooks/static-components` is deliberately NOT here: it was fixed to zero, so it
   // stays an error and cannot regress. Same rule for anything else cleared from this list.
   {
+    files: ["**/*.{js,jsx,ts,tsx}"],
     rules: {
       "react-hooks/set-state-in-effect": "warn",
       "react-hooks/immutability": "warn",

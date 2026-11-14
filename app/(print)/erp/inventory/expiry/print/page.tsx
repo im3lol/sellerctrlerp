@@ -1,3 +1,5 @@
+
+import { getLocale } from "@/lib/i18n/server";
 import { loadErpPage } from "@/lib/erp/org";
 import { fill } from "@/lib/i18n";
 import { getT } from "@/lib/i18n/server";
@@ -8,7 +10,7 @@ import { ReportSheet } from "@/components/erp/print/report-sheet";
 
 const CAP = 3000;
 const intl = (n: number) => n.toLocaleString("ar-EG-u-nu-latn");
-const sdt = (d: Date) => new Date(d).toLocaleDateString("ar-EG-u-nu-latn", { year: "numeric", month: "2-digit", day: "2-digit" });
+const sdt = (d: Date, locale: import("@/lib/i18n").Locale) => new Date(d).toLocaleDateString(locale === "en" ? "en-GB" : "ar-EG-u-nu-latn", { year: "numeric", month: "2-digit", day: "2-digit" });
 const STATUS_AR: Record<string, string> = { EXPIRED: "منتهي", NEAR: "قرب الانتهاء", OK: "سليم" };
 
 type SP = { [k: string]: string | string[] | undefined };
@@ -16,6 +18,7 @@ const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) 
 
 export default async function PrintExpiryPage({ searchParams }: { searchParams: Promise<SP> }) {
   const t = await getT();
+  const locale = await getLocale();
   return loadErpPage("inventory.view", async ({ orgId }) => {
     const sp = await searchParams;
     const fProduct = one(sp.product).trim();
@@ -70,7 +73,7 @@ export default async function PrintExpiryPage({ searchParams }: { searchParams: 
             </span>,
             r.warehouse,
             r.batchNo ?? "—",
-            sdt(r.expiryDate),
+            sdt(r.expiryDate, locale),
             r.daysLeft < 0 ? fill(t("انتهى منذ {0} يوم"), [intl(-r.daysLeft)]) : fill(t("{0} يوم"), [intl(r.daysLeft)]),
             qty(r.remaining),
             fmt(r.value),

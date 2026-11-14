@@ -101,17 +101,19 @@ export function classifyProducts(
   itemByAsin: Map<string, string>,
   known: Set<string>,
   mode: "create" | "link",
+  knownByItem?: Map<string, Set<string>>,
 ): ProductPlan {
   const plan: ProductPlan = { toLink: [], toCreate: [], toEnrich: [], alreadyLinked: 0, skippedUnmatched: 0 };
   for (const p of products) {
     const nSku = norm(p.code), nAsin = norm(p.altCode || "");
     const matchId = nAsin ? itemByAsin.get(nAsin) : undefined;
     if (matchId) {
-      if (nSku && !known.has(nSku)) plan.toLink.push({ itemId: matchId, sku: p.code, fnsku: p.fnsku });
+      const ownsCode = (code: string) => knownByItem ? !!knownByItem.get(matchId)?.has(code) : known.has(code);
+      if (nSku && !ownsCode(nSku)) plan.toLink.push({ itemId: matchId, sku: p.code, fnsku: p.fnsku });
       else {
         plan.alreadyLinked++;
         // Still hand back the FNSKU: the item is known, the code may not be.
-        if (p.fnsku && !known.has(norm(p.fnsku))) plan.toEnrich.push({ itemId: matchId, fnsku: p.fnsku });
+        if (p.fnsku && !ownsCode(norm(p.fnsku))) plan.toEnrich.push({ itemId: matchId, fnsku: p.fnsku });
       }
     } else if (mode === "create") {
       plan.toCreate.push(p);

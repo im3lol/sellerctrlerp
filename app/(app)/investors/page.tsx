@@ -136,7 +136,7 @@ export default async function InvestorsPage() {
 
         {/* Every page in this module, straight from the sidebar config — see
             ModuleWorkspace for why this is derived and not another hand-kept list. */}
-        <ModuleWorkspace heading={t("المستثمرون")} permissions={permissions} counts={counts} />
+        <ModuleWorkspace heading="المستثمرون" permissions={permissions} counts={counts} />
       </div>
     );
   });

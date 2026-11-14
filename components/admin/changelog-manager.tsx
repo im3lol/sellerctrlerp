@@ -2,7 +2,8 @@
 
 import { useState, useTransition } from "react";
 import { fill } from "@/lib/i18n";
-import { useT } from "@/lib/i18n/client";
+import { useLocale, useT } from "@/lib/i18n/client";
+import { translateContent } from "@/lib/i18n/content";
 import { useRouter } from "next/navigation";
 import { toast } from "@/lib/i18n/toast";
 import { Loader2, Plus, Trash2, Pencil, Eye, EyeOff } from "lucide-react";
@@ -103,6 +104,7 @@ function EditDialog({ entry, today, onClose }: { entry: AdminEntry | null; today
 
 export function ChangelogManager({ entries, today }: { entries: AdminEntry[]; today: string }) {
   const t = useT();
+  const locale = useLocale();
   const router = useRouter();
   const [pending, start] = useTransition();
   const [dialog, setDialog] = useState<{ open: boolean; entry: AdminEntry | null }>({ open: false, entry: null });
@@ -153,7 +155,7 @@ export function ChangelogManager({ entries, today }: { entries: AdminEntry[]; to
               )}
               {entries.map((e) => (
                 <TableRow key={e.id} className={e.isPublished ? "" : "opacity-50"}>
-                  <TableCell className="font-medium">{t(e.title)}</TableCell>
+                  <TableCell className="font-medium">{translateContent(e.title, locale)}</TableCell>
                   <TableCell>{t(KIND_LABELS[e.kind] ?? e.kind)}</TableCell>
                   <TableCell className="text-muted-foreground">
                     {e.module ? t(MODULE_LABELS[e.module] ?? e.module) : t("النظام كله")}
@@ -188,7 +190,7 @@ export function ChangelogManager({ entries, today }: { entries: AdminEntry[]; to
       {confirmDel && (
         <Dialog open onOpenChange={() => setConfirmDel(null)}>
           <DialogContent>
-            <DialogHeader><DialogTitle>{t("حذف «")}{t(confirmDel.title)}{t("»؟")}</DialogTitle></DialogHeader>
+            <DialogHeader><DialogTitle>{t("حذف «")}{translateContent(confirmDel.title, locale)}{t("»؟")}</DialogTitle></DialogHeader>
             <p className="text-sm text-muted-foreground">
               {t("لو عايز تشيله من عين العملاء بس، «إخفاء» بيرجّعه مسودة من غير ما تفقده.")}
             </p>

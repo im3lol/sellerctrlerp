@@ -1,4 +1,5 @@
 "use client";
+import { PageActions } from "@/components/erp/page-actions";
 
 import { useState, useTransition } from "react";
 import { useT } from "@/lib/i18n/client";
@@ -42,6 +43,11 @@ export function OrgAiKeyForm({ hasKey, model: initialModel }: { hasKey: boolean;
 
   return (
     <div className="space-y-4">
+      <PageActions>
+        <Button onClick={save} disabled={pending || (!hasKey && !apiKey.trim())}><Icon name="Check" className="size-4" />{t("حفظ")}</Button>
+        {hasKey && <Button variant="ghost" className="text-destructive" disabled={pending} onClick={remove}><Icon name="Trash2" className="size-4" />{t("شيل المفتاح")}</Button>}
+      </PageActions>
+
       <div className="space-y-2">
         <Label htmlFor="org-ai-key">{t("مفتاح Anthropic API")}</Label>
         <Input id="org-ai-key" type="password" dir="ltr" autoComplete="new-password" value={apiKey} onChange={(e) => setApiKey(e.target.value)}
@@ -53,10 +59,7 @@ export function OrgAiKeyForm({ hasKey, model: initialModel }: { hasKey: boolean;
           {AI_MODELS.map((m) => <option key={m.id} value={m.id}>{t(m.label)}</option>)}
         </select>
       </div>
-      <div className="flex flex-wrap gap-2">
-        <Button onClick={save} disabled={pending || (!hasKey && !apiKey.trim())}><Icon name="Check" className="size-4" />{t("حفظ")}</Button>
-        {hasKey && <Button variant="ghost" className="text-destructive" disabled={pending} onClick={remove}><Icon name="Trash2" className="size-4" />{t("شيل المفتاح")}</Button>}
-      </div>
+
     </div>
   );
 }

@@ -110,7 +110,7 @@ export default async function JournalEntryDetailPage({ params }: { params: Promi
           <Field label={t("الحالة")}><Badge variant={st.variant}>{t(st.label)}</Badge></Field>
           <Field label={t("التاريخ")}>{dt(entry.date)}</Field>
           <Field label={t("المرجع")}>{entry.reference || "—"}</Field>
-          <Field label={t("البيان")}>{entry.description || "—"}</Field>
+          <Field label={t("البيان")}>{t(entry.description || "—")}</Field>
         </div>
 
         {reversalNumber && (
@@ -145,7 +145,7 @@ export default async function JournalEntryDetailPage({ params }: { params: Promi
                     <TableCell>
                       <span className="font-mono">{l.accountCode}</span> — {t(l.accountName)}
                     </TableCell>
-                    <TableCell className="max-w-[320px] truncate" title={l.description || undefined}>{l.description || "—"}</TableCell>
+                    <TableCell className="max-w-[320px] truncate" title={l.description ? t(l.description) : undefined}>{t(l.description || "—")}</TableCell>
                     {hasCostCenters && <TableCell>{l.costCenterName || "—"}</TableCell>}
                     <TableCell>{Number(l.debit) ? fmt(l.debit) : "—"}</TableCell>
                     <TableCell>{Number(l.credit) ? fmt(l.credit) : "—"}</TableCell>

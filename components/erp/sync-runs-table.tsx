@@ -1,3 +1,5 @@
+
+import { getLocale } from "@/lib/i18n/server";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { fill, type T } from "@/lib/i18n";
 import { getT } from "@/lib/i18n/server";
@@ -34,7 +36,7 @@ export type SyncRunRow = {
   finishedAt: Date | null;
 };
 
-const dt = (d: Date) => new Date(d).toLocaleString("ar-EG-u-nu-latn", { dateStyle: "short", timeStyle: "short" });
+const dt = (d: Date, locale: import("@/lib/i18n").Locale) => new Date(d).toLocaleString(locale === "en" ? "en-GB" : "ar-EG-u-nu-latn", { dateStyle: "short", timeStyle: "short" });
 
 function duration(start: Date, end: Date | null, t: T): string {
   if (!end) return "—";
@@ -54,6 +56,7 @@ async function StatusBadge({ status, failed }: { status: string; failed: number 
 
 export async function SyncRunsTable({ rows }: { rows: SyncRunRow[] }) {
   const t = await getT();
+  const locale = await getLocale();
   return (
     <Card>
       <CardHeader>
@@ -90,8 +93,8 @@ export async function SyncRunsTable({ rows }: { rows: SyncRunRow[] }) {
                   <TableCell className={r.failedProducts ? "tabular-nums text-destructive" : "tabular-nums"}>{r.failedProducts}</TableCell>
                   <TableCell className="tabular-nums">{r.apiRequests}</TableCell>
                   <TableCell className="tabular-nums">{duration(r.startedAt, r.finishedAt, t)}</TableCell>
-                  <TableCell className="whitespace-nowrap text-muted-foreground">{dt(r.startedAt)}</TableCell>
-                  <TableCell className="max-w-56 truncate text-destructive" title={r.error ?? undefined}>{r.error ?? "—"}</TableCell>
+                  <TableCell className="whitespace-nowrap text-muted-foreground">{dt(r.startedAt, locale)}</TableCell>
+                  <TableCell className="max-w-56 truncate text-destructive" title={r.error ? t(r.error) : undefined}>{t(r.error ?? "—")}</TableCell>
                 </TableRow>
               ))}
             </TableBody>

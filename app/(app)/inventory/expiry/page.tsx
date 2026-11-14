@@ -1,5 +1,7 @@
+
+import { getLocale } from "@/lib/i18n/server";
 import { loadErpPage } from "@/lib/erp/org";
-import { fill } from "@/lib/i18n";
+import { translateName, fill } from "@/lib/i18n";
 import { getT } from "@/lib/i18n/server";
 import { getExpiryReport } from "@/lib/erp/expiry";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -14,7 +16,7 @@ import { selectCls } from "@/lib/utils";
 const fmt = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const qty = (n: number) => n.toLocaleString("ar-EG-u-nu-latn", { maximumFractionDigits: 3 });
 const intl = (n: number) => n.toLocaleString("ar-EG-u-nu-latn");
-const dt = (d: Date) => new Date(d).toLocaleDateString("ar-EG-u-nu-latn", { year: "numeric", month: "2-digit", day: "2-digit" });
+const dt = (d: Date, locale: import("@/lib/i18n").Locale) => new Date(d).toLocaleDateString(locale === "en" ? "en-GB" : "ar-EG-u-nu-latn", { year: "numeric", month: "2-digit", day: "2-digit" });
 
 const STATUS_OPTIONS: [string, string][] = [["EXPIRED", "منتهي"], ["NEAR", "قرب الانتهاء"], ["OK", "سليم"]];
 
@@ -23,6 +25,7 @@ const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) 
 
 export default async function ExpiryPage({ searchParams }: { searchParams: Promise<SP> }) {
   const t = await getT();
+  const locale = await getLocale();
   return loadErpPage("inventory.view", async ({ orgId, permissions }) => {
     const sp = await searchParams;
     const fProduct = one(sp.product).trim();
@@ -110,9 +113,9 @@ export default async function ExpiryPage({ searchParams }: { searchParams: Promi
                   {pageRows.map((r) => (
                     <TableRow key={r.id}>
                       <TableCell className="max-w-[320px] whitespace-normal"><div className="line-clamp-2 leading-snug" title={r.itemName ?? undefined}><span className="font-mono text-xs text-muted-foreground">{r.itemCode}</span> {r.itemName}</div></TableCell>
-                      <TableCell>{r.warehouse}</TableCell>
+                      <TableCell>{translateName(r.warehouse ?? "", t)}</TableCell>
                       <TableCell>{r.batchNo ?? "—"}</TableCell>
-                      <TableCell className="whitespace-nowrap">{dt(r.expiryDate)}</TableCell>
+                      <TableCell className="whitespace-nowrap">{dt(r.expiryDate, locale)}</TableCell>
                       <TableCell className={r.daysLeft < 0 ? "text-destructive" : r.daysLeft <= withinDays ? "text-amber-600" : ""}>
                         {r.daysLeft < 0 ? fill(t("انتهى منذ {0} يوم"), [intl(-r.daysLeft)]) : fill(t("{0} يوم"), [intl(r.daysLeft)])}
                       </TableCell>

@@ -1,5 +1,9 @@
+import { getPageNotice } from "@/lib/ui-notice";
+import { NoticeConsumed } from "@/components/ui/notice-consumed";
+
+import { getLocale } from "@/lib/i18n/server";
 import { notFound } from "next/navigation";
-import { fill } from "@/lib/i18n";
+import { fill, translateName } from "@/lib/i18n";
 import { getT } from "@/lib/i18n/server";
 import Link from "next/link";
 import { and, desc, eq, gte, or, sql } from "drizzle-orm";
@@ -55,8 +59,10 @@ function Kpi({ label, value, hint, tone }: { label: string; value: string; hint?
 
 export default async function PlatformDetailPage({ params, searchParams }: { params: Promise<{ code: string }>; searchParams: Promise<{ connected?: string; err?: string }> }) {
   const t = await getT();
+  const locale = await getLocale();
   const { code: codeParam } = await params;
-  const { connected, err } = await searchParams;
+  const notice = await getPageNotice(`/platforms/${codeParam}`);
+  const { connected, err } = { ...await searchParams, ...notice.values };
   return loadErpPage("sales.view", async ({ orgId, can }) => {
     const [platform] = await db
       .select({
@@ -136,7 +142,7 @@ export default async function PlatformDetailPage({ params, searchParams }: { par
             FROM stock_movements
             WHERE organization_id = ${orgId} ${whId ? sql`AND warehouse_id = ${whId}` : sql``}
             ${codeType ? sql`AND item_id IN (SELECT item_id FROM item_codes WHERE organization_id = ${orgId} AND code_type = ${codeType})` : sql``}
-            ORDER BY item_id, warehouse_id, created_at DESC, split_part(number, '-', 3)::int DESC
+            ORDER BY item_id, warehouse_id, created_at DESC, CASE WHEN split_part(number, '-', 3) ~ '^[0-9]+$' THEN split_part(number, '-', 3)::numeric ELSE 0 END DESC
           ) t`),
         db.select({ d: sql<string>`to_char(${salesOrders.date}, 'YYYY-MM-DD')`, t: sql<string>`coalesce(sum(${salesOrders.totalAmount}),0)` })
           .from(salesOrders).where(and(eq(salesOrders.organizationId, orgId), match, gte(salesOrders.date, since)))
@@ -188,6 +194,7 @@ export default async function PlatformDetailPage({ params, searchParams }: { par
 
     return (
       <div className="space-y-6">
+        <NoticeConsumed path={`/platforms/${codeParam}`} id={notice.id} />
         <ErpPageHeader
           icon="Store"
           title={platform.name}
@@ -234,7 +241,7 @@ export default async function PlatformDetailPage({ params, searchParams }: { par
               <div className="flex items-center justify-between gap-2">
                 <div>
                   <CardTitle>{t("تدقيق مخزون FBA")}</CardTitle>
-                  <CardDescription>{t("مطابقة كميات أمازون مع مخزن «")}{platform.warehouseName ?? t("غير محدد")}{t("» — قراءة فقط، لا يغيّر المخزون ولا الحسابات.")}</CardDescription>
+                  <CardDescription>{t("مطابقة كميات أمازون مع مخزن «")}{translateName(platform.warehouseName ?? t("غير محدد"), t)}{t("» — قراءة فقط، لا يغيّر المخزون ولا الحسابات.")}</CardDescription>
                 </div>
                 <div className="flex shrink-0 items-center gap-3 text-sm">
                   <Link href={`/platforms/${platform.code.toLowerCase()}/health`} className="text-primary hover:underline">{t("صحة أمازون ←")}</Link>
@@ -265,7 +272,7 @@ export default async function PlatformDetailPage({ params, searchParams }: { par
                       <AuditAdjustmentButton />
                     </div>
                   ) : null}
-                  <div className="text-xs text-muted-foreground">{t("آخر تدقيق:")} {new Date(audit.finishedAt ?? audit.createdAt).toLocaleString("ar-EG-u-nu-latn", { dateStyle: "short", timeStyle: "short" })} {t("· يشمل أصناف FBA اللي ليها كمية/حالة فقط (مش كل الكتالوج). التفاصيل في")} <Link href="/inventory/reconciliation" className="text-primary hover:underline">{t("التقرير الكامل")}</Link>.</div>
+                  <div className="text-xs text-muted-foreground">{t("آخر تدقيق:")} {new Date(audit.finishedAt ?? audit.createdAt).toLocaleString(locale === "en" ? "en-GB" : "ar-EG-u-nu-latn", { dateStyle: "short", timeStyle: "short" })} {t("· يشمل أصناف FBA اللي ليها كمية/حالة فقط (مش كل الكتالوج). التفاصيل في")} <Link href="/inventory/reconciliation" className="text-primary hover:underline">{t("التقرير الكامل")}</Link>.</div>
                 </>
               )}
             </CardContent>
@@ -274,7 +281,7 @@ export default async function PlatformDetailPage({ params, searchParams }: { par
 
         {/* Smart KPIs */}
         <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
-          <Kpi label={t("عدد المنتجات")} value={int(productCount)} hint={fill(t("أصناف {0} النشطة"), [platform.name])} />
+          <Kpi label={t("عدد المنتجات")} value={int(productCount)} hint={fill(t("أصناف {0} النشطة"), [translateName(platform.name, locale)])} />
           {isAmazon && <Kpi label={t("مخزون أمازون FBA")} value={int(amazonFbaQty)} hint={audit ? t("الكمية من أمازون · آخر تدقيق") : t("شغّل «تدقيق المخزون»")} />}
           <Kpi label={isAmazon ? t("مخزون النظام (FBA)") : t("مخزون النظام")} value={int(invQty)} hint={platform.warehouseName ? fill(t("مخزن {0}"), [platform.warehouseName]) : t("كل المخازن")} />
           <Kpi label={t("عدد الأوامر")} value={int(ordersCount)} hint={fill(t("{0} هذا الشهر"), [int(monthN)])} />

@@ -1,6 +1,7 @@
 import { AuthShell } from "@/components/auth/auth-shell";
 import { getT } from "@/lib/i18n/server";
 import { LoginForm } from "@/components/auth/login-form";
+import { loginDestination } from "@/lib/auth/login-destination";
 
 export default async function LoginPage({
   searchParams,
@@ -9,6 +10,8 @@ export default async function LoginPage({
 }) {
   const t = await getT();
   const { callbackUrl } = await searchParams;
+  const destination = loginDestination(callbackUrl, "/dashboard");
+  const connecting = destination.startsWith("/mcp/authorize?");
   return (
     <AuthShell
       heading={t("أدِر تجارتك على أمازون من نظام واحد")}
@@ -20,10 +23,10 @@ export default async function LoginPage({
       ]}
     >
       <LoginForm
-        callbackUrl={callbackUrl ?? "/apps"}
-        title={t("تسجيل الدخول")}
+        callbackUrl={destination}
+        title={t(connecting ? "السماح بربط مساعد" : "تسجيل الدخول")}
         subtitle={t("ادخل إلى حساب مؤسستك")}
-        welcome="👋 أهلاً بك في SellerCtrl — سجّل الدخول لإدارة تجارتك."
+        welcome={connecting ? "الربط للقراءة فقط وبصلاحيات حسابك داخل شركة واحدة. يمكنك إلغاؤه من إعداداتك." : "👋 أهلاً بك في SellerCtrl — سجّل الدخول لإدارة تجارتك."}
         signupHref="/signup"
       />
     </AuthShell>

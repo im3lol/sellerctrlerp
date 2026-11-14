@@ -16,7 +16,6 @@ import { SubscriptionBanner } from "@/components/erp/subscription-banner";
 import { SandboxStartButton } from "@/components/erp/sandbox-controls";
 import { cn } from "@/lib/utils";
 import { getT, getLocale } from "@/lib/i18n/server";
-import { int as i18nInt } from "@/lib/i18n";
 
 const FEATURED_DESC: Record<string, string> = {
   "/dashboard": "المبيعات والأرباح والفلوس والمخزون في صفحة واحدة",
@@ -62,24 +61,27 @@ export default async function AppsPage() {
     <div className="mx-auto max-w-6xl space-y-8 md:py-4">
       <div className="relative overflow-hidden rounded-3xl border bg-gradient-to-l from-primary/10 via-card to-card p-6 md:p-8">
         <div aria-hidden className="pointer-events-none absolute -left-16 -top-20 size-64 rounded-full bg-primary/10 blur-3xl" />
-        <div className="relative flex flex-wrap items-center justify-between gap-4">
-          <div>
+        <div className="relative flex items-center justify-between gap-2 sm:gap-4">
+          <div className="min-w-0 flex-1">
             <p className="text-sm text-muted-foreground">{today}</p>
             <h1 className="mt-1 text-2xl font-bold md:text-3xl">{greeting}{firstName ? (locale === "ar" ? fill(t("، {0}"), [firstName]) : `, ${firstName}`) : ""}</h1>
             <p className="mt-1 text-muted-foreground">{org?.nameAr ? `${org.nameAr} — ` : ""}{t("اختار الوحدة اللي هتشتغل عليها")}</p>
           </div>
-          {org && !org.isSandbox && user?.role !== "system_admin" ? <SandboxStartButton /> : (
-            <div aria-hidden className="pointer-events-none hidden shrink-0 self-end sm:block">
+          <div className="flex shrink-0 flex-col items-end gap-2">
+          {org && !org.isSandbox && user?.role !== "system_admin" && <SandboxStartButton />}
+            <div aria-hidden className="pointer-events-none w-24 shrink-0 self-end sm:w-auto">
               <Image
-                src="/brand/mascot-welcome.png"
+                src="/brand/mascot-welcome-640-8c9e31137104.webp"
                 alt=""
-                width={1536}
-                height={1024}
-                sizes="(max-width: 1024px) 192px, 288px"
-                className="h-32 w-auto object-contain object-left-bottom md:h-44"
+                width={640}
+                height={427}
+                unoptimized
+                loading="eager"
+                fetchPriority="high"
+                className="h-auto w-full object-contain object-left-bottom sm:h-32 sm:w-auto md:h-44"
               />
             </div>
-          )}
+          </div>
         </div>
       </div>
 
@@ -125,14 +127,14 @@ export default async function AppsPage() {
               className="group relative flex flex-col rounded-2xl border bg-card p-5 shadow-sm transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-md"
             >
               {/* The whole card opens the module; its quick links sit above this layer. */}
-              <Link href={it.href} aria-label={it.label} className="absolute inset-0 rounded-2xl" />
+              <Link href={it.href} aria-label={t(it.label)} className="absolute inset-0 rounded-2xl" />
               <div className="flex items-center gap-3">
                 <span className={cn("grid size-12 shrink-0 place-items-center rounded-xl text-white shadow-sm transition-transform group-hover:scale-105", it.color)}>
                   <Icon name={it.icon} className="size-6" />
                 </span>
                 <span className="min-w-0 flex-1">
                   <span className="block truncate font-semibold">{t(it.label)}</span>
-                  {it.pages > 0 && <span className="block text-xs text-muted-foreground">{n(it.pages)} {t("صفحة")}</span>}
+                  {it.pages > 0 && <span className="block text-xs text-muted-foreground">{fill(t("{0} صفحة"), [n(it.pages)])}</span>}
                 </span>
                 <Icon name="ArrowLeft" className="size-4 shrink-0 text-muted-foreground opacity-0 transition-all group-hover:-translate-x-0.5 group-hover:opacity-100" />
               </div>

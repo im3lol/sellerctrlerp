@@ -1,5 +1,6 @@
 import { authorizeApi, isApiError } from "@/lib/erp/api-auth";
 import { partyDetail } from "@/lib/erp/mobile-lists";
+import { canReadPurchaseCosts } from "@/lib/erp/data-access";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -13,5 +14,8 @@ export async function GET(req: Request, ctx: { params: Promise<{ type: string; i
   if (isApiError(auth)) return Response.json({ error: auth.error }, { status: auth.status });
   const d = await partyDetail(auth.orgId, type, id);
   if (!d) return Response.json({ error: "not_found" }, { status: 404 });
-  return Response.json({ data: d });
+  return Response.json({ data: type === "suppliers" && !canReadPurchaseCosts(auth.can) ? {
+    id: d.id, code: d.code, nameAr: d.nameAr, phone: d.phone, email: d.email,
+    address: d.address, paymentTerms: d.paymentTerms, creditLimit: null, balance: null,
+  } : d });
 }

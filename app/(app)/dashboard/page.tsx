@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { Locale } from "@/lib/i18n";
-import { fill } from "@/lib/i18n";
+import { translateName, fill } from "@/lib/i18n";
 import { getLocale, getT } from "@/lib/i18n/server";
 import { requireUser } from "@/lib/session";
 import { getActiveOrg } from "@/lib/erp/org";
@@ -391,7 +391,7 @@ export default async function DashboardPage() {
                 {ov.recentSales.map((r) => (
                   <Link key={r.number} href={`/sales/invoices/${encodeURIComponent(r.number)}`} className="flex items-center gap-3 py-2 text-sm hover:text-primary">
                     <span className="font-mono text-xs">{r.number}</span>
-                    <span className="min-w-0 flex-1 truncate text-muted-foreground">{r.customer}</span>
+                    <span className="min-w-0 flex-1 truncate text-muted-foreground">{translateName(r.customer ?? "", t)}</span>
                     <span className="text-xs text-muted-foreground">{shortDate(r.date, locale)}</span>
                     <span className="font-medium tabular-nums">{money(r.amount)}</span>
                   </Link>
@@ -406,7 +406,7 @@ export default async function DashboardPage() {
                 {ov.recentPurchases.map((r) => (
                   <Link key={r.number} href={`/purchases/invoices/${encodeURIComponent(r.number)}`} className="flex items-center gap-3 py-2 text-sm hover:text-primary">
                     <span className="font-mono text-xs">{r.number}</span>
-                    <span className="min-w-0 flex-1 truncate text-muted-foreground">{r.supplier}</span>
+                    <span className="min-w-0 flex-1 truncate text-muted-foreground">{translateName(r.supplier ?? "", t)}</span>
                     <span className="text-xs text-muted-foreground">{shortDate(r.date, locale)}</span>
                     <span className="font-medium tabular-nums">{money(r.amount)}</span>
                   </Link>

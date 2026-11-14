@@ -1,5 +1,6 @@
 "use server";
 
+import { itemHref } from "@/lib/erp/item-href";
 import { and, eq, ilike, or } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { withOrgScope } from "@/lib/db-scope";
@@ -38,7 +39,7 @@ export async function quickSearchAction(query: string): Promise<QuickHit[]> {
         .where(and(eq(suppliers.organizationId, org.id), or(ilike(suppliers.nameAr, like), ilike(suppliers.code, like)))).limit(5),
     ]);
     return [
-      ...it.map((r): QuickHit => ({ ...r, kind: "item", href: `/inventory/items/${r.id}` })),
+      ...it.map((r): QuickHit => ({ ...r, kind: "item", href: itemHref(r.code) })),
       ...cu.map((r): QuickHit => ({ ...r, kind: "customer", href: "/sales/customers" })),
       ...su.map((r): QuickHit => ({ ...r, kind: "supplier", href: "/purchases/suppliers" })),
     ];

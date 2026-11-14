@@ -27,12 +27,12 @@ export async function POST(req: Request) {
   const user = await verifyCredentials(identifier, password, otp);
   if (!user) return Response.json({ error: "invalid_credentials" }, { status: 401 });
 
-  const token = await signApiToken(user.id);
+  const token = await signApiToken(user.id, user.sessionVersion);
   const orgs = await getUserOrganizations({ id: user.id, role: user.role } as SessionUser);
 
   return Response.json({
     token,
     user: { id: user.id, name: user.name, email: user.email, role: user.role },
     orgs: orgs.map((o) => ({ id: o.id, name: o.nameAr })),
-  });
+  }, { headers: { "Cache-Control": "no-store" } });
 }

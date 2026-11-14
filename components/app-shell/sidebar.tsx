@@ -10,13 +10,14 @@ import { NavList } from "@/components/app-shell/nav-list";
 import { Icon } from "@/components/icon";
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n/client";
+import type { NavPlatform } from "@/lib/platform-nav";
 import type { Role } from "@/lib/rbac";
 
 /** Remembered in a cookie, not localStorage: the server renders the rail at the right
  *  width on the first paint, so a collapsed sidebar never flashes open on every page. */
 export const NAV_COLLAPSED_COOKIE = "nav_collapsed";
 
-export function Sidebar({ role, erpPermissions, modules, platforms, navHidden, defaultCollapsed }: { role: Role; erpPermissions: string[]; modules: string[]; platforms?: { id: string; name: string; code: string }[]; navHidden?: string[]; defaultCollapsed?: boolean }) {
+export function Sidebar({ role, erpPermissions, modules, platforms, navHidden, defaultCollapsed }: { role: Role; erpPermissions: string[]; modules: string[]; platforms?: NavPlatform[]; navHidden?: string[]; defaultCollapsed?: boolean }) {
   // sticky + h-screen so the nav's own overflow-y-auto can actually engage. With no height
   // the aside just grows to fit its items, so a long nav made the WHOLE page taller than
   // the viewport — you had to scroll the page to reach the bottom of the menu, and it got

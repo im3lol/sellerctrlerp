@@ -9,7 +9,10 @@ import { ErpPageHeader } from "@/components/erp/page-header";
 import { DocBody } from "@/components/erp/doc-body";
 import { cn } from "@/lib/utils";
 
-export const metadata = { title: "آخر التحديثات" };
+export async function generateMetadata() {
+  const t = await getT();
+  return { title: t("آخر التحديثات") };
+}
 
 const fmt = (d: Date, locale: Locale = "ar") =>
   d.toLocaleDateString((locale === "en" ? "en-GB" : "ar-EG-u-nu-latn"), { year: "numeric", month: "long", day: "numeric" });

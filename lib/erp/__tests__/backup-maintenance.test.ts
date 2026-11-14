@@ -1,0 +1,13 @@
+import {beforeEach,expect,it,vi} from "vitest";
+vi.mock("server-only",()=>({}));
+const m=vi.hoisted(()=>({backup:vi.fn(),prune:vi.fn(),alert:vi.fn(),previous:null as null|{lastSuccessAt:Date},changes:[] as Record<string,unknown>[]}));
+vi.mock("@/lib/db-scope",()=>({withOrgScope:async(_o:string,_a:boolean,fn:()=>unknown)=>fn(),withPlatformScope:async(fn:()=>unknown)=>fn()}));
+vi.mock("@/db/schema",()=>({organizations:{tag:"org"},organizationBackupHealth:{tag:"health"}}));
+vi.mock("@/lib/db",()=>({db:{select:()=>({from:(t:{tag:string})=>({where:()=>({limit:async()=>t.tag==="org"?[{name:"Company"}]:m.previous?[m.previous]:[]})})}),insert:()=>({values:(v:Record<string,unknown>)=>{m.changes.push(v);return{onConflictDoUpdate:async({set}:{set:Record<string,unknown>})=>{m.changes.push(set);}}}}),update:()=>({set:(v:Record<string,unknown>)=>{m.changes.push(v);return{where:async()=>[]}}})}}));
+vi.mock("@/lib/erp/backup",()=>({backupOrgToStorage:m.backup,pruneBackups:m.prune}));
+vi.mock("@/lib/log",()=>({log:{error:m.alert}}));
+import {runDailyBackup} from "../backup-maintenance";
+beforeEach(()=>{vi.clearAllMocks();m.previous=null;m.changes=[];m.backup.mockResolvedValue({});m.prune.mockResolvedValue(0);});
+it("throws on failed backup so the queue retries and sends a sanitized error alert",async()=>{m.backup.mockRejectedValue(new Error("PRIVATE-CREDENTIAL"));await expect(runDailyBackup("own")).rejects.toThrow("Organization backup failed");expect(m.prune).not.toHaveBeenCalled();expect(m.changes.some(x=>x.status==="FAILED")).toBe(true);expect(m.alert).toHaveBeenCalledWith("maintenance.backup_failed",{orgId:"own",reason:"backup_failed"});expect(JSON.stringify(m.alert.mock.calls)).not.toContain("PRIVATE");});
+it("records successful backup and retention",async()=>{await runDailyBackup("own");expect(m.backup).toHaveBeenCalledWith("own","Company");expect(m.prune).toHaveBeenCalledWith("own",14);expect(m.changes.some(x=>x.lastSuccessAt instanceof Date)).toBe(true);expect(m.changes.at(-1)).toMatchObject({status:"OK"});});
+it("retries pruning without duplicating a snapshot already saved on this attempt",async()=>{m.previous={lastSuccessAt:new Date()};m.prune.mockRejectedValue(new Error("Unavailable"));await expect(runDailyBackup("own")).rejects.toThrow();expect(m.backup).not.toHaveBeenCalled();expect(m.alert).toHaveBeenCalledOnce();});

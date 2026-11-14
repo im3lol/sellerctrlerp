@@ -1,3 +1,4 @@
+import { translateName } from "@/lib/i18n";
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { getT } from "@/lib/i18n/server";
 import { AGING_BUCKETS, BUCKET_LABELS, type AgingBucket, type AgingRow } from "@/lib/erp/aging";
@@ -36,7 +37,7 @@ export async function AgingTable({
         {rows.map((r) => (
           <TableRow key={r.partyId}>
             <TableCell className="max-w-[260px] whitespace-normal">
-              <div className="line-clamp-2 leading-snug" title={r.partyName}><span className="font-mono text-muted-foreground">{r.partyCode}</span> {r.partyName}</div>
+              <div className="line-clamp-2 leading-snug" title={translateName(r.partyName ?? "", t)}><span className="font-mono text-muted-foreground">{r.partyCode}</span> {translateName(r.partyName ?? "", t)}</div>
             </TableCell>
             {AGING_BUCKETS.map((b) => (
               <TableCell key={b}>{fmt(r.buckets[b])}</TableCell>

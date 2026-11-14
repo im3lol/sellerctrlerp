@@ -1,5 +1,7 @@
 "use client";
 
+import { formatErpDateTime } from "@/lib/erp/dates";
+
 import { useT } from "@/lib/i18n/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -7,7 +9,7 @@ import { Icon } from "@/components/icon";
 import type { AuditRow } from "@/lib/erp/audit";
 
 const dtt = (d: Date) =>
-  new Date(d).toLocaleString("en-GB", { year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" });
+  formatErpDateTime(d, "en-GB", { year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" });
 
 export const ACTION_AR: Record<string, string> = {
   CREATE: "إنشاء", CONFIRM: "تأكيد", POST: "ترحيل", CONVERT: "تحويل",

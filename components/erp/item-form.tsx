@@ -1,8 +1,11 @@
 "use client";
+import { PageActions } from "@/components/erp/page-actions";
+
 
 import { useRef, useState, useTransition } from "react";
 import { useT } from "@/lib/i18n/client";
 import { useRouter } from "next/navigation";
+import { itemHref } from "@/lib/erp/item-href";
 import { toast } from "@/lib/i18n/toast";
 import { saveItemAction, uploadItemImageAction } from "@/app/actions/erp/items";
 import { Button } from "@/components/ui/button";
@@ -83,13 +86,18 @@ export function ItemForm({ initial }: { initial?: ItemFormInitial }) {
       });
       if (r.ok) {
         toast.success("تم حفظ الصنف");
-        router.push(r.id ? `/inventory/items/${r.id}` : "/inventory/items");
+        router.push(r.code ? itemHref(r.code) : "/inventory/items");
         router.refresh();
       } else toast.error(r.error ?? t("تعذّر الحفظ"));
     });
 
   return (
     <div className="space-y-6">
+      <PageActions>
+        <Button variant="outline" onClick={() => router.push("/inventory/items")}>{t("إلغاء")}</Button>
+        <Button onClick={submit} disabled={pending}>{pending && <Icon name="Loader2" className="size-4 animate-spin" />}{t("حفظ الصنف")}</Button>
+
+      </PageActions>
       <Card>
         <CardHeader><CardTitle>{t("بيانات الصنف")}</CardTitle></CardHeader>
         <CardContent className="grid gap-4 sm:grid-cols-2">
@@ -213,10 +221,7 @@ export function ItemForm({ initial }: { initial?: ItemFormInitial }) {
         </CardContent>
       </Card>
 
-      <div className="flex justify-end gap-2">
-        <Button variant="outline" onClick={() => router.push("/inventory/items")}>{t("إلغاء")}</Button>
-        <Button onClick={submit} disabled={pending}>{pending && <Icon name="Loader2" className="size-4 animate-spin" />}{t("حفظ الصنف")}</Button>
-      </div>
+
     </div>
   );
 }

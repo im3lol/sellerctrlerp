@@ -66,7 +66,7 @@ export default async function PlatformsPage() {
         {/* The pages that only exist because a platform does — returns, removals,
             reimbursements, settlements, P&L. Derived from NAV like every other module
             workspace, so this can't fall behind the sidebar. */}
-        <ModuleWorkspace heading={t("المنصات")} permissions={permissions} />
+        <ModuleWorkspace heading="المنصات" permissions={permissions} />
       </div>
     );
   }, "marketplace");

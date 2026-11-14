@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
-import { fill } from "@/lib/i18n";
-import { getT } from "@/lib/i18n/server";
+import { fill, translateName, type Locale } from "@/lib/i18n";
+import { getT, getLocale } from "@/lib/i18n/server";
 import { and, desc, eq, ilike, or, sql } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
@@ -17,7 +17,7 @@ const PER_PAGE = 50;
 const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) ?? "";
 const money = (n: string) => Number(n).toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const qty = (n: string) => Number(n).toLocaleString("ar-EG-u-nu-latn", { maximumFractionDigits: 3 });
-const dt = (d: Date | null) => (d ? new Date(d).toLocaleDateString("ar-EG-u-nu-latn") : "—");
+const dt = (d: Date | null, locale: Locale) => (d ? new Date(d).toLocaleDateString(locale === "en" ? "en-GB" : "ar-EG-u-nu-latn") : "—");
 
 // Common reimbursement reasons → Arabic.
 const REASON_AR: Record<string, string> = {
@@ -35,6 +35,7 @@ type SP = { page?: string; q?: string };
 /** تعويضات أمازون FBA — سجل قراءة فقط لما دفعته أمازون عن الفقد/التلف. */
 export default async function PlatformReimbursementsPage({ params, searchParams }: { params: Promise<{ code: string }>; searchParams: Promise<SP> }) {
   const t = await getT();
+  const locale = await getLocale();
   const code = decodeURIComponent((await params).code).toUpperCase();
   const sp = await searchParams;
   const fQ = one(sp.q).trim();
@@ -66,7 +67,7 @@ export default async function PlatformReimbursementsPage({ params, searchParams 
       <div className="space-y-6">
         <ErpPageHeader
           icon="HandCoins"
-          title={fill(t("تعويضات {0}"), [platform.name])}
+          title={fill(t("تعويضات {0}"), [translateName(platform.name, locale)])}
           subtitle={fill(t("{0} تعويض · إجمالي نقدي {1} · معوَّض كمخزون {2}"), [total.toLocaleString("ar-EG-u-nu-latn"), money(totals?.amount ?? "0"), qty(totals?.qtyInv ?? "0")])}
           backHref={`/platforms/${platform.code.toLowerCase()}`}
         />
@@ -106,10 +107,10 @@ export default async function PlatformReimbursementsPage({ params, searchParams 
                 <TableBody>
                   {rows.map((r) => (
                     <TableRow key={r.id}>
-                      <TableCell className="whitespace-nowrap">{dt(r.approvalDate)}</TableCell>
+                      <TableCell className="whitespace-nowrap">{dt(r.approvalDate, locale)}</TableCell>
                       <TableCell className="font-mono text-xs" dir="ltr">{r.reimbursementId}</TableCell>
                       <TableCell className="font-mono text-xs" dir="ltr">{r.sku ?? "—"}</TableCell>
-                      <TableCell>{(r.reason && REASON_AR[r.reason]) ?? r.reason ?? "—"}</TableCell>
+                      <TableCell>{t((r.reason && REASON_AR[r.reason]) ?? r.reason ?? "—")}</TableCell>
                       <TableCell className="tabular-nums">{qty(r.quantityReimbursedCash)}</TableCell>
                       <TableCell className="tabular-nums">{qty(r.quantityReimbursedInventory)}</TableCell>
                       <TableCell className="tabular-nums font-medium">{money(r.amountTotal)} {r.currency ?? ""}</TableCell>

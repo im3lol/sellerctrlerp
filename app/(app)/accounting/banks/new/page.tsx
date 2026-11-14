@@ -1,3 +1,4 @@
+import { PageActions } from "@/components/erp/page-actions";
 import { redirect } from "next/navigation";
 import { getT } from "@/lib/i18n/server";
 import Link from "next/link";
@@ -50,6 +51,13 @@ export default async function NewBankAccountPage() {
           </CardHeader>
           <CardContent>
             <form action={create} className="space-y-4">
+      <PageActions>
+                <Button type="submit">{t("حفظ")}</Button>
+                <Button type="button" variant="ghost" asChild>
+                  <Link href="/accounting/banks">{t("إلغاء")}</Link>
+                </Button>
+              </PageActions>
+
               <div className="space-y-1">
                 <Label htmlFor="nameAr">{t("اسم الحساب *")}</Label>
                 <Input id="nameAr" name="nameAr" required placeholder={t("مثال: البنك الأهلي — الحساب الرئيسي")} />
@@ -80,12 +88,7 @@ export default async function NewBankAccountPage() {
                 <Label htmlFor="notes">{t("ملاحظات")}</Label>
                 <Input id="notes" name="notes" />
               </div>
-              <div className="flex gap-2 pt-2">
-                <Button type="submit">{t("حفظ")}</Button>
-                <Button type="button" variant="ghost" asChild>
-                  <Link href="/accounting/banks">{t("إلغاء")}</Link>
-                </Button>
-              </div>
+              
             </form>
           </CardContent>
         </Card>

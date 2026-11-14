@@ -53,7 +53,7 @@ export type ScopedTx = Parameters<Parameters<typeof realDb.transaction>[0]>[0];
  * policies read. The `db` proxy routes every query onto this transaction, so a query
  * anywhere in the request is automatically tenant-scoped — no call-site changes.
  */
-export const scopeStore = new AsyncLocalStorage<{ tx: ScopedTx }>();
+export const scopeStore = new AsyncLocalStorage<{ tx: ScopedTx; orgId: string; isPlatform: boolean }>();
 
 /**
  * The Drizzle handle everything imports. It's a Proxy: while a request is inside a

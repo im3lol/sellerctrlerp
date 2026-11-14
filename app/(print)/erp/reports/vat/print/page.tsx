@@ -54,7 +54,7 @@ export default async function PrintVatReportPage({
 }) {
   const t = await getT();
   const locale = await getLocale();
-  return loadErpPage("reports.view", async ({ orgId }) => {
+  return loadErpPage("accounting.view", async ({ orgId }) => {
     const sp = await searchParams;
 
     // Default: current quarter (same as the report page).

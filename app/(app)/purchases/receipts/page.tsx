@@ -24,7 +24,7 @@ export default async function ReceiptsPage({ searchParams }: { searchParams: Pro
   const t = await getT();
   return loadErpPage("purchases.view", async ({ orgId, can }) => {
     const canManage = can("purchases.create");
-    const canConfirm = can("purchases.confirm");
+    const canConfirm = can("purchases.receive");
     const canReceive = can("purchases.receive");
     const sp = await searchParams;
     const q = one(sp.q).trim();

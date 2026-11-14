@@ -1,0 +1,22 @@
+# Local Windows deployment. Keep production configuration and credentials in .env.
+# docker compose --env-file .env -f docker/docker-compose.yml -f docker/docker-compose.local.yml --profile app up -d --build app worker minio-init
+services:
+  minio:
+    # Community-maintained MinIO-compatible distribution; upstream images no longer pull.
+    image: pgsty/minio@sha256:b6bfe7239bfc83fb90d31612d9704d86039dd714f7904b3f1ad68f211e602372
+  minio-init:
+    image: pgsty/mc@sha256:ce62c9053c69ce12a527a322345b5ad9f44b5f8a7b8189f82e516f2e3f30f1d8
+  app:
+    build:
+      args:
+        STANDALONE_DIR: .next-local/standalone
+    environment:
+      APP_URL: http://localhost:3001
+      AUTH_URL: http://localhost:3001
+  worker:
+    build:
+      args:
+        STANDALONE_DIR: .next-local/standalone
+    environment:
+      APP_URL: http://localhost:3001
+      AUTH_URL: http://localhost:3001

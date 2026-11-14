@@ -29,12 +29,21 @@ DC() { ( cd docker && docker compose --env-file ../.env --profile app "$@" ); }
 echo "▶ 1/7  production environment preflight…"
 npm run env:production:check
 
-echo "▶ 2/7  host build (heap 8G)…"
+# Heap sized from the RAM actually free, not a fixed 8G. This box has 8G total and runs
+# other Docker stacks, so a fixed 8G let the JS heap crowd out Turbopack's Rust side, which
+# then died on "memory allocation of … bytes failed" (deploy40, 7 Oct 2026). Node gets at
+# most half of what is free, floored at 2G: slower, but it finishes.
+# Linux reports it in /proc; on this Windows box (Git Bash) ask the OS directly.
+FREE_MB=$(awk '/MemAvailable/ {print int($2/1024)}' /proc/meminfo 2>/dev/null)
+[ -z "$FREE_MB" ] && FREE_MB=$(powershell -NoProfile -Command "[int]((Get-CimInstance Win32_OperatingSystem).FreePhysicalMemory/1024)" 2>/dev/null | tr -d '\r')
+[ -z "$FREE_MB" ] && FREE_MB=4096
+HEAP_MB=$(( FREE_MB / 2 )); [ "$HEAP_MB" -lt 2048 ] && HEAP_MB=2048; [ "$HEAP_MB" -gt 8192 ] && HEAP_MB=8192
+echo "▶ 2/7  host build (${FREE_MB}MB free → heap ${HEAP_MB}MB)…"
 # Always build cold. A build that starts from the previous build's Turbopack cache
 # deadlocks right after spawning its PostCSS workers — idle CPU, no .next writes, forever
 # (deploy24/25/27, 2026-09-14). A cold build compiles in ~4 min, faster than the old warm ones.
 rm -rf .next/cache/turbopack
-NODE_OPTIONS="--max-old-space-size=8192" npm run build
+NODE_OPTIONS="--max-old-space-size=${HEAP_MB}" npm run build
 
 echo "▶ 3/7  copy static + public into standalone…"
 cp -r .next/static .next/standalone/.next/

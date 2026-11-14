@@ -1,5 +1,7 @@
 package com.sellerctrl.app.data
 
+import com.sellerctrl.app.tr
+
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -23,6 +25,7 @@ class Repo(val store: TokenStore) {
     private val json = Json { ignoreUnknownKeys = true }
     private val client = OkHttpClient.Builder()
         .addInterceptor(AuthInterceptor(store))
+        .addInterceptor(com.sellerctrl.app.TranslateInterceptor())
         .build()
     private val api: Api = Retrofit.Builder()
         .baseUrl(BASE_URL)
@@ -91,7 +94,7 @@ class Repo(val store: TokenStore) {
     /** Create/update a party; throws the server's Arabic error on failure. */
     suspend fun partySave(type: String, req: PartySaveReq) {
         try { api.partySave("api/v1/party/$type/save", req) }
-        catch (e: retrofit2.HttpException) { throw Exception(parseErr(e) ?: "تعذّر الحفظ") }
+        catch (e: retrofit2.HttpException) { throw Exception(parseErr(e) ?: tr("تعذّر الحفظ")) }
     }
     suspend fun partyDelete(type: String, id: String) = postAction("api/v1/party/$type/$id/delete")
 
@@ -99,12 +102,12 @@ class Repo(val store: TokenStore) {
     /** Create a material requisition; throws the server's Arabic error on failure. */
     suspend fun requisitionCreate(req: ReqCreateReq) {
         try { api.reqCreate("api/v1/purchases/requisitions", req) }
-        catch (e: retrofit2.HttpException) { throw Exception(parseErr(e) ?: "تعذّر الحفظ") }
+        catch (e: retrofit2.HttpException) { throw Exception(parseErr(e) ?: tr("تعذّر الحفظ")) }
     }
     /** Create a purchase order; throws the server's Arabic error on failure. */
     suspend fun purchaseOrderCreate(req: PoCreateReq) {
         try { api.poCreate("api/v1/purchases/orders", req) }
-        catch (e: retrofit2.HttpException) { throw Exception(parseErr(e) ?: "تعذّر الحفظ") }
+        catch (e: retrofit2.HttpException) { throw Exception(parseErr(e) ?: tr("تعذّر الحفظ")) }
     }
 
     // --- Purchase receipts (إذون الاستلام) ---
@@ -116,19 +119,19 @@ class Repo(val store: TokenStore) {
     /** Create a DRAFT goods receipt from a PO; throws the server's Arabic error on failure. */
     suspend fun receiptCreate(req: ReceiptCreateReq) {
         try { api.receiptCreate("api/v1/purchases/receipts", req) }
-        catch (e: retrofit2.HttpException) { throw Exception(parseErr(e) ?: "تعذّر الحفظ") }
+        catch (e: retrofit2.HttpException) { throw Exception(parseErr(e) ?: tr("تعذّر الحفظ")) }
     }
     /** Bill a confirmed receipt → DRAFT purchase invoice; returns the new invoice id. */
     suspend fun receiptBill(id: String): String? {
         try { return api.receiptBill("api/v1/purchases/receipts/$id/bill").data.invoiceId }
-        catch (e: retrofit2.HttpException) { throw Exception(parseErr(e) ?: "تعذّر الفوترة") }
+        catch (e: retrofit2.HttpException) { throw Exception(parseErr(e) ?: tr("تعذّر الفوترة")) }
     }
 
     // --- Purchase invoices (standalone) + payment (سند صرف) ---
     /** Create a standalone DRAFT purchase invoice; throws the server's Arabic error on failure. */
     suspend fun purchaseInvoiceCreate(req: PiCreateReq) {
         try { api.piCreate("api/v1/purchases/invoices", req) }
-        catch (e: retrofit2.HttpException) { throw Exception(parseErr(e) ?: "تعذّر الحفظ") }
+        catch (e: retrofit2.HttpException) { throw Exception(parseErr(e) ?: tr("تعذّر الحفظ")) }
     }
     suspend fun invoicePayable(id: String): PayableDto = api.payable("api/v1/purchases/invoices/$id/payable").data
     /** Cash/bank leaf accounts for the payment picker. */
@@ -136,7 +139,7 @@ class Repo(val store: TokenStore) {
     /** Create + post a supplier payment voucher; throws the server's Arabic error on failure. */
     suspend fun payInvoice(req: PayReq) {
         try { api.pay("api/v1/purchases/payments", req) }
-        catch (e: retrofit2.HttpException) { throw Exception(parseErr(e) ?: "تعذّر الدفع") }
+        catch (e: retrofit2.HttpException) { throw Exception(parseErr(e) ?: tr("تعذّر الدفع")) }
     }
 
     // --- Accounting: journal, expenses, banks ---
@@ -146,39 +149,39 @@ class Repo(val store: TokenStore) {
     suspend fun journalDetail(id: String): JournalDetailDto = api.jeDetail("api/v1/accounting/journal/$id").data
     suspend fun journalCreate(req: JeCreateReq) {
         try { api.jeCreate("api/v1/accounting/journal", req) }
-        catch (e: retrofit2.HttpException) { throw Exception(parseErr(e) ?: "تعذّر الحفظ") }
+        catch (e: retrofit2.HttpException) { throw Exception(parseErr(e) ?: tr("تعذّر الحفظ")) }
     }
     suspend fun expenseDetail(id: String): ExpenseDetailDto = api.expenseDetail("api/v1/accounting/expenses/$id").data
     suspend fun expenseCreate(req: ExpenseCreateReq) {
         try { api.expenseCreate("api/v1/accounting/expenses", req) }
-        catch (e: retrofit2.HttpException) { throw Exception(parseErr(e) ?: "تعذّر الحفظ") }
+        catch (e: retrofit2.HttpException) { throw Exception(parseErr(e) ?: tr("تعذّر الحفظ")) }
     }
     suspend fun bankSave(req: BankSaveReq) {
         try { api.bankSave("api/v1/accounting/banks", req) }
-        catch (e: retrofit2.HttpException) { throw Exception(parseErr(e) ?: "تعذّر الحفظ") }
+        catch (e: retrofit2.HttpException) { throw Exception(parseErr(e) ?: tr("تعذّر الحفظ")) }
     }
 
     // --- Sales revenue cycle (SO create, SI create/post, سند قبض) ---
     suspend fun salesOrderCreate(req: SoCreateReq) {
         try { api.soCreate("api/v1/sales/orders", req) }
-        catch (e: retrofit2.HttpException) { throw Exception(parseErr(e) ?: "تعذّر الحفظ") }
+        catch (e: retrofit2.HttpException) { throw Exception(parseErr(e) ?: tr("تعذّر الحفظ")) }
     }
     suspend fun salesInvoiceCreate(req: SiCreateReq) {
         try { api.siCreate("api/v1/sales/invoices", req) }
-        catch (e: retrofit2.HttpException) { throw Exception(parseErr(e) ?: "تعذّر الحفظ") }
+        catch (e: retrofit2.HttpException) { throw Exception(parseErr(e) ?: tr("تعذّر الحفظ")) }
     }
     suspend fun invoiceReceivable(id: String): ReceivableDto = api.invReceivable("api/v1/sales/invoices/$id/receivable").data
     /** Create + post a customer receipt voucher (سند قبض); throws the server's Arabic error on failure. */
     suspend fun collectInvoice(req: CollectReq) {
         try { api.collect("api/v1/sales/receipts", req) }
-        catch (e: retrofit2.HttpException) { throw Exception(parseErr(e) ?: "تعذّر التحصيل") }
+        catch (e: retrofit2.HttpException) { throw Exception(parseErr(e) ?: tr("تعذّر التحصيل")) }
     }
 
     // --- Item CRUD (الأصناف) ---
     suspend fun itemEdit(id: String): ItemEditDto = api.itemEdit("api/v1/inventory/items/$id").data
     suspend fun itemSave(req: ItemSaveReq) {
         try { api.itemSave("api/v1/inventory/items", req) }
-        catch (e: retrofit2.HttpException) { throw Exception(parseErr(e) ?: "تعذّر الحفظ") }
+        catch (e: retrofit2.HttpException) { throw Exception(parseErr(e) ?: tr("تعذّر الحفظ")) }
     }
     suspend fun itemDelete(id: String) = postAction("api/v1/inventory/items/$id/delete")
 
@@ -186,17 +189,17 @@ class Repo(val store: TokenStore) {
     suspend fun transferDetail(id: String): TransferDetailDto = api.transferDetail("api/v1/inventory/transfers/$id").data
     suspend fun transferCreate(req: TfCreateReq) {
         try { api.tfCreate("api/v1/inventory/transfers", req) }
-        catch (e: retrofit2.HttpException) { throw Exception(parseErr(e) ?: "تعذّر الحفظ") }
+        catch (e: retrofit2.HttpException) { throw Exception(parseErr(e) ?: tr("تعذّر الحفظ")) }
     }
 
     // --- Sales quotations (عروض الأسعار) ---
     suspend fun quotationCreate(req: QuoteCreateReq) {
         try { api.quoteCreate("api/v1/sales/quotations", req) }
-        catch (e: retrofit2.HttpException) { throw Exception(parseErr(e) ?: "تعذّر الحفظ") }
+        catch (e: retrofit2.HttpException) { throw Exception(parseErr(e) ?: tr("تعذّر الحفظ")) }
     }
     suspend fun quotationStatus(id: String, status: String) {
         try { api.quoteStatus("api/v1/sales/quotations/$id/status", StatusReq(status)) }
-        catch (e: retrofit2.HttpException) { throw Exception(parseErr(e) ?: "تعذّر التحديث") }
+        catch (e: retrofit2.HttpException) { throw Exception(parseErr(e) ?: tr("تعذّر التحديث")) }
     }
 
     // --- Ranked reports (تقارير المبيعات/المشتريات) ---
@@ -210,92 +213,92 @@ class Repo(val store: TokenStore) {
     suspend fun budgetYear(year: Int): BudgetYearDto = api.budgetYear("api/v1/accounting/budget/$year").data
     suspend fun budgetSave(req: BudgetSaveReq) {
         try { api.budgetSave("api/v1/accounting/budget", req) }
-        catch (e: retrofit2.HttpException) { throw Exception(parseErr(e) ?: "تعذّر الحفظ") }
+        catch (e: retrofit2.HttpException) { throw Exception(parseErr(e) ?: tr("تعذّر الحفظ")) }
     }
 
     // --- Recurring journals (القيود المتكررة) + fiscal periods (الفترات المالية) ---
     suspend fun recurringJournalDetail(id: String): RecurJournalDetailDto = api.recurJournalDetail("api/v1/accounting/recurring-journals/$id").data
     suspend fun recurringJournalSave(req: RecurJournalSaveReq) {
         try { api.recurJournalSave("api/v1/accounting/recurring-journals", req) }
-        catch (e: retrofit2.HttpException) { throw Exception(parseErr(e) ?: "تعذّر الحفظ") }
+        catch (e: retrofit2.HttpException) { throw Exception(parseErr(e) ?: tr("تعذّر الحفظ")) }
     }
     suspend fun periodStatus(id: String, status: String) {
         try { api.periodStatus("api/v1/accounting/periods/$id/status", StatusReq(status)) }
-        catch (e: retrofit2.HttpException) { throw Exception(parseErr(e) ?: "تعذّر التحديث") }
+        catch (e: retrofit2.HttpException) { throw Exception(parseErr(e) ?: tr("تعذّر التحديث")) }
     }
 
     // --- Payroll runs (مسيّرات الرواتب) ---
     suspend fun payrollDetail(id: String): PayrollDetailDto = api.payrollDetail("api/v1/hr/payroll/$id").data
     suspend fun payrollCreate(req: PayrollCreateReq) {
         try { api.payrollCreate("api/v1/hr/payroll", req) }
-        catch (e: retrofit2.HttpException) { throw Exception(parseErr(e) ?: "تعذّر الإنشاء") }
+        catch (e: retrofit2.HttpException) { throw Exception(parseErr(e) ?: tr("تعذّر الإنشاء")) }
     }
     suspend fun payrollReverse(id: String, reason: String) {
         try { api.payrollReverse("api/v1/hr/payroll/$id/reverse", ReasonReq(reason)) }
-        catch (e: retrofit2.HttpException) { throw Exception(parseErr(e) ?: "تعذّر العكس") }
+        catch (e: retrofit2.HttpException) { throw Exception(parseErr(e) ?: tr("تعذّر العكس")) }
     }
 
     // --- Recurring expenses (المصروفات الدورية) ---
     suspend fun recurringExpenseDetail(id: String): RecurExpDetailDto = api.recurExpDetail("api/v1/accounting/recurring-expenses/$id").data
     suspend fun recurringExpenseSave(req: RecurExpSaveReq) {
         try { api.recurExpSave("api/v1/accounting/recurring-expenses", req) }
-        catch (e: retrofit2.HttpException) { throw Exception(parseErr(e) ?: "تعذّر الحفظ") }
+        catch (e: retrofit2.HttpException) { throw Exception(parseErr(e) ?: tr("تعذّر الحفظ")) }
     }
 
     // --- Cost centers (مراكز التكلفة) ---
     suspend fun costCenterEdit(id: String): CostCenterEditDto = api.costCenterEdit("api/v1/accounting/cost-centers/$id").data
     suspend fun costCenterSave(req: CostCenterSaveReq) {
         try { api.costCenterSave("api/v1/accounting/cost-centers", req) }
-        catch (e: retrofit2.HttpException) { throw Exception(parseErr(e) ?: "تعذّر الحفظ") }
+        catch (e: retrofit2.HttpException) { throw Exception(parseErr(e) ?: tr("تعذّر الحفظ")) }
     }
 
     // --- Bank reconciliation (المطابقة البنكية) ---
     suspend fun bankStatement(bankId: String): BankStatementDto = api.bankStatement("api/v1/accounting/banks/$bankId/statement").data
     suspend fun statementLineAdd(bankId: String, req: StatementLineReq) {
         try { api.statementLineAdd("api/v1/accounting/banks/$bankId/statement", req) }
-        catch (e: retrofit2.HttpException) { throw Exception(parseErr(e) ?: "تعذّر الإضافة") }
+        catch (e: retrofit2.HttpException) { throw Exception(parseErr(e) ?: tr("تعذّر الإضافة")) }
     }
 
     // --- Bundles (الحزم والمجموعات) ---
     suspend fun bundleDetail(id: String): BundleDetailDto = api.bundleDetail("api/v1/inventory/bundles/$id").data
     suspend fun bundleSetComponents(req: BomReq) {
         try { api.bomSave("api/v1/inventory/bundles", req) }
-        catch (e: retrofit2.HttpException) { throw Exception(parseErr(e) ?: "تعذّر الحفظ") }
+        catch (e: retrofit2.HttpException) { throw Exception(parseErr(e) ?: tr("تعذّر الحفظ")) }
     }
     suspend fun bundleAssemble(req: AssembleReq) {
         try { api.assemble("api/v1/inventory/bundles/assemble", req) }
-        catch (e: retrofit2.HttpException) { throw Exception(parseErr(e) ?: "تعذّر التجميع") }
+        catch (e: retrofit2.HttpException) { throw Exception(parseErr(e) ?: tr("تعذّر التجميع")) }
     }
 
     // --- HR: employees + leave requests ---
     suspend fun employeeEdit(id: String): EmployeeEditDto = api.employeeEdit("api/v1/hr/employees/$id").data
     suspend fun employeeSave(req: EmployeeSaveReq) {
         try { api.employeeSave("api/v1/hr/employees", req) }
-        catch (e: retrofit2.HttpException) { throw Exception(parseErr(e) ?: "تعذّر الحفظ") }
+        catch (e: retrofit2.HttpException) { throw Exception(parseErr(e) ?: tr("تعذّر الحفظ")) }
     }
     suspend fun leaveCreate(req: LeaveCreateReq) {
         try { api.leaveCreate("api/v1/hr/leaves", req) }
-        catch (e: retrofit2.HttpException) { throw Exception(parseErr(e) ?: "تعذّر الحفظ") }
+        catch (e: retrofit2.HttpException) { throw Exception(parseErr(e) ?: tr("تعذّر الحفظ")) }
     }
 
     // --- Recurring sales invoices (الفواتير الدورية) ---
     suspend fun recurringCreate(req: RecurSaveReq) {
         try { api.recurSave("api/v1/sales/recurring", req) }
-        catch (e: retrofit2.HttpException) { throw Exception(parseErr(e) ?: "تعذّر الحفظ") }
+        catch (e: retrofit2.HttpException) { throw Exception(parseErr(e) ?: tr("تعذّر الحفظ")) }
     }
 
     // --- Stock adjustment document (تسويات المخزون) ---
     suspend fun adjustmentDetail(id: String): AdjDetailDto = api.adjDetail("api/v1/inventory/adjustments/$id").data
     suspend fun adjustmentDraftCreate(req: AdjDraftReq) {
         try { api.adjDraft("api/v1/inventory/adjustments/draft", req) }
-        catch (e: retrofit2.HttpException) { throw Exception(parseErr(e) ?: "تعذّر الحفظ") }
+        catch (e: retrofit2.HttpException) { throw Exception(parseErr(e) ?: tr("تعذّر الحفظ")) }
     }
 
     // --- Fixed assets (الأصول الثابتة) ---
     suspend fun assetDetail(id: String): AssetDetailDto = api.assetDetail("api/v1/accounting/assets/$id").data
     suspend fun assetCreate(req: AssetCreateReq) {
         try { api.assetCreate("api/v1/accounting/assets", req) }
-        catch (e: retrofit2.HttpException) { throw Exception(parseErr(e) ?: "تعذّر الحفظ") }
+        catch (e: retrofit2.HttpException) { throw Exception(parseErr(e) ?: tr("تعذّر الحفظ")) }
     }
 
     private fun parseErr(e: retrofit2.HttpException): String? =
@@ -308,7 +311,7 @@ class Repo(val store: TokenStore) {
         } catch (e: retrofit2.HttpException) {
             val msg = e.response()?.errorBody()?.string()
                 ?.let { runCatching { json.decodeFromString<OkResp>(it).error }.getOrNull() }
-            throw Exception(msg ?: "فشل التنفيذ")
+            throw Exception(msg ?: tr("فشل التنفيذ"))
         }
     }
 
@@ -320,7 +323,7 @@ class Repo(val store: TokenStore) {
         } catch (e: retrofit2.HttpException) {
             val msg = e.response()?.errorBody()?.string()
                 ?.let { runCatching { json.decodeFromString<OkResp>(it).error }.getOrNull() }
-            throw Exception(msg ?: "فشل حفظ الجرد")
+            throw Exception(msg ?: tr("فشل حفظ الجرد"))
         }
     }
 

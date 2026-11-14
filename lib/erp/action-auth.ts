@@ -1,6 +1,6 @@
 import { getActiveOrg } from "@/lib/erp/org";
 import { getMemberAccess } from "@/lib/erp/auth-guard";
-import { orgHasModule } from "@/lib/erp/entitlements";
+import { moduleOfPermission, orgHasModule } from "@/lib/erp/entitlements";
 import { type ErpPermission } from "@/lib/erp/permissions";
 import { getErpContext } from "@/lib/erp/erp-context";
 import { withOrgScope, withPlatformScope } from "@/lib/db-scope";
@@ -25,23 +25,15 @@ export async function authorizeErp(
   const ctx = getErpContext();
   if (ctx) {
     if (!ctx.permissions.has(permission)) return { error: "ليس لديك صلاحية لهذا الإجراء" };
-    if (moduleKey && ctx.role !== "system_admin" && !(await orgHasModule(ctx.orgId, moduleKey))) {
+    if (!["system_admin", "super_admin"].includes(ctx.role) && !(await orgHasModule(ctx.orgId, moduleKey ?? moduleOfPermission(permission)))) {
       return { error: "هذه الميزة غير مُفعّلة في باقتك" };
     }
     return { orgId: ctx.orgId, userId: ctx.userId, role: ctx.role };
   }
 
-  // One transaction for the whole bootstrap instead of two. getActiveOrg opens a platform
-  // scope (it lists memberships ACROSS orgs, so it cannot be org-scoped) and getMemberAccess
-  // opened a second, org-scoped one straight after — every action paid two BEGIN/COMMIT
-  // round trips before touching its own data. Both wrappers reuse an already-open scope, so
-  // hoisting one platform scope around the pair collapses them into a single transaction.
-  //
-  // getMemberAccess therefore reads its membership row with RLS bypassed. That is the same
-  // control getUserOrganizations already documents and relies on: the row is pinned by an
-  // explicit (organization_id, user_id) filter, and a user who is not a member simply gets
-  // no row — which is exactly what the org-scoped policy did. The tenant scope the action
-  // body runs in is unaffected; it opens after this returns.
+  // Organization discovery needs a platform bootstrap. Membership/subscription helpers
+  // narrow to their own tenant transactions; they never inherit this RLS bypass. The
+  // action body opens its tenant write transaction only after bootstrap has completed.
   return withPlatformScope(async () => {
     const { user, org } = await getActiveOrg();
     if (!user) return { error: "غير مصرح بالدخول" };
@@ -51,7 +43,7 @@ export async function authorizeErp(
     if (!access.permissions.has(permission)) {
       return { error: "ليس لديك صلاحية لهذا الإجراء" };
     }
-    if (moduleKey && user.role !== "system_admin" && !(await orgHasModule(org.id, moduleKey))) {
+    if (user.role !== "system_admin" && !(await orgHasModule(org.id, moduleKey ?? moduleOfPermission(permission)))) {
       return { error: "هذه الميزة غير مُفعّلة في باقتك" };
     }
     return { orgId: org.id, userId: user.id, role: access.role };

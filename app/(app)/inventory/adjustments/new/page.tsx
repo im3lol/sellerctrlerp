@@ -19,7 +19,7 @@ export default async function NewAdjustmentPage() {
       db.execute<StockRow>(sql`
         SELECT DISTINCT ON (item_id, warehouse_id) item_id, warehouse_id, balance_quantity, balance_value
         FROM stock_movements WHERE organization_id = ${orgId}
-        ORDER BY item_id, warehouse_id, created_at DESC, split_part(number, '-', 3)::int DESC
+        ORDER BY item_id, warehouse_id, created_at DESC, CASE WHEN split_part(number, '-', 3) ~ '^[0-9]+$' THEN split_part(number, '-', 3)::numeric ELSE 0 END DESC
       `),
     ]);
 

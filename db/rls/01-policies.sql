@@ -26,6 +26,7 @@ DO $$
 DECLARE
   t text;
   n int := 0;
+  personal_guard text;
 BEGIN
   FOR t IN
     SELECT c.relname
@@ -38,13 +39,19 @@ BEGIN
     EXECUTE format('ALTER TABLE %I ENABLE ROW LEVEL SECURITY', t);
     EXECUTE format('ALTER TABLE %I FORCE ROW LEVEL SECURITY', t);
     EXECUTE format('DROP POLICY IF EXISTS org_isolation ON %I', t);
+    personal_guard := CASE
+      WHEN t IN ('mcp_grants', 'mcp_audit_events') THEN
+        ' AND user_id::text = current_setting(''app.mcp_user'', true)'
+      WHEN t IN ('mcp_codes', 'mcp_refresh_tokens') THEN
+        format(' AND EXISTS (SELECT 1 FROM mcp_grants g WHERE g.id = %I.grant_id AND g.organization_id = %I.organization_id AND g.user_id::text = current_setting(''app.mcp_user'', true))', t, t)
+      ELSE '' END;
     EXECUTE format($f$
       CREATE POLICY org_isolation ON %I FOR ALL
-        USING (organization_id = current_setting('app.current_org', true)
+        USING ((organization_id = current_setting('app.current_org', true)%s)
                OR current_setting('app.is_platform_admin', true) = 'on')
-        WITH CHECK (organization_id = current_setting('app.current_org', true)
+        WITH CHECK ((organization_id = current_setting('app.current_org', true)%s)
                OR current_setting('app.is_platform_admin', true) = 'on')
-    $f$, t);
+    $f$, t, personal_guard, personal_guard);
     -- appuser is the app's runtime role; without the grant the policy is moot because
     -- the table is unreachable. Guarded so this file still runs on a DB built before
     -- the role exists (db:migrate creates it first, via 00-appuser.sql).

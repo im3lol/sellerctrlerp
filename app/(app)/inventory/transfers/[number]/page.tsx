@@ -1,3 +1,5 @@
+
+import { getLocale } from "@/lib/i18n/server";
 import { notFound } from "next/navigation";
 import { fill } from "@/lib/i18n";
 import { getT } from "@/lib/i18n/server";
@@ -19,10 +21,11 @@ import { docNumberParam } from "@/lib/erp/doc-route";
 import { PaginatedTableRows } from "@/components/erp/paginated-table-rows";
 
 const q = (v: string | number | null) => Number(v ?? 0).toLocaleString("ar-EG-u-nu-latn", { maximumFractionDigits: 3 });
-const dt = (d: Date) => new Date(d).toLocaleDateString("ar-EG-u-nu-latn", { year: "numeric", month: "2-digit", day: "2-digit" });
+const dt = (d: Date, locale: import("@/lib/i18n").Locale) => new Date(d).toLocaleDateString(locale === "en" ? "en-GB" : "ar-EG-u-nu-latn", { year: "numeric", month: "2-digit", day: "2-digit" });
 
 export default async function TransferDetailPage({ params }: { params: Promise<{ number: string }> }) {
   const t = await getT();
+  const locale = await getLocale();
   const raw = (await params).number;
   return loadErpPage("inventory.view", async ({ orgId, can }) => {
     const number = await docNumberParam(raw, orgId, stockTransfers,
@@ -93,7 +96,7 @@ export default async function TransferDetailPage({ params }: { params: Promise<{
           <CardHeader><CardTitle>{t("بيانات التحويل")}</CardTitle></CardHeader>
           <CardContent className="grid gap-4 sm:grid-cols-4 text-sm">
             <div><div className="text-muted-foreground">{t("الرقم")}</div><div className="font-mono font-medium">{tr.number}</div></div>
-            <div><div className="text-muted-foreground">{t("التاريخ")}</div><div className="font-medium">{dt(tr.date)}</div></div>
+            <div><div className="text-muted-foreground">{t("التاريخ")}</div><div className="font-medium">{dt(tr.date, locale)}</div></div>
             <div><div className="text-muted-foreground">{t("ملاحظات")}</div><div className="font-medium">{tr.notes ?? "—"}</div></div>
             <div><div className="text-muted-foreground">{t("الحالة")}</div><Badge variant={tr.status === "POSTED" ? "default" : "secondary"}>{tr.status === "POSTED" ? t("مرحّل") : t("مسودة")}</Badge></div>
           </CardContent>

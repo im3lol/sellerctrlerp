@@ -1,5 +1,9 @@
 "use client";
 
+import { formatErpDate } from "@/lib/erp/dates";
+
+import { useLocale } from "@/lib/i18n/client";
+
 import { useState, useTransition } from "react";
 import { fill } from "@/lib/i18n";
 import { useT } from "@/lib/i18n/client";
@@ -11,11 +15,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
-const day = (iso: string) => new Date(iso).toLocaleDateString("ar-EG-u-nu-latn", { dateStyle: "long" });
+const day = (iso: string, locale: import("@/lib/i18n").Locale) => formatErpDate(iso, locale === "en" ? "en-GB" : "ar-EG-u-nu-latn", { dateStyle: "long" });
 
 /** Owner-only danger zone: request (or cancel) deleting the whole company. */
 export function OrgDeletionCard({ orgName, dueAt, graceDays }: { orgName: string; dueAt: string | null; graceDays: number }) {
   const t = useT();
+  const locale = useLocale();
   const router = useRouter();
   const [name, setName] = useState("");
   const [pending, start] = useTransition();
@@ -38,7 +43,7 @@ export function OrgDeletionCard({ orgName, dueAt, graceDays }: { orgName: string
       <CardContent>
         {dueAt ? (
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <p className="text-sm font-medium text-destructive">{t("الشركة هتتمسح يوم")} {day(dueAt)}.</p>
+            <p className="text-sm font-medium text-destructive">{t("الشركة هتتمسح يوم")} {day(dueAt, locale)}.</p>
             <Button variant="outline" disabled={pending} onClick={() => run(cancelOrgDeletionAction, "اتلغى طلب الحذف")}>{t("إلغاء طلب الحذف")}</Button>
           </div>
         ) : (

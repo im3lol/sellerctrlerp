@@ -12,7 +12,7 @@ const pctv = (n: number) => (Number.isFinite(n) ? `${(n * 100).toFixed(1)}%` : "
 
 export default async function PrintRatiosReportPage() {
   const t = await getT();
-  return loadErpPage("reports.view", async ({ orgId }) => {
+  return loadErpPage("accounting.view", async ({ orgId }) => {
     const [{ org }, balances] = await Promise.all([loadPrintHeader(orgId), accountBalances({ orgId })]);
 
     const byCode = Object.fromEntries(balances.map((b) => [b.code, Number(b.balance)]));
@@ -51,8 +51,8 @@ export default async function PrintRatiosReportPage() {
     ];
     const row = (label: string, value: string, hint?: string, bad?: boolean) => [
       <span key="l">
-        {label}
-        {hint && <span style={{ color: "#8a93a6", fontSize: 9.5, marginInlineStart: 6 }}>{hint}</span>}
+        {t(label)}
+        {hint && <span style={{ color: "#8a93a6", fontSize: 9.5, marginInlineStart: 6 }}>{t(hint)}</span>}
       </span>,
       <b key="v" style={bad ? { color: "#d64545" } : undefined}>{value}</b>,
     ];

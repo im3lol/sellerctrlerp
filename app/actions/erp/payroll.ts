@@ -328,7 +328,7 @@ export async function confirmPayrollRunAction(id: string): Promise<ActionState> 
         ...(totalDed > 0 ? [{ accountId: deductId, debit: 0, credit: totalDed, description: "استقطاعات ضريبية وتأمينات" }] : []),
       ];
 
-      const period = `${run.periodStart.toLocaleDateString("ar-EG", { month: "long", year: "numeric" })}`;
+      const period = `${run.periodStart.toLocaleDateString("ar-EG-u-nu-latn", { month: "long", year: "numeric" })}`;
       const jeId = await postEntry(tx, {
         orgId: auth.orgId,
         date: run.paymentDate ?? now,

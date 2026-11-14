@@ -1,5 +1,6 @@
 import { authorizeApi, isApiError } from "@/lib/erp/api-auth";
 import { purchaseOrderDetail } from "@/lib/erp/mobile-lists";
+import { purchaseOrderForCaller } from "@/lib/erp/data-access";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -11,5 +12,5 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
   if (isApiError(auth)) return Response.json({ error: auth.error }, { status: auth.status });
   const detail = await purchaseOrderDetail(auth.orgId, id);
   if (!detail) return Response.json({ error: "not_found" }, { status: 404 });
-  return Response.json({ data: detail });
+  return Response.json({ data: purchaseOrderForCaller(detail, auth.can) });
 }

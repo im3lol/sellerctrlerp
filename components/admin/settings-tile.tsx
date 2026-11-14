@@ -10,12 +10,13 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
  * integration (sales platforms, payment gateway, email) so they all look and behave the
  * same, and a new integration is just another tile.
  */
-export function SettingsTile({ label, icon, brandCls, configured, enabled, dialogTitle, dialogDescription, children }: {
+export function SettingsTile({ label, icon, brandCls, configured, enabled, dialogTitle, dialogDescription, children, defaultOpen = false }: {
   label: string; icon: string; brandCls: string; configured: boolean; enabled?: boolean;
   dialogTitle: string; dialogDescription?: string; children: ReactNode;
+  defaultOpen?: boolean;
 }) {
   const t = useT();
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(defaultOpen);
   const dotOn = enabled === undefined ? configured : enabled;
   const statusText = `${configured ? t("مُعدّة") : t("غير مُعدّة")}${enabled === undefined ? "" : enabled ? t(" · مُفعّلة") : t(" · موقوفة")}`;
 

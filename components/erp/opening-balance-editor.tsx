@@ -158,7 +158,7 @@ function CsvImport({ kind, onAdd, amazonCode }: { kind: OpeningKind; onAdd: (row
               <tr key={i} className="border-t">
                 <td className="p-2 font-mono" dir="ltr">{p.code}</td><td className="p-2">{p.name ?? "—"}</td>
                 <td className="p-2 tabular-nums">{kind === "ITEM" ? `${p.quantity} × ${money(p.unitCost)}` : kind === "ACCOUNT" ? `${money(p.debit)} / ${money(p.credit)}` : money(p.amount)}</td>
-                <td className="p-2">{p.error ? <span className="text-destructive">{p.error}</span> : <span className="text-emerald-600">{t("مطابَق")}</span>}</td>
+                <td className="p-2">{p.error ? <span className="text-destructive">{t(p.error)}</span> : <span className="text-emerald-600">{t("مطابَق")}</span>}</td>
               </tr>
             ))}</tbody>
           </table></div>

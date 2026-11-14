@@ -12,6 +12,7 @@ import { validateParentLink } from "@/lib/erp/item-family-core";
 import { prepareCodes, } from "@/lib/erp/item-codes";
 import { putObject, publicUrl } from "@/lib/storage";
 import { itemMatches } from "@/lib/erp/item-match";
+import { itemHref } from "@/lib/erp/item-href";
 
 const codeSchema = z.object({
   codeType: z.string().min(1),
@@ -39,7 +40,7 @@ const schema = z.object({
 });
 
 /** Create or update an item with its description, image, and external codes. */
-export async function saveItemAction(input: unknown): Promise<ActionState & { id?: string }> {
+export async function saveItemAction(input: unknown): Promise<ActionState & { id?: string; code?: string }> {
   const parsed = schema.safeParse(input);
   if (!parsed.success) return { error: parsed.error.issues[0].message };
   const d = parsed.data;
@@ -114,7 +115,8 @@ export async function saveItemAction(input: unknown): Promise<ActionState & { id
       revalidatePath("/inventory");
       revalidatePath("/inventory/items");
       revalidatePath(`/inventory/items/${itemId}`);
-      return { ok: true, id: itemId };
+      revalidatePath(itemHref(data.code));
+      return { ok: true, id: itemId, code: data.code };
     } catch (e) {
       return { error: e instanceof Error && e.message.includes("unique") ? "الكود مستخدم مسبقاً" : "تعذّر الحفظ" };
     }

@@ -149,7 +149,7 @@ export default async function ErpPurchasesPage() {
 
         {/* Every page in this module, straight from the sidebar config — see
             ModuleWorkspace for why this is derived and not another hand-kept list. */}
-        <ModuleWorkspace heading={t("المشتريات")} permissions={permissions} counts={counts}
+        <ModuleWorkspace heading="المشتريات" permissions={permissions} counts={counts}
           actions={[{ label: "أمر شراء جديد", href: "/purchases/orders/new", icon: "Plus" }, { label: "فاتورة شراء جديدة", href: "/purchases/invoices/new", icon: "Plus" }]} />
       </div>
     );

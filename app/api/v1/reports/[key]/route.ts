@@ -1,6 +1,7 @@
 import { authorizeApi, isApiError } from "@/lib/erp/api-auth";
 import { salesByCustomer, salesByItem, purchasesBySupplier, purchasesByItem, type RankReport } from "@/lib/erp/mobile-reports";
 import type { ErpPermission } from "@/lib/erp/permissions";
+import { canReadPurchaseCosts } from "@/lib/erp/data-access";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -19,6 +20,7 @@ export async function GET(req: Request, ctx: { params: Promise<{ key: string }> 
   if (!entry) return Response.json({ error: "unknown_report" }, { status: 404 });
   const auth = await authorizeApi(req, entry.perm);
   if (isApiError(auth)) return Response.json({ error: auth.error }, { status: auth.status });
+  if (entry.perm === "purchases.view" && !canReadPurchaseCosts(auth.can)) return Response.json({ error: "forbidden" }, { status: 403 });
   const sp = new URL(req.url).searchParams;
   return Response.json({ data: await entry.fn(auth.orgId, sp.get("from") || undefined, sp.get("to") || undefined) });
 }

@@ -4,7 +4,7 @@ import { MARKETPLACES, marketplaceByCode } from "./constants";
 import { exchangeCode as lwaExchange } from "./lwa";
 import { getAmazonConfig } from "@/lib/saas/amazon-config";
 import { fetchCatalog } from "./catalog";
-import { fetchListings, mergeProducts } from "./listings";
+import { fetchListings, mergeProducts, ListingsResultLimitError } from "./listings";
 import { fetchFullListings } from "./reports";
 import { fetchOrders } from "./orders";
 import { fetchInventory, fetchInventoryDetail, fetchInventoryProducts } from "./inventory";
@@ -58,20 +58,22 @@ export const amazonConnector: MarketplaceConnector = {
   },
   // Direct SP-API endpoints (JSON, synchronous) — no async report polling.
   // Incremental (since set): only changed listings — fast, ≤1000 changes is plenty.
-  // Full (no since): searchListingsItems is capped at 1000 by Amazon, so enumerate
-  // the WHOLE FBA catalog via getInventorySummaries (uncapped) and overlay price
-  // from the listings slice. FBM/listings-only SKUs are still included.
+  // Full: the current seller listings report defines membership. Never create
+  // product masters from historical FBA inventory summaries.
   async fetchProducts(cred, since): Promise<MarketplaceProduct[]> {
-    if (since) return fetchListings(cred, since);
-    const [listings, invProducts] = await Promise.all([
-      fetchListings(cred).catch(() => [] as MarketplaceProduct[]),
-      fetchInventoryProducts(cred),
-    ]);
+    if (since) {
+      try { return await fetchListings(cred, since); }
+      catch (e) { if (!(e instanceof ListingsResultLimitError)) throw e; }
+    }
+    const listings = await fetchFullListings(cred);
+    const invProducts = await fetchInventoryProducts(cred).catch(() => [] as MarketplaceProduct[]);
     return mergeProducts(invProducts, listings);
   },
   // Full import: the Reports API (complete, no 1000 cap). Slow/async — workers only.
-  fetchFullProducts(cred) {
-    return fetchFullListings(cred);
+  async fetchFullProducts(cred) {
+    const listings = await fetchFullListings(cred);
+    const summaries = await fetchInventoryProducts(cred).catch(() => [] as MarketplaceProduct[]);
+    return mergeProducts(summaries, listings);
   },
   fetchCatalog(cred, asins) {
     return fetchCatalog(cred, asins);

@@ -1,3 +1,4 @@
+import { itemHref } from "@/lib/erp/item-href";
 import Link from "next/link";
 import { fill } from "@/lib/i18n";
 import { getT } from "@/lib/i18n/server";
@@ -190,8 +191,8 @@ export default async function MarketplacePnlPage({ searchParams }: { searchParam
                       <TableRow key={r.sku}>
                         <TableCell className="font-mono text-xs" dir="ltr">{r.sku}</TableCell>
                         <TableCell className="max-w-[280px] whitespace-normal">
-                          {r.itemId ? (
-                            <Link href={`/inventory/items/${r.itemId}`} className="line-clamp-2 leading-snug text-primary hover:underline" title={r.name ?? undefined}>
+                          {r.itemId && r.code ? (
+                            <Link href={itemHref(r.code!)} className="line-clamp-2 leading-snug text-primary hover:underline" title={r.name ?? undefined}>
                               <span className="font-mono text-xs text-muted-foreground">{r.code}</span> {t(r.name ?? "")}
                             </Link>
                           ) : (

@@ -190,7 +190,7 @@ export function PlatformHeaderActions({
       <Dialog open={chooseOpen} onOpenChange={setChooseOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{t("مزامنة")} {label}</DialogTitle>
+            <DialogTitle>{t("مزامنة")} {t(label)}</DialogTitle>
             <DialogDescription>{t("اختر ما تريد مزامنته الآن — كل مصدر يعمل مستقلًا.")}</DialogDescription>
           </DialogHeader>
           <div className="space-y-2.5">
@@ -215,7 +215,7 @@ export function PlatformHeaderActions({
           {chosen.orders && !hasStartDate && !startSaved && (
             <div className="space-y-1.5 rounded-lg border border-dashed p-3">
               <label htmlFor="goLiveDate" className="text-sm font-medium">{t("تاريخ بدء المحاسبة")}</label>
-              <p className="text-xs text-muted-foreground">{t("من أي تاريخ نبدأ محاسبة مبيعات")} {label}{t("؟ الطلبات من هذا التاريخ تُستورد وتُحاسَب؛ الأقدم يُتجاهل. يُحفظ مرة واحدة ويمكن تعديله من الإعدادات.")}</p>
+              <p className="text-xs text-muted-foreground">{t("من أي تاريخ نبدأ محاسبة مبيعات")} {t(label)}{t("؟ الطلبات من هذا التاريخ تُستورد وتُحاسَب؛ الأقدم يُتجاهل. يُحفظ مرة واحدة ويمكن تعديله من الإعدادات.")}</p>
               <input id="goLiveDate" type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="block h-9 rounded-md border bg-background px-3 text-sm" dir="ltr" />
             </div>
           )}

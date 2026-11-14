@@ -16,7 +16,7 @@ import { withPlatformScope } from "@/lib/db-scope";
 import { secretEquals } from "@/lib/crypto";
 import { log } from "@/lib/log";
 import { writeDailySnapshot, sweepExpirations } from "@/lib/erp/platform-metrics";
-import { backupOrgToStorage, pruneBackups } from "@/lib/erp/backup";
+import { runDailyBackup } from "@/lib/erp/backup-maintenance";
 import { pruneReportDownloads } from "@/lib/erp/report-downloads-core";
 import { getControlDivergences } from "@/lib/erp/control-reconciliation";
 import { purgeDueOrganizations } from "@/lib/erp/org-deletion";
@@ -166,14 +166,14 @@ export async function GET(req: Request) {
   // concurrently in the worker instead of this 60s function looping serially over the
   // whole fleet (which timed out mid-loop at scale, silently skipping later tenants).
   // No Redis → fall back to the in-line loop (unchanged behavior).
-  let backedUp = 0, backupQueued = 0;
+  let backedUp = 0, backupQueued = 0, backupFailed = 0;
   if (redisEnabled()) {
     for (const org of orgs) {
       if (await enqueue(QUEUES.maintenance, { orgId: org.id, provider: "" })) backupQueued++;
     }
   } else {
     for (const org of orgs) {
-      try { await backupOrgToStorage(org.id, org.name); await pruneBackups(org.id, 14); backedUp++; } catch (e) { log.warn("cron.backup_failed", { orgId: org.id, err: e }); }
+      try { await runDailyBackup(org.id); backedUp++; } catch { backupFailed++; }
     }
   }
 
@@ -243,6 +243,6 @@ export async function GET(req: Request) {
     }
   }
 
-  return Response.json({ ok: true, orgs: orgs.length, purged, generated, productsRun, expired, backedUp, backupQueued, reminders, sent });
+  return Response.json({ ok: true, orgs: orgs.length, purged, generated, productsRun, expired, backedUp, backupQueued, backupFailed, reminders, sent });
   });
 }

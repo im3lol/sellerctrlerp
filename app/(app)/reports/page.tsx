@@ -14,7 +14,7 @@ const iso = (d: Date) => d.toISOString().slice(0, 10);
 
 export default async function ErpReportsPage({ searchParams }: { searchParams: Promise<{ from?: string; to?: string }> }) {
   const t = await getT();
-  return loadErpPage("reports.view", async ({ orgId, permissions }) => {
+  return loadErpPage("accounting.view", async ({ orgId, permissions }) => {
     const sp = await searchParams;
     const now = new Date();
     const from = sp.from || (await orgFiscalYearStartISO(orgId, now));

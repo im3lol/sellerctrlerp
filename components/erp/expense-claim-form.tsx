@@ -53,7 +53,7 @@ export function ExpenseClaimForm({ expenseAccounts, cashAccounts, orgName }: { e
 
   return (
     <Card>
-      <CardHeader>
+      <CardHeader data-page-actions="" className="sticky top-16 z-20 rounded-t-xl border-b bg-card/95 py-3 backdrop-blur print:static [&>div]:flex-wrap [&_button]:max-w-full [&_button]:whitespace-normal">
         <div className="flex w-full items-center justify-between gap-3">
           <CardTitle>{t("بيانات المطالبة")}</CardTitle>
           <div className="flex gap-2">

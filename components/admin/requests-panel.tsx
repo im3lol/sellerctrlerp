@@ -43,7 +43,7 @@ export function RequestsPanel({ requests }: { requests: SubRequest[] }) {
             {requests.map((r) => (
               <TableRow key={r.id}>
                 <TableCell className="font-medium">{r.orgName}</TableCell>
-                <TableCell>{r.planName} <span className="text-xs text-muted-foreground">({r.interval === "ANNUAL" ? t("سنوي") : t("شهري")})</span></TableCell>
+                <TableCell>{t(r.planName ?? "")} <span className="text-xs text-muted-foreground">({r.interval === "ANNUAL" ? t("سنوي") : t("شهري")})</span></TableCell>
                 <TableCell className="tabular-nums">{r.price.toLocaleString("ar-EG-u-nu-latn")} {t("ج.م")}</TableCell>
                 <TableCell className="text-sm">{t(METHOD[r.paymentMethod] ?? r.paymentMethod)}</TableCell>
                 <TableCell className="text-sm font-mono" dir="ltr">{r.paymentReference || "—"}</TableCell>

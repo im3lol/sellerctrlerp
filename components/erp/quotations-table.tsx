@@ -1,5 +1,9 @@
 "use client";
 
+import { formatErpDate } from "@/lib/erp/dates";
+
+import { translateName } from "@/lib/i18n";
+
 import Link from "next/link";
 import { useT } from "@/lib/i18n/client";
 import { bulkQuotationsAction } from "@/app/actions/erp/quotations";
@@ -10,7 +14,7 @@ import { QuotationRowActions } from "@/components/erp/quotation-row-actions";
 
 type Row = { id: string; number: string; date: unknown; validUntil: unknown; status: string; customer: string | null; total: string };
 
-const dt = (d: unknown) => new Date(d as string).toLocaleDateString("en-GB", { year: "numeric", month: "2-digit", day: "2-digit" });
+const dt = (d: unknown) => formatErpDate(d as string, "en-GB", { year: "numeric", month: "2-digit", day: "2-digit" });
 const fmt = (v: unknown) => Number(v ?? 0).toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const ST: Record<string, { label: string; variant: "default" | "secondary" | "outline" | "destructive" }> = {
   DRAFT: { label: "مسودة", variant: "secondary" }, SENT: { label: "مُرسل", variant: "outline" },
@@ -51,7 +55,7 @@ export function QuotationsTable({ rows, canConfirm, canCreate }: { rows: Row[]; 
                 {showSelect && <TableCell><SelectBox checked={sel.has(r.id)} onChange={() => sel.toggle(r.id)} label={t("تحديد")} /></TableCell>}
                 <TableCell><Link href={`/sales/quotations/${encodeURIComponent(r.number)}`} className="font-mono hover:text-primary">{r.number}</Link></TableCell>
                 <TableCell>{dt(r.date)}</TableCell>
-                <TableCell className="max-w-[200px] truncate" title={r.customer ?? undefined}>{r.customer ?? "—"}</TableCell>
+                <TableCell className="max-w-[200px] truncate" title={translateName(r.customer ?? "", t) || undefined}>{translateName(r.customer ?? "—", t)}</TableCell>
                 <TableCell className="text-sm text-muted-foreground">{r.validUntil ? dt(r.validUntil) : "—"}</TableCell>
                 <TableCell className="text-end tabular-nums font-medium">{fmt(r.total)}</TableCell>
                 <TableCell><Badge variant={st.variant}>{t(st.label)}</Badge></TableCell>

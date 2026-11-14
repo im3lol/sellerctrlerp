@@ -1,5 +1,5 @@
 import { and, eq, gt } from "drizzle-orm";
-import { fill } from "@/lib/i18n";
+import { translateName, fill } from "@/lib/i18n";
 import { getLocale, getT } from "@/lib/i18n/server";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
@@ -58,7 +58,7 @@ export default async function PrintApAgingPage({ searchParams }: { searchParams:
             { label: "الإجمالي", align: "end", width: "12%" },
           ],
           rows: rows.map((r) => [
-            <span key="n"><span dir="ltr" style={{ color: "#8a93a6", fontSize: 10 }}>{r.partyCode}</span> {r.partyName}</span>,
+            <span key="n"><span dir="ltr" style={{ color: "#8a93a6", fontSize: 10 }}>{r.partyCode}</span> {translateName(r.partyName ?? "", t)}</span>,
             ...AGING_BUCKETS.map((b) => z(r.buckets[b])),
             <b key="t">{fmt(r.total)}</b>,
           ]),

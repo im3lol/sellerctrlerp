@@ -1,3 +1,4 @@
+import { type Locale } from "@/lib/i18n";
 /**
  * Physical units, converted once on the way in. Pure.
  *
@@ -76,23 +77,23 @@ export function weightTextToKg(text: string | null | undefined): number | null {
  * How a weight should read to an Egyptian trader: grams below a kilo, kilograms above.
  * "0.168 kg" is a number people have to think about; "168 جم" is not.
  */
-export function formatWeight(kg: number | null | undefined): string | null {
+export function formatWeight(kg: number | null | undefined, locale: Locale = "ar"): string | null {
   if (kg == null || !Number.isFinite(kg) || kg <= 0) return null;
   if (kg < 1) {
     const g = Math.round(kg * 1000);
-    return `${g.toLocaleString("ar-EG-u-nu-latn")} جم`;
+    return `${g.toLocaleString(locale === "en" ? "en-US" : "ar-EG-u-nu-latn")} ${locale === "en" ? "g" : "جم"}`;
   }
-  return `${(Math.round(kg * 1000) / 1000).toLocaleString("ar-EG-u-nu-latn", { maximumFractionDigits: 3 })} كجم`;
+  return `${(Math.round(kg * 1000) / 1000).toLocaleString(locale === "en" ? "en-US" : "ar-EG-u-nu-latn", { maximumFractionDigits: 3 })} ${locale === "en" ? "kg" : "كجم"}`;
 }
 
 /** "2.54 × 5.5 × 23 سم" — one unit for the box, stated once. */
 export function formatDimensionsCm(
-  l: number | null | undefined, w: number | null | undefined, h: number | null | undefined,
+  l: number | null | undefined, w: number | null | undefined, h: number | null | undefined, locale: Locale = "ar",
 ): string | null {
   const parts = [l, w, h].filter((n): n is number => n != null && Number.isFinite(n) && n > 0);
   if (parts.length < 3) return null;
   const n = (v: number) => (Math.round(v * 100) / 100).toLocaleString("ar-EG-u-nu-latn", { maximumFractionDigits: 2 });
-  return `${n(parts[0])} × ${n(parts[1])} × ${n(parts[2])} سم`;
+  return `${n(parts[0])} × ${n(parts[1])} × ${n(parts[2])} ${locale === "en" ? "cm" : "سم"}`;
 }
 
 /**

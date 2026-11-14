@@ -7,7 +7,7 @@ export const runtime = "nodejs";
 
 /** Excel export of the balance sheet as of the page's date. */
 export async function GET(req: Request) {
-  const { orgId } = await requireErpModule("reports.view");
+  const { orgId } = await requireErpModule("accounting.view");
   const to = new URL(req.url).searchParams.get("to") || new Date().toISOString().slice(0, 10);
   const balances = await withOrgScope(orgId, false, () => accountBalances({ orgId, to: new Date(`${to}T23:59:59`) }));
 

@@ -1,5 +1,7 @@
 "use client";
 
+import { PageActions } from "@/components/erp/page-actions";
+
 import { useActionState, useEffect, useRef, useState } from "react";
 import { useT } from "@/lib/i18n/client";
 import { useFormStatus } from "react-dom";
@@ -99,7 +101,7 @@ function AccountSelect({
   const options = accounts.filter((a) => types.includes(a.type));
   return (
     <div className="space-y-2">
-      <Label htmlFor={`cfg-${name}`}>{label}</Label>
+      <Label htmlFor={`cfg-${name}`}>{t(label)}</Label>
       <select id={`cfg-${name}`} name={name} defaultValue={defaultValue ?? ""} className={selectCls}>
         <option value="">{t("— بدون —")}</option>
         {options.map((a) => <option key={a.id} value={a.id}>{a.code} — {t(a.nameAr)}</option>)}
@@ -136,6 +138,7 @@ export function SettingsForm({
         </CardHeader>
         <CardContent>
           <form action={profileAction} className="space-y-4">
+      {canEdit && <PageActions><SaveBtn label={t("حفظ البيانات")} /></PageActions>}
             <fieldset disabled={!canEdit} className="space-y-4">
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-2"><Label htmlFor="nameAr">{t("اسم المنشأة")}</Label><Input id="nameAr" name="nameAr" defaultValue={profile.nameAr} required /></div>
@@ -210,7 +213,7 @@ export function SettingsForm({
                         <input type="hidden" name="navHideable" value={h} />
                         <input type="checkbox" name={`navShow:${h}`} className="size-4 rounded border-input"
                           defaultChecked={!profile.navHidden.includes(h)} />
-                        {h}
+                          {t(h)}
                       </label>
                     ))}
                   </div>
@@ -235,7 +238,7 @@ export function SettingsForm({
                 <div className="space-y-2 sm:col-span-2"><Label htmlFor="address">{t("العنوان")}</Label><Input id="address" name="address" defaultValue={profile.address ?? ""} /></div>
                 <LogoField initial={profile.logo} disabled={!canEdit} />
               </div>
-              {canEdit && <div className="flex justify-end"><SaveBtn label={t("حفظ البيانات")} /></div>}
+
             </fieldset>
           </form>
         </CardContent>
@@ -249,6 +252,7 @@ export function SettingsForm({
         </CardHeader>
         <CardContent>
           <form action={configAction} className="space-y-4">
+      {canEdit && <PageActions><SaveBtn label={t("حفظ الضبط")} /></PageActions>}
             <fieldset disabled={!canEdit} className="space-y-4">
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 <AccountSelect name="receivableAccountId" label={t("حساب المدينين (عملاء)")} accounts={accounts} defaultValue={cfg.receivableAccountId} types={["ASSET"]} />
@@ -272,7 +276,7 @@ export function SettingsForm({
                 <AccountSelect name="assetDisposalGainAccountId" label={t("أرباح بيع أصول ثابتة")} accounts={accounts} defaultValue={cfg.assetDisposalGainAccountId} types={["REVENUE"]} />
                 <AccountSelect name="assetDisposalLossAccountId" label={t("خسائر بيع أصول ثابتة")} accounts={accounts} defaultValue={cfg.assetDisposalLossAccountId} types={["EXPENSE"]} />
               </div>
-              {canEdit && <div className="flex justify-end"><SaveBtn label={t("حفظ الضبط")} /></div>}
+
             </fieldset>
           </form>
         </CardContent>

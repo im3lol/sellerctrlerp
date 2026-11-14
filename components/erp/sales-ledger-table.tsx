@@ -1,5 +1,9 @@
 "use client";
 
+import { formatErpDate } from "@/lib/erp/dates";
+
+import { translateName } from "@/lib/i18n";
+
 import Link from "next/link";
 import { useT } from "@/lib/i18n/client";
 import type { SalesLedgerRow, SalesLedgerTotals } from "@/lib/erp/sales-ledger";
@@ -7,7 +11,7 @@ import { fmtMoney, fmtQty } from "@/lib/format";
 
 const LOC = "ar-EG-u-nu-latn";
 const fmtDate = (d: Date) =>
-  new Date(d).toLocaleDateString(LOC, { year: "numeric", month: "2-digit", day: "2-digit" });
+  formatErpDate(d, LOC, { year: "numeric", month: "2-digit", day: "2-digit" });
 
 const DOC = {
   ORDER:    { label: "أمر بيع",    cls: "bg-blue-50 text-blue-700 border-blue-200" },
@@ -77,8 +81,8 @@ export function SalesLedgerTable({
                 <td className="px-3 py-2 text-muted-foreground whitespace-nowrap">
                   {fmtDate(r.date)}
                 </td>
-                <td className="px-3 py-2 max-w-[140px] truncate" title={r.customerName}>
-                  {r.customerName}
+                <td className="px-3 py-2 max-w-[140px] truncate" title={translateName(r.customerName ?? "", t)}>
+                  {translateName(r.customerName ?? "", t)}
                 </td>
                 <td className="px-3 py-2">
                   <span className={`inline-flex rounded-full border px-2 py-0.5 text-xs font-medium ${doc.cls}`}>

@@ -1,7 +1,9 @@
 "use client";
 
+import { formatErpDate } from "@/lib/erp/dates";
+
 import Link from "next/link";
-import { fill } from "@/lib/i18n";
+import { translateName, fill } from "@/lib/i18n";
 import { useT } from "@/lib/i18n/client";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
@@ -15,7 +17,7 @@ import { Icon } from "@/components/icon";
 import { confirm } from "@/components/erp/confirm";
 
 const fmt = (v: string | number | null) => Number(v ?? 0).toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-const dt = (d: Date) => new Date(d).toLocaleDateString("en-GB", { year: "numeric", month: "2-digit", day: "2-digit" });
+const dt = (d: Date) => formatErpDate(d, "en-GB", { year: "numeric", month: "2-digit", day: "2-digit" });
 
 const DOC_STATUS: Record<string, { label: string; variant: "default" | "secondary" | "destructive" }> = {
   DRAFT: { label: "مسودة", variant: "secondary" },
@@ -97,8 +99,8 @@ export function SalesReturnsTable({ rows, canConfirm, canCreate }: { rows: Retur
                 </TableCell>
                 <TableCell className="whitespace-nowrap">{dt(r.date)}</TableCell>
                 <TableCell>
-                  <div>{r.customer ?? "—"}</div>
-                  <Badge variant={r.channel ? "outline" : "secondary"} className="mt-0.5 text-[10px]">{r.channel ? (ORIGIN[r.channel] ?? r.channel) : t("يدوي")}</Badge>
+                  <div>{translateName(r.customer ?? "—", t)}</div>
+                  <Badge variant={r.channel ? "outline" : "secondary"} className="mt-0.5 text-[10px]">{r.channel ? t(ORIGIN[r.channel] ?? r.channel) : t("يدوي")}</Badge>
                 </TableCell>
                 <TableCell>{r.orderNumber ? <Link href={`/sales/orders/${encodeURIComponent(r.orderNumber)}`} className="text-primary hover:underline">{r.orderNumber}</Link> : "—"}</TableCell>
                 <TableCell className="max-w-[200px]"><div className="line-clamp-2 text-sm text-muted-foreground" title={r.reason ?? undefined}>{r.reason ?? "—"}</div></TableCell>

@@ -1,5 +1,9 @@
 "use client";
 
+import { formatErpDateTime } from "@/lib/erp/dates";
+
+import { useLocale } from "@/lib/i18n/client";
+
 import { useState, useTransition, type ChangeEvent } from "react";
 import { fill } from "@/lib/i18n";
 import { useT } from "@/lib/i18n/client";
@@ -13,7 +17,7 @@ import type { MarketplaceConnection } from "@/lib/erp/marketplace/connection";
 
 export type ConnectMarketplace = { code: string; name: string; marketplaceId: string };
 
-const dt = (s: string | null) => (s ? new Date(s).toLocaleString("ar-EG-u-nu-latn", { dateStyle: "short", timeStyle: "short" }) : "—");
+const dt = (s: string | null, locale: import("@/lib/i18n").Locale) => (s ? formatErpDateTime(s, locale === "en" ? "en-GB" : "ar-EG-u-nu-latn", { dateStyle: "short", timeStyle: "short" }) : "—");
 
 export type SyncFlags = { products: boolean; orders: boolean; inventory: boolean };
 
@@ -38,6 +42,7 @@ export function MarketplaceConnect({
   oauthReady?: boolean;
 }) {
   const t = useT();
+  const locale = useLocale();
   const needsCredential = !!credentialKind;
   const [mp, setMp] = useState(marketplaces[0]?.code ?? "");
   const [shop, setShop] = useState("");
@@ -83,10 +88,10 @@ export function MarketplaceConnect({
         <CardHeader>
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
-              <CardTitle className="flex items-center gap-2"><PlugZap className="size-5 text-emerald-600" />{t("ربط")} {label}<Badge className="bg-emerald-600">{t("مربوط")}</Badge>{conn.realtime && <Badge variant="secondary" title={t("طلبات أمازون الجديدة تصل خلال ثوانٍ عبر إشعارات فورية")}>{t("التحديث الفوري مفعّل ⚡")}</Badge>}</CardTitle>
+              <CardTitle className="flex items-center gap-2"><PlugZap className="size-5 text-emerald-600" />{t("ربط")} {t(label)}<Badge className="bg-emerald-600">{t("مربوط")}</Badge>{conn.realtime && <Badge variant="secondary" title={t("طلبات أمازون الجديدة تصل خلال ثوانٍ عبر إشعارات فورية")}>{t("التحديث الفوري مفعّل ⚡")}</Badge>}</CardTitle>
               <CardDescription className="mt-1.5">
                 {justConnected && <span className="text-emerald-600">{t("تم الربط بنجاح.")} </span>}
-                {fill(t("السوق: {0}"), [market?.name ?? conn.marketplaceId ?? "—"])} {t("· معرّف البائع:")} <span className="font-mono" dir="ltr">{conn.sellerId ?? "—"}</span> {t("· آخر مزامنة:")} {dt(conn.lastSyncAt)}
+                {fill(t("السوق: {0}"), [market?.name ?? conn.marketplaceId ?? "—"])} {t("· معرّف البائع:")} <span className="font-mono" dir="ltr">{conn.sellerId ?? "—"}</span> {t("· آخر مزامنة:")} {dt(conn.lastSyncAt, locale)}
               </CardDescription>
             </div>
             <Button variant="ghost" size="sm" onClick={disconnect} disabled={pending} className="text-muted-foreground">
@@ -119,8 +124,8 @@ export function MarketplaceConnect({
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center gap-2"><Plug className="size-5" />{t("ربط")} {label}</CardTitle>
-        <CardDescription>{error ? <span className="text-destructive">{t("تعذّر الربط:")} {error}</span> : fill(t("اربط حساب {0} لسحب الأوامر والتسويات والمخزون تلقائيًا بدل رفع الملفات يدويًا."), [label])}</CardDescription>
+        <CardTitle className="flex items-center gap-2"><Plug className="size-5" />{t("ربط")} {t(label)}</CardTitle>
+        <CardDescription>{error ? <span className="text-destructive">{t("تعذّر الربط:")} {t(error)}</span> : fill(t("اربط حساب {0} لسحب الأوامر والتسويات والمخزون تلقائيًا بدل رفع الملفات يدويًا."), [label])}</CardDescription>
       </CardHeader>
       {credentialKind === "noon" ? (
         <CardContent className="space-y-3">
@@ -136,7 +141,7 @@ export function MarketplaceConnect({
             />
           </div>
           <Button onClick={connectNoon} disabled={pending || cred.trim().length < 20}>
-            {pending ? <Loader2 className="size-4 animate-spin" /> : <Plug className="size-4" />}{t("ربط")} {label}
+            {pending ? <Loader2 className="size-4 animate-spin" /> : <Plug className="size-4" />}{t("ربط")} {t(label)}
           </Button>
         </CardContent>
       ) : credentialKind === "woo" ? (
@@ -149,7 +154,7 @@ export function MarketplaceConnect({
           <div className="space-y-1.5"><label className="text-sm font-medium">Consumer Secret</label>
             <input value={f.consumerSecret} onChange={setFld("consumerSecret")} dir="ltr" type="password" placeholder="cs_..." autoComplete="off" className="block h-9 w-full max-w-md rounded-md border bg-background px-3 text-sm" /></div>
           <Button onClick={connectWoo} disabled={pending || !f.storeUrl.trim() || !f.consumerKey.trim() || !f.consumerSecret.trim()}>
-            {pending ? <Loader2 className="size-4 animate-spin" /> : <Plug className="size-4" />}{t("ربط")} {label}
+            {pending ? <Loader2 className="size-4 animate-spin" /> : <Plug className="size-4" />}{t("ربط")} {t(label)}
           </Button>
         </CardContent>
       ) : credentialKind === "jumia" ? (
@@ -162,7 +167,7 @@ export function MarketplaceConnect({
           <div className="space-y-1.5"><label className="text-sm font-medium">API Host</label>
             <input value={f.apiHost} onChange={setFld("apiHost")} dir="ltr" placeholder="https://vendor-api.jumia.com" className="block h-9 w-full max-w-md rounded-md border bg-background px-3 text-sm" /></div>
           <Button onClick={connectJumia} disabled={pending || !f.userId.trim() || !f.apiKey.trim() || !f.apiHost.trim()}>
-            {pending ? <Loader2 className="size-4 animate-spin" /> : <Plug className="size-4" />}{t("ربط")} {label}
+            {pending ? <Loader2 className="size-4 animate-spin" /> : <Plug className="size-4" />}{t("ربط")} {t(label)}
           </Button>
         </CardContent>
       ) : !oauthReady ? (
@@ -183,7 +188,7 @@ export function MarketplaceConnect({
           </div>
           <Button asChild disabled={!shopValid}>
             <a href={shopValid ? `/api/erp/marketplace/${provider}/connect?shop=${encodeURIComponent(shop.trim().toLowerCase())}` : undefined}>
-              <Plug className="size-4" />{t("ربط")} {label}
+              <Plug className="size-4" />{t("ربط")} {t(label)}
             </a>
           </Button>
         </CardContent>

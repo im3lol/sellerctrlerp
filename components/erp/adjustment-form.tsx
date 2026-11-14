@@ -1,4 +1,6 @@
 "use client";
+import { PageActions } from "@/components/erp/page-actions";
+
 
 import { useMemo, useState, useTransition } from "react";
 import { fill } from "@/lib/i18n";
@@ -15,6 +17,7 @@ import { Label } from "@/components/ui/label";
 import { Icon } from "@/components/icon";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { useLinePaste, LinePasteHint } from "@/components/erp/line-paste";
 import { SortableLineRows } from "@/components/erp/sortable-line-rows";
 
 type Option = { id: string; code: string; name: string };
@@ -51,6 +54,14 @@ export function AdjustmentForm({
     for (const s of stock) m.set(`${s.itemId}|${s.warehouseId}`, { quantity: s.quantity, avgCost: s.avgCost });
     return m;
   }, [stock]);
+  const clipboard = useLinePaste({ rows: lines, setRows: setLines,
+    newRow: () => ({ id: newId(), itemId: "", itemLabel: "", warehouseId: defaultWh, counted: "", unitCost: "" }),
+    columns: [{ key: "itemId", kind: "item" }, { key: "counted", kind: "number", integer: true }, { key: "unitCost", kind: "number" }],
+    apply: (row, values, item) => ({ ...row, ...(item ? { itemId: item.id, itemLabel: `${item.code} — ${item.name}` } : {}),
+      ...(typeof values.counted === "number" ? { counted: String(values.counted) } : {}),
+      ...(typeof values.unitCost === "number" ? { unitCost: String(values.unitCost) } : {}),
+    }),
+  });
   const currentQty = (l: Line) => stockMap.get(`${l.itemId}|${l.warehouseId}`)?.quantity ?? 0;
   const currentCost = (l: Line) => stockMap.get(`${l.itemId}|${l.warehouseId}`)?.avgCost ?? 0;
 
@@ -107,6 +118,10 @@ export function AdjustmentForm({
 
   return (
     <div className="space-y-6">
+      <PageActions>
+            <Button disabled={pending || clipboard.busy} onClick={submit}>{t("حفظ التسوية (مسودة)")}</Button>
+
+      </PageActions>
       {/* Header */}
       <Card>
         <CardHeader><CardTitle>{t("بيانات التسوية")}</CardTitle></CardHeader>
@@ -146,7 +161,8 @@ export function AdjustmentForm({
             <Button type="button" variant="outline" onClick={() => addLine()}><Icon name="Plus" className="size-4" />{t("إضافة سطر")}</Button>
           </div>
 
-          <div className="overflow-x-auto rounded-lg border">
+          <LinePasteHint busy={clipboard.busy} />
+        <div className="overflow-x-auto rounded-lg border">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -166,14 +182,15 @@ export function AdjustmentForm({
                 <SortableLineRows
                   items={lines}
                   onReorder={setLines}
+                clipboard={clipboard}
                   renderCells={(l) => {
                     const cur = currentQty(l);
                     const delta = (Number(l.counted) || 0) - cur;
                     const hasCount = l.counted !== "";
                     return (
                       <>
-                        <TableCell>
-                          <ItemPicker selectedLabel={l.itemLabel} placeholder={t("ابحث بالاسم أو أي كود…")}
+                        <TableCell data-paste-column="itemId">
+                          <ItemPicker selectionRevision={clipboard.revision} selectionKey={l.itemId} selectedLabel={l.itemLabel} placeholder={t("ابحث بالاسم أو أي كود…")}
                             onSelect={(it) => updateLine(l.id, { itemId: it.id, itemLabel: `${it.code} — ${it.name}` })} />
                         </TableCell>
                         <TableCell>
@@ -182,8 +199,8 @@ export function AdjustmentForm({
                         </TableCell>
                         <TableCell><div className="flex h-9 items-center rounded-md border bg-muted/40 px-3 text-sm">{q(cur)}</div></TableCell>
                         <TableCell><div className="flex h-9 items-center rounded-md border bg-muted/40 px-3 text-sm">{l.itemId ? money(currentCost(l)) : "—"}</div></TableCell>
-                        <TableCell><Input type="number" step="1" min="0" className="w-28" value={l.counted} onChange={(e) => updateLine(l.id, { counted: e.target.value.replace(/[^\d]/g, "") })} /></TableCell>
-                        <TableCell><Input type="number" step="0.01" min="0" className="w-28" value={l.unitCost} onChange={(e) => updateLine(l.id, { unitCost: e.target.value })} placeholder={delta > 0 && cur === 0 ? t("مطلوب") : t("تلقائي")} /></TableCell>
+                        <TableCell><Input data-paste-column="counted" type="number" step="1" min="0" className="w-28" value={l.counted} onChange={(e) => updateLine(l.id, { counted: e.target.value.replace(/[^\d]/g, "") })} /></TableCell>
+                        <TableCell><Input data-paste-column="unitCost" type="number" step="0.01" min="0" className="w-28" value={l.unitCost} onChange={(e) => updateLine(l.id, { unitCost: e.target.value })} placeholder={delta > 0 && cur === 0 ? t("مطلوب") : t("تلقائي")} /></TableCell>
                         <TableCell>
                           <div className={`flex h-9 items-center px-2 text-sm font-bold ${!hasCount ? "text-muted-foreground" : delta > 0 ? "text-emerald-600" : delta < 0 ? "text-destructive" : ""}`}>
                             {hasCount ? `${delta > 0 ? "+" : ""}${q(delta)}` : "—"}
@@ -200,9 +217,7 @@ export function AdjustmentForm({
             </Table>
           </div>
 
-          <div className="flex justify-end">
-            <Button disabled={pending} onClick={submit}>{t("حفظ التسوية (مسودة)")}</Button>
-          </div>
+
         </CardContent>
       </Card>
     </div>

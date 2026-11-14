@@ -143,7 +143,7 @@ async function BudgetTable({
   return (
     <Card>
       <CardHeader className="pb-3">
-        <CardTitle className="text-base">{title}</CardTitle>
+        <CardTitle className="text-base">{t(title)}</CardTitle>
       </CardHeader>
       <CardContent className="p-0">
         <table className="w-full text-sm">

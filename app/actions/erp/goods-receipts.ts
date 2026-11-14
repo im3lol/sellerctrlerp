@@ -21,6 +21,7 @@ import { recordAudit } from "@/lib/erp/audit";
 import { linkDocuments } from "@/lib/erp/links";
 import { recomputePurchaseOrderStatus } from "@/lib/erp/purchase-order";
 import { goodsReceiptDependents, dependentsList } from "@/lib/erp/doc-dependents";
+import { receiptDateSchema, receiptPicksSchema, receiptQty } from "@/lib/erp/receipt-draft";
 const EPS = 1e-6;
 
 async function nextNumber(prefix: string, orgId: string, year: number): Promise<string> {
@@ -44,7 +45,7 @@ export type ReceivableLine = {
  * Recall a confirmed/partial purchase order's still-unreceived lines for the
  * goods-receipt form: remaining qty + current on-hand per warehouse per item.
  */
-export async function getReceivableOrderLinesAction(purchaseOrderId: string): Promise<
+export async function getReceivableOrderLinesAction(purchaseOrderId: string, includeCompleted = false): Promise<
   ActionState & { lines?: ReceivableLine[]; defaultWarehouseId?: string }
 > {
   const auth = await authorizeErp("purchases.view");
@@ -54,21 +55,23 @@ export async function getReceivableOrderLinesAction(purchaseOrderId: string): Pr
     const [po] = await db.select().from(purchaseOrders)
       .where(and(eq(purchaseOrders.id, purchaseOrderId), eq(purchaseOrders.organizationId, auth.orgId))).limit(1);
     if (!po) return { error: "الأمر غير موجود" };
+    if (!["CONFIRMED", "PARTIALLY_RECEIVED"].includes(po.status)) return { error: "يمكن الاستلام من أمر مؤكّد أو منفّذ جزئياً فقط" };
 
     const ols = await db
       .select({ itemId: purchaseOrderLines.itemId, quantity: purchaseOrderLines.quantity, receivedQty: purchaseOrderLines.receivedQty, unitPrice: purchaseOrderLines.unitPrice, shippingPerUnit: purchaseOrderLines.shippingPerUnit, code: items.code, name: items.nameAr, image: items.image, isPerishable: items.isPerishable, shelfLifeDays: items.shelfLifeDays, weightKg: items.weightKg })
       .from(purchaseOrderLines).leftJoin(items, eq(items.id, purchaseOrderLines.itemId))
       .where(eq(purchaseOrderLines.purchaseOrderId, po.id));
 
+    if (new Set(ols.map(l => l.itemId)).size !== ols.length) return { error: "أمر الشراء يحتوي على صنف مكرر؛ وحّد بنوده قبل الاستلام" };
     const lines = ols
       .map((l) => {
         const ordered = Number(l.quantity), received = Number(l.receivedQty);
         return {
-          itemId: l.itemId, code: l.code ?? "", name: l.name ?? "", image: l.image ?? null, ordered, received, remaining: round2(ordered - received), stockByWarehouse: {} as Record<string, number>, isPerishable: Boolean(l.isPerishable), shelfLifeDays: l.shelfLifeDays ?? null,
+          itemId: l.itemId, code: l.code ?? "", name: l.name ?? "", image: l.image ?? null, ordered, received, remaining: receiptQty(ordered - received), stockByWarehouse: {} as Record<string, number>, isPerishable: Boolean(l.isPerishable), shelfLifeDays: l.shelfLifeDays ?? null,
           unitPrice: Number(l.unitPrice), weightKg: l.weightKg != null ? Number(l.weightKg) : 0, poShippingPerUnit: Number(l.shippingPerUnit),
         };
       })
-      .filter((l) => l.remaining > EPS);
+      .filter((l) => includeCompleted || l.remaining > EPS);
 
     const itemIds = lines.map((l) => l.itemId);
     if (itemIds.length) {
@@ -77,7 +80,7 @@ export async function getReceivableOrderLinesAction(purchaseOrderId: string): Pr
         .select({ itemId: stockMovements.itemId, warehouseId: stockMovements.warehouseId, bal: stockMovements.balanceQuantity })
         .from(stockMovements)
         .where(and(eq(stockMovements.organizationId, auth.orgId), inArray(stockMovements.itemId, itemIds)))
-        .orderBy(desc(stockMovements.createdAt), desc(sql`split_part(${stockMovements.number}, '-', 3)::int`));
+        .orderBy(desc(stockMovements.createdAt), desc(sql`CASE WHEN split_part(${stockMovements.number}, '-', 3) ~ '^[0-9]+$' THEN split_part(${stockMovements.number}, '-', 3)::numeric ELSE 0 END`));
       const seen = new Set<string>();
       const byItem = new Map(lines.map((l) => [l.itemId, l]));
       for (const m of sm) {
@@ -102,9 +105,12 @@ export async function getReceivableOrderLinesAction(purchaseOrderId: string): Pr
  * (recorded only — never enters stock and stays open as backorder). `date` is
  * the receipt date (defaults to the order date). Confirm it later to post.
  */
-export async function createReceiptFromOrderAction(purchaseOrderId: string, picks?: Pick[], date?: string): Promise<ActionState & { id?: string; number?: string }> {
+export async function createReceiptFromOrderAction(purchaseOrderId: string, picks?: Pick[], date?: string, notes?: string): Promise<ActionState & { id?: string; number?: string }> {
   const auth = await authorizeErp("purchases.receive");
   if ("error" in auth) return auth;
+  if (picks && !receiptPicksSchema.safeParse(picks).success) return { error: "بنود الاستلام غير صالحة؛ راجع الأصناف والكميات والتواريخ" };
+  if (date !== undefined && !receiptDateSchema.safeParse(date).success) return { error: "تاريخ استلام غير صالح" };
+  if (notes !== undefined && (typeof notes !== "string" || notes.length > 2000)) return { error: "ملاحظات الاستلام غير صالحة" };
 
   return withOrgScope(auth.orgId, false, async () => {
     const [po] = await db.select().from(purchaseOrders)
@@ -114,6 +120,8 @@ export async function createReceiptFromOrderAction(purchaseOrderId: string, pick
 
     const orderLines = await db.select({ id: purchaseOrderLines.id, itemId: purchaseOrderLines.itemId, quantity: purchaseOrderLines.quantity, receivedQty: purchaseOrderLines.receivedQty, shippingPerUnit: purchaseOrderLines.shippingPerUnit, taxAmount: purchaseOrderLines.taxAmount, isPerishable: items.isPerishable, shelfLifeDays: items.shelfLifeDays, code: items.code, name: items.nameAr })
       .from(purchaseOrderLines).innerJoin(items, eq(items.id, purchaseOrderLines.itemId)).where(eq(purchaseOrderLines.purchaseOrderId, po.id));
+    if (new Set(orderLines.map(l => l.itemId)).size !== orderLines.length) return { error: "أمر الشراء يحتوي على صنف مكرر؛ وحّد بنوده قبل الاستلام" };
+    if (picks?.some(p => !orderLines.some(l => l.itemId === p.itemId))) return { error: "أحد الأصناف غير موجود في أمر الشراء" };
 
     // Read the VAT policy ONCE, here, and store the result on every line below. From this
     // moment the receipt's cost is settled: changing the setting later cannot restate what
@@ -132,10 +140,10 @@ export async function createReceiptFromOrderAction(purchaseOrderId: string, pick
     const pickBy = new Map((picks ?? []).map((p) => [p.itemId, p]));
     const toReceive: { itemId: string; qty: number; rejected: number; warehouseId: string; batchNo: string | null; expiryDate: Date | null; shippingPerUnit: number; taxPerUnit: number }[] = [];
     for (const l of orderLines) {
-      const remaining = round2(Number(l.quantity) - Number(l.receivedQty));
+      const remaining = receiptQty(Number(l.quantity) - Number(l.receivedQty));
       const p = picks ? pickBy.get(l.itemId) : undefined;
       const want = picks ? (p?.quantity ?? 0) : remaining;
-      const rejected = round2(Math.max(0, p?.rejectedQty ?? 0));
+      const rejected = receiptQty(p?.rejectedQty ?? 0);
       if (want < -EPS) return { error: "كمية غير صالحة" };
       if (want > remaining + EPS) return { error: "الكمية المستلمة أكبر من المتبقّي للصنف" };
       // Enforce expiry capture for perishables at the source (data-entry time): a
@@ -148,7 +156,7 @@ export async function createReceiptFromOrderAction(purchaseOrderId: string, pick
       // The order's tax is a line amount; spread it the way the discount is spread.
       const orderedQty = Number(l.quantity) || 0;
       const taxPerUnit = capitaliseVat && orderedQty > 0 ? Number(l.taxAmount) / orderedQty : 0;
-      if (want > EPS || rejected > EPS) toReceive.push({ itemId: l.itemId, qty: round2(want), rejected, warehouseId: p?.warehouseId || po.warehouseId, batchNo: p?.batchNo?.trim() || null, expiryDate: p?.expiryDate ? new Date(p.expiryDate) : null, shippingPerUnit: p?.shippingPerUnit ?? Number(l.shippingPerUnit), taxPerUnit });
+      if (want > EPS || rejected > EPS) toReceive.push({ itemId: l.itemId, qty: receiptQty(want), rejected, warehouseId: p?.warehouseId || po.warehouseId, batchNo: p?.batchNo?.trim() || null, expiryDate: p?.expiryDate ? new Date(p.expiryDate) : null, shippingPerUnit: p?.shippingPerUnit ?? Number(l.shippingPerUnit), taxPerUnit });
     }
     if (toReceive.length === 0) return { error: "لا توجد كميات للاستلام" };
 
@@ -159,7 +167,7 @@ export async function createReceiptFromOrderAction(purchaseOrderId: string, pick
       const created = await db.transaction(async (tx) => {
         const [grn] = await tx.insert(purchaseReceipts).values({
           organizationId: auth.orgId, number, date: receiptDate, status: "DRAFT",
-          purchaseOrderId: po.id, supplierId: po.supplierId, warehouseId: headerWh, notes: `استلام أمر ${po.number}`,
+          purchaseOrderId: po.id, supplierId: po.supplierId, warehouseId: headerWh, notes: notes?.trim() || `استلام أمر ${po.number}`,
           // The order's rate is THE approved rate for this cycle. Stamping it on the
           // receipt is not a second opinion — it is the same number, carried so the
           // document says out loud what it was valued at instead of making a reader open
@@ -179,6 +187,95 @@ export async function createReceiptFromOrderAction(purchaseOrderId: string, pick
     } catch (e) {
       return { error: e instanceof Error ? e.message : "تعذّر حفظ الاستلام" };
     }
+  });
+}
+
+export type ReceiptDraftInitial = {
+  id: string; number: string; orderId: string; supplierId: string; date: string;
+  notes: string; updatedAt: string; lines: Pick[];
+};
+
+export async function getReceiptDraftAction(receiptId: string): Promise<ActionState & { initial?: ReceiptDraftInitial }> {
+  const auth = await authorizeErp("purchases.receive");
+  if ("error" in auth) return auth;
+  return withOrgScope(auth.orgId, false, async () => {
+    const [grn] = await db.select().from(purchaseReceipts)
+      .where(and(eq(purchaseReceipts.id, receiptId), eq(purchaseReceipts.organizationId, auth.orgId))).limit(1);
+    if (!grn || grn.status !== "DRAFT" || !grn.purchaseOrderId) return { error: "لا يمكن تعديل إلا مسودة إذن استلام مرتبطة بأمر شراء" };
+    const lines = await db.select().from(purchaseReceiptLines).where(eq(purchaseReceiptLines.purchaseReceiptId, grn.id));
+    if (new Set(lines.map(l => l.itemId)).size !== lines.length) return { error: "مسودة الاستلام تحتوي على بنود مكررة لنفس الصنف؛ راجع توزيعها قبل التعديل" };
+    return { ok: true, initial: {
+      id: grn.id, number: grn.number, orderId: grn.purchaseOrderId, supplierId: grn.supplierId ?? "",
+      date: grn.date.toISOString().slice(0, 10), notes: grn.notes ?? "", updatedAt: grn.updatedAt.toISOString(),
+      lines: lines.map(l => ({ itemId: l.itemId, quantity: Number(l.quantity), rejectedQty: Number(l.rejectedQty), warehouseId: l.warehouseId ?? grn.warehouseId, batchNo: l.batchNo, expiryDate: l.expiryDate?.toISOString().slice(0, 10) ?? null, shippingPerUnit: Number(l.shippingPerUnit) })),
+    } };
+  });
+}
+
+/** Edit only the draft. Receipt/order locks and version check serialize save against confirmation. */
+export async function updateReceiptDraftAction(receiptId: string, input: {
+  picks: Pick[]; date: string; notes: string; expectedUpdatedAt: string;
+}): Promise<ActionState & { number?: string }> {
+  const auth = await authorizeErp("purchases.receive");
+  if ("error" in auth) return auth;
+  if (!receiptPicksSchema.safeParse(input?.picks).success || !receiptDateSchema.safeParse(input?.date).success || typeof input.notes !== "string" || input.notes.length > 2000 || !Number.isFinite(Date.parse(input.expectedUpdatedAt))) return { error: "بيانات مسودة الاستلام غير صالحة" };
+  return withOrgScope(auth.orgId, false, async () => {
+    try {
+      const number = await db.transaction(async tx => {
+        const [grn] = await tx.select().from(purchaseReceipts)
+          .where(and(eq(purchaseReceipts.id, receiptId), eq(purchaseReceipts.organizationId, auth.orgId))).for("update");
+        if (!grn || grn.status !== "DRAFT" || !grn.purchaseOrderId) throw new Error("لا يمكن تعديل إلا مسودة إذن استلام مرتبطة بأمر شراء");
+        if (grn.updatedAt.toISOString() !== input.expectedUpdatedAt) throw new Error("المسودة اتعدّلت من جلسة أخرى؛ حدّث الصفحة قبل الحفظ");
+        const [po] = await tx.select().from(purchaseOrders)
+          .where(and(eq(purchaseOrders.id, grn.purchaseOrderId), eq(purchaseOrders.organizationId, auth.orgId))).for("share");
+        if (!po || !["CONFIRMED", "PARTIALLY_RECEIVED"].includes(po.status)) throw new Error("يمكن الاستلام من أمر مؤكّد أو منفّذ جزئياً فقط");
+        const orderLines = await tx.select({ itemId: purchaseOrderLines.itemId, quantity: purchaseOrderLines.quantity, received: purchaseOrderLines.receivedQty, shipping: purchaseOrderLines.shippingPerUnit, tax: purchaseOrderLines.taxAmount, isPerishable: items.isPerishable, shelfLifeDays: items.shelfLifeDays })
+          .from(purchaseOrderLines).innerJoin(items, eq(items.id, purchaseOrderLines.itemId))
+          .where(eq(purchaseOrderLines.purchaseOrderId, po.id)).for("update", { of: purchaseOrderLines });
+        if (new Set(orderLines.map(l => l.itemId)).size !== orderLines.length) throw new Error("أمر الشراء يحتوي على صنف مكرر؛ وحّد بنوده قبل الاستلام");
+        const old = await tx.select().from(purchaseReceiptLines).where(eq(purchaseReceiptLines.purchaseReceiptId, grn.id));
+        if (new Set(old.map(l => l.itemId)).size !== old.length) throw new Error("مسودة الاستلام تحتوي على بنود مكررة لنفس الصنف؛ راجع توزيعها قبل التعديل");
+        const [org] = await tx.select({ capitaliseVat: organizations.purchaseVatCapitalised }).from(organizations).where(eq(organizations.id, auth.orgId));
+        const picks = input.picks.filter(p => p.quantity > EPS || (p.rejectedQty ?? 0) > EPS);
+        if (!picks.length) throw new Error("حدّد كمية مستلمة أو مرفوضة لبند واحد على الأقل");
+        const whIds = [...new Set(picks.map(p => p.warehouseId || po.warehouseId))];
+        const whs = await tx.select().from(warehouses).where(and(eq(warehouses.organizationId, auth.orgId), inArray(warehouses.id, whIds)));
+        if (whs.length !== whIds.length) throw new Error("مستودع غير صالح في أحد البنود");
+        const serials = await tx.select({ itemId: stockSerials.itemId, count: sql<number>`count(*)::int` }).from(stockSerials)
+          .where(and(eq(stockSerials.organizationId, auth.orgId), eq(stockSerials.receiptId, grn.id))).groupBy(stockSerials.itemId);
+        for (const serial of serials) {
+          const pick = picks.find(p => p.itemId === serial.itemId);
+          if (!pick || serial.count > pick.quantity) throw new Error("راجع الأرقام التسلسلية المسجلة قبل حذف الصنف أو تقليل كميته");
+        }
+        const retained = new Set(picks.map(p => p.itemId));
+        for (const p of picks) {
+          const line = orderLines.find(l => l.itemId === p.itemId);
+          if (!line) throw new Error("أحد الأصناف غير موجود في أمر الشراء");
+          if (p.quantity > receiptQty(Number(line.quantity) - Number(line.received)) + EPS) throw new Error("الكمية المستلمة أكبر من المتبقّي للصنف");
+          const oldLine = old.find(l => l.itemId === p.itemId), warehouseId = p.warehouseId || po.warehouseId;
+          if (!whs.find(w => w.id === warehouseId)?.isActive && warehouseId !== (oldLine?.warehouseId ?? grn.warehouseId)) throw new Error("مستودع الاستلام غير نشط");
+          if (p.quantity > EPS && line.isPerishable && !p.expiryDate && !line.shelfLifeDays) throw new Error("أدخل تاريخ الصلاحية للأصناف القابلة للانتهاء");
+          const values = {
+            warehouseId, quantity: String(receiptQty(p.quantity)), rejectedQty: String(receiptQty(p.rejectedQty ?? 0)),
+            batchNo: p.batchNo?.trim() || null, expiryDate: p.expiryDate ? new Date(p.expiryDate) : null,
+            shippingPerUnit: String(p.shippingPerUnit ?? Number(oldLine?.shippingPerUnit ?? line.shipping)),
+            taxPerUnit: oldLine?.taxPerUnit ?? String(org?.capitaliseVat && Number(line.quantity) > 0 ? Number(line.tax) / Number(line.quantity) : 0),
+          };
+          if (oldLine) await tx.update(purchaseReceiptLines).set(values).where(eq(purchaseReceiptLines.id, oldLine.id));
+          else await tx.insert(purchaseReceiptLines).values({ purchaseReceiptId: grn.id, itemId: p.itemId, ...values });
+          await tx.update(stockSerials).set({ warehouseId, receivedAt: new Date(input.date) })
+            .where(and(eq(stockSerials.organizationId, auth.orgId), eq(stockSerials.receiptId, grn.id), eq(stockSerials.itemId, p.itemId)));
+        }
+        for (const line of old) if (!retained.has(line.itemId)) await tx.delete(purchaseReceiptLines).where(eq(purchaseReceiptLines.id, line.id));
+        await tx.update(purchaseReceipts).set({ date: new Date(input.date), notes: input.notes.trim() || null, warehouseId: (picks.find(p => p.quantity > EPS) ?? picks[0]).warehouseId || po.warehouseId, updatedAt: new Date(Math.max(Date.now(), grn.updatedAt.getTime() + 1)) }).where(eq(purchaseReceipts.id, grn.id));
+        await recordAudit(tx, { orgId: auth.orgId, userId: auth.userId, action: "UPDATE", entityType: "GOODS_RECEIPT", entityId: grn.id, entityNumber: grn.number, summary: `تعديل مسودة إذن استلام ${grn.number}` });
+        return grn.number;
+      });
+      revalidatePath("/purchases/receipts");
+      revalidatePath(`/purchases/receipts/${encodeURIComponent(number)}`);
+      revalidatePath(`/purchases/receipts/${encodeURIComponent(number)}/edit`);
+      return { ok: true, number };
+    } catch (e) { return { error: e instanceof Error ? e.message : "تعذّر حفظ الاستلام" }; }
   });
 }
 
@@ -271,9 +368,10 @@ export async function confirmReceiptAction(receiptId: string): Promise<ActionSta
         // Re-check the receipt status UNDER LOCK — the outside check races a
         // double-click, and a zero-value receipt posts no GL entry, so the
         // postEntry unique index can't catch the duplicate stock IN.
-        const [lockedGrn] = await tx.select({ status: purchaseReceipts.status }).from(purchaseReceipts)
+        const [lockedGrn] = await tx.select({ status: purchaseReceipts.status, updatedAt: purchaseReceipts.updatedAt }).from(purchaseReceipts)
           .where(eq(purchaseReceipts.id, grn.id)).for("update").limit(1);
         if (lockedGrn?.status !== "DRAFT") throw new Error("تم تأكيد إذن الاستلام بالفعل");
+        if (lockedGrn.updatedAt.toISOString() !== grn.updatedAt.toISOString()) throw new Error("المسودة اتعدّلت من جلسة أخرى؛ حدّث الصفحة قبل التأكيد");
         // Lock the PO lines FOR UPDATE and re-validate "≤ remaining" inside the tx so
         // two concurrent partial receipts can't both pass on a stale receivedQty and
         // over-receive the order (doubled inventory + GRNI).
@@ -291,7 +389,7 @@ export async function confirmReceiptAction(receiptId: string): Promise<ActionSta
         for (const gl of grnLines) wantByItem.set(gl.itemId, (wantByItem.get(gl.itemId) ?? 0) + Number(gl.quantity));
         for (const [itemId, want] of wantByItem) {
           if (!poByItem.has(itemId)) throw new Error("أحد الأصناف غير موجود في أمر الشراء");
-          const remaining = round2((orderedByItem.get(itemId) ?? 0) - (receivedByItem.get(itemId) ?? 0));
+          const remaining = receiptQty((orderedByItem.get(itemId) ?? 0) - (receivedByItem.get(itemId) ?? 0));
           if (want > remaining + EPS) throw new Error("الكمية المستلمة لأحد الأصناف أكبر من المتبقّي — عدّل المسودة");
         }
         let received = 0;
@@ -376,6 +474,10 @@ export async function deleteReceiptAction(receiptId: string): Promise<ActionStat
     if (grn.status !== "DRAFT") return { error: "لا يمكن حذف إذن استلام مؤكّد" };
     try {
       await db.transaction(async (tx) => {
+        const [locked] = await tx.select({ status: purchaseReceipts.status }).from(purchaseReceipts)
+          .where(and(eq(purchaseReceipts.id, grn.id), eq(purchaseReceipts.organizationId, auth.orgId))).for("update");
+        if (locked?.status !== "DRAFT") throw new Error("لا يمكن حذف إذن استلام مؤكّد");
+        await tx.delete(stockSerials).where(and(eq(stockSerials.organizationId, auth.orgId), eq(stockSerials.receiptId, grn.id)));
         await tx.delete(purchaseReceiptLines).where(eq(purchaseReceiptLines.purchaseReceiptId, grn.id));
         await tx.delete(purchaseReceipts).where(eq(purchaseReceipts.id, grn.id));
         await recordAudit(tx, { orgId: auth.orgId, userId: auth.userId, action: "DELETE", entityType: "GOODS_RECEIPT", entityId: grn.id, entityNumber: grn.number, summary: `حذف مسودة إذن استلام ${grn.number}` });

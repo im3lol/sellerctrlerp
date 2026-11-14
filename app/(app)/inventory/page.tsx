@@ -46,7 +46,7 @@ export default async function InventoryDashboardPage() {
         FROM (
           SELECT DISTINCT ON (item_id, warehouse_id) item_id, warehouse_id, balance_quantity bq, balance_value bv
           FROM stock_movements WHERE organization_id = ${orgId}
-          ORDER BY item_id, warehouse_id, created_at DESC, split_part(number, '-', 3)::int DESC
+          ORDER BY item_id, warehouse_id, created_at DESC, CASE WHEN split_part(number, '-', 3) ~ '^[0-9]+$' THEN split_part(number, '-', 3)::numeric ELSE 0 END DESC
         ) b
         LEFT JOIN warehouses w ON w.id = b.warehouse_id`),
       db.execute<{ n: number }>(sql`
@@ -295,7 +295,7 @@ export default async function InventoryDashboardPage() {
 
         {/* Every page in this module, straight from the sidebar config — see
             ModuleWorkspace for why this is derived and not another hand-kept list. */}
-        <ModuleWorkspace heading={t("المخزون")} permissions={permissions} counts={counts}
+        <ModuleWorkspace heading="المخزون" permissions={permissions} counts={counts}
           actions={[{ label: "صنف جديد", href: "/inventory/items/new", icon: "Plus" }, { label: "تسوية مخزون", href: "/inventory/adjustments/new", icon: "Plus" }]} />
       </div>
     );

@@ -42,7 +42,7 @@ export default async function ActivityPage() {
                           <span className={`tabular-nums ${it.amount > 0 ? "text-emerald-600" : "text-destructive"}`}>{it.amount > 0 ? "+" : "−"}{egp(Math.abs(it.amount), locale)}</span>
                         )}
                       </div>
-                      {it.detail && <div className="truncate text-xs text-muted-foreground">{it.detail}</div>}
+                      {it.detail && <div className="truncate text-xs text-muted-foreground">{t(it.detail)}</div>}
                     </div>
                     <time className="shrink-0 text-xs text-muted-foreground tabular-nums">{dtt(it.at, locale)}</time>
                   </li>

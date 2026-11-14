@@ -7,6 +7,8 @@ import { runWithErpContext } from "@/lib/erp/erp-context";
 import { withOrgScope } from "@/lib/db-scope";
 import type { SessionUser } from "@/lib/session";
 import type { ErpPermission } from "@/lib/erp/permissions";
+import { getEnabledModules, moduleOfPermission, orgHasModule } from "@/lib/erp/entitlements";
+import { entitledPermissions } from "@/lib/erp/permission-modules";
 
 /**
  * Bearer-token auth for the mobile/native API (`/api/v1/**`). Mirrors the web's
@@ -25,8 +27,8 @@ const secret = () => {
 };
 
 /** Issue a 30-day access token for a user id. */
-export async function signApiToken(userId: string): Promise<string> {
-  return new SignJWT({})
+export async function signApiToken(userId: string, sessionVersion: number): Promise<string> {
+  return new SignJWT({ sv: sessionVersion })
     .setProtectedHeader({ alg: "HS256" })
     .setSubject(userId)
     .setIssuer(ISSUER)
@@ -44,21 +46,26 @@ export const isApiError = (r: ApiAuth | ApiAuthError): r is ApiAuthError => "err
  * permission in that org. Returns `{ userId, orgId, role, can }` or an error
  * with an HTTP status. system_admin gets all permissions (via getMemberAccess).
  */
-export async function authorizeApi(req: Request, permission: ErpPermission): Promise<ApiAuth | ApiAuthError> {
+export async function authorizeApi(req: Request, permission: ErpPermission, moduleOverride?: string): Promise<ApiAuth | ApiAuthError> {
   const token = req.headers.get("authorization")?.replace(/^Bearer\s+/i, "").trim() ?? "";
   if (!token) return { error: "unauthorized", status: 401 };
 
   let userId: string;
+  let sessionVersion: unknown;
   try {
-    const { payload } = await jwtVerify(token, secret(), { issuer: ISSUER });
+    const { payload } = await jwtVerify(token, secret(), { issuer: ISSUER, algorithms: ["HS256"], requiredClaims: ["sub", "iat", "exp"] });
     userId = String(payload.sub ?? "");
+    sessionVersion = payload.sv;
   } catch {
     return { error: "invalid_token", status: 401 };
   }
   if (!userId) return { error: "invalid_token", status: 401 };
 
-  const [u] = await db.select({ id: users.id, role: users.role, isActive: users.isActive }).from(users).where(eq(users.id, userId)).limit(1);
+  const [u] = await db.select({ id: users.id, role: users.role, isActive: users.isActive, sessionVersion: users.sessionVersion }).from(users).where(eq(users.id, userId)).limit(1);
   if (!u || !u.isActive) return { error: "unauthorized", status: 401 };
+  // Legacy tokens have version 0, matching the web session rollout. A reset increments
+  // the DB version and revokes both old and new tokens without waiting for expiry.
+  if ((sessionVersion ?? 0) !== u.sessionVersion) return { error: "invalid_token", status: 401 };
 
   const orgId = req.headers.get("x-org-id")?.trim() ?? "";
   if (!orgId) return { error: "org_required", status: 400 };
@@ -66,8 +73,13 @@ export async function authorizeApi(req: Request, permission: ErpPermission): Pro
   const access = await getMemberAccess(orgId, { id: u.id, role: u.role } as SessionUser);
   if (!access.role) return { error: "forbidden_org", status: 403 };
   if (!access.permissions.has(permission)) return { error: "forbidden", status: 403 };
+  if (access.role !== "super_admin" && !(await orgHasModule(orgId, moduleOverride ?? moduleOfPermission(permission)))) {
+    return { error: "module_unavailable", status: 403 };
+  }
 
-  return { userId: u.id, orgId, role: access.role, can: (p) => access.permissions.has(p), permissions: access.permissions };
+  const modules = access.role === "super_admin" ? null : await getEnabledModules(orgId);
+  const permissions = entitledPermissions(access.permissions, modules, permission, moduleOverride);
+  return { userId: u.id, orgId, role: access.role, can: (p) => permissions.has(p), permissions };
 }
 
 /** Run a cookie-bound server action (or a chain of them) as the API caller, inside the
@@ -91,16 +103,19 @@ export async function authorizeApiMember(req: Request): Promise<{ orgId: string;
   if (!token) return { error: "unauthorized", status: 401 };
 
   let userId: string;
+  let sessionVersion: unknown;
   try {
-    const { payload } = await jwtVerify(token, secret(), { issuer: ISSUER });
+    const { payload } = await jwtVerify(token, secret(), { issuer: ISSUER, algorithms: ["HS256"], requiredClaims: ["sub", "iat", "exp"] });
     userId = String(payload.sub ?? "");
+    sessionVersion = payload.sv;
   } catch {
     return { error: "invalid_token", status: 401 };
   }
   if (!userId) return { error: "invalid_token", status: 401 };
 
-  const [u] = await db.select({ id: users.id, role: users.role, isActive: users.isActive }).from(users).where(eq(users.id, userId)).limit(1);
+  const [u] = await db.select({ id: users.id, role: users.role, isActive: users.isActive, sessionVersion: users.sessionVersion }).from(users).where(eq(users.id, userId)).limit(1);
   if (!u || !u.isActive) return { error: "unauthorized", status: 401 };
+  if ((sessionVersion ?? 0) !== u.sessionVersion) return { error: "invalid_token", status: 401 };
 
   const orgId = (req.headers.get("x-org-id") ?? url.searchParams.get("org") ?? "").trim();
   if (!orgId) return { error: "org_required", status: 400 };

@@ -1,5 +1,7 @@
 "use client";
 
+import { formatErpDate } from "@/lib/erp/dates";
+
 import { useEffect, useRef, useState, useTransition } from "react";
 import { fill } from "@/lib/i18n";
 import { useT } from "@/lib/i18n/client";
@@ -134,7 +136,7 @@ export function AttachmentsCard({ entityType, entityId, canManage }: { entityTyp
             <Icon name={fileIcon(att.mimeType)} className="size-5 text-muted-foreground shrink-0" />
             <div className="flex-1 min-w-0">
               <p className="truncate text-sm font-medium">{att.fileName}</p>
-              <p className="text-xs text-muted-foreground">{formatSize(att.fileSize)} · {new Date(att.createdAt).toLocaleDateString("en-GB")}</p>
+              <p className="text-xs text-muted-foreground">{formatSize(att.fileSize)} · {formatErpDate(att.createdAt, "en-GB")}</p>
             </div>
             <div className="flex gap-1 shrink-0">
               <Button size="icon" variant="ghost" className="size-8" onClick={() => download(att)} title={t("تحميل")}>

@@ -19,6 +19,7 @@ import type { DateRange, MarketplaceProduct } from "@/lib/erp/marketplace/dto";
 import { chunk } from "@/lib/erp/chunk";
 import { normalizeCode as normalizeItemCode } from "@/lib/erp/item-codes";
 import { orderCreateFloor } from "./sync-range";
+import { selectProductScope } from "./product-scope";
 import { log } from "@/lib/log";
 
 // Session-less marketplace sync core — shared by the "مزامنة الآن" button actions
@@ -107,6 +108,7 @@ async function coreFail(p: SyncPrep, e: unknown, fallback: string): Promise<{ ok
 /** Ingest a fetched product list + run best-effort catalog enrichment. Shared by
  *  the incremental sync (syncProductsCore) and the full import (importProductsCore). */
 async function ingestAndEnrich(p: SyncPrep, products: MarketplaceProduct[]): Promise<ProductsSync> {
+  products = selectProductScope(products, p.connector.code, p.ctx.fulfillmentType);
   const org = p.orgId;
   const r = await withOrgScope(org, false, () => ingestProducts(org, products, p.mode, p.connector.code));
 
@@ -122,7 +124,10 @@ async function ingestAndEnrich(p: SyncPrep, products: MarketplaceProduct[]): Pro
         // linkVariationFamilies fetches the parent catalog via the callback; that
         // secondary fetch runs inside this scope. ponytail: acceptable (parent set
         // is small); split fetch/write inside ingest if it ever dominates.
-        const fam = await withOrgScope(org, false, () => linkVariationFamilies(org, records, async (parentAsins) => {
+        const currentAsins = new Set(asins);
+        const familyRecords = p.connector.code === "AMAZON"
+          ? records.filter((r) => !r.parentAsin || currentAsins.has(r.parentAsin)) : records;
+        const fam = await withOrgScope(org, false, () => linkVariationFamilies(org, familyRecords, async (parentAsins) => {
           const precs = await fetchCatalog(p.cred, parentAsins);
           const m = new Map<string, { name?: string; imageUrl?: string }>();
           for (const pr of precs) m.set(pr.asin, { name: pr.name, imageUrl: pr.imageUrl });
@@ -171,7 +176,10 @@ export async function syncFbaCodesCore(p: SyncPrep): Promise<FbaCodesSync> {
   try {
     // Fetch outside the org scope — the whole FBA catalog is minutes of SP-API paging
     // and must not hold a DB connection open.
-    const detail = await fetchDetail(p.cred);
+    const detail = p.connector.code === "AMAZON"
+      ? (await p.connector.fetchFullProducts!(p.cred)).filter((r) => r.fulfillment === "FBA")
+        .map((r) => ({ code: r.code, asin: r.altCode, fnsku: r.fnsku }))
+      : await fetchDetail(p.cred);
     const rows = detail.filter((d) => d.fnsku && d.code);
     if (!rows.length) return { ok: true, total: detail.length, attached: 0, unmatched: detail.length };
 
@@ -181,7 +189,8 @@ export async function syncFbaCodesCore(p: SyncPrep): Promise<FbaCodesSync> {
       const byNorm = new Map<string, string>();
       for (const b of chunk(norms, 800)) {
         const found = await db.select({ norm: itemCodes.normalizedCode, itemId: itemCodes.itemId }).from(itemCodes)
-          .where(and(eq(itemCodes.organizationId, p.orgId), inArray(itemCodes.normalizedCode, b)));
+          .where(and(eq(itemCodes.organizationId, p.orgId), inArray(itemCodes.normalizedCode, b),
+            p.connector.code === "AMAZON" ? eq(itemCodes.codeType, "ASIN") : undefined));
         for (const r of found) if (r.norm && !byNorm.has(r.norm)) byNorm.set(r.norm, r.itemId);
       }
 
@@ -189,7 +198,9 @@ export async function syncFbaCodesCore(p: SyncPrep): Promise<FbaCodesSync> {
       const seen = new Set<string>();
       let unmatched = 0;
       for (const d of rows) {
-        const itemId = byNorm.get(normalizeItemCode(d.code)) ?? (d.asin ? byNorm.get(normalizeItemCode(d.asin)) : undefined);
+        const itemId = p.connector.code === "AMAZON"
+          ? (d.asin ? byNorm.get(normalizeItemCode(d.asin)) : undefined)
+          : byNorm.get(normalizeItemCode(d.code)) ?? (d.asin ? byNorm.get(normalizeItemCode(d.asin)) : undefined);
         if (!itemId) { unmatched++; continue; }
         const code = d.fnsku!.trim();
         const norm = normalizeItemCode(code);
@@ -216,7 +227,7 @@ export async function importProductsCore(p: SyncPrep): Promise<ProductsSync> {
       try {
         products = await p.connector.fetchFullProducts(p.cred);
       } catch (e) {
-        if (!p.connector.fetchProducts) throw e;
+        if (p.connector.code === "AMAZON" || !p.connector.fetchProducts) throw e;
         products = await p.connector.fetchProducts(p.cred); // report failed → live fallback
       }
     } else if (p.connector.fetchProducts) {
@@ -488,7 +499,7 @@ export async function syncOffersCore(p: SyncPrep): Promise<OffersSync> {
       WITH bal AS (
         SELECT DISTINCT ON (item_id, warehouse_id) item_id, balance_quantity FROM stock_movements
         WHERE organization_id = ${p.orgId}
-        ORDER BY item_id, warehouse_id, created_at DESC, split_part(number, '-', 3)::int DESC
+        ORDER BY item_id, warehouse_id, created_at DESC, CASE WHEN split_part(number, '-', 3) ~ '^[0-9]+$' THEN split_part(number, '-', 3)::numeric ELSE 0 END DESC
       ), stock AS (SELECT item_id FROM bal GROUP BY item_id HAVING sum(balance_quantity) > 0)
       SELECT ic.item_id, ic.code FROM item_codes ic
       JOIN items i ON i.id = ic.item_id

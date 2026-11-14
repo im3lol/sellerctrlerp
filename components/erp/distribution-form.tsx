@@ -1,4 +1,5 @@
 "use client";
+import { PageActions } from "@/components/erp/page-actions";
 
 import { useState, useTransition } from "react";
 import { fill } from "@/lib/i18n";
@@ -42,6 +43,11 @@ export function DistributionForm({ suggestedProfit }: { suggestedProfit: number 
       <CardHeader><CardTitle className="text-base">{t("توزيع أرباح جديد")}</CardTitle></CardHeader>
       <CardContent>
         <form onSubmit={submit} className="space-y-4">
+      <PageActions>
+            <Button type="submit" size="sm" disabled={pending}>{t("إنشاء مسودة")}</Button>
+            <Button type="button" variant="ghost" size="sm" onClick={() => setOpen(false)}>{t("إلغاء")}</Button>
+          </PageActions>
+
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="space-y-1">
               <Label htmlFor="periodName">{t("اسم الفترة *")}</Label>
@@ -72,10 +78,7 @@ export function DistributionForm({ suggestedProfit }: { suggestedProfit: number 
           <p className="text-xs text-muted-foreground">
             {t("تُحسب حصة كل مستثمر تلقائيًا من نسبة ملكيته (صافي رأس ماله)، بالقرش — ولا يُرحَّل أي قيد حتى تأكيد التوزيع.")}
           </p>
-          <div className="flex gap-2">
-            <Button type="submit" size="sm" disabled={pending}>{t("إنشاء مسودة")}</Button>
-            <Button type="button" variant="ghost" size="sm" onClick={() => setOpen(false)}>{t("إلغاء")}</Button>
-          </div>
+
         </form>
       </CardContent>
     </Card>

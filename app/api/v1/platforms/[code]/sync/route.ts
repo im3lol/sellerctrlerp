@@ -28,7 +28,7 @@ function permissionFor(kind: SyncKind) {
 }
 
 async function authorizeAmazonSync(req: Request, code: string, kind: SyncKind) {
-  const auth = await authorizeApi(req, permissionFor(kind));
+  const auth = await authorizeApi(req, permissionFor(kind), "marketplace");
   if (isApiError(auth)) return { response: Response.json({ error: auth.error }, { status: auth.status }) };
   if (auth.role !== "super_admin" && !(await orgHasModule(auth.orgId, "marketplace"))) {
     return { response: Response.json({ error: "module_unavailable" }, { status: 403 }) };

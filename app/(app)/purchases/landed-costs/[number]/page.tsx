@@ -24,7 +24,7 @@ const STATUS: Record<string, { label: string; variant: "default" | "secondary" |
   POSTED: { label: "مُرحّل", variant: "default" },
   CANCELLED: { label: "ملغي", variant: "destructive" },
 };
-const METHOD: Record<string, string> = { value: "حسب القيمة", qty: "حسب الكمية", weight: "حسب الوزن" };
+const METHOD: Record<string, string> = { value: "حسب القيمة", qty: "حسب الكمية", weight: "حسب الوزن", manual: "إدخال يدوي لكل صنف" };
 
 export default async function LandedCostDetailPage({ params }: { params: Promise<{ number: string }> }) {
   const t = await getT();
@@ -68,7 +68,7 @@ export default async function LandedCostDetailPage({ params }: { params: Promise
           title={fill(t("تكاليف استيراد {0}"), [v.number])}
           subtitle={sup ? `${sup.code} — ${sup.name}` : "مستند تكاليف"}
           backHref="/purchases/landed-costs"
-          action={<LandedCostDetailActions id={v.id} status={v.status} canManage={can("purchases.create")} canPost={can("purchases.confirm")} />}
+          action={<LandedCostDetailActions id={v.id} number={v.number} status={v.status} canManage={can("purchases.create")} canPost={can("purchases.confirm")} />}
         />
 
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

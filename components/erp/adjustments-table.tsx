@@ -1,5 +1,9 @@
 "use client";
 
+import { formatErpDate } from "@/lib/erp/dates";
+
+import { useLocale } from "@/lib/i18n/client";
+
 import Link from "next/link";
 import { useT } from "@/lib/i18n/client";
 import { bulkStockAdjustmentsAction, type AdjustmentsFilter } from "@/app/actions/erp/stock-adjustments";
@@ -21,10 +25,11 @@ type Row = {
 
 const fmt = (v: string | number | null) => Number(v ?? 0).toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const intl = (n: number) => n.toLocaleString("ar-EG-u-nu-latn");
-const dt = (d: Date) => new Date(d).toLocaleDateString("ar-EG-u-nu-latn", { year: "numeric", month: "2-digit", day: "2-digit" });
+const dt = (d: Date, locale: import("@/lib/i18n").Locale) => formatErpDate(d, locale === "en" ? "en-GB" : "ar-EG-u-nu-latn", { year: "numeric", month: "2-digit", day: "2-digit" });
 
 export function AdjustmentsTable({ rows, canConfirm, canCreate, total, filter }: { rows: Row[]; canConfirm: boolean; canCreate: boolean; total: number; filter: AdjustmentsFilter }) {
   const t = useT();
+  const locale = useLocale();
   const sel = useSelection(total);
   const pageIds = rows.map((r) => r.id);
   const showSelect = canConfirm || canCreate;
@@ -76,7 +81,7 @@ export function AdjustmentsTable({ rows, canConfirm, canCreate, total, filter }:
                 <TableCell>
                   <Link href={`/inventory/adjustments/${encodeURIComponent(r.number)}`} className="font-mono hover:text-primary">{r.number}</Link>
                 </TableCell>
-                <TableCell className="whitespace-nowrap">{dt(r.date)}</TableCell>
+                <TableCell className="whitespace-nowrap">{dt(r.date, locale)}</TableCell>
                 <TableCell><Badge variant="secondary">{t(r.reason ?? "—")}</Badge></TableCell>
                 <TableCell>{intl(r.count)}</TableCell>
                 <TableCell className={r.delta < 0 ? "text-destructive" : r.delta > 0 ? "text-emerald-600" : ""}>{r.delta > 0 ? "+" : ""}{intl(r.delta)}</TableCell>

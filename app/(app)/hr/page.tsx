@@ -130,7 +130,7 @@ export default async function ErpHrPage() {
 
         {/* Every page in this module, straight from the sidebar config — see
             ModuleWorkspace for why this is derived and not another hand-kept list. */}
-        <ModuleWorkspace heading={t("الموارد البشرية")} permissions={permissions} counts={counts}
+        <ModuleWorkspace heading="الموارد البشرية" permissions={permissions} counts={counts}
           actions={[{ label: "مسير رواتب جديد", href: "/hr/payroll/new", icon: "Plus" }]} />
       </div>
     );

@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
  * Creates a DRAFT reimbursement journal only. It never posts the journal, so the
  * accountant still reviews it before it affects the general ledger. */
 export async function POST(req: Request, { params }: { params: Promise<{ code: string; id: string }> }) {
-  const auth = await authorizeApi(req, "accounting.create");
+  const auth = await authorizeApi(req, "accounting.create", "marketplace");
   if (isApiError(auth)) return Response.json({ error: auth.error }, { status: auth.status });
   if (auth.role !== "super_admin" && !(await orgHasModule(auth.orgId, "marketplace"))) {
     return Response.json({ error: "module_unavailable" }, { status: 403 });

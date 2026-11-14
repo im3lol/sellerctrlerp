@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { itemHref } from "@/lib/erp/item-href";
 import { useT } from "@/lib/i18n/client";
 import { useTransition } from "react";
 import { useRouter } from "next/navigation";
@@ -9,7 +10,7 @@ import { deleteItemAction } from "@/app/actions/erp/items";
 import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/icon";
 
-export function ItemDetailActions({ itemId, canEdit, canDelete }: { itemId: string; canEdit: boolean; canDelete: boolean }) {
+export function ItemDetailActions({ itemId, itemCode, canEdit, canDelete }: { itemId: string; itemCode: string; canEdit: boolean; canDelete: boolean }) {
   const t = useT();
   const router = useRouter();
   const [pending, start] = useTransition();
@@ -24,7 +25,7 @@ export function ItemDetailActions({ itemId, canEdit, canDelete }: { itemId: stri
 
   return (
     <div className="flex gap-2">
-      {canEdit && <Button asChild variant="outline" size="sm"><Link href={`/inventory/items/${itemId}/edit`}><Icon name="Pencil" className="size-4" />{t("تعديل")}</Link></Button>}
+      {canEdit && <Button asChild variant="outline" size="sm"><Link href={itemHref(itemCode, "/edit")}><Icon name="Pencil" className="size-4" />{t("تعديل")}</Link></Button>}
       {canDelete && <Button variant="ghost" size="sm" disabled={pending} onClick={del}><Icon name="Trash2" className="size-4 text-destructive" />{t("حذف")}</Button>}
     </div>
   );

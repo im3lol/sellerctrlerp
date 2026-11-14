@@ -1,5 +1,7 @@
 package com.sellerctrl.app.ui
 
+import com.sellerctrl.app.tr
+
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -53,7 +55,7 @@ import com.sellerctrl.app.data.RecurJournalDetailDto
 import com.sellerctrl.app.data.RecurJournalSaveReq
 import kotlinx.coroutines.launch
 
-private val RJ_FREQS = listOf("WEEKLY" to "أسبوعي", "MONTHLY" to "شهري", "QUARTERLY" to "ربع سنوي", "YEARLY" to "سنوي")
+private val RJ_FREQS = listOf("WEEKLY" to tr("أسبوعي"), "MONTHLY" to tr("شهري"), "QUARTERLY" to tr("ربع سنوي"), "YEARLY" to tr("سنوي"))
 private data class RjLine(val accountId: String, val account: String, var debit: String, var credit: String)
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -77,65 +79,65 @@ fun RecurringJournalFormScreen(nav: NavController) {
     fun totalCredit() = lines.sumOf { it.credit.toDoubleOrNull() ?: 0.0 }
 
     fun save() {
-        if (name.trim().length < 2) { error = "اسم القالب مطلوب"; return }
+        if (name.trim().length < 2) { error = tr("اسم القالب مطلوب"); return }
         val payload = lines.filter { it.accountId.isNotBlank() && ((it.debit.toDoubleOrNull() ?: 0.0) > 0 || (it.credit.toDoubleOrNull() ?: 0.0) > 0) }
             .map { JeCreateLine(it.accountId, it.debit.toDoubleOrNull() ?: 0.0, it.credit.toDoubleOrNull() ?: 0.0) }
-        if (payload.size < 2) { error = "أضف بندين على الأقل بقيمة وحساب"; return }
+        if (payload.size < 2) { error = tr("أضف بندين على الأقل بقيمة وحساب"); return }
         busy = true; error = null
         scope.launch {
             try { ServiceLocator.repo.recurringJournalSave(RecurJournalSaveReq(null, name.trim(), description.ifBlank { null }, frequency, nextRun, payload)); nav.popBackStack() }
-            catch (e: Exception) { error = e.message ?: "خطأ"; busy = false }
+            catch (e: Exception) { error = e.message ?: tr("خطأ"); busy = false }
         }
     }
 
     Scaffold(topBar = {
-        TopAppBar(title = { Text("قيد متكرر جديد") },
+        TopAppBar(title = { Text(tr("قيد متكرر جديد")) },
             navigationIcon = { IconButton(onClick = { nav.popBackStack() }) { Icon(Icons.AutoMirrored.Filled.ArrowBack, null) } })
     }) { pad ->
         Column(Modifier.fillMaxSize().padding(pad).verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            OutlinedTextField(name, { name = it }, label = { Text("اسم القالب *") }, singleLine = true, modifier = Modifier.fillMaxWidth())
-            OutlinedTextField(description, { description = it }, label = { Text("البيان (يظهر في القيد المولّد)") }, modifier = Modifier.fillMaxWidth())
-            OutlinedButton(onClick = { freqPicker = true }, modifier = Modifier.fillMaxWidth()) { Text("التكرار: ${RJ_FREQS.firstOrNull { it.first == frequency }?.second ?: frequency}") }
-            OutlinedTextField(nextRun, { nextRun = it }, label = { Text("تاريخ أول تنفيذ") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+            OutlinedTextField(name, { name = it }, label = { Text(tr("اسم القالب *")) }, singleLine = true, modifier = Modifier.fillMaxWidth())
+            OutlinedTextField(description, { description = it }, label = { Text(tr("البيان (يظهر في القيد المولّد)")) }, modifier = Modifier.fillMaxWidth())
+            OutlinedButton(onClick = { freqPicker = true }, modifier = Modifier.fillMaxWidth()) { Text(tr("التكرار: ${RJ_FREQS.firstOrNull { it.first == frequency }?.second ?: frequency}")) }
+            OutlinedTextField(nextRun, { nextRun = it }, label = { Text(tr("تاريخ أول تنفيذ")) }, singleLine = true, modifier = Modifier.fillMaxWidth())
 
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                Text("البنود", style = MaterialTheme.typography.titleMedium)
-                TextButton(onClick = { lines.add(RjLine("", "", "", "")) }) { Icon(Icons.Filled.Add, null); Text(" بند") }
+                Text(tr("البنود"), style = MaterialTheme.typography.titleMedium)
+                TextButton(onClick = { lines.add(RjLine("", "", "", "")) }) { Icon(Icons.Filled.Add, null); Text(tr(" بند")) }
             }
             lines.forEachIndexed { i, l ->
                 AppCard(Modifier.fillMaxWidth()) {
                     Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             OutlinedButton(onClick = { pickFor = i }, modifier = Modifier.weight(1f)) {
-                                Text(if (l.account.isBlank()) "اختر حساباً" else l.account, maxLines = 1)
+                                Text(if (l.account.isBlank()) tr("اختر حساباً") else l.account, maxLines = 1)
                             }
-                            if (lines.size > 2) IconButton(onClick = { lines.removeAt(i) }) { Icon(Icons.Filled.Close, "حذف") }
+                            if (lines.size > 2) IconButton(onClick = { lines.removeAt(i) }) { Icon(Icons.Filled.Close, tr("حذف")) }
                         }
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             OutlinedTextField(l.debit, { v -> lines[i] = l.copy(debit = v.filter { it.isDigit() || it == '.' }, credit = if (v.isNotBlank()) "" else l.credit) },
-                                label = { Text("مدين") }, singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal), modifier = Modifier.weight(1f))
+                                label = { Text(tr("مدين")) }, singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal), modifier = Modifier.weight(1f))
                             OutlinedTextField(l.credit, { v -> lines[i] = l.copy(credit = v.filter { it.isDigit() || it == '.' }, debit = if (v.isNotBlank()) "" else l.debit) },
-                                label = { Text("دائن") }, singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal), modifier = Modifier.weight(1f))
+                                label = { Text(tr("دائن")) }, singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal), modifier = Modifier.weight(1f))
                         }
                     }
                 }
             }
             val balanced = kotlin.math.abs(totalDebit() - totalCredit()) < 0.01
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text("مدين ${money(totalDebit())}", color = MaterialTheme.colorScheme.outline)
-                Text("دائن ${money(totalCredit())}", color = MaterialTheme.colorScheme.outline)
+                Text(tr("مدين ${money(totalDebit())}"), color = MaterialTheme.colorScheme.outline)
+                Text(tr("دائن ${money(totalCredit())}"), color = MaterialTheme.colorScheme.outline)
             }
-            if (!balanced) Text("القيد غير متوازن", color = MaterialTheme.colorScheme.error)
+            if (!balanced) Text(tr("القيد غير متوازن"), color = MaterialTheme.colorScheme.error)
             error?.let { Text(it, color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.SemiBold) }
-            Button(onClick = { save() }, enabled = !busy && balanced, modifier = Modifier.fillMaxWidth()) { Text(if (busy) "جارٍ الحفظ…" else "حفظ") }
+            Button(onClick = { save() }, enabled = !busy && balanced, modifier = Modifier.fillMaxWidth()) { Text(if (busy) tr("جارٍ الحفظ…") else tr("حفظ")) }
         }
     }
 
-    if (pickFor >= 0) AccountPickerDialog("اختر حساباً", accounts, onDismiss = { pickFor = -1 }) { a ->
+    if (pickFor >= 0) AccountPickerDialog(tr("اختر حساباً"), accounts, onDismiss = { pickFor = -1 }) { a ->
         val i = pickFor; pickFor = -1
         lines[i] = lines[i].copy(accountId = a.id, account = "${a.number} ${a.title}")
     }
-    if (freqPicker) OptionPickerDialog("التكرار", RJ_FREQS, onDismiss = { freqPicker = false }) { id, _ -> frequency = id; freqPicker = false }
+    if (freqPicker) OptionPickerDialog(tr("التكرار"), RJ_FREQS, onDismiss = { freqPicker = false }) { id, _ -> frequency = id; freqPicker = false }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -151,7 +153,7 @@ fun RecurringJournalDetailScreen(nav: NavController, id: String) {
     LaunchedEffect(reload, tick) { d = try { ServiceLocator.repo.recurringJournalDetail(id) } catch (e: Exception) { null } }
 
     Scaffold(topBar = {
-        TopAppBar(title = { Text("قيد متكرر") },
+        TopAppBar(title = { Text(tr("قيد متكرر")) },
             navigationIcon = { IconButton(onClick = { nav.popBackStack() }) { Icon(Icons.AutoMirrored.Filled.ArrowBack, null) } })
     }) { pad ->
         Box(Modifier.fillMaxSize().padding(pad)) {
@@ -161,44 +163,44 @@ fun RecurringJournalDetailScreen(nav: NavController, id: String) {
                 AppCard(Modifier.fillMaxWidth()) {
                     Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         Text(o.name, style = MaterialTheme.typography.titleLarge)
-                        Text("${o.frequency} · التالي: ${o.nextRunDate}", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.outline)
-                        AssistChip(onClick = {}, label = { Text(if (o.isActive) "نشط" else "متوقف") })
+                        Text(tr("${o.frequency} · التالي: ${o.nextRunDate}"), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.outline)
+                        AssistChip(onClick = {}, label = { Text(if (o.isActive) tr("نشط") else tr("متوقف")) })
                         if (o.description.isNotBlank()) Text(o.description, style = MaterialTheme.typography.bodySmall)
                     }
                 }
-                Text("البنود (${o.lines.size})", style = MaterialTheme.typography.titleMedium)
+                Text(tr("البنود (${o.lines.size})"), style = MaterialTheme.typography.titleMedium)
                 o.lines.forEach { l ->
                     AppCard(Modifier.fillMaxWidth()) {
                         Row(Modifier.fillMaxWidth().padding(12.dp), horizontalArrangement = Arrangement.SpaceBetween) {
                             Text(l.account, modifier = Modifier.weight(1f))
-                            if (l.debit > 0) Text("مدين ${money(l.debit)}", color = MaterialTheme.colorScheme.primary)
-                            if (l.credit > 0) Text("دائن ${money(l.credit)}", color = MaterialTheme.colorScheme.tertiary)
+                            if (l.debit > 0) Text(tr("مدين ${money(l.debit)}"), color = MaterialTheme.colorScheme.primary)
+                            if (l.credit > 0) Text(tr("دائن ${money(l.credit)}"), color = MaterialTheme.colorScheme.tertiary)
                         }
                     }
                 }
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    Text("إجمالي مدين ${money(o.totalDebit)}", fontWeight = FontWeight.Bold)
-                    Text("إجمالي دائن ${money(o.totalCredit)}", fontWeight = FontWeight.Bold)
+                    Text(tr("إجمالي مدين ${money(o.totalDebit)}"), fontWeight = FontWeight.Bold)
+                    Text(tr("إجمالي دائن ${money(o.totalCredit)}"), fontWeight = FontWeight.Bold)
                 }
                 message?.let { Text(it, color = MaterialTheme.colorScheme.primary) }
                 Button(onClick = {
                     busy = true; message = null
-                    scope.launch { try { ServiceLocator.repo.postAction("api/v1/accounting/recurring-journals/$id/toggle"); message = "تم التحديث ✓"; reload++ } catch (e: Exception) { message = e.message ?: "خطأ" } finally { busy = false } }
-                }, enabled = !busy, modifier = Modifier.fillMaxWidth()) { Text("تفعيل / إيقاف") }
+                    scope.launch { try { ServiceLocator.repo.postAction("api/v1/accounting/recurring-journals/$id/toggle"); message = tr("تم التحديث ✓"); reload++ } catch (e: Exception) { message = e.message ?: tr("خطأ") } finally { busy = false } }
+                }, enabled = !busy, modifier = Modifier.fillMaxWidth()) { Text(tr("تفعيل / إيقاف")) }
                 OutlinedButton(onClick = { confirmDelete = true }, enabled = !busy, modifier = Modifier.fillMaxWidth(),
-                    colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)) { Text("حذف") }
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)) { Text(tr("حذف")) }
             }
         }
     }
 
     if (confirmDelete) AlertDialog(
-        onDismissRequest = { confirmDelete = false }, title = { Text("حذف") }, text = { Text("متأكد من حذف القالب؟") },
+        onDismissRequest = { confirmDelete = false }, title = { Text(tr("حذف")) }, text = { Text(tr("متأكد من حذف القالب؟")) },
         confirmButton = {
             TextButton(onClick = {
                 confirmDelete = false; busy = true; message = null
-                scope.launch { try { ServiceLocator.repo.postAction("api/v1/accounting/recurring-journals/$id/delete"); nav.popBackStack() } catch (e: Exception) { message = e.message ?: "خطأ" } finally { busy = false } }
-            }) { Text("حذف", color = MaterialTheme.colorScheme.error) }
+                scope.launch { try { ServiceLocator.repo.postAction("api/v1/accounting/recurring-journals/$id/delete"); nav.popBackStack() } catch (e: Exception) { message = e.message ?: tr("خطأ") } finally { busy = false } }
+            }) { Text(tr("حذف"), color = MaterialTheme.colorScheme.error) }
         },
-        dismissButton = { OutlinedButton(onClick = { confirmDelete = false }) { Text("إلغاء") } },
+        dismissButton = { OutlinedButton(onClick = { confirmDelete = false }) { Text(tr("إلغاء")) } },
     )
 }

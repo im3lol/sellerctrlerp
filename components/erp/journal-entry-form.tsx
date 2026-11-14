@@ -1,4 +1,6 @@
 "use client";
+import { PageActions } from "@/components/erp/page-actions";
+
 
 import { useMemo, useState, useTransition } from "react";
 import { fill } from "@/lib/i18n";
@@ -106,6 +108,23 @@ export function JournalEntryForm({
 
   return (
     <div className="space-y-6">
+      <PageActions>
+              {isEdit ? (
+                <Button type="button" disabled={pending || !totals.balanced} onClick={() => submit("draft")}>
+                  <Icon name="Check" className="size-4" />{t("حفظ التعديلات")}
+                </Button>
+              ) : (
+                <>
+                  <Button type="button" variant="outline" disabled={pending} onClick={() => submit("draft")}>
+                    {t("حفظ كمسودة")}
+                  </Button>
+                  <Button type="button" disabled={pending || !totals.balanced} onClick={() => submit("post")}>
+                    <Icon name="Check" className="size-4" />{t("حفظ وترحيل")}
+                  </Button>
+                </>
+              )}
+
+      </PageActions>
       <Card>
         <CardHeader>
           <CardTitle>{t("بيانات القيد")}</CardTitle>
@@ -210,22 +229,7 @@ export function JournalEntryForm({
             <Button type="button" variant="outline" onClick={addLine}>
               <Icon name="Plus" className="size-4" />{t("إضافة بند")}
             </Button>
-            <div className="flex gap-2">
-              {isEdit ? (
-                <Button type="button" disabled={pending || !totals.balanced} onClick={() => submit("draft")}>
-                  <Icon name="Check" className="size-4" />{t("حفظ التعديلات")}
-                </Button>
-              ) : (
-                <>
-                  <Button type="button" variant="outline" disabled={pending} onClick={() => submit("draft")}>
-                    {t("حفظ كمسودة")}
-                  </Button>
-                  <Button type="button" disabled={pending || !totals.balanced} onClick={() => submit("post")}>
-                    <Icon name="Check" className="size-4" />{t("حفظ وترحيل")}
-                  </Button>
-                </>
-              )}
-            </div>
+
           </div>
         </CardContent>
       </Card>

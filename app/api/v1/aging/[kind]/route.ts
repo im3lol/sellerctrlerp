@@ -1,6 +1,7 @@
 import { authorizeApi, isApiError } from "@/lib/erp/api-auth";
 import { arAging, apAging, type AgingReport } from "@/lib/erp/mobile-reports";
 import type { ErpPermission } from "@/lib/erp/permissions";
+import { canReadPurchaseCosts } from "@/lib/erp/data-access";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -17,6 +18,7 @@ export async function GET(req: Request, ctx: { params: Promise<{ kind: string }>
   if (!entry) return Response.json({ error: "unknown_aging" }, { status: 404 });
   const auth = await authorizeApi(req, entry.perm);
   if (isApiError(auth)) return Response.json({ error: auth.error }, { status: auth.status });
+  if (kind === "ap" && !canReadPurchaseCosts(auth.can)) return Response.json({ error: "forbidden" }, { status: 403 });
   const asOf = new URL(req.url).searchParams.get("asOf") || undefined;
   return Response.json({ data: await entry.fn(auth.orgId, asOf) });
 }

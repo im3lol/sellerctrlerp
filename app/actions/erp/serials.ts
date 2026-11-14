@@ -5,7 +5,7 @@ import { db } from "@/lib/db";
 import { withOrgScope } from "@/lib/db-scope";
 import { revalidatePath } from "@/lib/safe-revalidate";
 import {
-  stockSerials, items, warehouses, purchaseReceipts, deliveryNotes, customers,
+  stockSerials, items, warehouses, purchaseReceipts, purchaseReceiptLines, deliveryNotes, customers,
 } from "@/db/schema";
 import { authorizeErp, type ActionState } from "@/lib/erp/action-auth";
 import {
@@ -59,6 +59,11 @@ export async function saveReceiptSerialsAction(
 
     try {
       await db.transaction(async (tx) => {
+        const [current] = await tx.select().from(purchaseReceipts)
+          .where(and(eq(purchaseReceipts.id, receiptId), eq(purchaseReceipts.organizationId, auth.orgId))).for("update");
+        if (!current || current.status !== "DRAFT") throw new Error("الأرقام التسلسلية تتسجّل قبل تأكيد الاستلام");
+        const receiptLines = await tx.select().from(purchaseReceiptLines).where(eq(purchaseReceiptLines.purchaseReceiptId, receiptId));
+        if (input.some(i => !receiptLines.some(l => l.itemId === i.itemId))) throw new Error("الصنف غير موجود في إذن الاستلام");
         for (const line of input) {
           // Replace this receipt's set for the item, rather than merging into it.
           await tx.delete(stockSerials).where(and(
@@ -74,11 +79,12 @@ export async function saveReceiptSerialsAction(
             serial: r.serial,
             normalizedSerial: r.normalizedSerial,
             status: "IN_STOCK",
-            warehouseId: grn.warehouseId,
+            warehouseId: receiptLines.find(l => l.itemId === line.itemId)?.warehouseId ?? current.warehouseId,
             receiptId,
-            receivedAt: new Date(grn.date),
+            receivedAt: new Date(current.date),
           })));
         }
+        await tx.update(purchaseReceipts).set({ updatedAt: new Date(Math.max(Date.now(), current.updatedAt.getTime() + 1)) }).where(eq(purchaseReceipts.id, receiptId));
       });
       revalidatePath("/inventory/serials");
       return { ok: true };

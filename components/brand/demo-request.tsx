@@ -38,7 +38,7 @@ type BtnProps = {
  * with a prefilled message — no backend, the message itself carries the lead.
  * We then send the demo link back manually.
  */
-export function DemoRequestButton({ label = "اطلب ديمو", size, variant, className }: BtnProps) {
+export function DemoRequestButton({ label = "احجز عرضًا توضيحيًا", size, variant, className }: BtnProps) {
   const t = useT();
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
@@ -57,12 +57,12 @@ export function DemoRequestButton({ label = "اطلب ديمو", size, variant, 
     if (!valid) return;
     // In the language the visitor is reading the page in.
     const msg = [
-      t("السلام عليكم 👋\nحابب أجرّب ديمو SellerCtrl."), "",
+      t("السلام عليكم 👋\nأرغب في حجز عرض توضيحي لنظام SellerCtrl."), "",
       fill(t("الاسم: {0}"), [name.trim()]),
       fill(t("النشاط / المتجر: {0}"), [business.trim() || "—"]),
       fill(t("ببيع على: {0}"), [t(sells)]),
       fill(t("رقم واتساب: {0}"), [phone.trim()]),
-      fill(t("مهتم بالوحدات: {0}"), [modules.length ? modules.map(t).join(t("، ")) : t("لسه بستكشف")]),
+      fill(t("مهتم بالوحدات: {0}"), [modules.length ? modules.map(t).join(t("، ")) : t("أرغب في استعراض عام")]),
       fill(t("ملاحظات: {0}"), [notes.trim() || "—"]),
     ].join("\n");
     window.open(`https://wa.me/${WHATSAPP}?text=${encodeURIComponent(msg)}`, "_blank", "noopener,noreferrer");
@@ -79,8 +79,8 @@ export function DemoRequestButton({ label = "اطلب ديمو", size, variant, 
       </DialogTrigger>
       <DialogContent className="max-h-[90vh] max-w-md overflow-y-auto text-start">
         <DialogHeader>
-          <DialogTitle>{t("اطلب نسخة تجريبية")}</DialogTitle>
-          <DialogDescription>{t("سجّل بياناتك وهنبعتلك لينك الديمو على واتساب تجرّب النظام بنفسك.")}</DialogDescription>
+          <DialogTitle>{t("طلب عرض توضيحي")}</DialogTitle>
+          <DialogDescription>{t("أدخل بيانات التواصل واحتياجات نشاطك لتنسيق عرض للنظام عبر واتساب.")}</DialogDescription>
         </DialogHeader>
         <form onSubmit={submit} className="space-y-4">
           <div className="space-y-2">
@@ -96,7 +96,7 @@ export function DemoRequestButton({ label = "اطلب ديمو", size, variant, 
             <Input id="dr-business" value={business} onChange={(e) => setBusiness(e.target.value)} placeholder={t("مثال: متجر النخبة")} />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="dr-sells">{t("بتبيع على إيه؟")}</Label>
+            <Label htmlFor="dr-sells">{t("قنوات البيع")}</Label>
             <select
               id="dr-sells"
               value={sells}
@@ -107,7 +107,7 @@ export function DemoRequestButton({ label = "اطلب ديمو", size, variant, 
             </select>
           </div>
           <div className="space-y-2">
-            <Label>{t("الوحدات اللي مهتم بيها (اختياري)")}</Label>
+            <Label>{t("الوحدات المطلوبة (اختياري)")}</Label>
             <div className="grid grid-cols-2 gap-2">
               {MODULES.map((m) => (
                 <label key={m} className="flex cursor-pointer items-center gap-2 rounded-md border p-2 text-xs has-[:checked]:border-primary has-[:checked]:bg-primary/5">
@@ -124,7 +124,7 @@ export function DemoRequestButton({ label = "اطلب ديمو", size, variant, 
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               rows={3}
-              placeholder={t("مشاكل بتواجهك في نظامك الحالي، أو حاجات معيّنة بتدوّر عليها في النظام…")}
+              placeholder={t("اذكر احتياجات نشاطك أو العمليات التي ترغب في استعراضها.")}
             />
           </div>
           <Button type="submit" className="w-full" size="lg" disabled={!valid}>

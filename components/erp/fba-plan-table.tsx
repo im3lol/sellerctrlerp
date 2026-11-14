@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { fill } from "@/lib/i18n";
-import { useT } from "@/lib/i18n/client";
+import { fill, translateName } from "@/lib/i18n";
+import { useT, useLocale } from "@/lib/i18n/client";
 import { useRouter } from "next/navigation";
 import { toast } from "@/lib/i18n/toast";
 import { createStockTransferAction } from "@/app/actions/erp/stock-transfers";
@@ -34,6 +34,7 @@ export function FbaPlanTable({ rows, fromWarehouseId, toWarehouseId, sourceName,
   rows: FbaPlanRow[]; fromWarehouseId: string; toWarehouseId: string; sourceName: string; windowDays: number; canCreate: boolean;
 }) {
   const t = useT();
+  const sourceLabel = translateName(sourceName, useLocale());
   const router = useRouter();
   const [pending, start] = useTransition();
   const [qty, setQty] = useState<Record<string, number>>(() => Object.fromEntries(rows.map((r) => [r.itemId, r.sendQty])));
@@ -56,7 +57,7 @@ export function FbaPlanTable({ rows, fromWarehouseId, toWarehouseId, sourceName,
   const excel = async () => {
     const XLSX = await import("xlsx"); // loaded on click — keeps the page bundle light
     const ws = XLSX.utils.aoa_to_sheet([
-      ["الصنف", "SKU", "ASIN", fill(t("مبيعات آخر {0} يوم"), [windowDays]), "بيع/يوم", "متاح في أمازون", "في الطريق", "يكفّي (يوم)", "المطلوب", fill(t("في «{0}»"), [sourceName]), "هتبعت", "الحالة"],
+      ["الصنف", "SKU", "ASIN", fill(t("مبيعات آخر {0} يوم"), [windowDays]), "بيع/يوم", "متاح في أمازون", "في الطريق", "يكفّي (يوم)", "المطلوب", fill(t("في «{0}»"), [sourceLabel]), "هتبعت", "الحالة"],
       ...rows.map((r) => [r.name, r.sku ?? r.code, r.asin ?? "", r.soldAtAmazon, Math.round(r.velocity * 10) / 10, r.fbaAvailable, r.fbaInbound,
         Math.round(r.daysOfCover * 10) / 10, r.suggestedQty, Math.floor(r.sourceOnHand), qty[r.itemId] ?? 0, STATUS[r.status].label]),
       ["الإجمالي", "", "", salesInWindow, "", amazonOnHand, "", "", "", systemOnHand, units, ""],
@@ -96,7 +97,7 @@ export function FbaPlanTable({ rows, fromWarehouseId, toWarehouseId, sourceName,
           </Button>
           {canCreate && (
             <Button size="sm" disabled={pending || chosen.length === 0} onClick={transfer}
-              title={fill(t("تحويل مسودة من «{0}» لمخزن أمازون — مفيش مخزون بيتحرك غير لما تأكّده"), [sourceName])}>
+              title={fill(t("تحويل مسودة من «{0}» لمخزن أمازون — مفيش مخزون بيتحرك غير لما تأكّده"), [sourceLabel])}>
               <Icon name="ArrowLeftRight" className="size-4" />{t("تحويل مسودة لمخزن أمازون")}
             </Button>
           )}
@@ -105,7 +106,7 @@ export function FbaPlanTable({ rows, fromWarehouseId, toWarehouseId, sourceName,
 
       <div className="grid gap-2 sm:grid-cols-3">
         <div className="rounded-lg border px-3 py-2 text-sm"><span className="text-muted-foreground">{t("مخزون Amazon الحالي")}</span><div className="font-semibold tabular-nums">{int(amazonOnHand)} {t("وحدة")}</div></div>
-        <div className="rounded-lg border px-3 py-2 text-sm"><span className="text-muted-foreground">{t("مخزون النظام في «")}{sourceName}»</span><div className="font-semibold tabular-nums">{int(systemOnHand)} {t("وحدة")}</div></div>
+        <div className="rounded-lg border px-3 py-2 text-sm"><span className="text-muted-foreground">{fill(t("مخزون النظام في «{0}»"), [sourceLabel])}</span><div className="font-semibold tabular-nums">{int(systemOnHand)} {t("وحدة")}</div></div>
         <div className="rounded-lg border px-3 py-2 text-sm"><span className="text-muted-foreground">{t("مبيعات Amazon آخر")} {int(windowDays)} {t("يوم")}</span><div className="font-semibold tabular-nums">{int(salesInWindow)} {t("وحدة")}</div></div>
       </div>
 
@@ -120,7 +121,7 @@ export function FbaPlanTable({ rows, fromWarehouseId, toWarehouseId, sourceName,
               <TableHead className="text-start">{t("في الطريق")}</TableHead>
               <TableHead className="text-start">{t("يكفّي (يوم)")}</TableHead>
               <TableHead className="text-start">{t("المطلوب")}</TableHead>
-              <TableHead className="text-start whitespace-nowrap">{t("في النظام «")}{sourceName}»</TableHead>
+              <TableHead className="text-start whitespace-nowrap">{fill(t("في النظام «{0}»"), [sourceLabel])}</TableHead>
               <TableHead className="text-start">{t("هتبعت")}</TableHead>
               <TableHead className="text-start">{t("الحالة")}</TableHead>
             </TableRow>

@@ -1,4 +1,5 @@
 "use client";
+import { PageActions } from "@/components/erp/page-actions";
 
 import { useState, useTransition } from "react";
 import { useT } from "@/lib/i18n/client";
@@ -30,6 +31,10 @@ export function AiSettingsForm({ initial }: { initial: Initial }) {
 
   return (
     <div className="space-y-5">
+      <PageActions className="static">
+        <Button onClick={save} disabled={pending}>{pending && <Loader2 className="size-4 animate-spin" />}{t("حفظ الإعدادات")}</Button>
+      </PageActions>
+
       <p className="text-xs text-muted-foreground">
         {t("مفتاح Anthropic API اللي بتقرا بيه الشركات فواتيرها. الميزة بتفضل مقفولة لحد ما تختار موديل.")}
         {" "}{t("المفتاح بيتخزن مشفّر، ومش بيرجع للمتصفح. الشركة اللي تضيف مفتاحها الخاص بتستخدمه هو ومش بتتحسب من الحد.")}
@@ -53,9 +58,7 @@ export function AiSettingsForm({ initial }: { initial: Initial }) {
         </div>
       </div>
       <p className="text-xs text-muted-foreground">{t("اتقرا الشهر ده على مفتاح المنصة:")} {initial.usedThisMonth.toLocaleString("ar-EG-u-nu-latn")} {t("فاتورة.")}</p>
-      <div className="flex justify-end">
-        <Button onClick={save} disabled={pending}>{pending && <Loader2 className="size-4 animate-spin" />}{t("حفظ الإعدادات")}</Button>
-      </div>
+
     </div>
   );
 }

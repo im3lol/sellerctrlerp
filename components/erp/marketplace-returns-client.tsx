@@ -1,5 +1,7 @@
 "use client";
 
+import { formatErpDate } from "@/lib/erp/dates";
+
 import { useMemo, useState, useTransition } from "react";
 import { fill } from "@/lib/i18n";
 import { useT } from "@/lib/i18n/client";
@@ -16,7 +18,7 @@ import type { ReturnCondition, NotReceivedReason } from "@/lib/erp/return-dispos
 
 const fmt = (n: number) => Number(n || 0).toLocaleString("ar-EG-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const qtyf = (n: number) => Number(n || 0).toLocaleString("ar-EG-u-nu-latn", { maximumFractionDigits: 3 });
-const dt = (s: string) => new Date(s).toLocaleDateString("en-GB", { year: "numeric", month: "2-digit", day: "2-digit" });
+const dt = (s: string) => formatErpDate(s, "en-GB", { year: "numeric", month: "2-digit", day: "2-digit" });
 
 type Warehouse = { id: string; name: string };
 
@@ -101,7 +103,7 @@ export function MarketplaceReturnsClient({ initial, warehouses }: { initial: Mar
             {CONDITIONS.map((c) => (
               <div key={c.key} className="flex items-start gap-2 rounded-lg border bg-muted/30 px-3 py-2 text-xs">
                 <PackageCheck className={`mt-0.5 size-4 shrink-0 ${c.tone}`} />
-                <span><b>{t(c.label)}</b> — {c.effect}</span>
+                <span><b>{t(c.label)}</b> — {t(c.effect)}</span>
               </div>
             ))}
             <div className="flex items-start gap-2 rounded-lg border bg-muted/30 px-3 py-2 text-xs">

@@ -1,5 +1,6 @@
 import { authorizeApi, isApiError } from "@/lib/erp/api-auth";
 import { purchaseInvoiceList } from "@/lib/erp/mobile-lists";
+import { canReadPurchaseCosts } from "@/lib/erp/data-access";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -7,6 +8,7 @@ export const dynamic = "force-dynamic";
 export async function GET(req: Request) {
   const auth = await authorizeApi(req, "purchases.view");
   if (isApiError(auth)) return Response.json({ error: auth.error }, { status: auth.status });
+  if (!canReadPurchaseCosts(auth.can)) return Response.json({ error: "forbidden" }, { status: 403 });
   return Response.json({ data: await purchaseInvoiceList(auth.orgId) });
 }
 
