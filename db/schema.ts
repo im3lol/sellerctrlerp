@@ -119,3 +119,4 @@ export const attendance = pgTable(
 export * from "./erp";
 export * from "./mcp";
 export * from "./storage-cloud";
+export * from "./return-workflow";

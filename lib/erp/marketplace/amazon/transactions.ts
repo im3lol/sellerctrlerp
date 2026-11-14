@@ -49,6 +49,7 @@ export type TxnItemRow = {
 };
 
 export type TxnRow = {
+  sourceIdentifiers?: RelatedId[];
   transactionId: string | null; shipmentId: string | null; settlementId: string | null;
   orderId: string | null; type: string; status: "Deferred" | "Released";
   postedAt: Date | null; description: string | null; currency: string | null;
@@ -121,6 +122,7 @@ export function toTxnRow(t: ApiTransaction): TxnRow {
   const sum = (pick: (i: TxnItemRow) => number) => round2(items.reduce((s, i) => s + pick(i), 0));
 
   return {
+    sourceIdentifiers: t.relatedIdentifiers ?? [],
     transactionId: t.transactionId ?? null,
     shipmentId, settlementId: idOf(t.relatedIdentifiers, "SETTLEMENT_ID"), orderId,
     type, status: statusOf(t.transactionStatus),
@@ -140,7 +142,9 @@ export function toTxnRow(t: ApiTransaction): TxnRow {
     // id, so it falls back to the amount, which is what distinguishes two refunds on one
     // order. Transactions with no order at all (ads, adjustments) key on their own id —
     // they are one-offs, not a lifecycle.
-    dedupKey: orderId
+    dedupKey: type === "Refund"
+      ? `refund|${idOf(t.relatedIdentifiers,"REFUND_ID") ?? idOf(t.relatedIdentifiers,"DEFERRED_TRANSACTION_ID") ?? t.transactionId ?? `${t.postedDate ?? "unknown"}|${total.toFixed(2)}`}`
+      : orderId
       ? `${orderId}|${type}|${shipmentId ?? total.toFixed(2)}`
       : `txn|${t.transactionId ?? `${type}|${t.postedDate ?? ""}|${total.toFixed(2)}`}`,
     breakdown: t.breakdowns ?? null,
@@ -181,6 +185,7 @@ export function toSettlementTxn(r: TxnRow): SettlementTxn {
     total: r.total,
     dedupKey: r.dedupKey,
     transactionId: r.transactionId,
+    sourceIdentifiers: r.sourceIdentifiers,
     shipmentId: r.shipmentId,
     breakdown: r.breakdown,
     items: r.items,

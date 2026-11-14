@@ -82,6 +82,7 @@ export function parseMfnReturnsReport(tsv: string): MfnReturnRow[] {
     const qty = num(cell(c, iQty));
 
     out.push({
+      fulfillment: "MFN",
       returnDate: d && !Number.isNaN(d.getTime()) ? d : null,
       orderId, sku,
       asin: cell(c, iAsin),

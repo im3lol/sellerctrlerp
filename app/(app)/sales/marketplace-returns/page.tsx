@@ -1,25 +1,28 @@
 import { ErpPageHeader } from "@/components/erp/page-header";
 import { getT } from "@/lib/i18n/server";
-import { getMarketplaceReturns, getReturnWarehouses } from "@/app/actions/erp/platform-returns";
-import { MarketplaceReturnsClient } from "@/components/erp/marketplace-returns-client";
+import { getReturnWorkspaceAction } from "@/app/actions/erp/return-workflow";
+import { ReturnWorkspace } from "@/components/erp/return-workspace";
+import {getMarketplaceReturns,getReturnWarehouses}from "@/app/actions/erp/platform-returns";
+import {MarketplaceReturnsClient}from "@/components/erp/marketplace-returns-client";
 
 export const dynamic = "force-dynamic";
 
-// Marketplace customer returns awaiting the trader's receipt decision. Each is a DRAFT
-// credit note (from the FBA sync or CSV import); confirming with a receipt choice posts
-// the invoice reversal and — only when the goods were actually received — the restock.
+// Financial, stock and claim evidence are approved independently.
 export default async function MarketplaceReturnsPage() {
   const t = await getT();
-  const [rows, warehouses] = await Promise.all([getMarketplaceReturns(), getReturnWarehouses()]);
+  const data = await getReturnWorkspaceAction();
+  if ("error" in data) return <p className="p-6 text-destructive">{data.error}</p>;
+  const [legacy,warehouses]=await Promise.all([getMarketplaceReturns(),getReturnWarehouses()]);
   return (
     <div className="space-y-6">
       <ErpPageHeader
         icon="PackageX"
-        title={t("مرتجعات المنصات")}
-        subtitle={t("مرتجعات العملاء من أمازون/نون كمسودّات — أكّد الاستلام ليترحّل على الفاتورة والمخزون والطلب")}
+        title={t("المرتجعات والتعويضات")}
+        subtitle={t("متابعة رد المبالغ والاستلام الفعلي والرسوم والتعويضات؛ كل مرحلة بدليل مستقل")}
         backHref="/sales/returns"
       />
-      <MarketplaceReturnsClient initial={rows} warehouses={warehouses} />
+      <ReturnWorkspace initial={data} />
+      {(data.config.mode==="DISABLED"||legacy.some(r=>r.channel!=="AMAZON"))&&<MarketplaceReturnsClient initial={data.config.mode==="DISABLED"?legacy:legacy.filter(r=>r.channel!=="AMAZON")} warehouses={warehouses} />}
     </div>
   );
 }

@@ -11,19 +11,14 @@ import type { FbaReturnRow } from "@/lib/erp/amazon-returns";
 // Amazon Flex is NOT a third case: it is a last-mile delivery programme, so a Flex order
 // is still MFN or FBA and its returns arrive in whichever of these two reports owns it.
 //
-// Both are best-effort. An account with no seller-fulfilled orders gets an empty or
-// rejected report, and a returns sync must not fail because a report a seller never uses
-// isn't there — so each is caught and contributes nothing.
+// Empty reports are valid; permission, timeout and transport failures are not empty
+// results and must keep the source watermark pending for retry.
 const MFN = "GET_FLAT_FILE_RETURNS_DATA_BY_RETURN_DATE";
 const PRIME = "GET_CSV_MFN_PRIME_RETURNS_REPORT";
 
 async function safeReport(cred: Credential, type: string, range: DateRange): Promise<FbaReturnRow[]> {
-  try {
-    const text = await requestAndDownloadReport(cred, type, { dataStartTime: range.from, dataEndTime: range.to });
-    return parseMfnReturnsReport(text);
-  } catch {
-    return [];
-  }
+  const text = await requestAndDownloadReport(cred, type, { dataStartTime: range.from, dataEndTime: range.to });
+  return parseMfnReturnsReport(text);
 }
 
 export async function fetchMfnReturns(cred: Credential, range: DateRange): Promise<FbaReturnRow[]> {

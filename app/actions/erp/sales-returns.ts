@@ -145,6 +145,10 @@ export async function confirmSalesReturnAction(id: string, opts?: ConfirmReturnO
     const [ret] = await db.select().from(salesReturns)
       .where(and(eq(salesReturns.id, id), eq(salesReturns.organizationId, auth.orgId))).limit(1);
     if (!ret) return { error: "المرتجع غير موجود" };
+    const amazonOrigin=ret.channel==="AMAZON"||(await db.execute(sql`select 1 from sales_invoices i left join delivery_notes d on d.id=i.delivery_note_id and d.organization_id=${auth.orgId} join sales_orders o on o.id=coalesce(i.sales_order_id,d.sales_order_id) and o.organization_id=${auth.orgId} where i.organization_id=${auth.orgId} and (i.id=${ret.salesInvoiceId} or d.id=${ret.deliveryNoteId}) and o.channel='AMAZON' limit 1`)).rows.length>0;
+    if (amazonOrigin && (await (await import("@/lib/erp/return-workflow/store")).workflowSettings(auth.orgId)).mode !== "DISABLED") {
+      return {error:"Approve this marketplace return through its return case"};
+    }
     if (ret.status !== "DRAFT") return { error: "المرتجع مُرحّل بالفعل" };
 
     // R1 guard: a marketplace (channel-tagged) MONEY credit note (deliveryNoteId=null) whose
@@ -426,6 +430,9 @@ export async function reverseSalesReturnAction(id: string): Promise<ActionState>
       .where(and(eq(salesReturns.id, id), eq(salesReturns.organizationId, auth.orgId))).limit(1);
     if (!ret) return { error: "المرتجع غير موجود" };
     if (ret.status !== "POSTED") return { error: "يمكن إلغاء مرتجع مُرحّل فقط" };
+    if (await (await import("@/lib/erp/return-workflow/sources")).workflowDocumentOwned(auth.orgId,id)) {
+      return {error:"Reverse this document through the return case so allocations remain consistent"};
+    }
     const total = Number(ret.totalAmount);
     const d = new Date();
     try {

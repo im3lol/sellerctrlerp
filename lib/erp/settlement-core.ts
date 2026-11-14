@@ -132,6 +132,7 @@ async function linkOrders(orgId: string, txns: SettlementTxn[], channel: string)
  * Idempotent: a Refund row is skipped once its `salesReturnId` is set.
  */
 export async function processSettlementRefunds(orgId: string, channel: string): Promise<{ created: number; unmatched: string[] }> {
+  if (await (await import("@/lib/erp/return-workflow/sources")).newReturnWriterEnabled(orgId,channel)) return {created:0,unmatched:[]};
   const refunds = await db.select({
     id: marketplaceSettlementTxns.id, orderId: marketplaceSettlementTxns.orderId,
     sku: marketplaceSettlementTxns.sku, quantity: marketplaceSettlementTxns.quantity,
@@ -208,6 +209,21 @@ export async function processSettlementRefunds(orgId: string, channel: string): 
  */
 export async function upsertSettlementTxns(orgId: string, txns: SettlementTxn[], channel = "AMAZON"): Promise<{ imported: number; updated: number }> {
   if (txns.length === 0) return { imported: 0, updated: 0 };
+  const {refundAliases}=await import("@/lib/erp/return-workflow/refund-identity");
+  const refundOrders=[...new Set(txns.filter(t=>t.type==="Refund"&&t.orderId).map(t=>t.orderId!))];
+  if(refundOrders.length)await db.execute(sql`select pg_advisory_xact_lock(hashtextextended(${orgId+":"+channel+":refund-identities"},0))`);
+  const previousRefunds=refundOrders.length?await db.select().from(marketplaceSettlementTxns).where(and(eq(marketplaceSettlementTxns.organizationId,orgId),eq(marketplaceSettlementTxns.channel,channel),eq(marketplaceSettlementTxns.type,"Refund"),inArray(marketplaceSettlementTxns.orderId,refundOrders))):[];
+  const known=previousRefunds.map(r=>({order:r.orderId,key:r.dedupKey,aliases:refundAliases(r.transactionId,r.sourceIdentifiers)}));
+  const canonicalKeys=new Map<string,string>();
+  for(const t of txns.filter(t=>t.type==="Refund")){
+    const aliases=refundAliases(t.transactionId,t.sourceIdentifiers),original=settlementDedupKey(t);
+    const matches=known.filter(r=>r.order===t.orderId&&[...aliases].some(a=>r.aliases.has(a)));
+    if(new Set(matches.map(r=>r.key)).size>1)throw new Error("Ambiguous refund identity requires reconciliation before import");
+    const key=matches[0]?.key??original;canonicalKeys.set(original,key);
+    known.push({order:t.orderId||null,key,aliases});
+  }
+  txns=txns.filter(t=>t.type!=="Refund"||t.status!=="Deferred"||!previousRefunds.some(r=>r.dedupKey===(canonicalKeys.get(settlementDedupKey(t))??settlementDedupKey(t))&&r.status==="Released"));
+  if(!txns.length)return {imported:0,updated:0};
   const orderMap = await linkOrders(orgId, txns, channel);
   const values = txns.map((t) => ({
     organizationId: orgId, channel, settlementId: t.settlementId || null, type: t.type,
@@ -215,9 +231,10 @@ export async function upsertSettlementTxns(orgId: string, txns: SettlementTxn[],
     quantity: String(t.quantity), postedAt: t.postedAt, status: t.status, releaseDate: t.releaseDate, currency: t.currency ?? null,
     productSales: String(t.productSales), shippingCredits: String(t.shippingCredits), promotionalRebates: String(t.promotionalRebates),
     sellingFees: String(t.sellingFees), fbaFees: String(t.fbaFees), otherTransactionFees: String(t.otherTransactionFees),
-    other: String(t.other), total: String(t.total), dedupKey: settlementDedupKey(t),
+    other: String(t.other), total: String(t.total), dedupKey: canonicalKeys.get(settlementDedupKey(t))??settlementDedupKey(t),
     salesOrderId: (t.orderId && orderMap.get(t.orderId)) || null,
     transactionId: t.transactionId ?? null, shipmentId: t.shipmentId ?? null,
+    sourceIdentifiers: t.type==="Refund"?[...(t.sourceIdentifiers??[]),...(t.transactionId?[{relatedIdentifierName:"SELLERCTRL_OBSERVED_TRANSACTION_ID",relatedIdentifierValue:t.transactionId}]:[])]:t.sourceIdentifiers??null,
     breakdown: (t.breakdown ?? null) as never,
   }));
   // Rows whose key came from the source (listTransactions, anchored on the shipment)
@@ -226,8 +243,9 @@ export async function upsertSettlementTxns(orgId: string, txns: SettlementTxn[],
   const sourceKeyed = new Set<string>();
   for (const t of txns) {
     if (!t.dedupKey) continue;
-    sourceKeyed.add(t.dedupKey);
-    if (t.items?.length) itemsByKey.set(t.dedupKey, t.items);
+    const key=canonicalKeys.get(t.dedupKey)??t.dedupKey;
+    sourceKeyed.add(key);
+    if (t.items?.length) itemsByKey.set(key, t.items);
   }
 
   const beforeCount = (await db.select({ n: sql<number>`count(*)` }).from(marketplaceSettlementTxns)
@@ -270,6 +288,7 @@ export async function upsertSettlementTxns(orgId: string, txns: SettlementTxn[],
         // figure it ever saw.
         postedAt: sql`coalesce(excluded.posted_at, ${marketplaceSettlementTxns.postedAt})`,
         transactionId: sql`coalesce(excluded.transaction_id, ${marketplaceSettlementTxns.transactionId})`,
+        sourceIdentifiers: sql`(select jsonb_agg(distinct identity) from jsonb_array_elements(coalesce(${marketplaceSettlementTxns.sourceIdentifiers},'[]'::jsonb)||coalesce(excluded.source_identifiers,'[]'::jsonb)) identity)`,
         shipmentId: sql`coalesce(excluded.shipment_id, ${marketplaceSettlementTxns.shipmentId})`,
         breakdown: sql`coalesce(excluded.breakdown, ${marketplaceSettlementTxns.breakdown})`,
         productSales: sql`excluded.product_sales`,

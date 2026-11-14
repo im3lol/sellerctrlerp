@@ -70,7 +70,7 @@ export async function getItemPnl(orgId: string, itemId: string, itemCode: string
   }).from(salesReturnLines)
     .innerJoin(salesReturns, eq(salesReturns.id, salesReturnLines.salesReturnId))
     .where(and(eq(salesReturns.organizationId, orgId), eq(salesReturnLines.itemId, itemId),
-      eq(salesReturns.status, "POSTED"), isNull(salesReturns.deliveryNoteId)));
+      eq(salesReturns.status, "POSTED"), isNull(salesReturns.deliveryNoteId), sql`${salesReturns.salesInvoiceId} is not null`));
   const revenue = Number(sales?.revenue ?? 0) - Number(returned?.revenue ?? 0);
   // From the stock ledger, not the invoice line: nothing writes `cost_amount`, so the
   // old `sum(costAmount)` reported every product as pure profit. See lib/erp/sales-cogs.ts.

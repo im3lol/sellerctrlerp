@@ -166,6 +166,9 @@ export async function confirmPlatformReturnAction(
     const [money] = await db.select().from(salesReturns)
       .where(and(eq(salesReturns.id, salesReturnId), eq(salesReturns.organizationId, auth.orgId))).limit(1);
     if (!money) return { error: "المرتجع غير موجود" };
+    if ((await (await import("@/lib/erp/return-workflow/store")).workflowSettings(auth.orgId)).mode !== "DISABLED") {
+      return {error:"Use the return case workspace: financial approval and warehouse receipt are independent"};
+    }
     if (money.deliveryNoteId) return { error: "ده مرتجع مخزون — أكّده من سجل المرتجعات" };
 
     // A short return credits only what came back. Done BEFORE the confirm, because after

@@ -83,6 +83,7 @@ export default async function SalesInvoiceDetailPage({ params }: { params: Promi
           <Field label={t("التاريخ")}>{dt(inv.date)}</Field>
           <Field label={t("الإجمالي")}>{fmt(inv.totalAmount)}</Field>
           <Field label={t("المدفوع / المتبقّي")}>{fmt(inv.paidAmount)} / {fmt(inv.balanceDue)}</Field>
+          {Number(inv.refundedAmount)>0&&<Field label={t("المبلغ المردود للعميل")}>{fmt(inv.refundedAmount)}</Field>}
           {inv.foreignAmount && inv.currencyCode && (
             <Field label={t("بالعملة الأجنبية")}>{fmt(inv.foreignAmount)} {inv.currencyCode} <span className="text-xs text-muted-foreground">{t("(سعر الصرف")} {Number(inv.exchangeRate)})</span></Field>
           )}

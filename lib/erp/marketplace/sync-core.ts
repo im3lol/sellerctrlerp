@@ -292,6 +292,13 @@ export async function syncOrdersCore(p: SyncPrep, userId: string | null, range: 
 
 export type SettlementsSync = { ok: true; imported: number; updated: number; posted: number; deferredHeld: number; returnsCreated: number } | { ok: false; error: string };
 
+async function observeReturnWorkflow(p: SyncPrep, from: Date) {
+  if(p.connector.code!=="AMAZON"||!p.ctx.platformId)return;
+  const platformId=p.ctx.platformId;
+  const {captureReturnSources}=await import("@/lib/erp/return-workflow/sources");
+  await withOrgScope(p.orgId,false,()=>captureReturnSources(p.orgId,platformId,from));
+}
+
 /**
  * Settlements: pull the scheduled settlement reports in `range`, upsert the rows,
  * and (only when the platform's autoPostSettlements is on) post them to GL. When
@@ -323,6 +330,7 @@ export async function syncSettlementsCore(p: SyncPrep, range: DateRange): Promis
     // One extra request, and it is what makes the wallet auditable. Never let it break
     // the settlement sync — the money rows are the part that matters.
     if (p.connector.fetchBalance) await syncBalanceCore(p).catch(() => undefined);
+    await observeReturnWorkflow(p,range.from);
     return { ok: true, imported: up.imported, updated: up.updated, posted, deferredHeld, returnsCreated };
   } catch (e) {
     return coreFail(p, e, "فشل سحب التسويات");
@@ -389,6 +397,7 @@ export async function syncReturnsCore(p: SyncPrep, range: DateRange): Promise<Re
     const rows = await p.connector.fetchReturns(p.cred, range); // slow fetch, unscoped
     const up = await withOrgScope(p.orgId, false, () => upsertPlatformReturns(p.orgId, rows.map(fromFbaReturn), p.connector.code));
     const pr = await withOrgScope(p.orgId, false, () => processPlatformReturns(p.orgId));
+    await observeReturnWorkflow(p,range.from);
     return { ok: true, imported: up.imported, ...pr };
   } catch (e) {
     return coreFail(p, e, "فشل سحب المرتجعات");
@@ -403,6 +412,7 @@ export async function syncReimbursementsCore(p: SyncPrep, range: DateRange): Pro
   try {
     const rows = await p.connector.fetchReimbursements(p.cred, range);
     const up = await withOrgScope(p.orgId, false, () => upsertReimbursements(p.orgId, rows));
+    await observeReturnWorkflow(p,range.from);
     return { ok: true, ...up };
   } catch (e) {
     return coreFail(p, e, "فشل سحب التعويضات");
@@ -429,6 +439,7 @@ export async function syncLedgerCore(p: SyncPrep, range: DateRange): Promise<Fee
   try {
     const rows = await p.connector.fetchLedgerEvents(p.cred, range);
     const up = await withOrgScope(p.orgId, false, () => upsertLedgerEvents(p.orgId, rows));
+    await observeReturnWorkflow(p,range.from);
     return { ok: true, ...up };
   } catch (e) {
     return coreFail(p, e, "فشل سحب دفتر FBA");
