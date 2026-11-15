@@ -99,6 +99,17 @@ export async function executeReturnWorkflowAction(input:unknown){
   const result=await withOrgScope(auth.orgId,false,()=>executeReturnOperation({...cmd,orgId:auth.orgId,userId:auth.userId},async (record,operationId)=>{
    const state=structuredClone(record.state);
    if(cmd.kind==="MATCH"){
+    if(cmd.payload.mode==="EXPECTED"){
+     const d=z.object({expected:z.record(z.string(),qty.nullable()),evidence}).parse(cmd.payload);
+     if(!Object.keys(d.expected).length)throw new Error("Select the original lines whose expected quantity changed");
+     for(const [id,expected]of Object.entries(d.expected)){
+      const line=state.lines.find(l=>l.id===id);if(!line)throw new Error("Expected quantity must reference an already matched line");
+      const resolved=scaled(line.receivedQuantity)+scaled(line.waivedQuantity);
+      if(expected===null?resolved>BigInt(0):scaled(expected)<resolved||scaled(expected)>scaled(line.soldQuantity))throw new Error("Expected quantity cannot erase receipts or exceed the original sale");
+      line.expectedQuantity=expected;
+     }
+     return {state};
+    }
     if(cmd.payload.mode==="LOSS"){
      const d=z.object({movementId:ident,evidence}).parse(cmd.payload);
      const [move]=await db.select().from(stockMovements).where(and(eq(stockMovements.organizationId,auth.orgId),eq(stockMovements.id,d.movementId),eq(stockMovements.type,"OUT"),eq(stockMovements.referenceType,"STOCK_ADJUSTMENT"))).limit(1);

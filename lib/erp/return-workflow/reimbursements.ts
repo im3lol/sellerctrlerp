@@ -12,6 +12,7 @@ import {ensurePlatformReimbursementAccount}from "@/lib/erp/reimbursements-core";
 import {normalizeCode}from "@/lib/erp/amazon-import";
 import {workflowSettings}from "./store";
 import {caseEvidence}from "./evidence";
+import {originalReceiptCost}from "./original-cost";
 
 export type ReimbursementDecision={mode:"CASH_LINK"|"INVENTORY";eventId:string;claimId:string;amount:string;quantity:string;
  settlementId?:string;warehouseId?:string;itemId?:string;originalMovementId?:string;inventoryEvidenceId?:string;date:string;evidence:string};
@@ -64,7 +65,7 @@ export async function applyReimbursement(orgId:string,userId:string,caseId:strin
   if(![normalizeCode(item.code),...codes.map(c=>c.code)].includes(normalizeCode(String(proof.payload.sku??""))))throw new Error("Inventory reimbursement proof SKU mismatch");
   const date=new Date(d.date+"T12:00:00Z");if(!Number.isFinite(date.getTime())||d.date<config.cutoverAt.toISOString().slice(0,10))throw new Error("Invalid reimbursement date");
   const scope=scopeStore.getStore();if(!scope)throw new Error("Tenant scope required");
-  const cost=Number(original.totalCost)/Number(original.quantity),quantity=Number(d.quantity),id=randomUUID();
+  const {unitCost:cost}=originalReceiptCost(original.totalCost,original.quantity,d.quantity),quantity=Number(d.quantity),id=randomUUID();
   const accounts=await resolveAccountIds(orgId,["1104"]),income=await ensurePlatformReimbursementAccount(orgId);
   if(!accounts["1104"]||!income)throw new Error("Missing reimbursement accounts");
   const move=await postStockMovement(scope.tx,{orgId,itemId:item.id,warehouseId:warehouse.id,type:"IN",quantity,unitCost:cost,date,

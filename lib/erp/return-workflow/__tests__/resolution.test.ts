@@ -47,6 +47,11 @@ describe("independent return resolution",()=>{
   expect(projectReturnState(emptyCaseState(),events,both).financial).toBe("POSTED");
   expect(projectReturnState(emptyCaseState(),events,[...both.slice(0,-1),{...both.at(-1)!,reversedBy:"r"}]).financial).toBe("PARTIAL");
  });
+ it("reopens financial reconciliation when Amazon revises an already matched amount",()=>{
+  const events=[{id:"new",kind:"REFUND",sourceId:"a",currency:"EGP",sourceStatus:"Released",payload:{total:"-90"}},{id:"old",kind:"REFUND",sourceId:"a",currency:"EGP",sourceStatus:"Released",payload:{total:"-100"}}];
+  const operations=[{kind:"FINANCIAL",payload:{sourceId:"a",phase:"CREDIT",eventId:"old"}},{kind:"FINANCIAL",payload:{sourceId:"a",phase:"SETTLEMENT",eventId:"old"}}];
+  expect(projectReturnState(emptyCaseState(),events,operations)).toMatchObject({financial:"PARTIAL",fees:"PENDING"});
+ });
 });
 describe("refund accounting precision",()=>{
  it("holds indivisible partial cost rather than reversing 9.99 from an original 10.00",()=>{

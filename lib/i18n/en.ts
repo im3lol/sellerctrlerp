@@ -8612,4 +8612,5 @@ export const EN: Record<string, string> = {
   "مجموع التوزيع يجب أن يساوي المكونات أعلاه. استخدم نفس التوزيع عند مطابقة الدفع.":"Allocations must equal the components above. Use the same allocations when matching payment.",
   "ربط فقد مخزني مُرحّل":"Link a posted inventory loss",
   "اختر مستند الفقد الأصلي":"Select original loss document",
+  "تحديث الكمية المتوقعة فقط":"Update expected quantity only",
 };
