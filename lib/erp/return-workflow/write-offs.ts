@@ -2,7 +2,7 @@ import "server-only";
 import {randomUUID}from "node:crypto";
 import {and,eq}from "drizzle-orm";
 import {db,scopeStore}from "@/lib/db";
-import {returnWorkflowEvents as events,returnWorkflowOperations as operations,platformRemovals,salesPlatforms,
+import {returnWorkflowOperations as operations,platformRemovals,salesPlatforms,
  items,itemCodes,stockBatches,stockAdjustments,stockAdjustmentLines}from "@/db/schema";
 import {postStockMovement}from "@/lib/erp/inventory";
 import {postEntry}from "@/lib/erp/posting";
@@ -11,6 +11,7 @@ import {nextDocumentNumber}from "@/lib/erp/sequence";
 import {normalizeCode}from "@/lib/erp/amazon-import";
 import {scaled,decimal,type ReturnCaseState}from "./model";
 import {workflowSettings}from "./store";
+import {caseEvidence}from "./evidence";
 export type WriteOffDecision={mode:"TRANSIT_LOSS"|"DISPOSAL";eventId?:string;transferId?:string;itemId:string;quantity:string;date:string;evidence:string};
 export async function applyReturnWriteOff(orgId:string,userId:string,caseId:string,platformId:string,state:ReturnCaseState,d:WriteOffDecision){
  const config=await workflowSettings(orgId),date=new Date(d.date+"T12:00:00Z");
@@ -25,12 +26,13 @@ export async function applyReturnWriteOff(orgId:string,userId:string,caseId:stri
   if(!batch)throw new Error("Original transit batch not found");batchId=batch.id;
   tr.lost=decimal(scaled(tr.lost)+scaled(d.quantity));
  }else{
-  const [event]=await db.select().from(events).where(and(eq(events.organizationId,orgId),eq(events.caseId,caseId),eq(events.id,d.eventId??""))).limit(1);
-  if(!event||event.kind!=="REMOVAL")throw new Error("A disposal source is required");
+  const event=await caseEvidence(orgId,caseId,state,d.eventId??"");
+  if(event.kind!=="REMOVAL"||!event.happenedAt||event.happenedAt<config.cutoverAt)throw new Error("A current disposal source is required; historical disposals remain observation-only");
   const [removal]=await db.select().from(platformRemovals).where(and(eq(platformRemovals.organizationId,orgId),eq(platformRemovals.id,event.sourceId))).for("update");
   const [platform]=await db.select().from(salesPlatforms).where(and(eq(salesPlatforms.organizationId,orgId),eq(salesPlatforms.id,platformId))).limit(1);
   const [item]=await db.select().from(items).where(and(eq(items.organizationId,orgId),eq(items.id,d.itemId))).limit(1);
-  if(!removal||removal.orderType?.toLowerCase()!=="disposal"||!platform?.defaultWarehouseId||!item||removal.stockAdjustmentId)throw new Error("A confirmed Disposal source is required; liquidation is not a disposal or automatic reimbursement");
+  const kind=String((removal?.raw as {orderType?:string}|null)?.orderType??removal?.orderType??"").trim().toLowerCase();
+  if(!removal||kind!=="disposal"||!platform?.defaultWarehouseId||!item||removal.stockAdjustmentId)throw new Error("A confirmed Disposal source is required; liquidation is not a disposal or automatic reimbursement");
   const codes=await db.select({code:itemCodes.normalizedCode}).from(itemCodes).where(and(eq(itemCodes.organizationId,orgId),eq(itemCodes.itemId,item.id)));
   if(![normalizeCode(item.code),...codes.map(c=>c.code)].includes(normalizeCode(removal.sku)))throw new Error("Disposal item does not match source SKU");
   const prior=await db.select().from(operations).where(and(eq(operations.organizationId,orgId),eq(operations.kind,"WRITE_OFF")));

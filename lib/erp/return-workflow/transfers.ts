@@ -2,13 +2,14 @@ import "server-only";
 import { randomUUID } from "node:crypto";
 import { and,eq,inArray } from "drizzle-orm";
 import {db,scopeStore}from "@/lib/db";
-import {returnWorkflowEvents as events,returnWorkflowOperations as operations,platformRemovals,salesPlatforms,
+import {returnWorkflowOperations as operations,platformRemovals,salesPlatforms,
  items,itemCodes,warehouses,stockTransfers,stockTransferLines,stockBatches}from "@/db/schema";
 import {postStockMovement}from "@/lib/erp/inventory";
 import {nextDocumentNumber}from "@/lib/erp/sequence";
 import {normalizeCode}from "@/lib/erp/amazon-import";
 import {decimal,scaled,type ReturnCaseState}from "./model";
 import {workflowSettings}from "./store";
+import {caseEvidence}from "./evidence";
 
 export type TransferDecision={phase:"DISPATCH"|"RECEIVE";eventId?:string;transferId?:string;itemId:string;
  fromWarehouseId:string;transitWarehouseId:string;destinationWarehouseId:string;quantity:string;date:string;evidence:string};
@@ -26,11 +27,12 @@ export async function applyReturnTransfer(orgId:string,userId:string,caseId:stri
  const quantity=Number(d.quantity);let from=d.fromWarehouseId,to=d.transitWarehouseId,sourceId="",transferId:string=randomUUID();
  const transfers=[...(state.transfers??[])];
  if(d.phase==="DISPATCH"){
-  const [event]=await db.select().from(events).where(and(eq(events.organizationId,orgId),eq(events.caseId,caseId),eq(events.id,d.eventId??""))).limit(1);
-  if(!event||event.kind!=="REMOVAL")throw new Error("A removal shipment source is required");
+  const event=await caseEvidence(orgId,caseId,state,d.eventId??"");
+  if(event.kind!=="REMOVAL"||!event.happenedAt||event.happenedAt<config.cutoverAt)throw new Error("A current removal shipment source is required; historical removals remain observation-only");
   const [removal]=await db.select().from(platformRemovals).where(and(eq(platformRemovals.organizationId,orgId),eq(platformRemovals.id,event.sourceId))).for("update");
   const [platform]=await db.select().from(salesPlatforms).where(and(eq(salesPlatforms.organizationId,orgId),eq(salesPlatforms.id,platformId))).limit(1);
-  if(!removal||!platform||platform.defaultWarehouseId!==from||!Number(removal.shippedQty)||removal.orderType?.toLowerCase()!=="return")throw new Error("Only a confirmed Return removal can enter the seller's transit warehouse; liquidation requires separate proceeds reconciliation");
+  const kind=String((removal?.raw as {orderType?:string}|null)?.orderType??removal?.orderType??"").trim().toLowerCase();
+  if(!removal||!platform||platform.defaultWarehouseId!==from||!Number(removal.shippedQty)||kind!=="return")throw new Error("Only a confirmed Return removal can enter the seller's transit warehouse; liquidation requires separate proceeds reconciliation");
   if(removal.stockAdjustmentId)throw new Error("The removal already has a legacy inventory adjustment; reconcile that document first");
   const codes=await db.select({code:itemCodes.normalizedCode}).from(itemCodes).where(and(eq(itemCodes.organizationId,orgId),eq(itemCodes.itemId,item.id)));
   if(![normalizeCode(item.code),...codes.map(c=>c.code)].includes(normalizeCode(removal.sku)))throw new Error("The removal SKU does not match this item");
