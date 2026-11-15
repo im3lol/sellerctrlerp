@@ -1,3 +1,4 @@
+import { getLatestExchangeRate } from "@/lib/erp/currency";
 import { notFound, redirect } from "next/navigation";
 import { fill } from "@/lib/i18n";
 import { getT } from "@/lib/i18n/server";
@@ -36,9 +37,9 @@ export default async function EditPurchaseOrderPage({ params }: { params: Promis
     ]);
     const unitsByItem = await getUnitsByItem(orgId);
 
-    const latestRates: Record<string, number> = {};
-    for (const r of rateRows) if (!(r.currencyCode in latestRates)) latestRates[r.currencyCode] = Number(r.rate);
-    for (const c of currRows) if (!(c.code in latestRates)) latestRates[c.code] = Number(c.exchangeRate) || 1;
+    const baseCode = currRows.find(c => c.isBase)?.code ?? "EGP";
+    const latestRates = Object.fromEntries(await Promise.all(currRows.map(async c =>
+      [c.code, await getLatestExchangeRate(orgId, c.code, baseCode)] as const)));
 
     const rateHistory: Record<string, { date: string; rate: number }[]> = {};
     for (const r of rateRows) {

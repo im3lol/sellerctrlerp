@@ -6,6 +6,8 @@
  * `npm run i18n:report` lists what is still untranslated.
  */
 export const EN: Record<string, string> = {
+  "آخر سعر مسجّل": "Latest recorded rate",
+  "مفيش سعر صرف مسجّل لـ{0} — اكتبه هنا أو أضِفه من الإعدادات ← العملات.": "No exchange rate is recorded for {0} — enter it here or add it in Settings → Currencies.",
   "منتظر رجوعه": "Awaiting return",
   "وصل سليم": "Received in good condition",
   "وصل تالف — خسائر": "Received damaged — loss",

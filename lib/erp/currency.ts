@@ -16,16 +16,26 @@ import { currencies, exchangeRates } from "@/db/schema";
  * rate, else 0 — the caller treats 0 as "no rate on file" and refuses to post.
  * The base currency (or a blank code) always returns 1.
  */
-export async function getExchangeRate(orgId: string, code: string, baseCode: string, date: Date): Promise<number> {
+async function readExchangeRate(orgId: string, code: string, baseCode: string, date?: Date): Promise<number> {
   const c = (code ?? "").toUpperCase();
   if (!c || c === baseCode.toUpperCase()) return 1;
   const [r] = await db.select({ rate: exchangeRates.rate }).from(exchangeRates)
-    .where(and(eq(exchangeRates.organizationId, orgId), eq(exchangeRates.currencyCode, c), lte(exchangeRates.date, date)))
+    .where(and(eq(exchangeRates.organizationId, orgId), eq(exchangeRates.currencyCode, c), date ? lte(exchangeRates.date, date) : undefined))
     .orderBy(desc(exchangeRates.date)).limit(1);
   if (r && Number(r.rate) > 0) return Number(r.rate);
   const [snap] = await db.select({ rate: currencies.exchangeRate }).from(currencies)
     .where(and(eq(currencies.organizationId, orgId), eq(currencies.code, c))).limit(1);
   return snap && Number(snap.rate) > 0 ? Number(snap.rate) : 0;
+}
+
+/** Historical accounting keeps its original as-of-date semantics. */
+export async function getExchangeRate(orgId: string, code: string, baseCode: string, date: Date): Promise<number> {
+  return readExchangeRate(orgId, code, baseCode, date);
+}
+
+/** New purchase pricing defaults to the latest recorded rate, regardless of order date. */
+export async function getLatestExchangeRate(orgId: string, code: string, baseCode: string): Promise<number> {
+  return readExchangeRate(orgId, code, baseCode);
 }
 
 /**

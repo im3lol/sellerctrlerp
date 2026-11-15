@@ -10,7 +10,7 @@ import { db } from "@/lib/db";
 import { nextDocumentNumber } from "@/lib/erp/sequence";
 import { purchaseOrders, purchaseOrderLines, suppliers, warehouses, materialRequests } from "@/db/schema";
 import { authorizeErp, type ActionState } from "@/lib/erp/action-auth";
-import { getBaseCurrencyCode, getExchangeRate } from "@/lib/erp/currency";
+import { getBaseCurrencyCode, getLatestExchangeRate } from "@/lib/erp/currency";
 import { validateRate, rateSourceOf } from "@/lib/erp/fx";
 import { tryRecordAudit } from "@/lib/erp/audit";
 import { catalogFromOrder } from "@/lib/erp/supplier-catalog";
@@ -46,8 +46,8 @@ const schema = z.object({
   // (× exchange rate) before storing, so the GL/inventory stay base-only. Omitted = base.
   currencyCode: z.string().optional(),
   /**
-   * The rate to price this order at. Omitted → the rate on file for the order's own
-   * date. Given → a human chose it, which is the point: a rate is a judgement about a
+   * The rate to price this order at. Omitted → the latest recorded system rate.
+   * Given → a human chose it, which is the point: a rate is a judgement about a
    * day, and the person raising the order knows which day they mean better than a table
    * of the last few figures anyone happened to enter.
    */
@@ -91,9 +91,9 @@ async function resolvePurchaseOrderValues(orgId: string, data: POParsed) {
     const bad = validateRate(manual);
     if (bad) return { error: bad };
   }
-  // The rate on file for THIS document's date — the default, and the yardstick for
-  // whether a submitted rate counts as an override.
-  const auto = isForeign ? await getExchangeRate(orgId, code, baseCode, d) : 1;
+  // Latest recorded purchase rate, also used by the form. Historical GL readers
+  // retain their separate as-of-date lookup.
+  const auto = isForeign ? await getLatestExchangeRate(orgId, code, baseCode) : 1;
   const rate = !isForeign ? 1 : (manual ?? auto);
   // "Manual" means a human chose a different number, not merely that the form posted the
   // field. Deciding it here rather than trusting a flag from the client keeps the answer

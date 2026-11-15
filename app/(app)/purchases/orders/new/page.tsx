@@ -1,3 +1,4 @@
+import { getLatestExchangeRate } from "@/lib/erp/currency";
 import { and, asc, desc, eq, isNotNull, sql } from "drizzle-orm";
 import { getT } from "@/lib/i18n/server";
 import { loadErpPage } from "@/lib/erp/org";
@@ -28,18 +29,17 @@ export default async function NewPurchaseOrderPage({ searchParams }: { searchPar
       db.select({ nameAr: organizations.nameAr, vatRate: organizations.vatRate }).from(organizations).where(eq(organizations.id, orgId)).limit(1),
       db.select({ code: currencies.code, nameAr: currencies.nameAr, isBase: currencies.isBase, exchangeRate: currencies.exchangeRate }).from(currencies)
         .where(and(eq(currencies.organizationId, orgId), eq(currencies.isActive, true))).orderBy(currencies.isBase, currencies.code),
-      // Dated history, not just the newest: an order dated last month must default to
-      // last month's rate, and the person raising it should be able to see and pick from
-      // what was actually recorded.
+      // Keep dated history available for deliberate overrides; default pricing uses
+      // the separate latest-rate lookup, without this display list's 200-row cap.
       db.select({ currencyCode: exchangeRates.currencyCode, date: exchangeRates.date, rate: exchangeRates.rate }).from(exchangeRates)
         .where(eq(exchangeRates.organizationId, orgId)).orderBy(desc(exchangeRates.date)).limit(200),
     ]);
     const unitsByItem = await getUnitsByItem(orgId);
 
-    // Latest rate per currency: historical exchange_rates row wins over the snapshot.
-    const latestRates: Record<string, number> = {};
-    for (const r of rateRows) if (!(r.currencyCode in latestRates)) latestRates[r.currencyCode] = Number(r.rate);
-    for (const c of currRows) if (!(c.code in latestRates)) latestRates[c.code] = Number(c.exchangeRate) || 1;
+    // One precise latest lookup per currency, matching the server save action.
+    const baseCode = currRows.find(c => c.isBase)?.code ?? "EGP";
+    const latestRates = Object.fromEntries(await Promise.all(currRows.map(async c =>
+      [c.code, await getLatestExchangeRate(orgId, c.code, baseCode)] as const)));
 
     const rateHistory: Record<string, { date: string; rate: number }[]> = {};
     for (const r of rateRows) {

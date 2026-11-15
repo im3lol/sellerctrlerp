@@ -4,7 +4,7 @@
  * A rate always means: **1 unit of the document currency = `rate` units of base**.
  *
  * The rule this file serves: **one approved rate runs the whole cycle.** Whoever raises
- * the purchase order picks the rate — the one recorded for that day, one they choose off
+ * the purchase order picks the rate — the latest recorded default, one they choose off
  * the list, or one they type — and the receipt and the invoice carry that same number.
  *
  * They are not free to disagree. A shipment valued one way when it arrives and another
@@ -41,10 +41,10 @@ export function rateSourceOf(submitted: number | null | undefined, auto: number)
 export type RateChoice = { date: string; rate: number };
 
 /**
- * The rate a document should DEFAULT to: the newest one recorded on or before its own
- * date. Not the newest one overall — an order dated last month must not be priced with
- * today's rate just because today's is the last row in the table. It is only a default;
- * the person raising the document can pick another or type their own.
+ * Historical as-of lookup: the newest rate recorded on or before the specified
+ * date. Historical accounting readers retain this rule. New purchase pricing uses
+ * getLatestExchangeRate separately, so a back-dated purchase can deliberately use
+ * the latest recorded rate without changing historical accounting lookups.
  */
 export function rateAsOf(rates: RateChoice[], date: string): RateChoice | null {
   const day = date.slice(0, 10);
