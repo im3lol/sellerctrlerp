@@ -2076,6 +2076,8 @@ export const salesInvoices = pgTable(
     totalAmount: money("total_amount").notNull().default("0"),
     paidAmount: money("paid_amount").notNull().default("0"),
     balanceDue: money("balance_due").notNull().default("0"),
+    /** Cash/marketplace refunds actually reconciled, separate from credit notes. */
+    refundedAmount: money("refunded_amount").notNull().default("0"),
     /** Last overdue-reminder stage sent (days after due; lib/erp/reminders.ts). 0 = none. */
     reminderStage: integer("reminder_stage").notNull().default(0),
     // Multi-currency: GL always stores base-currency amounts; these fields preserve
@@ -2970,6 +2972,7 @@ export const marketplaceSettlementTxns = pgTable(
     // DEFERRED → DEFERRED_RELEASED → RELEASED, so it is traceability only, never a key;
     // `shipmentId` stays the same across all three and is what dedupKey anchors on.
     transactionId: text("transaction_id"),
+    sourceIdentifiers: jsonb("source_identifiers").$type<{relatedIdentifierName?:string;relatedIdentifierValue?:string}[]>(),
     shipmentId: text("shipment_id"),
     // The itemised fee tree exactly as Amazon returns it, so the order-level view can show
     // what Seller Central shows (each fee split into base and tax) without re-deriving it.
@@ -3357,6 +3360,7 @@ export const salesReturns = pgTable(
     salesInvoiceId: text("sales_invoice_id"),
     deliveryNoteId: text("delivery_note_id"),
     totalAmount: money("total_amount").notNull().default("0"),
+    financialComponents: jsonb("financial_components").$type<{subtotal:string;discount:string;tax:string;shipping:string}>(),
     notes: text("notes"),
     // Marketplace return metadata (null for hand-keyed returns). `disposition` drives the
     // stock side at confirm: SELLABLE → restock; UNSELLABLE/DAMAGED/DEFECTIVE → damaged

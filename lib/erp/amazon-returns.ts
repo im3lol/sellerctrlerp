@@ -3,6 +3,7 @@
 // returned unit. No I/O here — vitest-friendly, mirrors amazon-settlement.ts.
 
 export type FbaReturnRow = {
+  fulfillment?: "FBA" | "MFN";
   returnDate: Date | null;
   orderId: string;
   sku: string;
@@ -37,6 +38,7 @@ export function parseReturnsReport(tsv: string): FbaReturnRow[] {
     const rawDate = cell(c, iDate);
     const d = rawDate ? new Date(rawDate) : null;
     out.push({
+      fulfillment: "FBA",
       returnDate: d && !Number.isNaN(d.getTime()) ? d : null,
       orderId, sku,
       asin: cell(c, iAsin),

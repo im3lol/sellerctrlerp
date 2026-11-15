@@ -124,6 +124,7 @@ export async function confirmRemovalAction(removalId: string, outcome: RemovalOu
     const [rm] = await db.select().from(platformRemovals)
       .where(and(eq(platformRemovals.id, removalId), eq(platformRemovals.organizationId, auth.orgId))).limit(1);
     if (!rm) return { error: "أمر السحب غير موجود" };
+    if(await (await import("@/lib/erp/return-workflow/sources")).newReturnWriterEnabled(auth.orgId,rm.channel))return {error:"اعتمد مراحل النقل أو الإتلاف من ملف المرتجع؛ مسار الترحيل القديم متوقف"};
     if (rm.status !== "PENDING") return { error: "تمّت معالجته بالفعل" };
 
     if (outcome === "IGNORE") {

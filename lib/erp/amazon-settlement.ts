@@ -31,6 +31,7 @@ export type SettlementTxn = {
   // back to the composite key below.
   dedupKey?: string;
   transactionId?: string | null;
+  sourceIdentifiers?: { relatedIdentifierName?: string; relatedIdentifierValue?: string }[];
   shipmentId?: string | null;
   breakdown?: unknown;
   items?: SettlementTxnItem[];

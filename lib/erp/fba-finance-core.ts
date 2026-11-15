@@ -1,5 +1,6 @@
 import "server-only";
 import { db } from "@/lib/db";
+import {sql}from "drizzle-orm";
 import { fbaReimbursements, fbaLedgerEvents } from "@/db/schema";
 import type { FbaReimbursementRow } from "@/lib/erp/amazon-reimbursements";
 import { ledgerDedupKey, type FbaLedgerRow } from "@/lib/erp/amazon-ledger";
@@ -23,7 +24,11 @@ export async function upsertReimbursements(orgId: string, rows: FbaReimbursement
   let imported = 0;
   for (let i = 0; i < merged.length; i += 500) {
     const ins = await db.insert(fbaReimbursements).values(merged.slice(i, i + 500))
-      .onConflictDoNothing({ target: [fbaReimbursements.organizationId, fbaReimbursements.reimbursementId, fbaReimbursements.sku] })
+      .onConflictDoUpdate({ target: [fbaReimbursements.organizationId, fbaReimbursements.reimbursementId, fbaReimbursements.sku],set:{
+        approvalDate:sql`excluded.approval_date`,amountPerUnit:sql`excluded.amount_per_unit`,amountTotal:sql`excluded.amount_total`,
+        quantityReimbursedCash:sql`excluded.quantity_reimbursed_cash`,quantityReimbursedInventory:sql`excluded.quantity_reimbursed_inventory`,
+        raw:sql`excluded.raw`,updatedAt:new Date(),
+      }})
       .returning({ id: fbaReimbursements.id });
     imported += ins.length;
   }
@@ -44,7 +49,7 @@ export async function upsertLedgerEvents(orgId: string, rows: FbaLedgerRow[]): P
   let imported = 0;
   for (let i = 0; i < merged.length; i += 500) {
     const ins = await db.insert(fbaLedgerEvents).values(merged.slice(i, i + 500))
-      .onConflictDoNothing({ target: [fbaLedgerEvents.organizationId, fbaLedgerEvents.dedupKey] })
+      .onConflictDoUpdate({ target: [fbaLedgerEvents.organizationId, fbaLedgerEvents.dedupKey],set:{quantity:sql`excluded.quantity`,raw:sql`excluded.raw`}})
       .returning({ id: fbaLedgerEvents.id });
     imported += ins.length;
   }

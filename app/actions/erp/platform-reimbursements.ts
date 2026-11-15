@@ -24,6 +24,7 @@ export async function confirmReimbursementAction(reimbursementId: string): Promi
     const [rb] = await db.select().from(fbaReimbursements)
       .where(and(eq(fbaReimbursements.id, reimbursementId), eq(fbaReimbursements.organizationId, auth.orgId))).limit(1);
     if (!rb) return { error: "التعويض غير موجود" };
+    if(await (await import("@/lib/erp/return-workflow/sources")).newReturnWriterEnabled(auth.orgId,rb.channel))return {error:"طابق التعويض من ملف المرتجع؛ مسار الترحيل القديم متوقف"};
     if (rb.status !== "PENDING") return { error: "تمّت معالجته بالفعل" };
 
     const amount = Number(rb.amountTotal);

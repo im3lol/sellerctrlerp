@@ -246,7 +246,7 @@ export async function getSalesLedger(orgId: string, filters: SalesLedgerFilters)
     const list = await db
       .select({
         id: salesReturns.id, number: salesReturns.number, date: salesReturns.date,
-        status: salesReturns.status, invoiceId: salesReturns.salesInvoiceId, customerId: salesReturns.customerId, total: salesReturns.totalAmount,
+        status: salesReturns.status, invoiceId: salesReturns.salesInvoiceId, deliveryId:salesReturns.deliveryNoteId, components:salesReturns.financialComponents,customerId: salesReturns.customerId, total: salesReturns.totalAmount,
       })
       .from(salesReturns)
       .where(and(...conds));
@@ -265,8 +265,10 @@ export async function getSalesLedger(orgId: string, filters: SalesLedgerFilters)
       rows.push({
         id: `RETURN-${r.id}`, number: r.number, date: r.date,
         customerName: custMap.get(r.customerId) ?? "—", docType: "RETURN", status: r.status, financialReturn: Boolean(r.invoiceId),
-        qtyTotal: Number(qm.get(r.id)?.total ?? 0), qtyDelivered: r.invoiceId ? null : Number(qm.get(r.id)?.total ?? 0),
-        subtotal: r.invoiceId ? Number(qm.get(r.id)?.net ?? 0) : null, shipping: null, discount: null, tax: r.invoiceId ? Math.round((Number(r.total) - Number(qm.get(r.id)?.net ?? 0)) * 100) / 100 : null, total: r.invoiceId ? num(r.total) : null,
+        qtyTotal: Number(qm.get(r.id)?.total ?? 0), qtyDelivered: r.deliveryId ? Number(qm.get(r.id)?.total ?? 0) : null,
+        subtotal: r.invoiceId ? Number(r.components?.subtotal??qm.get(r.id)?.net??0) : null,
+        shipping:r.components?Number(r.components.shipping):null,discount:r.components?Number(r.components.discount):null,
+        tax: r.invoiceId ? r.components?Number(r.components.tax):Math.round((Number(r.total) - Number(qm.get(r.id)?.net ?? 0)) * 100) / 100 : null, total: r.invoiceId ? num(r.total) : null,
         href: `/sales/returns/${r.number}`,
       });
     }

@@ -72,7 +72,7 @@ async function computePlatformPnl(orgId: string, channel: string, platformId: st
     .leftJoin(deliveryNotes, eq(deliveryNotes.id, salesInvoices.deliveryNoteId))
     .innerJoin(salesOrders, or(eq(salesOrders.id, salesInvoices.salesOrderId), eq(salesOrders.id, deliveryNotes.salesOrderId)))
     .where(and(eq(salesReturns.organizationId, orgId), eq(salesReturns.status, "POSTED"),
-      isNull(salesReturns.deliveryNoteId),
+      isNull(salesReturns.deliveryNoteId), sql`${salesReturns.salesInvoiceId} is not null`,
       platformId ? or(eq(salesOrders.platformId, platformId), eq(salesOrders.channel, channel)) : eq(salesOrders.channel, channel)));
   const revenue = Number(sales[0]?.revenue ?? 0) - Number(returned?.revenue ?? 0);
   const referralFee = Number(fees?.referral ?? 0);

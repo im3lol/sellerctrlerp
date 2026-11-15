@@ -43,6 +43,15 @@ const screenshotTxn: ApiTransaction = {
 };
 
 describe("Amazon transaction mapping", () => {
+  it("keeps equal-value refunds for the same order distinct by Amazon refund identity",()=>{
+    const txn={...screenshotTxn,transactionType:"Refund",totalAmount:egp(-100)};
+    const a=toTxnRow({...txn,relatedIdentifiers:[...screenshotTxn.relatedIdentifiers!,{relatedIdentifierName:"REFUND_ID",relatedIdentifierValue:"refund-a"}]});
+    const b=toTxnRow({...txn,relatedIdentifiers:[...screenshotTxn.relatedIdentifiers!,{relatedIdentifierName:"REFUND_ID",relatedIdentifierValue:"refund-b"}]});
+    expect(a.dedupKey).not.toBe(b.dedupKey);
+    const released=toTxnRow({...txn,transactionId:"new-transaction",transactionStatus:"RELEASED",relatedIdentifiers:[...screenshotTxn.relatedIdentifiers!,{relatedIdentifierName:"REFUND_ID",relatedIdentifierValue:"refund-a"}]});
+    expect(released.dedupKey).toBe(a.dedupKey);
+    expect(a.sourceIdentifiers).toEqual(expect.arrayContaining([{relatedIdentifierName:"REFUND_ID",relatedIdentifierValue:"refund-a"}]));
+  });
   it("reads the Seller Central figures line for line", () => {
     const r = toTxnRow(screenshotTxn);
     expect(r.productSales).toBe(1300);

@@ -17,7 +17,20 @@ export type RemovalRow = {
   cancelledQty: number;
   disposedQty: number; // Amazon destroyed these
   shippedQty: number;  // Amazon shipped these back to the seller
+  pendingQty?:number;
+  shipments?:RemovalShipment[];
 };
+export type RemovalShipment={removalOrderId:string;sku:string;fnsku:string;disposition:string;shipmentDate:string|null;shippedQty:number;carrier:string;trackingNumber:string};
+export function parseRemovalShipmentsReport(tsv:string):RemovalShipment[]{
+ const lines=tsv.split(/\r?\n/).filter(Boolean);if(lines.length<2)return [];
+ const headers=lines[0].split("\t").map(h=>h.trim().toLowerCase());
+ if(!["order-id","sku","shipped-quantity"].every(h=>headers.includes(h)))throw new Error("Invalid removal shipment report headers");
+ return lines.slice(1).map(line=>{const c=line.split("\t"),get=(h:string)=>(c[headers.indexOf(h)]??"").trim();
+  const raw=get("shipment-date"),date=raw?new Date(raw):null,qty=Number(get("shipped-quantity"));
+  if(!get("order-id")||!get("sku")||!Number.isFinite(qty)||qty<0)throw new Error("Invalid removal shipment row");
+  return {removalOrderId:get("order-id"),sku:get("sku"),fnsku:get("fnsku"),disposition:get("disposition"),shipmentDate:date&&Number.isFinite(date.getTime())?date.toISOString():null,shippedQty:qty,carrier:get("carrier"),trackingNumber:get("tracking-number")};
+ });
+}
 
 export function parseRemovalsReport(tsv: string): RemovalRow[] {
   const lines = tsv.split(/\r?\n/).filter((l) => l.length > 0);
@@ -46,6 +59,7 @@ export function parseRemovalsReport(tsv: string): RemovalRow[] {
       sku, fnsku: cell(c, iFnsku), disposition: cell(c, iDisp),
       requestedQty: num(c, iReq), cancelledQty: num(c, iCancel),
       disposedQty: num(c, iDisposed), shippedQty: num(c, iShipped),
+      pendingQty:num(c,idx("in-process-quantity")),
     });
   }
   return out;

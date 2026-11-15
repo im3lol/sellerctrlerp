@@ -65,7 +65,7 @@ export default async function ProfitabilityReportPage({ searchParams }: { search
       })
         .from(salesReturnLines)
         .innerJoin(salesReturns, eq(salesReturns.id, salesReturnLines.salesReturnId))
-        .where(and(eq(salesReturns.organizationId, orgId), eq(salesReturns.status, "POSTED"), isNull(salesReturns.deliveryNoteId), gte(salesReturns.date, fromD), lte(salesReturns.date, toD)))
+        .where(and(eq(salesReturns.organizationId, orgId), eq(salesReturns.status, "POSTED"), isNull(salesReturns.deliveryNoteId), sql`${salesReturns.salesInvoiceId} is not null`, gte(salesReturns.date, fromD), lte(salesReturns.date, toD)))
         .groupBy(salesReturnLines.itemId),
       // ACTUAL Amazon fees deducted in settlements over the period, mapped to items by
       // normalized SKU → item_codes — real charges, not the pre-sale estimate.

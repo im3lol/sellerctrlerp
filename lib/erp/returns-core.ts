@@ -61,7 +61,9 @@ export async function upsertPlatformReturns(orgId: string, rows: PlatformReturnR
   let imported = 0;
   for (let i = 0; i < merged.length; i += 500) {
     const inserted = await db.insert(platformReturns).values(merged.slice(i, i + 500))
-      .onConflictDoNothing({ target: [platformReturns.organizationId, platformReturns.dedupKey] })
+      .onConflictDoUpdate({ target: [platformReturns.organizationId, platformReturns.dedupKey],set:{
+        quantity:sql`excluded.quantity`,disposition:sql`excluded.disposition`,reason:sql`excluded.reason`,raw:sql`excluded.raw`,
+      }})
       .returning({ id: platformReturns.id });
     imported += inserted.length;
   }
@@ -76,6 +78,7 @@ export type ProcessReturnsResult = { created: number; linkedToSettlement: number
  * مرتجع فاتورة for the operator to review and confirm — never auto-confirmed.
  */
 export async function processPlatformReturns(orgId: string): Promise<ProcessReturnsResult> {
+  const newAmazonWriter = await (await import("@/lib/erp/return-workflow/sources")).newReturnWriterEnabled(orgId,"AMAZON");
   const pending = await db.select({
     id: platformReturns.id, channel: platformReturns.channel, orderId: platformReturns.orderId, sku: platformReturns.sku,
     quantity: platformReturns.quantity, returnDate: platformReturns.returnDate,
@@ -101,6 +104,7 @@ export async function processPlatformReturns(orgId: string): Promise<ProcessRetu
 
   let created = 0, linkedToSettlement = 0, unmatched = 0;
   for (const p of pending) {
+    if (newAmazonWriter && (p.channel ?? "AMAZON") === "AMAZON") continue;
     const norm = normalizeCode(p.sku);
     const channel = p.channel ?? "AMAZON";
     const label = channel === "AMAZON" ? "أمازون FBA" : channel === "NOON" ? "نون" : channel;

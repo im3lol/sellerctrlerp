@@ -15,7 +15,7 @@ SELECT 'sales_invoice_line_header_discount_mismatch' AS check_name,count(*) AS i
  WHERE abs(o.discount_amount-coalesce((SELECT sum(l.discount_amount) FROM sales_invoice_lines l WHERE l.sales_invoice_id=o.id),0))>0.01;
 SELECT 'sales_invoice_balance_formula' AS check_name,count(*) AS issues FROM sales_invoices i
  WHERE i.status IN ('POSTED','PARTIAL_PAID','PAID') AND abs(i.balance_due-(i.total_amount-i.paid_amount-coalesce((
- SELECT sum(r.total_amount) FROM sales_returns r WHERE r.sales_invoice_id=i.id AND r.status='POSTED' AND r.delivery_note_id IS NULL),0)))>0.01;
+ SELECT sum(r.total_amount) FROM sales_returns r WHERE r.sales_invoice_id=i.id AND r.status='POSTED' AND r.delivery_note_id IS NULL),0)+i.refunded_amount))>0.01;
 SELECT 'purchase_invoice_balance_formula' AS check_name,count(*) AS issues FROM purchase_invoices i
  WHERE i.status IN ('POSTED','PARTIAL_PAID','PAID') AND abs(i.balance_due-(i.total_amount-i.paid_amount-coalesce((
  SELECT sum(r.total_amount) FROM purchase_returns r WHERE r.purchase_invoice_id=i.id AND r.status='POSTED' AND r.purchase_receipt_id IS NULL),0)))>0.01;

@@ -37,7 +37,7 @@ export async function GET(req: Request) {
     db.select({ itemId: salesReturnLines.itemId, revenue: sql<string>`sum(${salesReturnLines.totalAmount})` })
       .from(salesReturnLines)
       .innerJoin(salesReturns, eq(salesReturns.id, salesReturnLines.salesReturnId))
-      .where(and(eq(salesReturns.organizationId, orgId), eq(salesReturns.status, "POSTED"), isNull(salesReturns.deliveryNoteId), gte(salesReturns.date, fromD), lte(salesReturns.date, toD)))
+      .where(and(eq(salesReturns.organizationId, orgId), eq(salesReturns.status, "POSTED"), isNull(salesReturns.deliveryNoteId), sql`${salesReturns.salesInvoiceId} is not null`, gte(salesReturns.date, fromD), lte(salesReturns.date, toD)))
       .groupBy(salesReturnLines.itemId),
     getSettlementFeesByItem(orgId, fromD, toD),
   ]);
