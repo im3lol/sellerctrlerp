@@ -17,11 +17,12 @@ import {originalReceiptCost}from "./original-cost";
 
 export type ReceiptDecision={lineId:string;quantity:string;movementId:string;warehouseId:string;
  condition:"SELLABLE"|"QUARANTINE"|"WRITE_OFF";location:"AMAZON"|"LOCAL";
- eventIds:string[];evidence:string;date:string};
+ eventIds:string[];evidence:string;date:string;notReceived?:boolean};
 
 export async function applyReturnReceipt(orgId:string,userId:string,caseId:string,state:ReturnCaseState,d:ReceiptDecision){
   const line=state.lines.find(l=>l.id===d.lineId);
   if(!state.matched||!line)throw new Error("Match the original sales line first");
+  if(d.notReceived&&d.condition!=="WRITE_OFF")throw new Error("Missing goods cannot be restocked");
   assertReceiptCapacity(line,d.quantity);
   if(d.evidence.trim().length<5)throw new Error("Receipt evidence is required");
   const [movement]=await db.select().from(stockMovements).where(and(eq(stockMovements.organizationId,orgId),eq(stockMovements.id,d.movementId))).for("update");
@@ -89,7 +90,7 @@ export async function applyReturnReceipt(orgId:string,userId:string,caseId:strin
     .where(and(eq(deliveryNotes.organizationId,orgId),eq(deliveryNotes.id,line.deliveryId))).limit(1):[];
   if(line.deliveryId&&!["DELIVERED","INVOICED"].includes(dn?.status??""))throw new Error("Original delivery is no longer posted");
   await db.insert(salesReturns).values({id,organizationId:orgId,number,date,status:"POSTED",customerId:invoice.customerId,
-    warehouseId:d.warehouseId,deliveryNoteId:line.deliveryId,salesOrderId:dn?.orderId??invoice.orderId,
+    warehouseId:d.warehouseId,deliveryNoteId:d.notReceived?null:line.deliveryId,salesOrderId:dn?.orderId??invoice.orderId,
     totalAmount:String(value),disposition:d.condition==="SELLABLE"?"SELLABLE":"UNSELLABLE",channel:"AMAZON",
     notes:`Return workflow stock ${caseId}; original issue ${movement.id}; ${d.evidence}`});
   await db.insert(salesReturnLines).values({salesReturnId:id,itemId:line.itemId,quantity:d.quantity,unitPrice:String(cost),totalAmount:String(value)});
@@ -101,6 +102,7 @@ export async function applyReturnReceipt(orgId:string,userId:string,caseId:strin
   }
   if(value){const jv=await postEntry(scope.tx,{orgId,date,sourceType:"SALES_RETURN",sourceId:id,description:`Stock receipt ${number}`,userId,
     lines:[{accountId:d.condition==="WRITE_OFF"?A["5301"]:A["1104"],debit:value,credit:0},{accountId:A["5101"],debit:0,credit:value}]});documents.push({type:"JOURNAL",id:jv});}
-  return {state:{...state,lines:state.lines.map(l=>l.id===line.id?{...l,receivedQuantity:decimal(scaled(l.receivedQuantity)+scaled(d.quantity)),
+  return {state:{...state,lines:state.lines.map(l=>l.id===line.id?{...l,receivedQuantity:d.notReceived?l.receivedQuantity:decimal(scaled(l.receivedQuantity)+scaled(d.quantity)),
+    waivedQuantity:d.notReceived?decimal(scaled(l.waivedQuantity)+scaled(d.quantity)):l.waivedQuantity,
     writtenOffQuantity:d.condition==="WRITE_OFF"?decimal(scaled(l.writtenOffQuantity)+scaled(d.quantity)):l.writtenOffQuantity}:l)},documents};
 }

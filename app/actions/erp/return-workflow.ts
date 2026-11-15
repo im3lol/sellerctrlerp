@@ -1,13 +1,13 @@
 "use server";
 import { randomUUID } from "node:crypto";
-import { and, eq, inArray, or } from "drizzle-orm";
+import { and,desc, eq, inArray,isNull, or } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { withOrgScope,withPlatformScope } from "@/lib/db-scope";
 import { authorizeErp } from "@/lib/erp/action-auth";
 import type { ErpPermission } from "@/lib/erp/permissions";
 import { revalidatePath } from "@/lib/safe-revalidate";
-import { returnWorkflowSettings as settings, returnWorkflowCases as cases, returnWorkflowEvents as events,returnWorkflowOperations as operations,items,
+import { returnWorkflowSettings as settings, returnWorkflowCases as cases, returnWorkflowEvents as events,returnWorkflowOperations as operations,items,itemCodes,
   salesInvoices, salesInvoiceLines, salesOrders, deliveryNotes, salesPlatforms, warehouses, stockMovements,stockAdjustments,journalEntries } from "@/db/schema";
 import { listReturnCases, returnCaseDetail, workflowSettings, executeReturnOperation } from "@/lib/erp/return-workflow/store";
 import { captureReturnSources } from "@/lib/erp/return-workflow/sources";
@@ -22,6 +22,7 @@ import {recordAudit}from "@/lib/erp/audit";
 import {getErpContext}from "@/lib/erp/erp-context";
 import {getActiveOrg}from "@/lib/erp/org";
 import {getMemberAccess}from "@/lib/erp/auth-guard";
+import {returnProducts}from "@/lib/erp/return-workflow/products";
 
 const ident=z.string().trim().min(1).max(200);
 const qty=z.string().regex(/^\d+(?:\.\d{1,4})?$/).max(25);
@@ -48,7 +49,9 @@ export async function getReturnWorkspaceAction(caseId?:string,page=1){
    .innerJoin(cases,and(eq(cases.id,events.caseId),eq(cases.organizationId,auth.orgId)))
    .where(and(eq(events.organizationId,auth.orgId),eq(cases.platformId,storedDetail.record.platformId),inArray(events.kind,["LEDGER","REIMBURSEMENT"]))).limit(250):[];
   const losses=storedDetail?await db.select().from(stockMovements).where(and(eq(stockMovements.organizationId,auth.orgId),eq(stockMovements.type,"OUT"),eq(stockMovements.referenceType,"STOCK_ADJUSTMENT"))).limit(100):[];
-  const itemList=await db.select({id:items.id,code:items.code,name:items.nameAr}).from(items).where(and(eq(items.organizationId,auth.orgId),eq(items.isActive,true))).limit(2000);
+  const itemList=await db.select({id:items.id,code:items.code,name:items.nameAr,image:items.image}).from(items).where(eq(items.organizationId,auth.orgId)).limit(5000);
+  const codes=await db.select({itemId:itemCodes.itemId,code:itemCodes.normalizedCode}).from(itemCodes).where(eq(itemCodes.organizationId,auth.orgId));
+  const listEvents=list.length?await db.select().from(events).where(and(eq(events.organizationId,auth.orgId),inArray(events.caseId,list.map(c=>c.id)))).orderBy(desc(events.createdAt)):[];
   const detail=storedDetail?{...storedDetail,operations:storedDetail.operations.map(({beforeState:_before,...operation})=>operation)}:null;
   const available=detail?await db.select({invoiceId:salesInvoices.id,invoiceNumber:salesInvoices.number,lineId:salesInvoiceLines.id,
    itemId:salesInvoiceLines.itemId,quantity:salesInvoiceLines.quantity,deliveryId:salesInvoices.deliveryNoteId})
@@ -56,7 +59,7 @@ export async function getReturnWorkspaceAction(caseId?:string,page=1){
    .leftJoin(deliveryNotes,eq(deliveryNotes.id,salesInvoices.deliveryNoteId))
    .innerJoin(salesOrders,or(eq(salesOrders.id,salesInvoices.salesOrderId),eq(salesOrders.id,deliveryNotes.salesOrderId)))
    .where(and(eq(salesInvoices.organizationId,auth.orgId),eq(salesOrders.organizationId,auth.orgId),
-     eq(salesOrders.externalOrderId,detail.record.externalOrderId),eq(salesOrders.platformId,detail.record.platformId),
+     eq(salesOrders.externalOrderId,detail.record.externalOrderId),or(eq(salesOrders.platformId,detail.record.platformId),isNull(salesOrders.platformId)),eq(salesOrders.channel,"AMAZON"),
      inArray(salesInvoices.status,["POSTED","PARTIAL_PAID","PAID"]))):[];
   const moves=detail&&detail.record.state.lines.length?await db.select().from(stockMovements)
    .where(and(eq(stockMovements.organizationId,auth.orgId),eq(stockMovements.type,"OUT"),
@@ -65,7 +68,8 @@ export async function getReturnWorkspaceAction(caseId?:string,page=1){
    record:{...detail.record,state:{...detail.record.state,claims:detail.record.state.claims.map(c=>({...c,expectedAmount:null,acceptedAmount:null,reconciledCash:undefined}))}},
    events:detail.events.filter(e=>!["REFUND","REIMBURSEMENT"].includes(e.kind)),
    operations:detail.operations.map(o=>["FINANCIAL","REIMBURSEMENT","FEES","CLAIM"].includes(o.kind)?{...o,payload:{}}:o)}:detail;
-  return {page,config,list:list.map(r=>({...r,state:"error"in finance?{...r.state,claims:r.state.claims.map(c=>({...c,expectedAmount:null,acceptedAmount:null,reconciledCash:undefined}))}:r.state,closure:caseClosure(r.state)})),
+  return {page,config,list:list.map(r=>({...r,products:returnProducts(r.state,listEvents.filter(e=>e.caseId===r.id),itemList,codes),state:"error"in finance?{...r.state,claims:r.state.claims.map(c=>({...c,expectedAmount:null,acceptedAmount:null,reconciledCash:undefined}))}:r.state,closure:caseClosure(r.state)})),
+   products:storedDetail?returnProducts(storedDetail.record.state,storedDetail.events,itemList,codes):[],
    platforms,warehouses:wh,items:itemList,losses,evidencePool:evidencePool.filter(e=>!("error"in finance)||e.kind!=="REIMBURSEMENT").map(e=>({...e,payload:undefined})),detail:visibleDetail,available,movements:moves,capabilities,canFinance:!("error"in finance),canConfigure:permissions.has("settings.edit")&&permissions.has("approvals.decide")};
  });
 }

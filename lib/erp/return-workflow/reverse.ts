@@ -18,7 +18,7 @@ export async function reverseReturnOperation(orgId:string,userId:string,caseId:s
  if(later.some(l=>all.some(o=>o.id===l.id&&!o.reversedBy&&o.kind!=="REVERSE")))throw new Error("Reverse dependent later decisions first");
  const scope=scopeStore.getStore();if(!scope)throw new Error("Tenant scope required");
  const documents:{type:string;id:string}[]=[];
- const cashLink=target.kind==="REIMBURSEMENT"&&target.payload.mode==="CASH_LINK";
+ const cashLink=target.kind==="REIMBURSEMENT"&&target.payload.mode==="CASH_LINK"&&!target.payload.cashJournalCreated;
  if(!cashLink){
   for(const ref of [...target.documents].reverse()){
    if(ref.type==="STOCK_MOVEMENT"){
@@ -40,6 +40,9 @@ export async function reverseReturnOperation(orgId:string,userId:string,caseId:s
    if(ref.type==="STOCK_TRANSFER")await db.update(stockTransfers).set({status:"REVERSED"}).where(and(eq(stockTransfers.organizationId,orgId),eq(stockTransfers.id,ref.id)));
    if(ref.type==="STOCK_ADJUSTMENT")await db.update(stockAdjustments).set({status:"CANCELLED"}).where(and(eq(stockAdjustments.organizationId,orgId),eq(stockAdjustments.id,ref.id)));
   }
+ }
+ if(target.kind==="REIMBURSEMENT"&&target.payload.cashJournalCreated&&typeof target.payload.settlementId==="string"){
+  await db.update(marketplaceSettlementTxns).set({journalEntryId:null}).where(and(eq(marketplaceSettlementTxns.organizationId,orgId),eq(marketplaceSettlementTxns.id,target.payload.settlementId)));
  }
  if(target.kind==="FINANCIAL"){
   const phase=String(target.payload.phase),sourceId=String(target.payload.sourceId);

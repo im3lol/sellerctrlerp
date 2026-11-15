@@ -165,6 +165,55 @@ describe.skipIf(!url)("returns PostgreSQL isolation and transaction contract",()
   const detail=await scope.withOrgScope(org,false,()=>store.returnCaseDetail(org,id));
   expect(detail.record.state.claims[0]).toMatchObject({state:"RECONCILED",reconciledCash:"10.0000"});
  },60000);
+ it("handles simple product decisions without duplicated stock, losses or invented reimbursement",async()=>{
+  const {applySimpleDecision}=await import("../simple-decision"),{postStockMovement}=await import("@/lib/erp/inventory"),{scopeStore}=await import("@/lib/db");
+  const customer=(await pg.query("select id from customers where organization_id=$1 limit 1",[org])).rows[0].id;
+  const warehouse=(await pg.query("select id from warehouses where organization_id=$1 and code='TEST'",[org])).rows[0].id;
+  const item=randomUUID(),invoice=randomUUID(),line=randomUUID(),date=new Date();
+  await pg.query("insert into items(id,organization_id,code,name_ar) values($1,$2,'SIMPLE','TEST SIMPLE')",[item,org]);
+  await pg.query("insert into sales_invoices(id,organization_id,number,customer_id,date,status,subtotal,total_amount,paid_amount,balance_due) values($1,$2,'SIMPLE-INV',$3,now(),'PAID',150,150,150,0)",[invoice,org,customer]);
+  await pg.query("insert into sales_invoice_lines(id,organization_id,sales_invoice_id,item_id,quantity,unit_price,total_amount,tax_amount) values($1,$2,$3,$4,3,50,150,0)",[line,org,invoice,item]);
+  await scope.withOrgScope(org,false,async()=>{
+   await postStockMovement(scopeStore.getStore()!.tx,{orgId:org,itemId:item,warehouseId:warehouse,type:"IN",quantity:5,unitCost:20,date,referenceType:"TEST_OPEN",referenceId:randomUUID()});
+   await postStockMovement(scopeStore.getStore()!.tx,{orgId:org,itemId:item,warehouseId:warehouse,type:"OUT",quantity:3,date,referenceType:"SALES_INVOICE",referenceId:invoice});
+  });
+  const id=(await scope.withOrgScope(org,false,()=>store.observeReturnSource(org,platform,"SIMPLE-ORDER",{kind:"RETURN",sourceId:randomUUID(),sourceVersion:"v1",happenedAt:date.toISOString(),sourceStatus:null,currency:null,quantity:"3",payload:{sku:"SIMPLE"}})))!;
+  await scope.withOrgScope(org,false,()=>store.executeReturnOperation({...command("MATCH"),caseId:id},r=>Promise.resolve({state:{...r.state,matched:true,invoiceIds:[invoice],lines:[{id:line,itemId:item,invoiceId:invoice,invoiceLineId:line,deliveryId:null,soldQuantity:"3",expectedQuantity:"3",receivedQuantity:"0",waivedQuantity:"0",writtenOffQuantity:"0"}]}})));
+  const run=async(action:"SELLABLE"|"DAMAGED"|"CLOSED_LOSS"|"CLAIM"|"COMPENSATED",reference?:string)=>{
+   const v=(await pg.query("select version from return_workflow_cases where id=$1",[id])).rows[0].version;
+   const d={caseId:id,version:v,key:randomUUID(),itemId:item,action,quantity:"1",warehouseId:warehouse,location:"LOCAL"as const,note:"TEST confirmed decision",confirmed:true,activatePosting:false,reference};
+   const payload:Record<string,unknown>={...d};
+   return scope.withOrgScope(org,false,()=>store.executeReturnOperation({...command("MATCH",v,d.key),caseId:id,kind:action==="CLAIM"?"CLAIM":action==="COMPENSATED"?"REIMBURSEMENT":"RECEIPT",payload},async(r,op)=>{const result=await applySimpleDecision(org,user,r,d,op);Object.assign(payload,result.canonical);return result;}));
+  };
+  await run("SELLABLE");await run("DAMAGED");
+  await run("CLAIM","CASE-123");
+  await run("COMPENSATED","UNKNOWN-RB");
+  const detail=()=>scope.withOrgScope(org,false,()=>store.returnCaseDetail(org,id));
+  expect((await detail()).record.state.resolutions?.[0].action).toBe("CLAIM");
+  expect((await detail()).record.state.claims[0].reconciledCash).toBeUndefined();
+  await run("CLOSED_LOSS");
+  const counts=async()=> (await pg.query("select (select count(*) from journal_entries where organization_id=$1) journals,(select count(*) from stock_movements where organization_id=$1) movements",[org])).rows[0];
+  const once=await counts();await run("CLOSED_LOSS");expect(await counts()).toEqual(once);
+  const state=(await detail()).record.state;
+  expect(state.lines[0]).toMatchObject({receivedQuantity:"2.0000",waivedQuantity:"1.0000",writtenOffQuantity:"2.0000"});
+  expect(state.claims[0].state).toBe("CLOSED");
+  const balance=await scope.withOrgScope(org,false,async()=>{const {currentStock}=await import("@/lib/erp/inventory");return currentStock(org,item,warehouse);});
+  expect(balance.quantity).toBe(3);expect(balance.value).toBe(60);
+  const rb=randomUUID(),wallet=randomUUID();
+  await pg.query("insert into fba_reimbursements(id,organization_id,reimbursement_id,order_id,sku,currency,amount_total,quantity_reimbursed_cash,approval_date) values($1,$2,'SIMPLE-RB','SIMPLE-ORDER','SIMPLE','EGP',10,1,now())",[rb,org]);
+  await pg.query("insert into marketplace_settlement_txns(id,organization_id,channel,type,order_id,currency,total,dedup_key,status,posted_at) values($1,$2,'AMAZON','Reimbursement','SIMPLE-ORDER','EGP',10,$1,'Released',now())",[wallet,org]);
+  await scope.withOrgScope(org,false,()=>store.observeReturnSource(org,platform,"SIMPLE-ORDER",{kind:"REIMBURSEMENT",sourceId:rb,sourceVersion:"v1",happenedAt:date.toISOString(),sourceStatus:null,currency:"EGP",quantity:"1",payload:{sku:"SIMPLE"}}));
+  const v=(await detail()).record.version;
+  await scope.withOrgScope(org,false,()=>store.executeReturnOperation({...command("MATCH",v),caseId:id,kind:"EXCEPTION"},r=>Promise.resolve({state:{...r.state,exception:null}})));
+  await run("CLAIM","AMAZON-CLAIM");
+  const cash=await run("COMPENSATED","SIMPLE-RB");
+  expect((await detail()).record.state.claims.at(-1)).toMatchObject({state:"RECONCILED",reconciledCash:"10.0000"});
+  const posted=(await pg.query("select journal_entry_id from marketplace_settlement_txns where id=$1",[wallet])).rows[0].journal_entry_id;
+  expect(posted).toBeTruthy();
+  const {reverseReturnOperation}=await import("../reverse"),current=(await detail()).record.version;
+  await scope.withOrgScope(org,false,()=>store.executeReturnOperation({...command("MATCH",current),caseId:id,kind:"REVERSE"},(r,op)=>reverseReturnOperation(org,user,id,op,cash.id,date.toISOString().slice(0,10),"TEST reverse reimbursement")));
+  expect((await pg.query("select journal_entry_id from marketplace_settlement_txns where id=$1",[wallet])).rows[0].journal_entry_id).toBeNull();
+ },60000);
  it("retains one refund through identifier changes and refuses a stale status downgrade",async()=>{
   const {upsertSettlementTxns}=await import("@/lib/erp/settlement-core"),{toTxnRow,toSettlementTxn}=await import("@/lib/erp/marketplace/amazon/transactions");
   const order="ALIAS-"+randomUUID(),transaction=randomUUID(),refund=randomUUID();
