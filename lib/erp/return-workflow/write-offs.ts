@@ -30,7 +30,7 @@ export async function applyReturnWriteOff(orgId:string,userId:string,caseId:stri
   const [removal]=await db.select().from(platformRemovals).where(and(eq(platformRemovals.organizationId,orgId),eq(platformRemovals.id,event.sourceId))).for("update");
   const [platform]=await db.select().from(salesPlatforms).where(and(eq(salesPlatforms.organizationId,orgId),eq(salesPlatforms.id,platformId))).limit(1);
   const [item]=await db.select().from(items).where(and(eq(items.organizationId,orgId),eq(items.id,d.itemId))).limit(1);
-  if(!removal||!platform?.defaultWarehouseId||!item||removal.stockAdjustmentId)throw new Error("Invalid disposal source or legacy adjustment already exists");
+  if(!removal||removal.orderType?.toLowerCase()!=="disposal"||!platform?.defaultWarehouseId||!item||removal.stockAdjustmentId)throw new Error("A confirmed Disposal source is required; liquidation is not a disposal or automatic reimbursement");
   const codes=await db.select({code:itemCodes.normalizedCode}).from(itemCodes).where(and(eq(itemCodes.organizationId,orgId),eq(itemCodes.itemId,item.id)));
   if(![normalizeCode(item.code),...codes.map(c=>c.code)].includes(normalizeCode(removal.sku)))throw new Error("Disposal item does not match source SKU");
   const prior=await db.select().from(operations).where(and(eq(operations.organizationId,orgId),eq(operations.kind,"WRITE_OFF")));

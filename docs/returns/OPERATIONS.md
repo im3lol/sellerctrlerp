@@ -63,6 +63,12 @@ legacy sources are refused. These holds are intentional; they are not completed
 reconciliations. No historical settlement rewrite, external refund issuance or automatic
 Amazon claim submission is performed.
 
+A returnless refund or a nonreturnable product does not by itself prove reimbursement
+eligibility. Liquidation is distinct from disposal and a shipment back to the seller;
+its actual recovery proceeds/fees require separate review. Unknown/liquidation removal
+types cannot use the Return-transfer or Disposal posting paths. Never apply a policy
+or deadline from one marketplace universally to another.
+
 ## Validation
 
 `npm test` covers fixed-scale refund arithmetic and independent closure. Opt-in real

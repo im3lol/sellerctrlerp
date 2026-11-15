@@ -30,7 +30,7 @@ export async function applyReturnTransfer(orgId:string,userId:string,caseId:stri
   if(!event||event.kind!=="REMOVAL")throw new Error("A removal shipment source is required");
   const [removal]=await db.select().from(platformRemovals).where(and(eq(platformRemovals.organizationId,orgId),eq(platformRemovals.id,event.sourceId))).for("update");
   const [platform]=await db.select().from(salesPlatforms).where(and(eq(salesPlatforms.organizationId,orgId),eq(salesPlatforms.id,platformId))).limit(1);
-  if(!removal||!platform||platform.defaultWarehouseId!==from||!Number(removal.shippedQty)||removal.orderType?.toLowerCase()==="disposal")throw new Error("No matching shipped removal from this FBA warehouse");
+  if(!removal||!platform||platform.defaultWarehouseId!==from||!Number(removal.shippedQty)||removal.orderType?.toLowerCase()!=="return")throw new Error("Only a confirmed Return removal can enter the seller's transit warehouse; liquidation requires separate proceeds reconciliation");
   if(removal.stockAdjustmentId)throw new Error("The removal already has a legacy inventory adjustment; reconcile that document first");
   const codes=await db.select({code:itemCodes.normalizedCode}).from(itemCodes).where(and(eq(itemCodes.organizationId,orgId),eq(itemCodes.itemId,item.id)));
   if(![normalizeCode(item.code),...codes.map(c=>c.code)].includes(normalizeCode(removal.sku)))throw new Error("The removal SKU does not match this item");
