@@ -19,6 +19,23 @@ resume. Review historical draft documents separately; do not bulk-confirm them.
 
 ## Decisions and accounting
 
+The default workspace uses the existing SellerCtrl shell, product thumbnails and
+shared controls. Operators choose received sellable, received damaged, awaiting
+receipt, claim tracking, reimbursement matching, or documented closure. Internal
+document IDs and accountant controls remain in a collapsed advanced review.
+Product aliases must match uniquely; ambiguous products and invoice lines require
+an explicit selection. Partial quantities and open claims remain under review.
+
+The first stock/cash decision in MONITOR requires the manager's explicit cutover
+checkbox. Deployment does not enable MANUAL or post pilot transactions. A missing
+product loss records waived quantity without inventing a physical receipt or
+deducting sold stock again. Closing an already recorded loss adds no second expense.
+Claim registration does not submit a claim to Amazon. A reimbursement number alone
+does not prove receipt: source/account/SKU, released wallet movement, currency and
+amount must match. Current unposted cash requires confirmation and a valid cutover;
+already posted cash is linked without recognizing income twice. New cash entries
+and their wallet link are reversed together through the existing reversal workflow.
+
 - Match the original account, order and invoice lines. Unknown quantities remain
   unknown; they are never silently set to one.
 - Approve the financial credit separately from payout. Principal, discounts, tax and

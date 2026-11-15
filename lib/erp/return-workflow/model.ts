@@ -9,6 +9,7 @@ export type ReturnCaseLine = {
   receivedQuantity: string; waivedQuantity: string; writtenOffQuantity: string;
 };
 export type ReturnClaim = {
+  itemId?: string;
   id: string; lineId: string | null; reference: string | null; reason: string;
   state: "REVIEW" | "SUBMITTED" | "ACCEPTED" | "REJECTED" | "RECONCILED" | "CLOSED";
   expectedAmount: string | null; acceptedAmount: string | null;
@@ -32,6 +33,7 @@ export type ReturnCaseState = {
   sourceInventoryPending?:boolean;
   evidenceIds?:string[];
   lossMovementIds?:string[];
+  resolutions?:{itemId:string;action:"WAITING"|"SELLABLE"|"DAMAGED"|"CLAIM"|"COMPENSATED"|"CLOSED_LOSS";quantity:string;note:string;at:string;reference?:string}[];
 };
 export const emptyCaseState = (fulfillment: Fulfillment = "UNKNOWN"): ReturnCaseState => ({
   schemaVersion: 1, fulfillment, matched: false, invoiceIds: [], lines: [], claims: [],
