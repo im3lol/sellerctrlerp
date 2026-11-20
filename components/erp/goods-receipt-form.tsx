@@ -49,7 +49,8 @@ export function GoodsReceiptForm({
   const [lineFilter, setLineFilter] = useState("");
   const [lines, setLines] = useState<Line[]>(() => (preset?.lines ?? []).map(l => {
     const saved = initial?.lines.find(p => p.itemId === l.itemId);
-    return { ...l, receivedBefore: l.received, selected: !!saved,
+    // A saved draft keeps its own picks; a fresh receipt starts with every open line ticked.
+    return { ...l, receivedBefore: l.received, selected: initial ? !!saved : l.remaining > 0,
       warehouseId: saved?.warehouseId ?? (warehouses.some(w => w.id === preset?.defaultWarehouseId) ? preset!.defaultWarehouseId : warehouses[0]?.id ?? ""),
       received: String(saved?.quantity ?? l.remaining), rejected: String(saved?.rejectedQty ?? 0),
       batchNo: saved?.batchNo ?? "", expiryDate: saved?.expiryDate ?? (l.isPerishable && l.shelfLifeDays ? addDays(initial?.date ?? today, l.shelfLifeDays) : ""),
@@ -75,7 +76,7 @@ export function GoodsReceiptForm({
       if (r.lines.length === 0) { toast.message("تم استلام كل أصناف هذا الأمر"); return; }
       const def = warehouses.some(w => w.id === r.defaultWarehouseId) ? r.defaultWarehouseId! : warehouses[0]?.id ?? "";
       setLines(r.lines.map((l) => ({
-        ...l, receivedBefore: l.received, selected: false, warehouseId: def, received: String(l.remaining), rejected: "0",
+        ...l, receivedBefore: l.received, selected: l.remaining > 0, warehouseId: def, received: String(l.remaining), rejected: "0",
         batchNo: "", expiryDate: l.isPerishable && l.shelfLifeDays ? addDays(date, l.shelfLifeDays) : "",
         shippingPerUnit: l.poShippingPerUnit,
       })));
@@ -171,7 +172,7 @@ export function GoodsReceiptForm({
           <Button type="button" variant="outline" size="sm" onClick={() => { const ids = new Set(visibleLines.filter(l => l.remaining > 0).map(l => l.itemId)); setLines(current => current.map(l => ids.has(l.itemId) ? { ...l, selected: true } : l)); }}>{t("اختيار الأصناف الظاهرة")}</Button>
           <Button type="button" variant="ghost" size="sm" onClick={() => setLines(current => current.map(l => ({ ...l, selected: false })))}>{t("امسح الاختيار")}</Button>
           <span className="text-sm text-muted-foreground">{t("محدَّد")} {selectedLines.length} / {lines.length}</span>
-          <p className="w-full text-xs text-muted-foreground">{t("حدّد الأصناف التي وصلت فقط وعدّل الكميات المستلمة. الباقي يظل مفتوحًا على أمر الشراء. الحفظ مسودة لا يؤثر على المخزون أو الحسابات حتى التأكيد.")}</p>
+          <p className="w-full text-xs text-muted-foreground">{t("كل الأصناف محدّدة للاستلام. ألغِ تحديد ما لم يصل وعدّل الكميات المستلمة. الباقي يظل مفتوحًا على أمر الشراء. الحفظ مسودة لا يؤثر على المخزون أو الحسابات حتى التأكيد.")}</p>
         </div>}
         {/* Table — بيانات الجدول */}
         <div className="rounded-xl border" data-receipt-entry="">

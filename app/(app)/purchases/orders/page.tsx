@@ -3,7 +3,7 @@ import type { Locale } from "@/lib/i18n";
 import { fill } from "@/lib/i18n";
 import { getLocale, getT } from "@/lib/i18n/server";
 import Link from "next/link";
-import { and, asc, count, desc, eq, gte, ilike, inArray, lte, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, gte, ilike, inArray, lte, or, sql } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
 import { purchaseOrders, purchaseOrderLines, suppliers, purchaseReturns, purchaseReturnLines } from "@/db/schema";
@@ -48,7 +48,7 @@ export default async function PurchaseOrdersPage({ searchParams }: { searchParam
     const view = one(sp.view) === "board" ? "board" : "table";
 
     const conds = [eq(purchaseOrders.organizationId, orgId)];
-    if (q) conds.push(ilike(purchaseOrders.number, `%${q}%`));
+    if (q) conds.push(or(ilike(purchaseOrders.number, `%${q}%`), ilike(purchaseOrders.notes, `%${q}%`))!);
     if (fStatus) conds.push(eq(purchaseOrders.status, fStatus));
     if (fSupplier) conds.push(eq(purchaseOrders.supplierId, fSupplier));
     if (from) conds.push(gte(purchaseOrders.date, new Date(from)));
@@ -192,7 +192,7 @@ export default async function PurchaseOrdersPage({ searchParams }: { searchParam
               </summary>
               <form className="grid gap-3 p-4 pt-0 sm:grid-cols-5 items-end">
                 {view === "board" && <input type="hidden" name="view" value="board" />}
-                <div className="space-y-1"><Label htmlFor="q">{t("رقم الأمر")}</Label><Input id="q" name="q" defaultValue={q} placeholder="PO-2026-..." /></div>
+                <div className="space-y-1"><Label htmlFor="q">{t("بحث")}</Label><Input id="q" name="q" defaultValue={q} placeholder={t("الرقم أو الملاحظات")} /></div>
                 <div className="space-y-1">
                   <Label htmlFor="status">{t("الحالة")}</Label>
                   <select id="status" name="status" defaultValue={fStatus} className={selectCls}>

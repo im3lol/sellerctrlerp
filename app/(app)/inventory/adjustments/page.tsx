@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { fill } from "@/lib/i18n";
 import { getT } from "@/lib/i18n/server";
-import { and, count, desc, eq, gte, ilike, inArray, lte, sql } from "drizzle-orm";
+import { and, count, desc, eq, gte, ilike, inArray, lte, or, sql } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
 import { stockAdjustments, stockAdjustmentLines } from "@/db/schema";
@@ -34,7 +34,7 @@ export default async function AdjustmentsPage({ searchParams }: { searchParams: 
     const page = Math.max(1, parseInt(one(sp.page) || "1", 10) || 1);
 
     const conds = [eq(stockAdjustments.organizationId, orgId)];
-    if (q) conds.push(ilike(stockAdjustments.number, `%${q}%`));
+    if (q) conds.push(or(ilike(stockAdjustments.number, `%${q}%`), ilike(stockAdjustments.notes, `%${q}%`))!);
     if (fStatus) conds.push(eq(stockAdjustments.status, fStatus));
     if (from) conds.push(gte(stockAdjustments.date, new Date(from)));
     if (to) conds.push(lte(stockAdjustments.date, new Date(to + "T23:59:59")));
@@ -118,7 +118,7 @@ export default async function AdjustmentsPage({ searchParams }: { searchParams: 
                 <Icon name="ListFilter" className="size-4" /> {t("بحث وتصفية")}
               </summary>
               <form className="grid gap-3 p-4 pt-0 sm:grid-cols-4 items-end">
-                <div className="space-y-1"><Label htmlFor="q">{t("رقم التسوية")}</Label><Input id="q" name="q" defaultValue={q} placeholder="AJ-2026-..." /></div>
+                <div className="space-y-1"><Label htmlFor="q">{t("بحث")}</Label><Input id="q" name="q" defaultValue={q} placeholder={t("الرقم أو الملاحظات")} /></div>
                 <div className="space-y-1">
                   <Label htmlFor="status">{t("الحالة")}</Label>
                   <select id="status" name="status" defaultValue={fStatus} className={selectCls}>

@@ -37,7 +37,7 @@ export default async function SalesReturnsPage({ searchParams }: { searchParams:
     const page = Math.max(1, parseInt(one(sp.page) || "1", 10) || 1);
 
     const conds = [eq(salesReturns.organizationId, orgId)];
-    if (q) conds.push(or(ilike(salesReturns.number, `%${q}%`), ilike(salesReturns.externalReturnId, `%${q}%`))!);
+    if (q) conds.push(or(ilike(salesReturns.number, `%${q}%`), ilike(salesReturns.externalReturnId, `%${q}%`), ilike(salesReturns.notes, `%${q}%`))!);
     if (fStatus) conds.push(eq(salesReturns.status, fStatus));
     if (fChannel === "MANUAL") conds.push(isNull(salesReturns.channel));
     else if (fChannel) conds.push(eq(salesReturns.channel, fChannel));
@@ -107,7 +107,7 @@ export default async function SalesReturnsPage({ searchParams }: { searchParams:
                 <Icon name="ListFilter" className="size-4" /> {t("بحث وتصفية")}
               </summary>
               <form className="grid gap-3 p-4 pt-0 sm:grid-cols-6 items-end">
-                <div className="space-y-1"><Label htmlFor="q">{t("الرقم / رقم أمازون")}</Label><Input id="q" name="q" defaultValue={q} placeholder={t("SR-2026-... أو 407-...")} /></div>
+                <div className="space-y-1"><Label htmlFor="q">{t("بحث")}</Label><Input id="q" name="q" defaultValue={q} placeholder={t("الرقم أو رقم أمازون أو الملاحظات")} /></div>
                 <div className="space-y-1">
                   <Label htmlFor="status">{t("المستند")}</Label>
                   <select id="status" name="status" defaultValue={fStatus} className={selectCls}>

@@ -38,7 +38,7 @@ export default async function ExpensesPage({ searchParams }: { searchParams: Pro
     if (status) conds.push(eq(expenses.status, status));
     if (from) conds.push(gte(expenses.date, new Date(from)));
     if (to) conds.push(lte(expenses.date, new Date(`${to}T23:59:59`)));
-    if (q) conds.push(or(ilike(expenses.number, `%${q}%`), ilike(expenses.payee, `%${q}%`), ilike(cat.nameAr, `%${q}%`))!);
+    if (q) conds.push(or(ilike(expenses.number, `%${q}%`), ilike(expenses.payee, `%${q}%`), ilike(cat.nameAr, `%${q}%`), ilike(expenses.notes, `%${q}%`))!);
     const where = and(...conds);
 
     const base = db
@@ -89,7 +89,7 @@ export default async function ExpensesPage({ searchParams }: { searchParams: Pro
         <FilterBar active={hasFilters} clearHref="/accounting/expenses">
           <div className="space-y-2">
             <Label htmlFor="q">{t("بحث")}</Label>
-            <Input id="q" name="q" defaultValue={q} placeholder={t("الرقم أو البند أو المستفيد")} className="min-w-56" />
+            <Input id="q" name="q" defaultValue={q} placeholder={t("الرقم أو البند أو المستفيد أو الملاحظات")} className="min-w-56" />
           </div>
           <div className="space-y-2">
             <Label htmlFor="status">{t("الحالة")}</Label>

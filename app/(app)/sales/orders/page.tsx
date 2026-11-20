@@ -49,7 +49,7 @@ export default async function SalesOrdersPage({ searchParams }: { searchParams: 
     const view = one(sp.view) === "board" ? "board" : "table";
 
     const conds = [eq(salesOrders.organizationId, orgId)];
-    if (q) conds.push(or(ilike(salesOrders.number, `%${q}%`), ilike(salesOrders.externalOrderId, `%${q}%`))!);
+    if (q) conds.push(or(ilike(salesOrders.number, `%${q}%`), ilike(salesOrders.externalOrderId, `%${q}%`), ilike(salesOrders.notes, `%${q}%`))!);
     if (fStatus) conds.push(eq(salesOrders.status, fStatus));
     // channel is NOT NULL DEFAULT 'MANUAL', so a manual order is 'MANUAL', never null.
     if (fChannel) conds.push(eq(salesOrders.channel, fChannel));
@@ -196,7 +196,7 @@ export default async function SalesOrdersPage({ searchParams }: { searchParams: 
               </summary>
               <form className="grid gap-3 p-4 pt-0 sm:grid-cols-6 items-end">
                 {view === "board" && <input type="hidden" name="view" value="board" />}
-                <div className="space-y-1"><Label htmlFor="q">{t("رقم الأمر / أمازون")}</Label><Input id="q" name="q" defaultValue={q} placeholder={t("SO-2026-... أو 407-...")} /></div>
+                <div className="space-y-1"><Label htmlFor="q">{t("بحث")}</Label><Input id="q" name="q" defaultValue={q} placeholder={t("رقم الأمر أو أمازون أو الملاحظات")} /></div>
                 <div className="space-y-1">
                   <Label htmlFor="status">{t("الحالة")}</Label>
                   <select id="status" name="status" defaultValue={fStatus} className={selectCls}>
