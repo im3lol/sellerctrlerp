@@ -37,7 +37,7 @@ export default async function SalesReturnsPage({ searchParams }: { searchParams:
     const page = Math.max(1, parseInt(one(sp.page) || "1", 10) || 1);
 
     const conds = [eq(salesReturns.organizationId, orgId)];
-    if (q) conds.push(or(ilike(salesReturns.number, `%${q}%`), ilike(salesReturns.externalReturnId, `%${q}%`))!);
+    if (q) conds.push(or(ilike(salesReturns.number, `%${q}%`), ilike(salesReturns.externalReturnId, `%${q}%`), ilike(salesReturns.notes, `%${q}%`))!);
     if (fStatus) conds.push(eq(salesReturns.status, fStatus));
     if (fChannel === "MANUAL") conds.push(isNull(salesReturns.channel));
     else if (fChannel) conds.push(eq(salesReturns.channel, fChannel));

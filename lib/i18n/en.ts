@@ -8316,7 +8316,7 @@ export const EN: Record<string, string> = {
   "ابحث بكود الصنف أو اسمه…": "Search by item code or name…",
   "اختيار الأصناف الظاهرة": "Select visible items",
   "استلام الصنف": "Receive item",
-  "حدّد الأصناف التي وصلت فقط وعدّل الكميات المستلمة. الباقي يظل مفتوحًا على أمر الشراء. الحفظ مسودة لا يؤثر على المخزون أو الحسابات حتى التأكيد.": "Select only the items that arrived and adjust received quantities. The remainder stays open on the purchase order. Saving a draft does not change inventory or accounting until confirmation.",
+  "كل الأصناف محدّدة للاستلام. ألغِ تحديد ما لم يصل وعدّل الكميات المستلمة. الباقي يظل مفتوحًا على أمر الشراء. الحفظ مسودة لا يؤثر على المخزون أو الحسابات حتى التأكيد.": "All items are selected for receipt. Untick what did not arrive and adjust received quantities. The remainder stays open on the purchase order. Saving a draft does not change inventory or accounting until confirmation.",
   "تاريخ استلام غير صالح": "Invalid receipt date",
   "بنود الاستلام غير صالحة؛ راجع الأصناف والكميات والتواريخ": "Invalid receipt lines; check items, quantities and dates",
   "ملاحظات الاستلام غير صالحة": "Invalid receipt notes",

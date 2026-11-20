@@ -49,7 +49,7 @@ export default async function SalesOrdersPage({ searchParams }: { searchParams: 
     const view = one(sp.view) === "board" ? "board" : "table";
 
     const conds = [eq(salesOrders.organizationId, orgId)];
-    if (q) conds.push(or(ilike(salesOrders.number, `%${q}%`), ilike(salesOrders.externalOrderId, `%${q}%`))!);
+    if (q) conds.push(or(ilike(salesOrders.number, `%${q}%`), ilike(salesOrders.externalOrderId, `%${q}%`), ilike(salesOrders.notes, `%${q}%`))!);
     if (fStatus) conds.push(eq(salesOrders.status, fStatus));
     // channel is NOT NULL DEFAULT 'MANUAL', so a manual order is 'MANUAL', never null.
     if (fChannel) conds.push(eq(salesOrders.channel, fChannel));

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { fill } from "@/lib/i18n";
 import { getT } from "@/lib/i18n/server";
-import { and, asc, count, desc, eq, gte, ilike, inArray, lte, ne, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, gte, ilike, inArray, lte, or, ne, sql } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
 import { deliveryNotes, customers, salesOrders, salesInvoices, salesReturns, salesReturnLines } from "@/db/schema";
@@ -36,7 +36,7 @@ export default async function DeliveriesPage({ searchParams }: { searchParams: P
     const page = Math.max(1, parseInt(one(sp.page) || "1", 10) || 1);
 
     const conds = [eq(deliveryNotes.organizationId, orgId)];
-    if (q) conds.push(ilike(deliveryNotes.number, `%${q}%`));
+    if (q) conds.push(or(ilike(deliveryNotes.number, `%${q}%`), ilike(deliveryNotes.notes, `%${q}%`))!);
     // Cancelled notes are kept for the audit trail but stay out of the day-to-day list.
     if (fStatus) conds.push(eq(deliveryNotes.status, fStatus));
     else conds.push(ne(deliveryNotes.status, "CANCELLED"));

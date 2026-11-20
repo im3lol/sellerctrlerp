@@ -2,7 +2,7 @@ import { EmptyState } from "@/components/empty-state";
 import { fill } from "@/lib/i18n";
 import { getT } from "@/lib/i18n/server";
 import Link from "next/link";
-import { and, asc, count, desc, eq, gte, ilike, inArray, lte, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, gte, ilike, inArray, lte, or, sql } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
 import { salesInvoices, customers, salesReturns, salesOrders, deliveryNotes } from "@/db/schema";
@@ -39,7 +39,7 @@ export default async function SalesInvoicesPage({ searchParams }: { searchParams
     const page = Math.max(1, parseInt(one(sp.page) || "1", 10) || 1);
 
     const conds = [eq(salesInvoices.organizationId, orgId)];
-    if (q) conds.push(ilike(salesInvoices.number, `%${q}%`));
+    if (q) conds.push(or(ilike(salesInvoices.number, `%${q}%`), ilike(salesInvoices.notes, `%${q}%`))!);
     if (fStatus) conds.push(eq(salesInvoices.status, fStatus));
     if (fCustomer) conds.push(eq(salesInvoices.customerId, fCustomer));
     if (from) conds.push(gte(salesInvoices.date, new Date(from)));

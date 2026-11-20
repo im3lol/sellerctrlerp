@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { fill } from "@/lib/i18n";
 import { getT } from "@/lib/i18n/server";
-import { and, asc, count, desc, eq, gte, ilike, inArray, lte, ne, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, gte, ilike, inArray, lte, or, ne, sql } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
 import { purchaseReceipts, suppliers, purchaseOrders, purchaseInvoices, purchaseReturns, purchaseReturnLines } from "@/db/schema";
@@ -35,7 +35,7 @@ export default async function ReceiptsPage({ searchParams }: { searchParams: Pro
     const page = Math.max(1, parseInt(one(sp.page) || "1", 10) || 1);
 
     const conds = [eq(purchaseReceipts.organizationId, orgId)];
-    if (q) conds.push(ilike(purchaseReceipts.number, `%${q}%`));
+    if (q) conds.push(or(ilike(purchaseReceipts.number, `%${q}%`), ilike(purchaseReceipts.notes, `%${q}%`))!);
     // Cancelled receipts are kept for the audit trail but stay out of the day-to-day
     // list — pick «ملغي» in the filter to see them.
     if (fStatus) conds.push(eq(purchaseReceipts.status, fStatus));

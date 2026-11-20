@@ -3,7 +3,7 @@ import type { Locale } from "@/lib/i18n";
 import { fill } from "@/lib/i18n";
 import { getLocale, getT } from "@/lib/i18n/server";
 import Link from "next/link";
-import { and, asc, count, desc, eq, gte, ilike, inArray, lte, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, gte, ilike, inArray, lte, or, sql } from "drizzle-orm";
 import { loadErpPage } from "@/lib/erp/org";
 import { db } from "@/lib/db";
 import { purchaseOrders, purchaseOrderLines, suppliers, purchaseReturns, purchaseReturnLines } from "@/db/schema";
@@ -48,7 +48,7 @@ export default async function PurchaseOrdersPage({ searchParams }: { searchParam
     const view = one(sp.view) === "board" ? "board" : "table";
 
     const conds = [eq(purchaseOrders.organizationId, orgId)];
-    if (q) conds.push(ilike(purchaseOrders.number, `%${q}%`));
+    if (q) conds.push(or(ilike(purchaseOrders.number, `%${q}%`), ilike(purchaseOrders.notes, `%${q}%`))!);
     if (fStatus) conds.push(eq(purchaseOrders.status, fStatus));
     if (fSupplier) conds.push(eq(purchaseOrders.supplierId, fSupplier));
     if (from) conds.push(gte(purchaseOrders.date, new Date(from)));

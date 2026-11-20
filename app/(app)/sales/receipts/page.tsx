@@ -38,7 +38,7 @@ export default async function ReceiptsPage({ searchParams }: { searchParams: Pro
     if (method) conds.push(eq(receiptVouchers.paymentMethod, method));
     if (from) conds.push(gte(receiptVouchers.date, new Date(from)));
     if (to) conds.push(lte(receiptVouchers.date, new Date(`${to}T23:59:59`)));
-    if (q) conds.push(or(ilike(receiptVouchers.number, `%${q}%`), ilike(customers.nameAr, `%${q}%`))!);
+    if (q) conds.push(or(ilike(receiptVouchers.number, `%${q}%`), ilike(customers.nameAr, `%${q}%`), ilike(receiptVouchers.notes, `%${q}%`))!);
     const where = and(...conds);
 
     const base = db

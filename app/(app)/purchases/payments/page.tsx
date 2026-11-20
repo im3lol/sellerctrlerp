@@ -38,7 +38,7 @@ export default async function PaymentsPage({ searchParams }: { searchParams: Pro
     if (method) conds.push(eq(paymentVouchers.paymentMethod, method));
     if (from) conds.push(gte(paymentVouchers.date, new Date(from)));
     if (to) conds.push(lte(paymentVouchers.date, new Date(`${to}T23:59:59`)));
-    if (q) conds.push(or(ilike(paymentVouchers.number, `%${q}%`), ilike(suppliers.nameAr, `%${q}%`))!);
+    if (q) conds.push(or(ilike(paymentVouchers.number, `%${q}%`), ilike(suppliers.nameAr, `%${q}%`), ilike(paymentVouchers.notes, `%${q}%`))!);
     const where = and(...conds);
 
     const base = db

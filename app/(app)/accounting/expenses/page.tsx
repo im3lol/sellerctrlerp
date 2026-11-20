@@ -38,7 +38,7 @@ export default async function ExpensesPage({ searchParams }: { searchParams: Pro
     if (status) conds.push(eq(expenses.status, status));
     if (from) conds.push(gte(expenses.date, new Date(from)));
     if (to) conds.push(lte(expenses.date, new Date(`${to}T23:59:59`)));
-    if (q) conds.push(or(ilike(expenses.number, `%${q}%`), ilike(expenses.payee, `%${q}%`), ilike(cat.nameAr, `%${q}%`))!);
+    if (q) conds.push(or(ilike(expenses.number, `%${q}%`), ilike(expenses.payee, `%${q}%`), ilike(cat.nameAr, `%${q}%`), ilike(expenses.notes, `%${q}%`))!);
     const where = and(...conds);
 
     const base = db
