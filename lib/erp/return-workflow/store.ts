@@ -15,10 +15,10 @@ export async function workflowSettings(orgId: string) {
 }
 export async function listReturnCases(orgId: string,page=1) {
   const list=await db.select().from(cases).where(and(eq(cases.organizationId, orgId),sql`${cases.externalOrderId} not like 'LEDGER:%'`)).orderBy(desc(cases.updatedAt),desc(cases.id)).limit(200).offset((page-1)*200);
-  if(!list.length)return list;
+  if(!list.length)return [];
   const ids=list.map(c=>c.id);
   const [e,o]=await Promise.all([db.select().from(events).where(and(eq(events.organizationId,orgId),inArray(events.caseId,ids))).orderBy(desc(events.createdAt)),db.select().from(operations).where(and(eq(operations.organizationId,orgId),inArray(operations.caseId,ids)))]);
-  return list.map(c=>({...c,state:projectReturnState(c.state,e.filter(s=>s.caseId===c.id),o.filter(s=>s.caseId===c.id))}));
+  return list.map(c=>{const caseEvents=e.filter(s=>s.caseId===c.id);return {...c,events:caseEvents,state:projectReturnState(c.state,caseEvents,o.filter(s=>s.caseId===c.id))};});
 }
 export async function returnCaseDetail(orgId: string, caseId: string) {
   const [record] = await db.select().from(cases).where(and(eq(cases.organizationId, orgId), eq(cases.id, caseId))).limit(1);

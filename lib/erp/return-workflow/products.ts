@@ -14,16 +14,28 @@ export function isReturnReviewed(state:ReturnCaseState,products:ReturnProduct[])
 }
 const normalized=(s:string)=>s.toUpperCase().replace(/[^A-Z0-9]/g,"");
 /** Exact aliases only. Refund and receipt quantities are alternative views, not additive. */
-export function returnProducts(state:ReturnCaseState,events:Event[],items:Item[],codes:{itemId:string;code:string|null}[]):ReturnProduct[]{
- const aliases=new Map<string,Set<string>>();
- for(const c of [...items.map(i=>({itemId:i.id,code:i.code})),...codes]){const key=normalized(c.code??"");if(!key)continue;const set=aliases.get(key)??new Set();set.add(c.itemId);aliases.set(key,set);}
+type Codes={itemId:string;code:string|null}[];
+// The workspace calls this once per listed case with the same catalog arrays; build the lookups once per array pair.
+const lookupCache=new WeakMap<Item[],WeakMap<Codes,{aliases:Map<string,Set<string>>;byId:Map<string,Item>}>>();
+function lookups(items:Item[],codes:Codes){
+ const perItems=lookupCache.get(items)??new WeakMap();lookupCache.set(items,perItems);
+ let cached=perItems.get(codes);
+ if(!cached){
+  const aliases=new Map<string,Set<string>>();
+  for(const c of [...items.map(i=>({itemId:i.id,code:i.code})),...codes]){const key=normalized(c.code??"");if(!key)continue;const set=aliases.get(key)??new Set();set.add(c.itemId);aliases.set(key,set);}
+  cached={aliases,byId:new Map(items.map(i=>[i.id,i]))};perItems.set(codes,cached);
+ }
+ return cached;
+}
+export function returnProducts(state:ReturnCaseState,events:Event[],items:Item[],codes:Codes):ReturnProduct[]{
+ const {aliases,byId}=lookups(items,codes);
  const result=new Map<string,ReturnProduct>();const seen=new Set<string>();
  const totals=new Map<string,Map<string,bigint>>();
  for(const event of events){
   const sourceKey=JSON.stringify([event.kind,event.sourceId]);
   if(seen.has(sourceKey))continue;seen.add(sourceKey);
   const code=String(event.payload.sku??event.payload.fnsku??"");if(!code)continue;
-  const ids=[...(aliases.get(normalized(code))??[])],item=ids.length===1?items.find(i=>i.id===ids[0]):null;
+  const ids=[...(aliases.get(normalized(code))??[])],item=ids.length===1?byId.get(ids[0]):null;
   const key=item?.id??code;const prev=result.get(key);
   const byKind=totals.get(key)??new Map<string,bigint>();
   if(event.quantity&&scaled(event.quantity)>BigInt(0))byKind.set(event.kind,(byKind.get(event.kind)??BigInt(0))+scaled(event.quantity));
@@ -34,6 +46,6 @@ export function returnProducts(state:ReturnCaseState,events:Event[],items:Item[]
    quantity,
    reason:prev?.reason??(event.payload.reason?String(event.payload.reason):null),sourceCondition:prev?.sourceCondition??(event.payload.disposition?String(event.payload.disposition):null)});
  }
- for(const line of state.lines){const item=items.find(i=>i.id===line.itemId);if(item&&!result.has(item.id))result.set(item.id,{itemId:item.id,code:item.code,name:item.name??item.code,image:item.image,quantity:line.expectedQuantity,reason:null,sourceCondition:null});}
+ for(const line of state.lines){const item=byId.get(line.itemId);if(item&&!result.has(item.id))result.set(item.id,{itemId:item.id,code:item.code,name:item.name??item.code,image:item.image,quantity:line.expectedQuantity,reason:null,sourceCondition:null});}
  return [...result.values()];
 }

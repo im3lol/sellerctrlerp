@@ -48,7 +48,7 @@ export async function applySimpleDecision(orgId:string,userId:string,record:Case
    state.lines.push(line);state.invoiceIds=[...new Set([...state.invoiceIds,c.invoice.id])];state.matched=true;
   }else if(["SELLABLE","DAMAGED","CLOSED_LOSS"].includes(d.action))throw new Error("اختر الفاتورة الأصلية لهذا المنتج قبل تسجيل المخزون أو الخسارة");
  }
- const claim=state.claims.find(c=>d.claimId?c.id===d.claimId:(line?c.lineId===line.id:c.itemId===item.id)&&!["CLOSED","RECONCILED"].includes(c.state));
+ const claim=state.claims.find(c=>d.claimId?c.id===d.claimId:(line?c.lineId===line.id||(!c.lineId&&c.itemId===item.id):c.itemId===item.id)&&!["CLOSED","RECONCILED"].includes(c.state));
  if(d.claimId&&!claim)throw new Error("المطالبة غير موجودة في هذا المرتجع");
  if(claim&&((claim.itemId&&claim.itemId!==item.id)||(claim.lineId&&claim.lineId!==line?.id)))throw new Error("المطالبة غير موجودة في هذا المرتجع");
  if(["SELLABLE","DAMAGED","CLOSED_LOSS"].includes(d.action)){
@@ -79,7 +79,7 @@ export async function applySimpleDecision(orgId:string,userId:string,record:Case
   }
   if(d.action==="CLOSED_LOSS"){
    if(d.note.trim().length<5)throw new Error("اكتب سبب إقفال المرتجع بدون تعويض");
-   state.claims=state.claims.map(c=>c.lineId===(line?.id??null)&&c.state!=="RECONCILED"?{...c,state:"CLOSED",decisionReason:d.note}:c);
+   state.claims=state.claims.map(c=>(c.lineId===line?.id||(!c.lineId&&c.itemId===item.id))&&c.state!=="RECONCILED"?{...c,state:"CLOSED",decisionReason:d.note}:c);
   }
  }
  let pendingCompensation=false;
