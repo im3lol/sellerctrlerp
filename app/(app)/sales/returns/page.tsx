@@ -107,7 +107,7 @@ export default async function SalesReturnsPage({ searchParams }: { searchParams:
                 <Icon name="ListFilter" className="size-4" /> {t("بحث وتصفية")}
               </summary>
               <form className="grid gap-3 p-4 pt-0 sm:grid-cols-6 items-end">
-                <div className="space-y-1"><Label htmlFor="q">{t("الرقم / رقم أمازون")}</Label><Input id="q" name="q" defaultValue={q} placeholder={t("SR-2026-... أو 407-...")} /></div>
+                <div className="space-y-1"><Label htmlFor="q">{t("بحث")}</Label><Input id="q" name="q" defaultValue={q} placeholder={t("الرقم أو رقم أمازون أو الملاحظات")} /></div>
                 <div className="space-y-1">
                   <Label htmlFor="status">{t("المستند")}</Label>
                   <select id="status" name="status" defaultValue={fStatus} className={selectCls}>

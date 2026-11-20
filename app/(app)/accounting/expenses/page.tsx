@@ -89,7 +89,7 @@ export default async function ExpensesPage({ searchParams }: { searchParams: Pro
         <FilterBar active={hasFilters} clearHref="/accounting/expenses">
           <div className="space-y-2">
             <Label htmlFor="q">{t("بحث")}</Label>
-            <Input id="q" name="q" defaultValue={q} placeholder={t("الرقم أو البند أو المستفيد")} className="min-w-56" />
+            <Input id="q" name="q" defaultValue={q} placeholder={t("الرقم أو البند أو المستفيد أو الملاحظات")} className="min-w-56" />
           </div>
           <div className="space-y-2">
             <Label htmlFor="status">{t("الحالة")}</Label>

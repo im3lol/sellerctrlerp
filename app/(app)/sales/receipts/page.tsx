@@ -84,7 +84,7 @@ export default async function ReceiptsPage({ searchParams }: { searchParams: Pro
         <FilterBar active={hasFilters} clearHref="/sales/receipts">
           <div className="space-y-2">
             <Label htmlFor="q">{t("بحث")}</Label>
-            <Input id="q" name="q" defaultValue={q} placeholder={t("رقم السند أو العميل")} className="min-w-56" />
+            <Input id="q" name="q" defaultValue={q} placeholder={t("رقم السند أو العميل أو الملاحظات")} className="min-w-56" />
           </div>
           <div className="space-y-2">
             <Label htmlFor="status">{t("الحالة")}</Label>

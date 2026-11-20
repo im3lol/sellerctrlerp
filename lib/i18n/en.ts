@@ -8718,4 +8718,10 @@ export const EN: Record<string, string> = {
   "ربط فقد مخزني مُرحّل":"Link a posted inventory loss",
   "اختر مستند الفقد الأصلي":"Select original loss document",
   "تحديث الكمية المتوقعة فقط":"Update expected quantity only",
+  "الرقم أو الملاحظات": "Number or notes",
+  "رقم الأمر أو أمازون أو الملاحظات": "Order no., Amazon no. or notes",
+  "الرقم أو رقم أمازون أو الملاحظات": "Number, Amazon no. or notes",
+  "الرقم أو البند أو المستفيد أو الملاحظات": "Number, category, payee or notes",
+  "رقم السند أو المورد أو الملاحظات": "Voucher no., supplier or notes",
+  "رقم السند أو العميل أو الملاحظات": "Voucher no., customer or notes",
 };

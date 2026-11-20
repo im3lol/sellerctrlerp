@@ -140,7 +140,7 @@ export default async function ReceiptsPage({ searchParams }: { searchParams: Pro
                 <Icon name="ListFilter" className="size-4" /> {t("بحث وتصفية")}
               </summary>
               <form className="grid gap-3 p-4 pt-0 sm:grid-cols-5 items-end">
-                <div className="space-y-1"><Label htmlFor="q">{t("رقم الإذن")}</Label><Input id="q" name="q" defaultValue={q} placeholder="GRN-2026-..." /></div>
+                <div className="space-y-1"><Label htmlFor="q">{t("بحث")}</Label><Input id="q" name="q" defaultValue={q} placeholder={t("الرقم أو الملاحظات")} /></div>
                 <div className="space-y-1">
                   <Label htmlFor="status">{t("الحالة")}</Label>
                   <select id="status" name="status" defaultValue={fStatus} className={selectCls}>

@@ -196,7 +196,7 @@ export default async function SalesOrdersPage({ searchParams }: { searchParams: 
               </summary>
               <form className="grid gap-3 p-4 pt-0 sm:grid-cols-6 items-end">
                 {view === "board" && <input type="hidden" name="view" value="board" />}
-                <div className="space-y-1"><Label htmlFor="q">{t("رقم الأمر / أمازون")}</Label><Input id="q" name="q" defaultValue={q} placeholder={t("SO-2026-... أو 407-...")} /></div>
+                <div className="space-y-1"><Label htmlFor="q">{t("بحث")}</Label><Input id="q" name="q" defaultValue={q} placeholder={t("رقم الأمر أو أمازون أو الملاحظات")} /></div>
                 <div className="space-y-1">
                   <Label htmlFor="status">{t("الحالة")}</Label>
                   <select id="status" name="status" defaultValue={fStatus} className={selectCls}>

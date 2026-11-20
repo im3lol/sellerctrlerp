@@ -118,7 +118,7 @@ export default async function AdjustmentsPage({ searchParams }: { searchParams: 
                 <Icon name="ListFilter" className="size-4" /> {t("بحث وتصفية")}
               </summary>
               <form className="grid gap-3 p-4 pt-0 sm:grid-cols-4 items-end">
-                <div className="space-y-1"><Label htmlFor="q">{t("رقم التسوية")}</Label><Input id="q" name="q" defaultValue={q} placeholder="AJ-2026-..." /></div>
+                <div className="space-y-1"><Label htmlFor="q">{t("بحث")}</Label><Input id="q" name="q" defaultValue={q} placeholder={t("الرقم أو الملاحظات")} /></div>
                 <div className="space-y-1">
                   <Label htmlFor="status">{t("الحالة")}</Label>
                   <select id="status" name="status" defaultValue={fStatus} className={selectCls}>
