@@ -3,7 +3,7 @@ import { sql } from "drizzle-orm";
 import { organizations } from "./erp";
 import type { ReturnCaseState, WorkflowMode, ReturnOperationKind, ReturnSourceKind } from "@/lib/erp/return-workflow/model";
 const id = () => text("id").primaryKey().default(sql`gen_random_uuid()::text`);
-const org = () => text("organization_id").notNull().references(() => organizations.id);
+const org = () => text("organization_id").notNull().references(() => organizations.id, { onDelete: "cascade" });
 const time = (name: string) => timestamp(name, { withTimezone: true }).notNull().defaultNow();
 
 export const returnWorkflowSettings = pgTable("return_workflow_settings", {
