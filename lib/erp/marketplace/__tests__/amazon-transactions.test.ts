@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { toTxnRow, type ApiTransaction } from "../amazon/transactions";
+import { toTxnRow, toSettlementTxn, type ApiTransaction, type TxnRow } from "../amazon/transactions";
 
 const egp = (n: number) => ({ currencyAmount: n, currencyCode: "EGP" });
 
@@ -132,5 +132,19 @@ describe("Amazon transaction mapping", () => {
       }],
     });
     expect(withNewFee.otherTransactionFees).toBe(-50);
+  });
+});
+
+describe("Amazon disbursement sign", () => {
+  const base: TxnRow = { transactionId: "t", shipmentId: null, settlementId: "s", orderId: null, type: "Transfer", status: "Released", postedAt: null, description: "Disbursement", currency: "EGP",
+    productSales: 7804.54, promotionalRebates: 0, sellingFees: 0, fbaFees: 0, otherTransactionFees: 0, other: 0, total: 7804.54, dedupKey: "k", breakdown: null, sku: null, quantity: 0 } as TxnRow;
+  it("stores a positive FundTransfer as money leaving the wallet", () => {
+    const t = toSettlementTxn(base);
+    expect(t.total).toBe(-7804.54);
+    expect(t.productSales).toBe(-7804.54);
+  });
+  it("leaves orders and already-negative transfers alone", () => {
+    expect(toSettlementTxn({ ...base, type: "Order" }).total).toBe(7804.54);
+    expect(toSettlementTxn({ ...base, total: -10, productSales: -10 }).total).toBe(-10);
   });
 });

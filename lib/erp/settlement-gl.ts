@@ -48,11 +48,17 @@ export function splitSettlementRows<T extends { type: string; salesOrderId?: str
   return { orderGroups, heldOrderRows, nonOrderRows, refundRows };
 }
 
-/** GL movements for one order's rows: Cr receivable = Dr clearing + Dr fees. */
+/** GL movements for one order's rows: Cr receivable = Dr clearing + Dr fees.
+ *  The receivable is derived from what Amazon actually deposited plus its fees, not
+ *  summed from the sales buckets: the transactions API puts shipping and "Other"
+ *  charges inside Sales breakdowns the import does not map, so the buckets under-count
+ *  and the entry came out unbalanced (rejected). Deposit + fees is the gross the
+ *  customer paid, and balances by construction. */
 export function perOrderGL(rows: SettleAmounts[]): { receivable: number; fees: number; clearing: number } {
-  let receivable = 0, fees = 0, clearing = 0;
-  for (const t of rows) { receivable += orderReceivable(t); fees += orderFees(t); clearing += t.total; }
-  return { receivable: r2(receivable), fees: r2(fees), clearing: r2(clearing) };
+  let fees = 0, clearing = 0;
+  for (const t of rows) { fees += orderFees(t); clearing += t.total; }
+  fees = r2(fees); clearing = r2(clearing);
+  return { receivable: r2(clearing + fees), fees, clearing };
 }
 
 /** Per-category EXPENSE split for one order's rows (positive magnitudes): the order fee
