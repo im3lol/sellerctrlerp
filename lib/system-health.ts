@@ -7,7 +7,7 @@ import { connect as tlsConnect } from "node:tls";
 import { join } from "node:path";
 import { HeadBucketCommand } from "@aws-sdk/client-s3";
 import { db } from "@/lib/db";
-import { fastRedis } from "@/lib/queue/redis";
+import { fastRedisReady } from "@/lib/queue/redis";
 
 /**
  * Live checks behind /admin/system. Each component answers pass / warn / fail (the IETF
@@ -46,14 +46,19 @@ async function run(key: string, group: HealthGroup, label: string, failHint: str
 
 /** Called by /api/cron at start and end, so the page can tell "never ran", "ran", and "died midway". */
 export async function recordCronRun(phase: "started" | "finished", summary?: Record<string, unknown>): Promise<void> {
-  const r = fastRedis();
-  if (!r) return;
   try {
+    const r = await fastRedisReady();
+    if (!r) return;
     await r.hset(CRON_KEY, phase, new Date().toISOString(), ...(summary ? ["summary", JSON.stringify(summary)] : []));
   } catch { /* the status page reports a missing marker; the cron itself must never fail on this */ }
 }
 
-const checks: Array<() => Promise<HealthCheck>> = [
+type CheckFn = (() => Promise<HealthCheck>) & { pg?: true };
+/** Marks a check that queries Postgres. Inside the page these share one scoped transaction, so
+ *  they run one after another (a pg client queues concurrent queries anyway, and pg deprecates it). */
+const pg = (f: () => Promise<HealthCheck>): CheckFn => Object.assign(f, { pg: true as const });
+
+const checks: CheckFn[] = [
   () => run("app", "core", "التطبيق (الموقع)", "", async () => {
     const build = await readFile(join(process.cwd(), ".next", "BUILD_ID"), "utf8").catch(() => "—");
     const rss = process.memoryUsage().rss;
@@ -63,7 +68,7 @@ const checks: Array<() => Promise<HealthCheck>> = [
     ] };
   }),
 
-  () => run("database", "core", "قاعدة البيانات", "تأكد أن حاوية sellerctrl-postgres شغّالة (docker ps) وراجع سجلاتها؛ لو الاتصالات قربت من الحد ابحث عن استعلامات معلّقة.", async () => {
+  pg(() => run("database", "core", "قاعدة البيانات", "تأكد أن حاوية sellerctrl-postgres شغّالة (docker ps) وراجع سجلاتها؛ لو الاتصالات قربت من الحد ابحث عن استعلامات معلّقة.", async () => {
     const t0 = Date.now();
     await db.execute(sql`select 1`);
     const latency = Date.now() - t0;
@@ -80,10 +85,10 @@ const checks: Array<() => Promise<HealthCheck>> = [
       ["الحجم", fmtBytes(Number(s.size))], ["الاتصالات", `${s.conns} من ${s.max} (${pct(used)})`],
       ["استعلامات أطول من دقيقة", String(s.slow)], ["أقفال منتظرة", String(s.waiting)], ["أقدم عملية مفتوحة", s.oldest ? `${s.oldest} ث` : "—"],
     ], hint: "استعلامات بطيئة أو أقفال منتظرة: راجع pg_stat_activity لمعرفة الاستعلام المعلّق؛ امتلاء الاتصالات يعني تسريب اتصالات أو ضغط غير طبيعي." };
-  }),
+  })),
 
   () => run("redis", "core", "Redis (الطوابير والذاكرة المؤقتة)", "تأكد أن حاوية sellerctrl-redis شغّالة؛ بدونها تتوقف المزامنة والمهام الخلفية.", async () => {
-    const r = fastRedis();
+    const r = await fastRedisReady();
     if (!r) return { status: "warn", summary: "غير مضبوط (REDIS_URL)", hint: "المهام الخلفية تعمل داخل التطبيق بدون طابور." };
     const t0 = Date.now();
     await r.ping();
@@ -96,23 +101,25 @@ const checks: Array<() => Promise<HealthCheck>> = [
   }),
 
   () => run("worker", "core", "المهام الخلفية (Worker)", "الـ worker لا يرسل نبضات: راجع docker logs sellerctrl-worker وأعد تشغيله. بدونه لا مزامنة أوردرات ولا تسويات ولا نسخ احتياطي.", async () => {
-    const r = fastRedis();
+    const r = await fastRedisReady();
     if (!r) return { status: "warn", summary: "Redis غير مضبوط" };
-    const { WORKER_HEARTBEAT_KEY } = await import("@/lib/queue/worker");
-    const beat = Number(await r.get(WORKER_HEARTBEAT_KEY));
+    // Same key lib/queue/worker.ts writes; importing that module would load every job handler.
+    const beat = Number(await r.get("worker:heartbeat"));
     if (!beat) return { status: "fail", summary: "لا توجد نبضة مسجّلة" };
     const age = Date.now() - beat;
     return { status: age > 120_000 ? "fail" : age > 60_000 ? "warn" : "pass", summary: `آخر نبضة ${ago(age)}` };
   }),
 
   () => run("queues", "core", "طوابير المهام", "مهام فاشلة أو متراكمة: افتح سجلات الـ worker لمعرفة سبب الفشل (غالبًا صلاحية أمازون أو حد الطلبات).", async () => {
-    const r = fastRedis();
+    const r = await fastRedisReady();
     if (!r) return { status: "warn", summary: "Redis غير مضبوط" };
     const { QUEUES } = await import("@/lib/queue/queues");
     const names = Object.values(QUEUES);
     const p = r.pipeline();
     for (const n of names) p.llen(`bull:${n}:wait`).llen(`bull:${n}:active`).zcard(`bull:${n}:failed`).zcard(`bull:${n}:delayed`);
     const res = (await p.exec()) ?? [];
+    const bad = res.find(([err]) => err);
+    if (bad) throw bad[0];
     let waiting = 0, failed = 0;
     const details: [string, string][] = [];
     names.forEach((n, i) => {
@@ -125,7 +132,7 @@ const checks: Array<() => Promise<HealthCheck>> = [
   }),
 
   () => run("cron", "core", "المهام المجدولة اليومية (Cron)", "المهمة اليومية لم تعمل: تأكد أن حاوية sellerctrl-cron شغّالة وأن CRON_SECRET مضبوط. هي المسؤولة عن النسخ الاحتياطي اليومي والتنبيهات.", async () => {
-    const r = fastRedis();
+    const r = await fastRedisReady();
     if (!r) return { status: "warn", summary: "Redis غير مضبوط" };
     const m = await r.hgetall(CRON_KEY);
     if (!m.started) return { status: "warn", summary: "لم يُسجَّل تشغيل بعد — يُسجَّل من أول تشغيل قادم (06:00)", hint: "انتظر التشغيل اليومي القادم ثم راجع الصفحة." };
@@ -194,7 +201,7 @@ const checks: Array<() => Promise<HealthCheck>> = [
     return { status: days < 7 ? "fail" : days < 21 ? "warn" : "pass", summary: `صالحة ${days} يوم`, details: [["النطاق", domain], ["تنتهي", validTo]] };
   }),
 
-  () => run("marketplaces", "network", "ربط المنصات (أمازون / نون)", "ربط منصة يحتاج إعادة تفويض أو مزامنته متوقفة: افتح المنصة من صفحة الشركة وأعد الربط، وراجع آخر خطأ في سجل المزامنة.", async () => {
+  pg(() => run("marketplaces", "network", "ربط المنصات (أمازون / نون)", "ربط منصة يحتاج إعادة تفويض أو مزامنته متوقفة: افتح المنصة من صفحة الشركة وأعد الربط، وراجع آخر خطأ في سجل المزامنة.", async () => {
     const rows = (await db.execute<{ org: string; provider: string; reauth: boolean; status: string | null; last: string | null; orders: string | null; settle: string | null }>(sql`
       select o.name_ar org, c.provider, c.needs_reauth reauth, c.last_sync_status status, c.last_sync_at::text last, c.orders_synced_at::text orders, c.settlements_synced_at::text settle
       from platform_credentials c join organizations o on o.id = c.organization_id order by o.name_ar, c.provider`)).rows;
@@ -212,9 +219,9 @@ const checks: Array<() => Promise<HealthCheck>> = [
     });
     if (fails.n) { status = worst(status, "warn"); details.push(["مزامنات فاشلة آخر 24 س", `${fails.n} — آخر خطأ: ${fails.last ?? "—"}`]); }
     return { status, summary: `${rows.length} ربط — ${fails.n} مزامنة فاشلة آخر 24 س`, details };
-  }),
+  })),
 
-  () => run("backups", "data", "النسخ الاحتياطي للشركات", "نسخة الشركة الاحتياطية اليومية متأخرة أو فاشلة: راجع سجلات الـ worker (طابور maintenance) والتخزين.", async () => {
+  pg(() => run("backups", "data", "النسخ الاحتياطي للشركات", "نسخة الشركة الاحتياطية اليومية متأخرة أو فاشلة: راجع سجلات الـ worker (طابور maintenance) والتخزين.", async () => {
     const rows = (await db.execute<{ org: string; status: string | null; ok: string | null; fail: string | null; size: string | null }>(sql`
       select o.name_ar org, h.status, h.last_success_at::text ok, h.last_failure_at::text fail,
         (select size_bytes::text from backup_runs b where b.organization_id = o.id order by created_at desc limit 1) size
@@ -229,15 +236,17 @@ const checks: Array<() => Promise<HealthCheck>> = [
     details.push(["نسخة قاعدة البيانات الكاملة", "على السيرفر نفسه فقط — لا توجد نسخة خارجية"]);
     return { status, summary: `${rows.length} شركة — النسخ على السيرفر فقط`, details,
       hint: "النسخ كلها على نفس السيرفر: لو السيرفر ضاع تضيع معه. يُنصح بربط تخزين خارجي (Cloudflare R2 / Backblaze)." };
-  }),
+  })),
 
   () => run("errors", "data", "الأخطاء المسجّلة", "أخطاء متكررة: الاسم يدل على المكان (مثلاً sync.* = مزامنة، cron.* = المهام اليومية)؛ راجع docker logs للتفاصيل.", async () => {
-    const r = fastRedis();
+    const r = await fastRedisReady();
     if (!r) return { status: "warn", summary: "Redis غير مضبوط" };
     const now = Date.now(), keys = Array.from({ length: 24 }, (_, i) => `health:errors:${new Date(now - i * HOUR).toISOString().slice(0, 13)}`);
     const p = r.pipeline();
     for (const k of keys) p.hgetall(k);
     const res = (await p.exec()) ?? [];
+    const bad = res.find(([err]) => err);
+    if (bad) throw bad[0];
     const byEvent = new Map<string, number>();
     let lastHour = 0, day = 0;
     res.forEach(([, h], i) => {
@@ -253,6 +262,10 @@ const checks: Array<() => Promise<HealthCheck>> = [
 ];
 
 export async function runHealthChecks(): Promise<{ checks: HealthCheck[]; overall: HealthStatus; at: string }> {
-  const results = await Promise.all(checks.map((c) => c()));
+  const results: HealthCheck[] = new Array(checks.length);
+  const pgChain = (async () => {
+    for (const [i, c] of checks.entries()) if (c.pg) results[i] = await c();
+  })();
+  await Promise.all([pgChain, ...checks.map(async (c, i) => { if (!c.pg) results[i] = await c(); })]);
   return { checks: results, overall: worst(...results.map((c) => c.status)), at: new Date().toISOString() };
 }
