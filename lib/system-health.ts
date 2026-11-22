@@ -116,7 +116,9 @@ const checks: CheckFn[] = [
     const { QUEUES } = await import("@/lib/queue/queues");
     const names = Object.values(QUEUES);
     const p = r.pipeline();
-    for (const n of names) p.llen(`bull:${n}:wait`).llen(`bull:${n}:active`).zcard(`bull:${n}:failed`).zcard(`bull:${n}:delayed`);
+    // Failed jobs stay in the set forever (old restarts too); only the last 24h decide the status.
+    const since = Date.now() - 24 * HOUR;
+    for (const n of names) p.llen(`bull:${n}:wait`).llen(`bull:${n}:active`).zcount(`bull:${n}:failed`, since, "+inf").zcard(`bull:${n}:delayed`);
     const res = (await p.exec()) ?? [];
     const bad = res.find(([err]) => err);
     if (bad) throw bad[0];
@@ -128,7 +130,7 @@ const checks: CheckFn[] = [
       if (w || a || f || d) details.push([n, `منتظرة ${w} · جارية ${a} · فاشلة ${f} · مؤجلة ${d}`]);
     });
     return { status: waiting > 1000 ? "fail" : waiting > 200 || failed > 0 ? "warn" : "pass",
-      summary: `${waiting} مهمة منتظرة · ${failed} فاشلة`, details: details.length ? details : [["كل الطوابير", "فاضية"]] };
+      summary: `${waiting} مهمة منتظرة · ${failed} فاشلة آخر 24 س`, details: details.length ? details : [["كل الطوابير", "فاضية"]] };
   }),
 
   () => run("cron", "core", "المهام المجدولة اليومية (Cron)", "المهمة اليومية لم تعمل: تأكد أن حاوية sellerctrl-cron شغّالة وأن CRON_SECRET مضبوط. هي المسؤولة عن النسخ الاحتياطي اليومي والتنبيهات.", async () => {
