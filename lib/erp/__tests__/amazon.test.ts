@@ -119,6 +119,16 @@ describe("settlement per-order split + GL", () => {
     expect(gl.receivable).toBeCloseTo(gl.clearing + gl.fees, 5); // Cr = Dr + Dr
   });
 
+  it("per-order entry balances when the sales buckets miss shipping/other charges", () => {
+    // Amazon: 3280 product + 17.5 shipping + 12 other (not mapped), -17.5 promo, fees 448.70+29.64+12.
+    const row: SettleAmounts = { type: "Order", productSales: 3280, shippingCredits: 0, promotionalRebates: -17.5, sellingFees: -448.7, fbaFees: -29.64, otherTransactionFees: -12, other: 0, total: 2801.66 };
+    const gl = perOrderGL([row]);
+    expect(gl.fees).toBe(490.34);
+    expect(gl.clearing).toBe(2801.66);
+    expect(gl.receivable).toBe(3292); // 3280 + 17.5 + 12 - 17.5
+    expect(gl.receivable).toBeCloseTo(gl.clearing + gl.fees, 5);
+  });
+
   it("non-order aggregate splits transfers (bank) from fees", () => {
     const gl = nonOrderGL([
       amt({ type: "Transfer", total: -160 }),

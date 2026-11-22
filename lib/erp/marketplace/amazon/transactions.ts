@@ -160,6 +160,12 @@ export function toTxnRow(t: ApiTransaction): TxnRow {
  * released-only flat file to the full transaction feed.
  */
 export function toSettlementTxn(r: TxnRow): SettlementTxn {
+  // The pipeline's convention (flat file, Noon, Shopify) is that a Transfer is money LEAVING
+  // the wallet, so its total is negative. listTransactions reports a disbursement as a
+  // positive FundTransfer; left as is, posting would credit the bank and debit the wallet.
+  const flip = r.type === "Transfer" && r.total > 0 ? -1 : 1;
+  if (flip === -1) r = { ...r, total: -r.total, productSales: -r.productSales, other: -r.other, promotionalRebates: -r.promotionalRebates,
+    sellingFees: -r.sellingFees, fbaFees: -r.fbaFees, otherTransactionFees: -r.otherTransactionFees };
   return {
     postedAt: r.postedAt,
     settlementId: r.settlementId ?? "",
