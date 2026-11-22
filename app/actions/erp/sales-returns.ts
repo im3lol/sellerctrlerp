@@ -147,7 +147,7 @@ export async function confirmSalesReturnAction(id: string, opts?: ConfirmReturnO
     if (!ret) return { error: "المرتجع غير موجود" };
     const amazonOrigin=ret.channel==="AMAZON"||(await db.execute(sql`select 1 from sales_invoices i left join delivery_notes d on d.id=i.delivery_note_id and d.organization_id=${auth.orgId} join sales_orders o on o.id=coalesce(i.sales_order_id,d.sales_order_id) and o.organization_id=${auth.orgId} where i.organization_id=${auth.orgId} and (i.id=${ret.salesInvoiceId} or d.id=${ret.deliveryNoteId}) and o.channel='AMAZON' limit 1`)).rows.length>0;
     if (amazonOrigin && (await (await import("@/lib/erp/return-workflow/store")).workflowSettings(auth.orgId)).mode !== "DISABLED") {
-      return {error:"Approve this marketplace return through its return case"};
+      return {error:"ده مرتجع أمازون — اعتمده من شاشة مرتجعات المنصّة"};
     }
     if (ret.status !== "DRAFT") return { error: "المرتجع مُرحّل بالفعل" };
 
@@ -218,6 +218,9 @@ export async function confirmSalesReturnAction(id: string, opts?: ConfirmReturnO
           // the create-time cap only counts POSTED priors, so two DRAFTs for the full
           // quantity would otherwise both confirm (double restock + double COGS reversal).
           await tx.execute(sql`select 1 from delivery_notes where id = ${dn.id} for update`);
+          // The return itself, locked: a double-click must not post it twice.
+          const [liveRet] = await tx.select({ status: salesReturns.status }).from(salesReturns).where(eq(salesReturns.id, ret.id)).for("update").limit(1);
+          if (liveRet?.status !== "DRAFT") throw new Error("المرتجع مُرحّل بالفعل");
           const dnLines = await tx.select({ itemId: deliveryNoteLines.itemId, quantity: deliveryNoteLines.quantity })
             .from(deliveryNoteLines).where(eq(deliveryNoteLines.deliveryNoteId, dn.id));
           const deliveredByItem = new Map<string, number>();
@@ -292,6 +295,9 @@ export async function confirmSalesReturnAction(id: string, opts?: ConfirmReturnO
         // the create-time cap only counts POSTED priors, so two DRAFTs for the full
         // quantity would otherwise both confirm (double revenue reversal + AR credit).
         await tx.execute(sql`select 1 from sales_invoices where id = ${inv.id} for update`);
+        // The return itself, locked: a double-click must not post it twice.
+        const [liveRet] = await tx.select({ status: salesReturns.status }).from(salesReturns).where(eq(salesReturns.id, ret.id)).for("update").limit(1);
+        if (liveRet?.status !== "DRAFT") throw new Error("المرتجع مُرحّل بالفعل");
         const invLines = await tx.select({ itemId: salesInvoiceLines.itemId, quantity: salesInvoiceLines.quantity })
           .from(salesInvoiceLines).where(eq(salesInvoiceLines.salesInvoiceId, inv.id));
         const soldByItem = new Map<string, number>();
@@ -431,7 +437,7 @@ export async function reverseSalesReturnAction(id: string): Promise<ActionState>
     if (!ret) return { error: "المرتجع غير موجود" };
     if (ret.status !== "POSTED") return { error: "يمكن إلغاء مرتجع مُرحّل فقط" };
     if (await (await import("@/lib/erp/return-workflow/sources")).workflowDocumentOwned(auth.orgId,id)) {
-      return {error:"Reverse this document through the return case so allocations remain consistent"};
+      return {error:"اعكس هذا المستند من شاشة مرتجعات المنصّة علشان الربط يفضل سليم"};
     }
     const total = Number(ret.totalAmount);
     const d = new Date();

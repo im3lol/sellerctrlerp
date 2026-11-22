@@ -9,6 +9,7 @@ import {executeReturnOperation}from "@/lib/erp/return-workflow/store";
 import {applySimpleDecision,type SimpleDecision}from "@/lib/erp/return-workflow/simple-decision";
 import {recordAudit}from "@/lib/erp/audit";
 import {revalidatePath}from "@/lib/safe-revalidate";
+import {arabicReturnError}from "@/lib/erp/return-workflow/errors";
 
 const input=z.object({caseId:z.string().min(1),version:z.number().int().positive(),key:z.string().uuid(),itemId:z.string().min(1),
  action:z.enum(["WAITING","SELLABLE","DAMAGED","CLAIM","COMPENSATED","CLOSED_LOSS"]),quantity:z.string().regex(/^\d+(?:\.\d{1,4})?$/).max(25),
@@ -50,12 +51,6 @@ export async function saveSimpleReturnDecisionAction(raw:unknown){
   });
   revalidatePath("/sales/marketplace-returns");return {ok:true,...result};
  }catch(error){
-  const message=error instanceof Error?error.message:"";
-  if(/[\u0600-\u06ff]/.test(message))return {error:message};
-  if(/changed|reused/i.test(message))return {error:"بيانات المرتجع اتحدثت؛ حدّث الصفحة ثم راجع القرار"};
-  if(/exception|revised/i.test(message))return {error:"وصلت معلومات جديدة من أمازون؛ راجعها قبل تأكيد حالة المرتجع"};
-  if(/Historical|current.*source|observation-only/i.test(message))return {error:"هذا المصدر قديم ويحتاج مراجعة قبل تسجيل أثر جديد؛ لم تتغير الأرصدة"};
-  if(/allocated|already|exceeds|twice|remaining/i.test(message))return {error:"الكمية أو التعويض مسجّلان بالفعل أو يتجاوزان المتبقي؛ لم يُكرر التسجيل"};
-  return {error:"القرار يحتاج مراجعة أصل الحركة أو التكلفة؛ لم تتغير الأرصدة"};
+  return {error:arabicReturnError(error instanceof Error?error.message:"")};
  }
 }

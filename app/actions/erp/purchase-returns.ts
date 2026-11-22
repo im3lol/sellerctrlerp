@@ -159,6 +159,9 @@ export async function confirmPurchaseReturnAction(id: string): Promise<ActionSta
           // the create-time cap only counts POSTED priors, so two DRAFTs for the full
           // quantity would otherwise both confirm (double stock OUT + double GRNI debit).
           await tx.execute(sql`select 1 from purchase_receipts where id = ${grn.id} for update`);
+          // The return itself, locked: a double-click must not post it twice.
+          const [liveRet] = await tx.select({ status: purchaseReturns.status }).from(purchaseReturns).where(eq(purchaseReturns.id, ret.id)).for("update").limit(1);
+          if (liveRet?.status !== "DRAFT") throw new Error("المرتجع مُرحّل بالفعل");
           const recLines = await tx.select({ itemId: purchaseReceiptLines.itemId, quantity: purchaseReceiptLines.quantity })
             .from(purchaseReceiptLines).where(eq(purchaseReceiptLines.purchaseReceiptId, grn.id));
           const receivedByItem = new Map<string, number>();
@@ -253,6 +256,9 @@ export async function confirmPurchaseReturnAction(id: string): Promise<ActionSta
         // the create-time cap only counts POSTED priors, so two DRAFTs for the full
         // quantity would otherwise both confirm (double AP debit + double stock OUT).
         await tx.execute(sql`select 1 from purchase_invoices where id = ${inv.id} for update`);
+        // The return itself, locked: a double-click must not post it twice.
+        const [liveRet] = await tx.select({ status: purchaseReturns.status }).from(purchaseReturns).where(eq(purchaseReturns.id, ret.id)).for("update").limit(1);
+        if (liveRet?.status !== "DRAFT") throw new Error("المرتجع مُرحّل بالفعل");
         const invLines2 = await tx.select({ itemId: purchaseInvoiceLines.itemId, quantity: purchaseInvoiceLines.quantity })
           .from(purchaseInvoiceLines).where(eq(purchaseInvoiceLines.purchaseInvoiceId, inv.id));
         const boughtByItem = new Map<string, number>();
