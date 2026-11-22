@@ -1,111 +1,133 @@
 import { sql } from "drizzle-orm";
-import { totalmem, freemem, loadavg, uptime } from "node:os";
-import { statfs } from "node:fs/promises";
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/session";
-import { fill, type Locale } from "@/lib/i18n";
-import { getLocale, getT } from "@/lib/i18n/server";
+import { getT } from "@/lib/i18n/server";
 import { db } from "@/lib/db";
 import { withPlatformScope } from "@/lib/db-scope";
+import { runHealthChecks, type HealthCheck, type HealthGroup, type HealthStatus } from "@/lib/system-health";
 import { Icon } from "@/components/icon";
 import { PageHeader } from "@/components/page-header";
+import { AutoRefresh } from "@/components/admin/auto-refresh";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 export const dynamic = "force-dynamic";
 
-const fmtBytes = (b: number, locale: Locale) => {
-  const [kb, mb, gb] = locale === "en" ? ["KB", "MB", "GB"] : ["ك.ب", "م.ب", "ج.ب"];
-  return b < 1024 * 1024 ? `${(b / 1024).toFixed(0)} ${kb}` : b < 1024 ** 3 ? `${(b / 1024 / 1024).toFixed(1)} ${mb}` : `${(b / 1024 ** 3).toFixed(2)} ${gb}`;
+const STATUS: Record<HealthStatus, { label: string; dot: string; banner: string; icon: string }> = {
+  pass: { label: "يعمل", dot: "bg-emerald-500", banner: "border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300", icon: "CheckCircle2" },
+  warn: { label: "تحذير", dot: "bg-amber-500", banner: "border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-300", icon: "AlertTriangle" },
+  fail: { label: "عطل", dot: "bg-red-500", banner: "border-red-500/40 bg-red-500/10 text-red-700 dark:text-red-300", icon: "XCircle" },
 };
-const int = (n: number) => n.toLocaleString("ar-EG-u-nu-latn");
+const OVERALL: Record<HealthStatus, string> = {
+  pass: "كل الأنظمة تعمل بشكل طبيعي",
+  warn: "النظام يعمل مع تحذيرات تحتاج متابعة",
+  fail: "يوجد عطل في جزء من النظام",
+};
+const GROUPS: { key: HealthGroup; title: string; icon: string }[] = [
+  { key: "core", title: "الخدمات الأساسية", icon: "Server" },
+  { key: "server", title: "موارد السيرفر", icon: "Cpu" },
+  { key: "network", title: "الشبكة والخدمات الخارجية", icon: "Globe" },
+  { key: "data", title: "البيانات والنسخ الاحتياطي", icon: "Database" },
+];
+const fmtBytes = (b: number) => b < 1024 ** 2 ? `${(b / 1024).toFixed(0)} KB` : b < 1024 ** 3 ? `${(b / 1024 ** 2).toFixed(1)} MB` : `${(b / 1024 ** 3).toFixed(2)} GB`;
 
 export default async function SystemPage() {
   if ((await getCurrentUser())?.role !== "system_admin") redirect("/login/admin");
-  // Platform scope: document_attachments is RLS-policied, and with no scope open the
-  // storage card and the per-tenant storage table both read zero.
+  // Platform scope: the checks read across companies (platform links, backups) and
+  // document_attachments is RLS-policied.
   return withPlatformScope(() => render());
+}
+
+function CheckCard({ c, t }: { c: HealthCheck; t: (s: string) => string }) {
+  const s = STATUS[c.status];
+  return (
+    <Card className={c.status === "pass" ? undefined : c.status === "warn" ? "border-amber-500/50" : "border-red-500/60"}>
+      <CardContent className="space-y-3 pt-5">
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex min-w-0 items-center gap-2">
+            <span className={`size-2.5 shrink-0 rounded-full ${s.dot}`} aria-hidden />
+            <span className="font-semibold">{c.label}</span>
+          </div>
+          <div className="flex shrink-0 items-center gap-2 text-xs text-muted-foreground">
+            <span className="tabular-nums" dir="ltr">{c.ms} ms</span>
+            <span className={`rounded-full border px-2 py-0.5 font-medium ${s.banner}`}>{t(s.label)}</span>
+          </div>
+        </div>
+        <p className="text-sm">{c.summary}</p>
+        {c.details.length > 0 && (
+          <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-xs">
+            {c.details.map(([k, v]) => (
+              <div key={k} className="contents">
+                <dt className="text-muted-foreground">{k}</dt>
+                <dd className="min-w-0 break-words text-start font-medium" dir="auto">{v}</dd>
+              </div>
+            ))}
+          </dl>
+        )}
+        {c.hint && (
+          <div className="flex gap-2 rounded-lg bg-muted/60 p-2.5 text-xs">
+            <Icon name="Lightbulb" className="mt-0.5 size-3.5 shrink-0 text-amber-600" />
+            <span><span className="font-semibold">{t("تعمل إيه:")} </span>{c.hint}</span>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
 }
 
 async function render() {
   const t = await getT();
-  const locale = await getLocale();
-  const disk = await statfs(process.cwd()).catch(() => null);
-  const [meta] = await db.execute<{ db_size: number; attach_bytes: number; attach_count: number; orgs: number; conns: number }>(sql`
-    SELECT
-      pg_database_size(current_database()) AS db_size,
-      (SELECT coalesce(sum(file_size),0) FROM document_attachments) AS attach_bytes,
-      (SELECT count(*)::int FROM document_attachments) AS attach_count,
-      (SELECT count(*)::int FROM organizations) AS orgs,
-      (SELECT count(*)::int FROM pg_stat_activity WHERE datname = current_database()) AS conns
-  `).then((r) => r.rows);
-
-  // Storage consumed per subscriber.
+  const { checks, overall, at } = await runHealthChecks();
   const perOrg = await db.execute<{ name: string; bytes: number; files: number }>(sql`
     SELECT o.name_ar AS name, coalesce(sum(a.file_size),0)::bigint AS bytes, count(a.id)::int AS files
     FROM organizations o LEFT JOIN document_attachments a ON a.organization_id = o.id
     GROUP BY o.id, o.name_ar ORDER BY bytes DESC
   `).then((r) => r.rows);
-
-  const cards = [
-    { label: "حجم قاعدة البيانات", value: fmtBytes(Number(meta?.db_size ?? 0), locale), icon: "Database" },
-    { label: "حجم المرفقات", value: fmtBytes(Number(meta?.attach_bytes ?? 0), locale), icon: "HardDrive", hint: fill(t("{0} ملف"), [int(Number(meta?.attach_count ?? 0))]) },
-    { label: "اتصالات قاعدة البيانات", value: int(Number(meta?.conns ?? 0)), icon: "Activity" },
-    { label: "المؤسسات", value: int(Number(meta?.orgs ?? 0)), icon: "Building2" },
-    { label: "الذاكرة المستخدمة", value: fmtBytes(totalmem() - freemem(), locale), icon: "MemoryStick", hint: `${t("من")} ${fmtBytes(totalmem(), locale)}` },
-    { label: "المساحة المتاحة", value: disk ? fmtBytes(Number(disk.bavail) * Number(disk.bsize), locale) : "—", icon: "HardDrive", hint: t("نظام الملفات الحالي") },
-  ];
-
-  const server = [
-    { k: "بيئة التشغيل", v: t("خادم ذاتي / Docker") },
-    { k: "إصدار Node", v: process.version },
-    { k: "المنصة", v: `${process.platform} / ${process.arch}` },
-    { k: "البيئة", v: process.env.NODE_ENV ?? "—" },
-    { k: "متوسط حمل الخادم", v: loadavg().map(n => n.toFixed(2)).join(" / ") },
-    { k: "مدة تشغيل الخادم بالساعات", v: (uptime() / 3600).toFixed(1) },
-    { k: "ذاكرة التطبيق", v: fmtBytes(process.memoryUsage().rss, locale) },
-  ];
+  const counts = { pass: 0, warn: 0, fail: 0 };
+  for (const c of checks) counts[c.status]++;
+  const o = STATUS[overall];
 
   return (
     <div className="space-y-6">
-      <PageHeader title={t("أدوات النظام")} description={t("حالة الخادم وقاعدة البيانات والتخزين المستهلك.")} />
+      <PageHeader title={t("حالة النظام")} description={t("فحص حي لكل أجزاء النظام: الخدمات، السيرفر، الشبكة، والنسخ الاحتياطي.")} />
 
-      <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
-        {cards.map((c) => (
-          <Card key={c.label}><CardContent className="pt-6">
-            <div className="flex items-center gap-2 text-sm text-muted-foreground"><Icon name={c.icon} className="size-4" />{t(c.label)}</div>
-            <div className="mt-1 text-2xl font-bold tabular-nums">{c.value}</div>
-            {c.hint && <div className="text-xs text-muted-foreground">{t(c.hint)}</div>}
-          </CardContent></Card>
-        ))}
+      <div className={`flex flex-wrap items-center justify-between gap-3 rounded-xl border p-4 ${o.banner}`}>
+        <div className="flex items-center gap-3">
+          <Icon name={o.icon} className="size-6" />
+          <div>
+            <div className="text-lg font-bold">{t(OVERALL[overall])}</div>
+            <div className="text-sm opacity-80">{counts.pass} {t("يعمل")} · {counts.warn} {t("تحذير")} · {counts.fail} {t("عطل")}</div>
+          </div>
+        </div>
+        <AutoRefresh at={at} />
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        <Card>
-          <CardHeader className="pb-2"><CardTitle className="text-base">{t("الخادم")}</CardTitle></CardHeader>
-          <CardContent className="p-0">
-            <Table><TableBody>
-              {server.map((s) => (
-                <TableRow key={s.k}><TableCell className="text-muted-foreground">{t(s.k)}</TableCell><TableCell className="text-start font-medium" dir="ltr">{s.v}</TableCell></TableRow>
+      {GROUPS.map((g) => {
+        const list = checks.filter((c) => c.group === g.key);
+        if (!list.length) return null;
+        return (
+          <section key={g.key} className="space-y-3">
+            <h2 className="flex items-center gap-2 text-base font-semibold"><Icon name={g.icon} className="size-4 text-muted-foreground" />{t(g.title)}</h2>
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+              {list.map((c) => <CheckCard key={c.key} c={c} t={t} />)}
+            </div>
+          </section>
+        );
+      })}
+
+      <Card>
+        <CardHeader className="pb-2"><CardTitle className="text-base">{t("التخزين حسب المؤسسة")}</CardTitle></CardHeader>
+        <CardContent className="p-0">
+          <Table>
+            <TableHeader><TableRow><TableHead className="text-start">{t("المؤسسة")}</TableHead><TableHead className="text-start">{t("الملفات")}</TableHead><TableHead className="text-start">{t("الحجم")}</TableHead></TableRow></TableHeader>
+            <TableBody>
+              {perOrg.map((r) => (
+                <TableRow key={r.name}><TableCell className="font-medium">{r.name}</TableCell><TableCell className="tabular-nums">{Number(r.files).toLocaleString("ar-EG-u-nu-latn")}</TableCell><TableCell className="tabular-nums" dir="ltr">{fmtBytes(Number(r.bytes))}</TableCell></TableRow>
               ))}
-            </TableBody></Table>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-2"><CardTitle className="text-base">{t("التخزين حسب المؤسسة")}</CardTitle></CardHeader>
-          <CardContent className="p-0">
-            <Table>
-              <TableHeader><TableRow><TableHead className="text-start">{t("المؤسسة")}</TableHead><TableHead className="text-start">{t("الملفات")}</TableHead><TableHead className="text-start">{t("الحجم")}</TableHead></TableRow></TableHeader>
-              <TableBody>
-                {perOrg.map((o) => (
-                  <TableRow key={o.name}><TableCell className="font-medium">{o.name}</TableCell><TableCell className="tabular-nums">{int(Number(o.files))}</TableCell><TableCell className="tabular-nums">{fmtBytes(Number(o.bytes), locale)}</TableCell></TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
-      </div>
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
     </div>
   );
 }
