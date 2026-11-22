@@ -45,6 +45,19 @@ function forward(level: Level, event: string, line: string, throttleKey: string)
   }
 }
 
+/** Hourly error counts per event in Redis (shared by web + worker) for the system status page.
+ *  Fire-and-forget on the fail-fast connection; never throws. Kept 49h. */
+function countError(event: string): void {
+  if (!process.env.REDIS_URL) return;
+  void (async () => {
+    const { fastRedis } = await import("@/lib/queue/redis");
+    const r = fastRedis();
+    if (!r || r.status !== "ready") return;
+    const key = `health:errors:${new Date().toISOString().slice(0, 13)}`;
+    await r.multi().hincrby(key, event.slice(0, 120), 1).expire(key, 49 * 3600).exec();
+  })().catch(() => {});
+}
+
 function emit(level: Level, event: string, ctx?: Record<string, unknown>): void {
   const out: Record<string, unknown> = { t: new Date().toISOString(), level, event };
   if (ctx) {
@@ -56,7 +69,7 @@ function emit(level: Level, event: string, ctx?: Record<string, unknown>): void 
   // Per-org throttle key when the event carries an orgId (see forward()); else by event name.
   const orgId = ctx && typeof ctx.orgId === "string" ? ctx.orgId : undefined;
   const throttleKey = orgId ? `${event}:${orgId}` : event;
-  if (level === "error") { console.error(line); forward(level, event, line, throttleKey); }
+  if (level === "error") { console.error(line); forward(level, event, line, throttleKey); countError(event); }
   else if (level === "warn") console.warn(line);
   else console.log(line);
 }

@@ -22,6 +22,7 @@ import { getControlDivergences } from "@/lib/erp/control-reconciliation";
 import { purgeDueOrganizations } from "@/lib/erp/org-deletion";
 import { localeForEmail } from "@/lib/saas/email";
 import { DEFAULT_LOCALE, dirOf, fill, isLocale, translator, type Locale } from "@/lib/i18n";
+import { recordCronRun } from "@/lib/system-health";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -47,6 +48,7 @@ export async function GET(req: Request) {
   const origin = process.env.APP_URL || new URL(req.url).origin;
   // Cross-org daily job (no active tenant) — platform scope so per-org reads/writes
   // for every organization bypass RLS.
+  await recordCronRun("started");
   return withPlatformScope(async () => {
   // 0) Delete companies past their deletion grace period + expired demo companies — first,
   //    so nothing below spends a backup or an email on them.
@@ -243,6 +245,8 @@ export async function GET(req: Request) {
     }
   }
 
-  return Response.json({ ok: true, orgs: orgs.length, purged, generated, productsRun, expired, backedUp, backupQueued, backupFailed, reminders, sent });
+  const summary = { ok: true, orgs: orgs.length, purged, generated, productsRun, expired, backedUp, backupQueued, backupFailed, reminders, sent };
+  await recordCronRun("finished", summary);
+  return Response.json(summary);
   });
 }
