@@ -351,8 +351,12 @@ const numAmounts = (r: { type: string; productSales: string; shippingCredits: st
   other: Number(r.other), total: Number(r.total),
 });
 const rowKey = (ids: string[]) => createHash("sha256").update([...ids].sort().join(",")).digest("hex").slice(0, 40);
-const maxDate = (rows: { releaseDate: Date | null }[]): Date =>
-  rows.reduce<Date | null>((mx, r) => { const d = r.releaseDate ? new Date(r.releaseDate) : null; return d && (!mx || d > mx) ? d : mx; }, null) ?? new Date();
+// Amazon's transactions API never sends a release date (transactions.ts stores null), so the
+// go-live cutoff and the entry date fall back to when the transaction posted. Comparing a null
+// release date silently skipped every row: nothing was ever posted to the ledger.
+const settledOn = sql`coalesce(${marketplaceSettlementTxns.releaseDate}, ${marketplaceSettlementTxns.postedAt})`;
+const maxDate = (rows: { releaseDate: Date | null; postedAt?: Date | null }[]): Date =>
+  rows.reduce<Date | null>((mx, r) => { const v = r.releaseDate ?? r.postedAt ?? null; const d = v ? new Date(v) : null; return d && (!mx || d > mx) ? d : mx; }, null) ?? new Date();
 
 /**
  * Post released, not-yet-posted settlement rows: ONE journal entry PER matched order
@@ -395,14 +399,14 @@ export async function postSettlements(orgId: string, userId?: string | null, cha
     eq(marketplaceSettlementTxns.status, "Released"),
     isNull(marketplaceSettlementTxns.journalEntryId),
   ];
-  if (startDate) toPostConds.push(sql`${marketplaceSettlementTxns.releaseDate} >= ${startDate}`);
+  if (startDate) toPostConds.push(sql`${settledOn} >= ${startDate}`);
 
   const toPost = await db.select({
     id: marketplaceSettlementTxns.id, type: marketplaceSettlementTxns.type, description: marketplaceSettlementTxns.description,
     productSales: marketplaceSettlementTxns.productSales, shippingCredits: marketplaceSettlementTxns.shippingCredits,
     promotionalRebates: marketplaceSettlementTxns.promotionalRebates, sellingFees: marketplaceSettlementTxns.sellingFees,
     fbaFees: marketplaceSettlementTxns.fbaFees, otherTransactionFees: marketplaceSettlementTxns.otherTransactionFees,
-    other: marketplaceSettlementTxns.other, total: marketplaceSettlementTxns.total, releaseDate: marketplaceSettlementTxns.releaseDate,
+    other: marketplaceSettlementTxns.other, total: marketplaceSettlementTxns.total, releaseDate: marketplaceSettlementTxns.releaseDate, postedAt: marketplaceSettlementTxns.postedAt,
     salesOrderId: marketplaceSettlementTxns.salesOrderId,
   }).from(marketplaceSettlementTxns).where(and(...toPostConds));
 
@@ -412,7 +416,7 @@ export async function postSettlements(orgId: string, userId?: string | null, cha
         eq(marketplaceSettlementTxns.channel, channel),
         eq(marketplaceSettlementTxns.status, "Released"),
         isNull(marketplaceSettlementTxns.journalEntryId),
-        sql`${marketplaceSettlementTxns.releaseDate} < ${startDate}`,
+        sql`${settledOn} < ${startDate}`,
       )))[0]?.n ?? 0)
     : 0;
 
