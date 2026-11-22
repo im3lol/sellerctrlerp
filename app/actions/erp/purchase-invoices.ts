@@ -71,8 +71,12 @@ export async function postPurchaseInvoiceAction(id: string): Promise<ActionState
     try {
       await db.transaction(async (tx) => {
         // Goods were already received by the GRN — just settle GRNI and advance the order.
-        const [grn] = await tx.select().from(purchaseReceipts).where(eq(purchaseReceipts.id, inv.goodsReceiptId!)).limit(1);
+        // Locked and re-checked: a receipt cancelled after this draft was made must not be
+        // billed (GRNI would be cleared for goods that were taken back out).
+        const [grn] = await tx.select().from(purchaseReceipts)
+          .where(and(eq(purchaseReceipts.id, inv.goodsReceiptId!), eq(purchaseReceipts.organizationId, auth.orgId))).for("update").limit(1);
         if (!grn) throw new Error("إذن الاستلام غير موجود");
+        if (grn.status !== "RECEIVED" || grn.purchaseInvoiceId) throw new Error("إذن الاستلام ملغي أو مفوتر بالفعل — احذف هذه المسودة");
 
         // ── Three-way match ──────────────────────────────────────────────────────
         // The GRNI leg is FIXED at whatever the receipt capitalised; the supplier's

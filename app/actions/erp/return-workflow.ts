@@ -23,6 +23,7 @@ import {getErpContext}from "@/lib/erp/erp-context";
 import {getActiveOrg}from "@/lib/erp/org";
 import {getMemberAccess}from "@/lib/erp/auth-guard";
 import {returnProducts}from "@/lib/erp/return-workflow/products";
+import {arabicReturnError}from "@/lib/erp/return-workflow/errors";
 
 const ident=z.string().trim().min(1).max(200);
 const qty=z.string().regex(/^\d+(?:\.\d{1,4})?$/).max(25);
@@ -77,11 +78,11 @@ export async function configureReturnWorkflowAction(input:unknown){
  const auth=await authorizeErp("settings.edit","marketplace");if("error"in auth)return auth;
  const manager=await authorizeErp("approvals.decide","marketplace");if("error"in manager)return manager;
  const p=z.object({mode:z.enum(["MONITOR","MANUAL","DISABLED"]),acknowledged:z.boolean()}).safeParse(input);
- if(!p.success||!p.data.acknowledged)return {error:"Confirm the observation/cutover policy first"};
+ if(!p.success||!p.data.acknowledged)return {error:"أكّد سياسة المراقبة وبدء التنفيذ أولًا"};
  return withOrgScope(auth.orgId,false,async()=>{
   const [locked]=await db.select().from(settings).where(eq(settings.organizationId,auth.orgId)).for("update");
   const prior=locked??await workflowSettings(auth.orgId);
-  if(p.data.mode==="DISABLED"&&prior.cutoverAt)return {error:"Disable posting by returning to MONITOR; the legacy writer must not resume"};
+  if(p.data.mode==="DISABLED"&&prior.cutoverAt)return {error:"لإيقاف تنفيذ القرارات ارجع لوضع المراقبة؛ لا يمكن تعطيل المرتجعات بعد بدء التنفيذ"};
   await db.insert(settings).values({organizationId:auth.orgId,mode:p.data.mode,cutoverAt:p.data.mode==="MANUAL"?prior.cutoverAt??new Date():prior.cutoverAt,updatedBy:auth.userId})
    .onConflictDoUpdate({target:settings.organizationId,set:{mode:p.data.mode,cutoverAt:p.data.mode==="MANUAL"?prior.cutoverAt??new Date():prior.cutoverAt,updatedBy:auth.userId,updatedAt:new Date()}});
   const {scopeStore}=await import("@/lib/db");
@@ -92,11 +93,11 @@ export async function configureReturnWorkflowAction(input:unknown){
 export async function captureReturnSourcesAction(platformId:string){
  const auth=await authorizeErp("sales.view","marketplace");if("error"in auth)return auth;
  try{return await withOrgScope(auth.orgId,false,async()=>({ok:true,...await captureReturnSources(auth.orgId,ident.parse(platformId))}));}
- catch{return {error:"Unable to refresh return evidence; existing data remains unchanged"};}
+ catch{return {error:"تعذّر تحديث بيانات المرتجعات؛ البيانات الحالية لم تتغير"};}
 }
 
 export async function executeReturnWorkflowAction(input:unknown){
- const p=command.safeParse(input);if(!p.success)return {error:"Invalid return request"};
+ const p=command.safeParse(input);if(!p.success)return {error:"طلب المرتجع غير صالح"};
  const cmd=p.data;const auth=await authorizeErp(permission[cmd.kind],"marketplace");if("error"in auth)return auth;
  try{
   const result=await withOrgScope(auth.orgId,false,()=>executeReturnOperation({...cmd,orgId:auth.orgId,userId:auth.userId},async (record,operationId)=>{
@@ -220,5 +221,5 @@ export async function executeReturnWorkflowAction(input:unknown){
    throw new Error("This operation needs its dedicated document preview before it can be approved");
   }));
   revalidatePath("/sales/marketplace-returns");return {ok:true,...result};
- }catch(e){return {error:e instanceof z.ZodError?"Invalid return decision":e instanceof Error&&!("code"in e)?e.message:"Unable to process the return; no partial changes were committed"};}
+ }catch(e){return {error:e instanceof z.ZodError?"بيانات القرار غير صالحة":e instanceof Error&&!("code"in e)?arabicReturnError(e.message):"تعذّر تنفيذ قرار المرتجع؛ لم يتم حفظ أي تغيير"};}
 }

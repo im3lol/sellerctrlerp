@@ -532,7 +532,7 @@ export async function convertDeliveryToInvoiceAction(
       .where(and(eq(deliveryNotes.id, deliveryId), eq(deliveryNotes.organizationId, auth.orgId))).limit(1);
     if (!dn) return { error: "التسليم غير موجود" };
     if (dn.status === "DRAFT") return { error: "أكّد إذن الصرف أولاً قبل تحويله إلى فاتورة" };
-    if (dn.status === "CANCELLED") return { error: "إذن الصرف ملغي — لا يمكن فوترته" };
+    if (dn.status === "CANCELLED" || dn.status === "REVERSED") return { error: "إذن الصرف ملغي — لا يمكن فوترته" };
     if (dn.salesInvoiceId) return { error: "التسليم مفوتر بالفعل" };
     const customerId = dn.customerId;
     if (!customerId) return { error: "التسليم غير مرتبط بعميل" };
@@ -617,6 +617,11 @@ export async function reverseDeliveryAction(deliveryId: string): Promise<ActionS
 
     try {
       await db.transaction(async (tx) => {
+        // Re-check under lock: a double-click or a concurrent cancel would otherwise
+        // restock the same delivery twice.
+        const [locked] = await tx.select({ status: deliveryNotes.status }).from(deliveryNotes)
+          .where(and(eq(deliveryNotes.id, dn.id), eq(deliveryNotes.organizationId, auth.orgId))).for("update").limit(1);
+        if (locked?.status !== "DELIVERED" && locked?.status !== "INVOICED") throw new Error("تم عكس أو إلغاء إذن الصرف بالفعل");
         let cogs = 0;
         for (const m of moves) {
           const qty = Number(m.quantity), cost = Number(m.unitCost);

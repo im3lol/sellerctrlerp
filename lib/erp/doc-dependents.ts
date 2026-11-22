@@ -107,11 +107,12 @@ export async function goodsReceiptDependents(orgId: string, grnId: string): Prom
 
   const deps: Dependent[] = [];
 
-  if (grn.purchaseInvoiceId) {
-    const [inv] = await db.select({ number: purchaseInvoices.number }).from(purchaseInvoices)
-      .where(and(eq(purchaseInvoices.id, grn.purchaseInvoiceId), eq(purchaseInvoices.organizationId, orgId))).limit(1);
-    if (inv) deps.push({ label: "فاتورة شراء", number: inv.number, href: `/purchases/invoices/${encodeURIComponent(inv.number)}` });
-  }
+  // Drafts count too: a draft billed from this receipt could otherwise be posted after the
+  // receipt is cancelled, paying the supplier for goods that were taken back out.
+  const invs = await db.select({ number: purchaseInvoices.number, status: purchaseInvoices.status }).from(purchaseInvoices)
+    .where(and(eq(purchaseInvoices.organizationId, orgId), ne(purchaseInvoices.status, "CANCELLED"),
+      grn.purchaseInvoiceId ? sql`(${purchaseInvoices.goodsReceiptId} = ${grn.id} or ${purchaseInvoices.id} = ${grn.purchaseInvoiceId})` : eq(purchaseInvoices.goodsReceiptId, grn.id)));
+  for (const inv of invs) deps.push({ label: inv.status === "DRAFT" ? "مسودة فاتورة شراء" : "فاتورة شراء", number: inv.number, href: `/purchases/invoices/${encodeURIComponent(inv.number)}` });
 
   const rets = await db.select({ number: purchaseReturns.number }).from(purchaseReturns)
     .where(and(eq(purchaseReturns.purchaseReceiptId, grn.id), eq(purchaseReturns.organizationId, orgId), ne(purchaseReturns.status, "CANCELLED")));
@@ -171,11 +172,12 @@ export async function deliveryDependents(orgId: string, deliveryId: string): Pro
   if (!dn) return [];
 
   const deps: Dependent[] = [];
-  if (dn.salesInvoiceId) {
-    const [inv] = await db.select({ number: salesInvoices.number }).from(salesInvoices)
-      .where(and(eq(salesInvoices.id, dn.salesInvoiceId), eq(salesInvoices.organizationId, orgId))).limit(1);
-    if (inv) deps.push({ label: "فاتورة بيع", number: inv.number, href: `/sales/invoices/${encodeURIComponent(inv.number)}` });
-  }
+  // Drafts count too: a draft billed from this delivery could otherwise be posted after the
+  // delivery is cancelled, recording a sale for goods that went back on the shelf.
+  const invs = await db.select({ number: salesInvoices.number, status: salesInvoices.status }).from(salesInvoices)
+    .where(and(eq(salesInvoices.organizationId, orgId), ne(salesInvoices.status, "CANCELLED"),
+      dn.salesInvoiceId ? sql`(${salesInvoices.deliveryNoteId} = ${dn.id} or ${salesInvoices.id} = ${dn.salesInvoiceId})` : eq(salesInvoices.deliveryNoteId, dn.id)));
+  for (const inv of invs) deps.push({ label: inv.status === "DRAFT" ? "مسودة فاتورة بيع" : "فاتورة بيع", number: inv.number, href: `/sales/invoices/${encodeURIComponent(inv.number)}` });
   const rets = await db.select({ number: salesReturns.number }).from(salesReturns)
     .where(and(eq(salesReturns.deliveryNoteId, dn.id), eq(salesReturns.organizationId, orgId), ne(salesReturns.status, "CANCELLED")));
   for (const r of rets) deps.push({ label: "مرتجع بيع", number: r.number, href: `/sales/returns/${encodeURIComponent(r.number)}` });

@@ -8,7 +8,7 @@ import { db } from "@/lib/db";
 import { nextDocumentNumber } from "@/lib/erp/sequence";
 import {
   purchaseReceipts, purchaseReceiptLines, purchaseOrders, purchaseOrderLines,
-  purchaseInvoices, purchaseInvoiceLines, purchaseReturns, items, stockMovements, stockMovementBatches, stockBatches,
+  purchaseInvoices, purchaseInvoiceLines, items, stockMovements, stockMovementBatches, stockBatches,
   journalEntries, warehouses, stockSerials, qcInspections, organizations} from "@/db/schema";
 import { authorizeErp, type ActionState } from "@/lib/erp/action-auth";
 import { inspectedItems, ensureQuarantineWarehouse } from "@/app/actions/erp/quality";
@@ -674,7 +674,7 @@ export async function convertReceiptToInvoiceAction(
       .where(and(eq(purchaseReceipts.id, receiptId), eq(purchaseReceipts.organizationId, auth.orgId))).limit(1);
     if (!grn) return { error: "الاستلام غير موجود" };
     if (grn.status === "DRAFT") return { error: "أكّد إذن الاستلام أولاً قبل تحويله إلى فاتورة" };
-    if (grn.status === "CANCELLED") return { error: "إذن الاستلام ملغي — لا يمكن فوترته" };
+    if (grn.status === "CANCELLED" || grn.status === "REVERSED") return { error: "إذن الاستلام ملغي — لا يمكن فوترته" };
     if (grn.purchaseInvoiceId) return { error: "الاستلام مفوتر بالفعل" };
     const supplierId = grn.supplierId;
     if (!supplierId) return { error: "الاستلام غير مرتبط بمورد" };
@@ -726,84 +726,6 @@ export async function convertReceiptToInvoiceAction(
       return { ok: true, invoiceId };
     } catch (e) {
       return { error: e instanceof Error ? e.message : "تعذّر إنشاء الفاتورة" };
-    }
-  });
-}
-
-/**
- * Fully reverse a confirmed, UN-invoiced goods receipt ("عكس الاستلام"): stock OUT
- * at the original receipt cost + Dr 2103 / Cr 1104, drop the order's receivedQty so
- * it reopens, mark the receipt REVERSED. Invoiced receipts must use the invoice return.
- */
-export async function reverseReceiptAction(receiptId: string): Promise<ActionState & { id?: string }> {
-  const auth = await authorizeErp("purchases.confirm");
-  if ("error" in auth) return auth;
-  return withOrgScope(auth.orgId, false, async () => {
-    const [grn] = await db.select().from(purchaseReceipts)
-      .where(and(eq(purchaseReceipts.id, receiptId), eq(purchaseReceipts.organizationId, auth.orgId))).limit(1);
-    if (!grn) return { error: "الإذن غير موجود" };
-    // An INVOICED receipt already cleared GRNI (2103) into AP — reversing here would
-    // debit 2103 a second time and leave the posted invoice fully payable for goods
-    // that "never arrived". Use the return flow (مرتجع الإذن + مرتجع الفاتورة) instead.
-    if (grn.status !== "RECEIVED") return { error: grn.status === "INVOICED" ? "الإذن مفوتر — استخدم مرتجع الإذن ومرتجع الفاتورة بدل العكس" : "لا يمكن عكس هذا الإذن" };
-    // A posted return already took part of this stock back out — a full reversal on
-    // top would issue those units a second time. Cancel the returns first.
-    const [priorRet] = await db.select({ id: purchaseReturns.id }).from(purchaseReturns)
-      .where(and(eq(purchaseReturns.purchaseReceiptId, grn.id), eq(purchaseReturns.status, "POSTED"))).limit(1);
-    if (priorRet) return { error: "توجد مرتجعات مرحّلة على هذا الإذن — ألغِ المرتجعات أولاً" };
-
-    const moves = await db.select({ id: stockMovements.id, itemId: stockMovements.itemId, warehouseId: stockMovements.warehouseId, quantity: stockMovements.quantity, unitCost: stockMovements.unitCost })
-      .from(stockMovements).where(and(eq(stockMovements.organizationId, auth.orgId), eq(stockMovements.referenceType, "GOODS_RECEIPT"), eq(stockMovements.referenceId, grn.id)));
-    if (moves.length === 0) return { error: "لا توجد حركة مخزون للعكس" };
-
-    const A = await resolveAccountIds(auth.orgId, ["1104", "2103"]);
-    if (!A["1104"] || !A["2103"]) return { error: "حسابات العكس غير مكتملة" };
-
-    const poLines = grn.purchaseOrderId
-      ? await db.select({ id: purchaseOrderLines.id, itemId: purchaseOrderLines.itemId }).from(purchaseOrderLines).where(eq(purchaseOrderLines.purchaseOrderId, grn.purchaseOrderId))
-      : [];
-    const poByItem = new Map(poLines.map((l) => [l.itemId, l]));
-    const date = new Date();
-
-    try {
-      await db.transaction(async (tx) => {
-        let value = 0;
-        for (const m of moves) {
-          const qty = Number(m.quantity), cost = Number(m.unitCost);
-          const smb = await tx.select({ batchId: stockMovementBatches.batchId, quantity: stockMovementBatches.quantity }).from(stockMovementBatches).where(eq(stockMovementBatches.movementId, m.id));
-          // GL from the ledger's actual re-posted value, not the stored original
-          // cost (else GL drifts from the ledger when the pinned lot re-averaged).
-          const r = await postStockMovement(tx, {
-            // Issue from the warehouse the IN actually landed in (per-line picks may
-            // differ from the header warehouse) — else ledger and batches diverge.
-            orgId: auth.orgId, itemId: m.itemId, warehouseId: m.warehouseId, type: "OUT",
-            quantity: qty, unitCost: cost, date, allocations: smb.map((s) => ({ batchId: s.batchId, quantity: Math.abs(Number(s.quantity)) })), referenceType: "GOODS_RECEIPT_REVERSE", referenceId: grn.id, reason: `عكس استلام ${grn.number}`,
-          });
-          value += r.totalCost;
-          const pol = poByItem.get(m.itemId);
-          if (pol) await tx.update(purchaseOrderLines).set({ receivedQty: sql`GREATEST(0, ${purchaseOrderLines.receivedQty} - ${qty})` }).where(eq(purchaseOrderLines.id, pol.id));
-        }
-        value = round2(value);
-        if (value > 0) {
-          await postEntry(tx, {
-            orgId: auth.orgId, date, sourceType: "GOODS_RECEIPT_REVERSE", sourceId: grn.id,
-            description: `عكس استلام ${grn.number}`, journalType: "PURCHASE", userId: auth.userId,
-            lines: [
-              { accountId: A["2103"], debit: value, credit: 0, description: `عكس بضاعة لم تُفوتر ${grn.number}` },
-              { accountId: A["1104"], debit: 0, credit: value, description: `عكس مخزون مستلم ${grn.number}` },
-            ],
-          });
-        }
-        await tx.update(purchaseReceipts).set({ status: "REVERSED" }).where(eq(purchaseReceipts.id, grn.id));
-        if (grn.purchaseOrderId) await recomputePurchaseOrderStatus(tx, grn.purchaseOrderId);
-        await recordAudit(tx, { orgId: auth.orgId, userId: auth.userId, action: "REVERSE", entityType: "GOODS_RECEIPT", entityId: grn.id, entityNumber: grn.number, summary: `عكس إذن استلام ${grn.number} — أُعيد فتح الأمر`, metadata: { value } });
-      });
-      revalidatePath("/purchases/receipts");
-      revalidatePath("/purchases/orders");
-      revalidatePath(`/purchases/receipts/${grn.number}`);
-      return { ok: true, id: grn.id };
-    } catch (e) {
-      return { error: e instanceof Error ? e.message : "تعذّر عكس الاستلام" };
     }
   });
 }

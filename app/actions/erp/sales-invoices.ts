@@ -184,6 +184,13 @@ export async function postSalesInvoiceAction(id: string): Promise<ActionState & 
         if (creditLimit > 0 && Number(cust?.balance ?? 0) + total > creditLimit + 1e-6) {
           throw new Error(`يتجاوز هذا الترحيل حد ائتمان العميل «${cust?.name ?? ""}» (${creditLimit.toLocaleString("ar-EG-u-nu-latn")}).`);
         }
+        if (fromDelivery) {
+          // Locked and re-checked: a delivery cancelled after this draft was made put the
+          // goods back on the shelf, so billing it would record a sale that never left.
+          const [src] = await tx.select({ status: deliveryNotes.status, invId: deliveryNotes.salesInvoiceId }).from(deliveryNotes)
+            .where(and(eq(deliveryNotes.id, inv.deliveryNoteId!), eq(deliveryNotes.organizationId, auth.orgId))).for("update").limit(1);
+          if (src?.status !== "DELIVERED" || src.invId) throw new Error("إذن الصرف ملغي أو مفوتر بالفعل — احذف هذه المسودة");
+        }
         const eid = await postEntry(tx, {
           orgId: auth.orgId, date: new Date(inv.date), sourceType: "SALES_INVOICE", sourceId: inv.id,
           description: `فاتورة بيع ${inv.number}`, journalType: "SALES", userId: auth.userId, lines,
