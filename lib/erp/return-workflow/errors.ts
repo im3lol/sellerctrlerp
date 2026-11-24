@@ -39,6 +39,7 @@ const exact: Record<string, string> = {
   "Separate the original expiry lots before returning them": "المنتج خرج من دفعات بتواريخ صلاحية مختلفة؛ افصلها قبل الإرجاع.",
   "Missing goods cannot be restocked": "منتج لم يصل لا يمكن إدخاله للمخزن.",
   "Invalid company warehouse": "المخزن المختار غير موجود أو غير نشط.",
+  "A local receipt cannot enter a marketplace warehouse": "«وصل إلى مخزني» لازم يكون على مخزن من مخازنك، مش مخزن أمازون أو نون. لو المنتج رجع لأمازون اختر «رجع إلى مخزن أمازون».",
   "Match the original sales line first": "اختر الفاتورة الأصلية لهذا المنتج أولًا.",
   "The stock issue does not belong to the original sale": "حركة الصرف لا تخص البيع الأصلي.",
   "Original invoice is no longer posted": "الفاتورة الأصلية لم تعد مرحّلة.",
