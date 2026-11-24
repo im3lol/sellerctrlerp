@@ -8868,4 +8868,5 @@ export const EN: Record<string, string> = {
   "إيداع التعويض لم يظهر بعد في تسويات أمازون.": "A posted reimbursement wallet movement is required",
   "مبلغ التعويض مربوط بالفعل بمطالبة أخرى.": "The source or wallet amount is already allocated",
   "«وصل إلى مخزني» لازم يكون على مخزن من مخازنك، مش مخزن أمازون أو نون. لو المنتج رجع لأمازون اختر «رجع إلى مخزن أمازون».": "A local receipt cannot enter a marketplace warehouse",
+  "Redis لا يرد": "Redis is not responding",
 };
