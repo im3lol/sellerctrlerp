@@ -1,6 +1,6 @@
 "use server";
 import { randomUUID } from "node:crypto";
-import { and,desc, eq, inArray,isNull, or } from "drizzle-orm";
+import { and,desc, eq, inArray,isNull, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { withOrgScope,withPlatformScope } from "@/lib/db-scope";
@@ -44,7 +44,9 @@ export async function getReturnWorkspaceAction(caseId?:string,page=1){
  return withOrgScope(auth.orgId,false,async()=>{
   const [config,list,platforms,wh]=await Promise.all([workflowSettings(auth.orgId),listReturnCases(auth.orgId,page),
    db.select({id:salesPlatforms.id,name:salesPlatforms.name}).from(salesPlatforms).where(and(eq(salesPlatforms.organizationId,auth.orgId),eq(salesPlatforms.code,"AMAZON"))),
-   db.select({id:warehouses.id,name:warehouses.nameAr}).from(warehouses).where(and(eq(warehouses.organizationId,auth.orgId),eq(warehouses.isActive,true)))]);
+   db.select({id:warehouses.id,name:warehouses.nameAr,
+    // a marketplace's own warehouse (FBA): only valid for "returned to Amazon", never "received at my warehouse"
+    marketplace:sql<boolean>`exists(select 1 from sales_platforms p where p.organization_id=${auth.orgId} and p.default_warehouse_id=${warehouses.id})`}).from(warehouses).where(and(eq(warehouses.organizationId,auth.orgId),eq(warehouses.isActive,true)))]);
   const storedDetail=caseId?await returnCaseDetail(auth.orgId,caseId):null;
   const evidencePool=storedDetail?await db.select({id:events.id,kind:events.kind,sourceId:events.sourceId,quantity:events.quantity,payload:events.payload}).from(events)
    .innerJoin(cases,and(eq(cases.id,events.caseId),eq(cases.organizationId,auth.orgId)))

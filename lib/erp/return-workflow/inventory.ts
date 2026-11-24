@@ -40,6 +40,14 @@ export async function applyReturnReceipt(orgId:string,userId:string,caseId:strin
   if(used+scaled(legacy?.quantity??"0")+scaled(d.quantity)>scaled(movement.quantity))throw new Error("The original issue quantity has already been returned");
   const [warehouse]=await db.select().from(warehouses).where(and(eq(warehouses.organizationId,orgId),eq(warehouses.id,d.warehouseId),eq(warehouses.isActive,true))).limit(1);
   if(!warehouse)throw new Error("Invalid company warehouse");
+  // A "received at my warehouse" decision needs no Amazon evidence, so it must not be able to
+  // put stock into a marketplace's own warehouse — that would restock FBA without the proof
+  // the AMAZON path demands. Damaged / never-received decisions add no stock and stay allowed.
+  if(d.location==="LOCAL"&&d.condition!=="WRITE_OFF"&&!d.notReceived){
+    const [platformWarehouse]=await db.select({id:salesPlatforms.id}).from(salesPlatforms)
+      .where(and(eq(salesPlatforms.organizationId,orgId),eq(salesPlatforms.defaultWarehouseId,d.warehouseId))).limit(1);
+    if(platformWarehouse)throw new Error("A local receipt cannot enter a marketplace warehouse");
+  }
   const [originalItem]=await db.select({tracking:items.tracking}).from(items).where(and(eq(items.organizationId,orgId),eq(items.id,line.itemId))).limit(1);
   if(originalItem?.tracking==="SERIAL")throw new Error("Serial-tracked returns require a serial allocation review before posting");
   const lots=await db.select().from(stockMovementBatches).where(and(eq(stockMovementBatches.organizationId,orgId),eq(stockMovementBatches.movementId,movement.id)));
