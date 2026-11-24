@@ -179,12 +179,17 @@ describe.skipIf(!url)("returns PostgreSQL isolation and transaction contract",()
   });
   const id=(await scope.withOrgScope(org,false,()=>store.observeReturnSource(org,platform,"SIMPLE-ORDER",{kind:"RETURN",sourceId:randomUUID(),sourceVersion:"v1",happenedAt:date.toISOString(),sourceStatus:null,currency:null,quantity:"3",payload:{sku:"SIMPLE"}})))!;
   await scope.withOrgScope(org,false,()=>store.executeReturnOperation({...command("MATCH"),caseId:id},r=>Promise.resolve({state:{...r.state,matched:true,invoiceIds:[invoice],lines:[{id:line,itemId:item,invoiceId:invoice,invoiceLineId:line,deliveryId:null,soldQuantity:"3",expectedQuantity:"3",receivedQuantity:"0",waivedQuantity:"0",writtenOffQuantity:"0"}]}})));
-  const run=async(action:"SELLABLE"|"DAMAGED"|"CLOSED_LOSS"|"CLAIM"|"COMPENSATED",reference?:string)=>{
+  // "Received at my warehouse" must land in the trader's own warehouse; `warehouse` is the platform's (FBA) one.
+  const localWarehouse=randomUUID();
+  await pg.query("insert into warehouses(id,organization_id,code,name_ar) values($1,$2,'LOCAL-RET','TEST LOCAL')",[localWarehouse,org]);
+  const run=async(action:"SELLABLE"|"DAMAGED"|"CLOSED_LOSS"|"CLAIM"|"COMPENSATED",reference?:string,wh=localWarehouse)=>{
    const v=(await pg.query("select version from return_workflow_cases where id=$1",[id])).rows[0].version;
-   const d={caseId:id,version:v,key:randomUUID(),itemId:item,action,quantity:"1",warehouseId:warehouse,location:"LOCAL"as const,note:"TEST confirmed decision",confirmed:true,activatePosting:false,reference};
+   const d={caseId:id,version:v,key:randomUUID(),itemId:item,action,quantity:"1",warehouseId:wh,location:"LOCAL"as const,note:"TEST confirmed decision",confirmed:true,activatePosting:false,reference};
    const payload:Record<string,unknown>={...d};
    return scope.withOrgScope(org,false,()=>store.executeReturnOperation({...command("MATCH",v,d.key),caseId:id,kind:action==="CLAIM"?"CLAIM":action==="COMPENSATED"?"REIMBURSEMENT":"RECEIPT",payload},async(r,op)=>{const result=await applySimpleDecision(org,user,r,d,op);Object.assign(payload,result.canonical);return result;}));
   };
+  // A local receipt can never restock the marketplace warehouse (that needs Amazon evidence).
+  await expect(run("SELLABLE",undefined,warehouse)).rejects.toThrow("marketplace warehouse");
   await run("SELLABLE");await run("DAMAGED");
   await run("CLAIM","CASE-123");
   await run("COMPENSATED","UNKNOWN-RB");
@@ -197,8 +202,10 @@ describe.skipIf(!url)("returns PostgreSQL isolation and transaction contract",()
   const state=(await detail()).record.state;
   expect(state.lines[0]).toMatchObject({receivedQuantity:"2.0000",waivedQuantity:"1.0000",writtenOffQuantity:"2.0000"});
   expect(state.claims[0].state).toBe("CLOSED");
-  const balance=await scope.withOrgScope(org,false,async()=>{const {currentStock}=await import("@/lib/erp/inventory");return currentStock(org,item,warehouse);});
-  expect(balance.quantity).toBe(3);expect(balance.value).toBe(60);
+  const stockIn=(wh:string)=>scope.withOrgScope(org,false,async()=>{const {currentStock}=await import("@/lib/erp/inventory");return currentStock(org,item,wh);});
+  const fba=await stockIn(warehouse),local=await stockIn(localWarehouse);
+  expect(fba.quantity).toBe(2);expect(fba.value).toBe(40);
+  expect(local.quantity).toBe(1);expect(local.value).toBe(20);
   const rb=randomUUID(),wallet=randomUUID();
   await pg.query("insert into fba_reimbursements(id,organization_id,reimbursement_id,order_id,sku,currency,amount_total,quantity_reimbursed_cash,approval_date) values($1,$2,'SIMPLE-RB','SIMPLE-ORDER','SIMPLE','EGP',10,1,now())",[rb,org]);
   await pg.query("insert into marketplace_settlement_txns(id,organization_id,channel,type,order_id,currency,total,dedup_key,status,posted_at) values($1,$2,'AMAZON','Reimbursement','SIMPLE-ORDER','EGP',10,$1,'Released',now())",[wallet,org]);
